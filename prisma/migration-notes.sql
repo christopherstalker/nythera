@@ -1,0 +1,8 @@
+-- Prisma can create the schema from prisma/schema.prisma.
+-- For production vector search performance, add this after the first migration:
+--
+-- CREATE EXTENSION IF NOT EXISTS vector;
+-- CREATE INDEX IF NOT EXISTS "Memory_embedding_ivfflat_idx"
+--   ON "Memory" USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+--
+-- Run ANALYZE "Memory"; after large memory imports.

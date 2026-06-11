@@ -1,0 +1,328 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [pgvector(map: "vector")]
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  username      String?   @unique
+  avatarUrl     String?
+  bio           String?   @db.Text
+  role          Role      @default(USER)
+  ageVerified   Boolean   @default(false)
+  birthDate     DateTime?
+  bannedAt      DateTime?
+  banReason     String?   @db.Text
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts           Account[]
+  sessions           Session[]
+  authenticators     Authenticator[]
+  passwordCredential PasswordCredential?
+  characters         Character[]
+  chats              Chat[]
+  memories           Memory[]
+  reports            Report[]            @relation("ReporterReports")
+  characterLikes     CharacterLike[]
+  characterRatings   CharacterRating[]
+  llmRequestLogs     LlmRequestLog[]
+  apiKeys            UserApiKey[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Authenticator {
+  credentialID         String  @unique
+  userId               String
+  providerAccountId    String
+  credentialPublicKey  String
+  counter              Int
+  credentialDeviceType String
+  credentialBackedUp   Boolean
+  transports           String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, credentialID])
+}
+
+model PasswordCredential {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Character {
+  id                 String           @id @default(cuid())
+  creatorId          String
+  name               String
+  avatarUrl          String?
+  description        String           @db.Text
+  personality        String           @db.Text
+  scenario           String?          @db.Text
+  greeting           String           @db.Text
+  communicationStyle Json?
+  visibility         Visibility       @default(PRIVATE)
+  moderationStatus   ModerationStatus @default(PENDING)
+  tags               String[]         @default([])
+  isNSFW             Boolean          @default(false)
+  likes              Int              @default(0)
+  ratingAverage      Float            @default(0)
+  ratingCount        Int              @default(0)
+  cloneSourceId      String?
+  blockedAt          DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  creator     User              @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  cloneSource Character?        @relation("CharacterForks", fields: [cloneSourceId], references: [id])
+  forks       Character[]       @relation("CharacterForks")
+  chats       Chat[]
+  memories    Memory[]
+  reports     Report[]
+  likedBy     CharacterLike[]
+  ratings     CharacterRating[]
+
+  @@index([creatorId])
+  @@index([visibility, moderationStatus, createdAt])
+  @@index([tags], type: Gin)
+}
+
+model CharacterLike {
+  userId      String
+  characterId String
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@id([userId, characterId])
+  @@index([characterId])
+}
+
+model CharacterRating {
+  userId      String
+  characterId String
+  value       Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@id([userId, characterId])
+  @@index([characterId])
+}
+
+model Chat {
+  id           String    @id @default(cuid())
+  userId       String
+  characterId  String
+  title        String?
+  temperature  Float     @default(0.7)
+  model        String    @default("gpt-3.5-turbo")
+  messageCount Int       @default(0)
+  summary      String?   @db.Text
+  archivedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  messages  Message[]
+  memories  Memory[]
+
+  @@index([userId, updatedAt])
+  @@index([characterId])
+}
+
+model Message {
+  id        String      @id @default(cuid())
+  chatId    String
+  role      MessageRole
+  content   String      @db.Text
+  tokens    Int?
+  model     String?
+  flagged   Boolean     @default(false)
+  createdAt DateTime    @default(now())
+
+  chat    Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  reports Report[]
+
+  @@index([chatId, createdAt])
+}
+
+model Memory {
+  id           String                       @id @default(cuid())
+  userId       String
+  characterId  String?
+  content      String                       @db.Text
+  embedding    Unsupported("vector(1536)")?
+  importance   Float                        @default(1.0)
+  category     MemoryCategory               @default(OTHER)
+  sourceChatId String?
+  pinned       Boolean                      @default(false)
+  createdAt    DateTime                     @default(now())
+  updatedAt    DateTime                     @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  character  Character? @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  sourceChat Chat?      @relation(fields: [sourceChatId], references: [id], onDelete: SetNull)
+
+  @@index([userId, characterId, importance])
+}
+
+model Report {
+  id          String       @id @default(cuid())
+  reporterId  String
+  characterId String?
+  messageId   String?
+  reason      String
+  details     String?      @db.Text
+  status      ReportStatus @default(PENDING)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  reporter  User       @relation("ReporterReports", fields: [reporterId], references: [id], onDelete: Cascade)
+  character Character? @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  message   Message?   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([characterId])
+  @@index([messageId])
+}
+
+model LlmRequestLog {
+  id            String   @id @default(cuid())
+  userId        String?
+  chatId        String?
+  provider      String
+  model         String
+  route         String
+  inputTokens   Int      @default(0)
+  outputTokens  Int      @default(0)
+  estimatedCost Decimal? @db.Decimal(10, 6)
+  status        String
+  error         String?  @db.Text
+  latencyMs     Int?
+  createdAt     DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([chatId, createdAt])
+}
+
+model UserApiKey {
+  id           String      @id @default(cuid())
+  userId       String
+  provider     LlmProvider
+  label        String?
+  encryptedKey String      @db.Text
+  last4        String
+  isDefault    Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([userId])
+}
+
+enum Role {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+enum LlmProvider {
+  OPENAI
+  ANTHROPIC
+  GEMINI
+}
+
+enum Visibility {
+  PRIVATE
+  PUBLIC
+  UNLISTED
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  RESOLVED
+  REJECTED
+}
+
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  BLOCKED
+}
+
+enum MemoryCategory {
+  USER_PROFILE
+  PREFERENCE
+  RELATIONSHIP
+  EVENT
+  WORLD_STATE
+  OTHER
+}

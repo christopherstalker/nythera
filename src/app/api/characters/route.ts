@@ -1,0 +1,115 @@
+import { Prisma, Visibility } from "@prisma/client";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { moderateText } from "@/lib/safety";
+import { getRequestIp, HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
+import { characterCreateSchema } from "@/lib/validation";
+
+export async function GET(request: Request) {
+  try {
+    const session = await auth();
+    const { searchParams } = new URL(request.url);
+    const mine = searchParams.get("mine") === "true";
+    const search = searchParams.get("q")?.trim();
+    const tag = searchParams.get("tag")?.trim();
+    const visibility = searchParams.get("visibility") as Visibility | null;
+    const take = Math.min(Number(searchParams.get("take") ?? 24), 50);
+
+    const where: Prisma.CharacterWhereInput = mine
+      ? { creatorId: session?.user?.id ?? "__none__" }
+      : {
+          visibility: Visibility.PUBLIC,
+          moderationStatus: "APPROVED",
+          blockedAt: null
+        };
+
+    if (visibility && mine) {
+      where.visibility = visibility;
+    }
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+        { personality: { contains: search, mode: "insensitive" } }
+      ];
+    }
+
+    if (tag) {
+      where.tags = { has: tag };
+    }
+
+    const characters = await prisma.character.findMany({
+      where,
+      orderBy: [{ likes: "desc" }, { createdAt: "desc" }],
+      take,
+      include: {
+        creator: {
+          select: {
+            id: true,
+            username: true,
+            avatarUrl: true,
+            image: true
+          }
+        }
+      }
+    });
+
+    return json({ characters });
+  } catch (error) {
+    return routeError(error);
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const user = await requireUser();
+    await enforceRateLimit({
+      userId: user.id,
+      ip: getRequestIp(request),
+      route: "characters:create"
+    });
+
+    const input = await parseJson(request, characterCreateSchema);
+    const moderation = moderateText({
+      text: [input.name, input.description, input.personality, input.scenario, input.greeting].filter(Boolean).join("\n"),
+      userIsMinor: isMinor(user.birthDate),
+      context: "character"
+    });
+
+    if (!moderation.allowed) {
+      throw new HttpError(400, moderation.reason ?? "Character content did not pass moderation.");
+    }
+
+    const character = await prisma.character.create({
+      data: {
+        creatorId: user.id,
+        name: input.name,
+        avatarUrl: input.avatarUrl || null,
+        description: input.description,
+        personality: input.personality,
+        scenario: input.scenario,
+        greeting: input.greeting,
+        communicationStyle: input.communicationStyle ?? Prisma.JsonNull,
+        visibility: input.visibility,
+        tags: input.tags,
+        isNSFW: input.isNSFW,
+        moderationStatus: input.visibility === "PUBLIC" ? "PENDING" : "APPROVED"
+      }
+    });
+
+    return json({ character }, { status: 201 });
+  } catch (error) {
+    return routeError(error);
+  }
+}
+
+function isMinor(birthDate: Date | null) {
+  if (!birthDate) {
+    return false;
+  }
+
+  const ageMs = Date.now() - birthDate.getTime();
+  return ageMs < 18 * 365.25 * 24 * 60 * 60 * 1000;
+}
