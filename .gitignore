@@ -8,3 +8,5 @@ coverage
 *.tsbuildinfo
 prisma/dev.db
 proxy-service/dist
+
+.vercel
