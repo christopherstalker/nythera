@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: velora-llm-proxy
+    runtime: node
+    plan: free
+    region: oregon
+    branch: main
+    buildCommand: npm ci && npm run proxy:build
+    startCommand: npm run proxy:start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: INTERNAL_API_TOKEN
+        sync: false
