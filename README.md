@@ -6,7 +6,8 @@ Production-oriented starter for a free Character.AI-style platform with bring-yo
 - Auth.js/NextAuth v5 with OAuth, email magic link, and credentials support
 - PostgreSQL + Prisma + pgvector memory schema
 - SSE chat streaming endpoint
-- Separate Express LLM proxy service for provider API key isolation
+- Built-in Vercel server-side LLM gateway for provider API key isolation
+- Optional separate Express LLM proxy service for non-Vercel deployments
 - Encrypted per-user OpenAI, Anthropic, and Gemini keys
 - Moderation hooks, rate limits, reports, admin review APIs
 - BullMQ job scaffolding for summaries and memory extraction
@@ -21,11 +22,10 @@ Production-oriented starter for a free Character.AI-style platform with bring-yo
 npm install
 npm run prisma:generate
 npm run prisma:migrate
-npm run proxy:dev
 npm run dev
 ```
 
-The included local `.env` expects the proxy on `http://localhost:4001`.
+The app works without platform-wide AI keys. Users add their own provider keys in Settings. On Vercel, leave `LLM_PROXY_URL` empty to use the built-in server-side gateway. For local or non-Vercel deployments, you can still run the optional Express proxy with `npm run proxy:dev` and set `LLM_PROXY_URL`.
 
 ## Safety boundary
 

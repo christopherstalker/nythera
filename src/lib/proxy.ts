@@ -1,5 +1,7 @@
+import "server-only";
+
 import { env } from "@/lib/env";
-import { sleep } from "@/lib/utils";
+import { createGatewayEmbedding, streamGatewayResponse } from "@/lib/llm-gateway";
 import type { ProviderKeys } from "@/lib/user-keys";
 import type { PromptMessage, StreamChunk } from "@/types";
 
@@ -12,11 +14,9 @@ type StreamInput = {
   providerKeys?: ProviderKeys;
 };
 
-const FALLBACK_MODEL = "local-dev-roleplay";
-
 export async function* streamLlmResponse(input: StreamInput): AsyncGenerator<StreamChunk> {
   if (!env.LLM_PROXY_URL || !env.INTERNAL_API_TOKEN) {
-    yield* fallbackStream(input);
+    yield* streamGatewayResponse(input);
     return;
   }
 
@@ -32,7 +32,7 @@ export async function* streamLlmResponse(input: StreamInput): AsyncGenerator<Str
     });
 
     if (!response.ok || !response.body) {
-      yield* fallbackStream(input);
+      yield* streamGatewayResponse(input);
       return;
     }
 
@@ -67,8 +67,8 @@ export async function* streamLlmResponse(input: StreamInput): AsyncGenerator<Str
 
     yield { type: "done" };
   } catch (error) {
-    console.error("LLM proxy failed, using local fallback.", error);
-    yield* fallbackStream(input);
+    console.error("External LLM proxy failed, using Vercel gateway.", error);
+    yield* streamGatewayResponse(input);
   }
 }
 
@@ -96,43 +96,5 @@ export async function createEmbedding(text: string, providerKeys?: ProviderKeys)
     }
   }
 
-  return deterministicEmbedding(text);
-}
-
-async function* fallbackStream(input: StreamInput): AsyncGenerator<StreamChunk> {
-  const userMessage = input.messages.at(-1)?.content ?? "";
-  const characterHint = input.messages[0]?.content.match(/^You are ([^.]+)\./)?.[1] ?? "your character";
-  const text = `${characterHint} studies your words for a moment. "${userMessage.slice(
-    0,
-    160
-  )}" gives them enough to answer in character. Add your own model key in Velora settings to switch this local fallback to a live provider. The pipeline is active: moderation, memory retrieval, prompt assembly, streaming, and persistence are all being exercised.`;
-
-  for (const word of text.split(/(\s+)/)) {
-    await sleep(20);
-    yield { type: "delta", text: word };
-  }
-
-  yield {
-    type: "usage",
-    inputTokens: estimateTokens(input.messages.map((message) => message.content).join("\n")),
-    outputTokens: estimateTokens(text),
-    model: FALLBACK_MODEL,
-    provider: "local"
-  };
-  yield { type: "done" };
-}
-
-function deterministicEmbedding(text: string) {
-  const vector = new Array(1536).fill(0);
-  for (let index = 0; index < text.length; index += 1) {
-    const slot = index % vector.length;
-    vector[slot] += (text.charCodeAt(index) % 31) / 31;
-  }
-
-  const magnitude = Math.sqrt(vector.reduce((sum, value) => sum + value * value, 0)) || 1;
-  return vector.map((value) => value / magnitude);
-}
-
-function estimateTokens(text: string) {
-  return Math.max(1, Math.ceil(text.length / 4));
+  return createGatewayEmbedding(text, providerKeys);
 }
