@@ -4,7 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
 import { sleep } from "@/lib/utils";
-import type { ProviderKeys } from "@/lib/user-keys";
+import type { ProviderKey, ProviderKeys } from "@/lib/user-keys";
 import type { PromptMessage, StreamChunk } from "@/types";
 
 type StreamInput = {
@@ -18,9 +18,17 @@ type StreamInput = {
 
 const FALLBACK_MODEL = "local-dev-roleplay";
 
+type GatewayRoute = {
+  provider: "openai" | "anthropic" | "gemini" | "openai-compatible" | "local";
+  providerName: string;
+  model: string;
+  key?: ProviderKey;
+};
+
 export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator<StreamChunk> {
-  const route = routeModel(input.model);
-  const attempts = [route, ...fallbackRoutes(route)];
+  const keys = input.providerKeys ?? [];
+  const route = routeModel(input.model, keys);
+  const attempts = [route, ...fallbackRoutes(route, keys)];
   let lastError: unknown = null;
 
   for (const attempt of attempts) {
@@ -31,7 +39,7 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
         model: attempt.model,
         messages: input.messages,
         temperature: input.temperature,
-        providerKeys: input.providerKeys,
+        key: attempt.key,
         writeDelta(delta) {
           outputText += delta;
           return delta;
@@ -46,7 +54,7 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
         type: "usage",
         inputTokens: estimateTokens(input.messages.map((message) => message.content).join("\n")),
         outputTokens: estimateTokens(outputText),
-        provider: attempt.provider,
+        provider: attempt.providerName,
         model: attempt.model
       };
       yield { type: "done" };
@@ -61,9 +69,13 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
 }
 
 export async function createGatewayEmbedding(text: string, providerKeys?: ProviderKeys) {
-  if (providerKeys?.openai) {
+  const openaiKey = providerKeys?.find((key) => key.apiFormat === "OPENAI" || key.provider === "openai");
+  if (openaiKey) {
     try {
-      const openai = new OpenAI({ apiKey: providerKeys.openai });
+      const openai = new OpenAI({
+        apiKey: openaiKey.apiKey,
+        baseURL: openaiKey.baseUrl || "https://api.openai.com/v1"
+      });
       const result = await openai.embeddings.create({
         model: "text-embedding-3-small",
         input: text,
@@ -79,53 +91,108 @@ export async function createGatewayEmbedding(text: string, providerKeys?: Provid
   return deterministicEmbedding(text);
 }
 
-function routeModel(requested: string): { provider: "openai" | "anthropic" | "gemini" | "local"; model: string } {
-  const normalized = requested.toLowerCase();
+function routeModel(requested: string, keys: ProviderKeys): GatewayRoute {
+  const raw = requested.trim() || "gpt-4o-mini";
+  const normalized = raw.toLowerCase();
 
   if (normalized.includes("local")) {
-    return { provider: "local", model: FALLBACK_MODEL };
+    return { provider: "local", providerName: "local", model: FALLBACK_MODEL };
+  }
+
+  const explicit = parseExplicitProviderModel(raw, keys);
+  if (explicit) {
+    return explicit;
+  }
+
+  const exactDefault = keys.find((key) => key.defaultModel?.toLowerCase() === normalized);
+  if (exactDefault) {
+    return routeFromKey(exactDefault, exactDefault.defaultModel || raw);
   }
 
   if (normalized.includes("claude")) {
-    return { provider: "anthropic", model: requested };
+    const key = keys.find((item) => item.apiFormat === "ANTHROPIC" || item.provider === "anthropic");
+    return key ? routeFromKey(key, raw) : { provider: "anthropic", providerName: "anthropic", model: raw };
   }
 
   if (normalized.includes("gemini")) {
-    return { provider: "gemini", model: requested };
+    const key = keys.find((item) => item.apiFormat === "GEMINI" || item.provider === "gemini");
+    return key ? routeFromKey(key, raw) : { provider: "gemini", providerName: "gemini", model: raw };
   }
 
   if (normalized.includes("4o") || normalized.includes("gpt-4")) {
-    return { provider: "openai", model: requested };
+    const key = keys.find((item) => item.apiFormat === "OPENAI" || item.provider === "openai");
+    return key ? routeFromKey(key, raw) : { provider: "openai", providerName: "openai", model: raw };
   }
 
-  return { provider: "openai", model: requested || "gpt-4o-mini" };
+  const defaultKey = keys.find((key) => key.defaultModel) ?? keys[0];
+  if (defaultKey) {
+    return routeFromKey(defaultKey, defaultKey.defaultModel || raw);
+  }
+
+  return { provider: "local", providerName: "local", model: FALLBACK_MODEL };
 }
 
-function fallbackRoutes(primary: { provider: string; model: string }) {
-  return [
-    { provider: "openai" as const, model: "gpt-4o-mini" },
-    { provider: "anthropic" as const, model: "claude-3-5-sonnet-latest" },
-    { provider: "gemini" as const, model: "gemini-1.5-flash" },
-    { provider: "local" as const, model: FALLBACK_MODEL }
-  ].filter((route) => route.provider !== primary.provider || route.model !== primary.model);
+function fallbackRoutes(primary: GatewayRoute, keys: ProviderKeys) {
+  const routes = keys.map((key) => routeFromKey(key, key.defaultModel || "gpt-4o-mini"));
+  routes.push({ provider: "local", providerName: "local", model: FALLBACK_MODEL });
+
+  return routes.filter((route) => route.providerName !== primary.providerName || route.model !== primary.model);
+}
+
+function parseExplicitProviderModel(requested: string, keys: ProviderKeys) {
+  const separator = requested.indexOf(":");
+  if (separator <= 0) {
+    return null;
+  }
+
+  const provider = requested.slice(0, separator).trim().toLowerCase();
+  const model = requested.slice(separator + 1).trim();
+  const key = keys.find((item) => item.provider === provider);
+  if (!key || !model) {
+    return null;
+  }
+
+  return routeFromKey(key, model);
+}
+
+function routeFromKey(key: ProviderKey, model: string): GatewayRoute {
+  if (key.apiFormat === "ANTHROPIC") {
+    return { provider: "anthropic", providerName: key.provider, model, key };
+  }
+
+  if (key.apiFormat === "GEMINI") {
+    return { provider: "gemini", providerName: key.provider, model, key };
+  }
+
+  if (key.apiFormat === "OPENAI") {
+    return { provider: "openai", providerName: key.provider, model, key };
+  }
+
+  return { provider: "openai-compatible", providerName: key.provider, model, key };
 }
 
 async function streamProvider(input: {
-  provider: "openai" | "anthropic" | "gemini" | "local";
+  provider: "openai" | "anthropic" | "gemini" | "openai-compatible" | "local";
   model: string;
   messages: PromptMessage[];
   temperature: number;
-  providerKeys?: ProviderKeys;
+  key?: ProviderKey;
   writeDelta: (delta: string) => string;
 }) {
-  if (input.provider === "openai") {
-    if (!input.providerKeys?.openai) {
-      throw new Error("OpenAI is not configured.");
+  if (input.provider === "openai" || input.provider === "openai-compatible") {
+    if (!input.key?.apiKey) {
+      throw new Error(`${input.provider} is not configured.`);
     }
 
     return {
       deltas: streamOpenAI({
-        client: new OpenAI({ apiKey: input.providerKeys.openai }),
+        client: new OpenAI({
+          apiKey: input.key.apiKey,
+          baseURL:
+            input.provider === "openai"
+              ? input.key.baseUrl || "https://api.openai.com/v1"
+              : requireBaseUrl(input.key)
+        }),
         model: input.model,
         messages: input.messages,
         temperature: input.temperature,
@@ -135,13 +202,13 @@ async function streamProvider(input: {
   }
 
   if (input.provider === "anthropic") {
-    if (!input.providerKeys?.anthropic) {
+    if (!input.key?.apiKey) {
       throw new Error("Anthropic is not configured.");
     }
 
     return {
       deltas: streamAnthropic({
-        client: new Anthropic({ apiKey: input.providerKeys.anthropic }),
+        client: new Anthropic({ apiKey: input.key.apiKey }),
         model: input.model,
         messages: input.messages,
         temperature: input.temperature,
@@ -151,13 +218,13 @@ async function streamProvider(input: {
   }
 
   if (input.provider === "gemini") {
-    if (!input.providerKeys?.gemini) {
+    if (!input.key?.apiKey) {
       throw new Error("Gemini is not configured.");
     }
 
     return {
       deltas: streamGemini({
-        client: new GoogleGenerativeAI(input.providerKeys.gemini),
+        client: new GoogleGenerativeAI(input.key.apiKey),
         model: input.model,
         messages: input.messages,
         temperature: input.temperature,
@@ -169,6 +236,14 @@ async function streamProvider(input: {
   return {
     deltas: streamLocalDeltas(input.messages, input.writeDelta)
   };
+}
+
+function requireBaseUrl(key: ProviderKey) {
+  if (!key.baseUrl) {
+    throw new Error(`Base URL is required for ${key.displayName}.`);
+  }
+
+  return key.baseUrl;
 }
 
 async function* streamOpenAI(input: {

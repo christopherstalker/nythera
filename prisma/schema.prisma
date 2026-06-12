@@ -170,7 +170,7 @@ model Chat {
   characterId  String
   title        String?
   temperature  Float     @default(0.7)
-  model        String    @default("gpt-3.5-turbo")
+  model        String    @default("gpt-4o-mini")
   messageCount Int       @default(0)
   summary      String?   @db.Text
   archivedAt   DateTime?
@@ -266,7 +266,11 @@ model LlmRequestLog {
 model UserApiKey {
   id           String      @id @default(cuid())
   userId       String
-  provider     LlmProvider
+  provider     String
+  displayName  String
+  apiFormat    String      @default("OPENAI_COMPATIBLE")
+  baseUrl      String?
+  defaultModel String?
   label        String?
   encryptedKey String      @db.Text
   last4        String
@@ -278,18 +282,13 @@ model UserApiKey {
 
   @@unique([userId, provider])
   @@index([userId])
+  @@index([apiFormat])
 }
 
 enum Role {
   USER
   MODERATOR
   ADMIN
-}
-
-enum LlmProvider {
-  OPENAI
-  ANTHROPIC
-  GEMINI
 }
 
 enum Visibility {

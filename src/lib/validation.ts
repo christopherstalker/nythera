@@ -29,20 +29,20 @@ export const chatCreateSchema = z.object({
   characterId: z.string().min(1),
   title: z.string().max(120).optional(),
   temperature: z.coerce.number().min(0).max(2).default(0.7),
-  model: z.string().max(80).default("gpt-3.5-turbo")
+  model: z.string().max(160).default("gpt-4o-mini")
 });
 
 export const chatUpdateSchema = z.object({
   title: z.string().max(120).optional(),
   archived: z.boolean().optional(),
   temperature: z.coerce.number().min(0).max(2).optional(),
-  model: z.string().max(80).optional()
+  model: z.string().max(160).optional()
 });
 
 export const streamMessageSchema = z.object({
   message: z.string().min(1).max(4000),
   temperature: z.coerce.number().min(0).max(2).optional(),
-  model: z.string().max(80).optional()
+  model: z.string().max(160).optional()
 });
 
 export const registerSchema = z.object({

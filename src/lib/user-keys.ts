@@ -1,39 +1,59 @@
 import "server-only";
 
-import { LlmProvider } from "@prisma/client";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { prisma } from "@/lib/prisma";
 
-export type ProviderKeys = Partial<Record<"openai" | "anthropic" | "gemini", string>>;
+export type ProviderApiFormat = "OPENAI" | "ANTHROPIC" | "GEMINI" | "OPENAI_COMPATIBLE";
 
-const providerMap: Record<LlmProvider, keyof ProviderKeys> = {
-  OPENAI: "openai",
-  ANTHROPIC: "anthropic",
-  GEMINI: "gemini"
+export type ProviderKey = {
+  provider: string;
+  displayName: string;
+  apiFormat: ProviderApiFormat;
+  apiKey: string;
+  baseUrl?: string | null;
+  defaultModel?: string | null;
+  label?: string | null;
 };
+
+export type ProviderKeys = ProviderKey[];
 
 export async function saveUserApiKey(input: {
   userId: string;
-  provider: LlmProvider;
+  provider: string;
+  displayName?: string | null;
+  apiFormat: ProviderApiFormat;
+  baseUrl?: string | null;
+  defaultModel?: string | null;
   apiKey: string;
   label?: string | null;
 }) {
   const trimmed = input.apiKey.trim();
+  const provider = normalizeProviderId(input.provider);
+  const displayName = input.displayName?.trim() || providerToDisplayName(provider);
+
   return prisma.userApiKey.upsert({
     where: {
       userId_provider: {
         userId: input.userId,
-        provider: input.provider
+        provider
       }
     },
     update: {
+      displayName,
+      apiFormat: input.apiFormat,
+      baseUrl: normalizeOptionalUrl(input.baseUrl),
+      defaultModel: input.defaultModel?.trim() || null,
       encryptedKey: encryptSecret(trimmed),
       last4: trimmed.slice(-4),
       label: input.label || null
     },
     create: {
       userId: input.userId,
-      provider: input.provider,
+      provider,
+      displayName,
+      apiFormat: input.apiFormat,
+      baseUrl: normalizeOptionalUrl(input.baseUrl),
+      defaultModel: input.defaultModel?.trim() || null,
       encryptedKey: encryptSecret(trimmed),
       last4: trimmed.slice(-4),
       label: input.label || null
@@ -48,6 +68,10 @@ export async function listUserApiKeys(userId: string) {
     select: {
       id: true,
       provider: true,
+      displayName: true,
+      apiFormat: true,
+      baseUrl: true,
+      defaultModel: true,
       label: true,
       last4: true,
       isDefault: true,
@@ -60,25 +84,74 @@ export async function listUserApiKeys(userId: string) {
 export async function getDecryptedProviderKeys(userId: string): Promise<ProviderKeys> {
   const rows = await prisma.userApiKey.findMany({
     where: { userId },
+    orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }],
     select: {
       provider: true,
+      displayName: true,
+      apiFormat: true,
+      baseUrl: true,
+      defaultModel: true,
+      label: true,
       encryptedKey: true
     }
   });
 
-  const keys: ProviderKeys = {};
-  for (const row of rows) {
-    keys[providerMap[row.provider]] = decryptSecret(row.encryptedKey);
-  }
-
-  return keys;
+  return rows.map((row) => ({
+    provider: row.provider,
+    displayName: row.displayName,
+    apiFormat: row.apiFormat as ProviderApiFormat,
+    apiKey: decryptSecret(row.encryptedKey),
+    baseUrl: row.baseUrl,
+    defaultModel: row.defaultModel,
+    label: row.label
+  }));
 }
 
-export async function deleteUserApiKey(input: { userId: string; provider: LlmProvider }) {
+export async function deleteUserApiKey(input: { userId: string; provider: string }) {
   await prisma.userApiKey.deleteMany({
     where: {
       userId: input.userId,
-      provider: input.provider
+      provider: normalizeProviderId(input.provider)
     }
   });
+}
+
+export function normalizeProviderId(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+}
+
+function providerToDisplayName(provider: string) {
+  const known: Record<string, string> = {
+    openai: "OpenAI",
+    anthropic: "Anthropic",
+    gemini: "Gemini",
+    openrouter: "OpenRouter",
+    deepseek: "DeepSeek",
+    groq: "Groq",
+    together: "Together AI",
+    mistral: "Mistral"
+  };
+
+  return (
+    known[provider] ??
+    provider
+      .split(/[-_]/)
+      .filter(Boolean)
+      .map((part) => part[0]?.toUpperCase() + part.slice(1))
+      .join(" ")
+  );
+}
+
+function normalizeOptionalUrl(value?: string | null) {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  return trimmed.replace(/\/+$/, "");
 }

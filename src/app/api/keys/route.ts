@@ -1,11 +1,14 @@
-import { LlmProvider } from "@prisma/client";
 import { z } from "zod";
-import { deleteUserApiKey, listUserApiKeys, saveUserApiKey } from "@/lib/user-keys";
+import { deleteUserApiKey, listUserApiKeys, normalizeProviderId, saveUserApiKey } from "@/lib/user-keys";
 import { HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
 
 const saveKeySchema = z.object({
-  provider: z.enum(["OPENAI", "ANTHROPIC", "GEMINI"]),
-  apiKey: z.string().min(10).max(400),
+  provider: z.string().min(2).max(48),
+  displayName: z.string().min(2).max(80).optional(),
+  apiFormat: z.enum(["OPENAI", "ANTHROPIC", "GEMINI", "OPENAI_COMPATIBLE"]).default("OPENAI_COMPATIBLE"),
+  baseUrl: z.string().url().max(240).optional().or(z.literal("")),
+  defaultModel: z.string().min(1).max(120).optional().or(z.literal("")),
+  apiKey: z.string().min(6).max(1200),
   label: z.string().max(80).optional()
 });
 
@@ -23,9 +26,18 @@ export async function POST(request: Request) {
   try {
     const user = await requireUser();
     const input = await parseJson(request, saveKeySchema);
+    const provider = normalizeProviderId(input.provider);
+    if (!provider) {
+      throw new HttpError(400, "Provider id is required.");
+    }
+
     const key = await saveUserApiKey({
       userId: user.id,
-      provider: input.provider as LlmProvider,
+      provider,
+      displayName: input.displayName,
+      apiFormat: input.apiFormat,
+      baseUrl: input.baseUrl,
+      defaultModel: input.defaultModel,
       apiKey: input.apiKey,
       label: input.label
     });
@@ -34,6 +46,10 @@ export async function POST(request: Request) {
       key: {
         id: key.id,
         provider: key.provider,
+        displayName: key.displayName,
+        apiFormat: key.apiFormat,
+        baseUrl: key.baseUrl,
+        defaultModel: key.defaultModel,
         label: key.label,
         last4: key.last4,
         isDefault: key.isDefault,
@@ -50,13 +66,13 @@ export async function DELETE(request: Request) {
   try {
     const user = await requireUser();
     const provider = new URL(request.url).searchParams.get("provider");
-    if (!provider || !["OPENAI", "ANTHROPIC", "GEMINI"].includes(provider)) {
+    if (!provider || !normalizeProviderId(provider)) {
       throw new HttpError(400, "Valid provider is required.");
     }
 
     await deleteUserApiKey({
       userId: user.id,
-      provider: provider as LlmProvider
+      provider
     });
 
     return json({ ok: true });

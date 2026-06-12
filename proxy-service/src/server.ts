@@ -12,10 +12,22 @@ type ChatMessage = {
   content: string;
 };
 
-type ProviderKeys = {
-  openai?: string;
-  anthropic?: string;
-  gemini?: string;
+type ProviderKey = {
+  provider: string;
+  displayName: string;
+  apiFormat: "OPENAI" | "ANTHROPIC" | "GEMINI" | "OPENAI_COMPATIBLE";
+  apiKey: string;
+  baseUrl?: string | null;
+  defaultModel?: string | null;
+};
+
+type ProviderKeys = ProviderKey[];
+
+type GatewayRoute = {
+  provider: "openai" | "anthropic" | "gemini" | "openai-compatible" | "local";
+  providerName: string;
+  model: string;
+  key?: ProviderKey;
 };
 
 const logger = pino({
@@ -28,6 +40,27 @@ app.use(express.json({ limit: "1mb" }));
 const port = Number(process.env.PORT ?? 4000);
 const internalToken = process.env.INTERNAL_API_TOKEN;
 
+const legacyProviderKeysSchema = z
+  .object({
+    openai: z.string().optional(),
+    anthropic: z.string().optional(),
+    gemini: z.string().optional()
+  })
+  .transform((keys) => legacyProviderKeys(keys));
+
+const providerKeysSchema = z
+  .array(
+    z.object({
+      provider: z.string().min(1),
+      displayName: z.string().min(1),
+      apiFormat: z.enum(["OPENAI", "ANTHROPIC", "GEMINI", "OPENAI_COMPATIBLE"]),
+      apiKey: z.string().min(1),
+      baseUrl: z.string().nullable().optional(),
+      defaultModel: z.string().nullable().optional()
+    })
+  )
+  .or(legacyProviderKeysSchema);
+
 const chatSchema = z.object({
   messages: z.array(
     z.object({
@@ -35,28 +68,16 @@ const chatSchema = z.object({
       content: z.string().min(1).max(8000)
     })
   ),
-  model: z.string().default("gpt-3.5-turbo"),
+  model: z.string().default("gpt-4o-mini"),
   temperature: z.number().min(0).max(2).default(0.7),
   userId: z.string().optional(),
   chatId: z.string().optional(),
-  providerKeys: z
-    .object({
-      openai: z.string().optional(),
-      anthropic: z.string().optional(),
-      gemini: z.string().optional()
-    })
-    .optional()
+  providerKeys: providerKeysSchema.optional()
 });
 
 const embeddingSchema = z.object({
   text: z.string().min(1).max(8000),
-  providerKeys: z
-    .object({
-      openai: z.string().optional(),
-      anthropic: z.string().optional(),
-      gemini: z.string().optional()
-    })
-    .optional()
+  providerKeys: providerKeysSchema.optional()
 });
 
 const counters = new Map<string, { count: number; expiresAt: number }>();
@@ -64,11 +85,7 @@ const counters = new Map<string, { count: number; expiresAt: number }>();
 app.get("/health", (_request, response) => {
   response.json({
     ok: true,
-    providers: {
-      openai: "byok",
-      anthropic: "byok",
-      gemini: "byok"
-    }
+    providers: "universal-byok"
   });
 });
 
@@ -89,8 +106,9 @@ app.post("/v1/embeddings", async (request, response) => {
     return;
   }
 
-  const requestOpenAI = parsed.data.providerKeys?.openai
-    ? new OpenAI({ apiKey: parsed.data.providerKeys.openai })
+  const openaiKey = parsed.data.providerKeys?.find((key) => key.apiFormat === "OPENAI" || key.provider === "openai");
+  const requestOpenAI = openaiKey
+    ? new OpenAI({ apiKey: openaiKey.apiKey, baseURL: openaiKey.baseUrl || "https://api.openai.com/v1" })
     : null;
 
   if (!requestOpenAI) {
@@ -138,8 +156,9 @@ app.post("/v1/chat/stream", async (request, response) => {
     connection: "keep-alive"
   });
 
-  const route = routeModel(parsed.data.model);
-  const attempts = [route, ...fallbackRoutes(route)];
+  const providerKeys = parsed.data.providerKeys ?? [];
+  const route = routeModel(parsed.data.model, providerKeys);
+  const attempts = [route, ...fallbackRoutes(route, providerKeys)];
   let streamed = "";
   let lastError: unknown = null;
 
@@ -150,7 +169,7 @@ app.post("/v1/chat/stream", async (request, response) => {
         model: attempt.model,
         messages: parsed.data.messages,
         temperature: parsed.data.temperature,
-        providerKeys: parsed.data.providerKeys,
+        key: attempt.key,
         writeDelta(delta) {
           const next = streamed + delta;
           const check = moderateText(next);
@@ -168,7 +187,7 @@ app.post("/v1/chat/stream", async (request, response) => {
           type: "usage",
           inputTokens: usage.inputTokens,
           outputTokens: usage.outputTokens,
-          provider: attempt.provider,
+          provider: attempt.providerName,
           model: attempt.model
         })}\n\n`
       );
@@ -176,7 +195,7 @@ app.post("/v1/chat/stream", async (request, response) => {
       response.end();
       logger.info({
         route: "chat",
-        provider: attempt.provider,
+        provider: attempt.providerName,
         model: attempt.model,
         chatId: parsed.data.chatId,
         userId,
@@ -187,7 +206,7 @@ app.post("/v1/chat/stream", async (request, response) => {
       lastError = error;
       logger.warn({
         error: error instanceof Error ? error.message : String(error),
-        provider: attempt.provider,
+        provider: attempt.providerName,
         model: attempt.model
       });
       await delay(300);
@@ -207,56 +226,113 @@ app.listen(port, () => {
   logger.info(`LLM proxy listening on http://localhost:${port}`);
 });
 
-function routeModel(requested: string): { provider: "openai" | "anthropic" | "gemini" | "local"; model: string } {
-  const normalized = requested.toLowerCase();
+function routeModel(requested: string, keys: ProviderKeys): GatewayRoute {
+  const raw = requested.trim() || "gpt-4o-mini";
+  const normalized = raw.toLowerCase();
 
   if (normalized.includes("local")) {
-    return { provider: "local", model: "local-dev-roleplay" };
+    return { provider: "local", providerName: "local", model: "local-dev-roleplay" };
+  }
+
+  const explicit = parseExplicitProviderModel(raw, keys);
+  if (explicit) {
+    return explicit;
+  }
+
+  const exactDefault = keys.find((key) => key.defaultModel?.toLowerCase() === normalized);
+  if (exactDefault) {
+    return routeFromKey(exactDefault, exactDefault.defaultModel || raw);
   }
 
   if (normalized.includes("claude")) {
-    return { provider: "anthropic", model: requested };
+    const key = keys.find((item) => item.apiFormat === "ANTHROPIC" || item.provider === "anthropic");
+    return key ? routeFromKey(key, raw) : { provider: "anthropic", providerName: "anthropic", model: raw };
   }
 
   if (normalized.includes("gemini")) {
-    return { provider: "gemini", model: requested };
+    const key = keys.find((item) => item.apiFormat === "GEMINI" || item.provider === "gemini");
+    return key ? routeFromKey(key, raw) : { provider: "gemini", providerName: "gemini", model: raw };
   }
 
   if (normalized.includes("4o") || normalized.includes("gpt-4")) {
-    return { provider: "openai", model: requested };
+    const key = keys.find((item) => item.apiFormat === "OPENAI" || item.provider === "openai");
+    return key ? routeFromKey(key, raw) : { provider: "openai", providerName: "openai", model: raw };
   }
 
-  return { provider: "openai", model: requested || "gpt-3.5-turbo" };
+  const defaultKey = keys.find((key) => key.defaultModel) ?? keys[0];
+  if (defaultKey) {
+    return routeFromKey(defaultKey, defaultKey.defaultModel || raw);
+  }
+
+  return { provider: "local", providerName: "local", model: "local-dev-roleplay" };
 }
 
-function fallbackRoutes(primary: { provider: string; model: string }) {
-  return [
-    { provider: "openai" as const, model: "gpt-4o-mini" },
-    { provider: "anthropic" as const, model: "claude-3-5-sonnet-latest" },
-    { provider: "gemini" as const, model: "gemini-1.5-flash" },
-    { provider: "local" as const, model: "local-dev-roleplay" }
-  ].filter((route) => route.provider !== primary.provider || route.model !== primary.model);
+function fallbackRoutes(primary: GatewayRoute, keys: ProviderKeys) {
+  const routes = keys.map((key) => routeFromKey(key, key.defaultModel || "gpt-4o-mini"));
+  routes.push({ provider: "local", providerName: "local", model: "local-dev-roleplay" });
+
+  return routes.filter((route) => route.providerName !== primary.providerName || route.model !== primary.model);
+}
+
+function parseExplicitProviderModel(requested: string, keys: ProviderKeys) {
+  const separator = requested.indexOf(":");
+  if (separator <= 0) {
+    return null;
+  }
+
+  const provider = requested.slice(0, separator).trim().toLowerCase();
+  const model = requested.slice(separator + 1).trim();
+  const key = keys.find((item) => item.provider === provider);
+  if (!key || !model) {
+    return null;
+  }
+
+  return routeFromKey(key, model);
+}
+
+function routeFromKey(key: ProviderKey, model: string): GatewayRoute {
+  if (key.apiFormat === "ANTHROPIC") {
+    return { provider: "anthropic", providerName: key.provider, model, key };
+  }
+
+  if (key.apiFormat === "GEMINI") {
+    return { provider: "gemini", providerName: key.provider, model, key };
+  }
+
+  if (key.apiFormat === "OPENAI") {
+    return { provider: "openai", providerName: key.provider, model, key };
+  }
+
+  return { provider: "openai-compatible", providerName: key.provider, model, key };
 }
 
 async function streamProvider(input: {
-  provider: "openai" | "anthropic" | "gemini" | "local";
+  provider: "openai" | "anthropic" | "gemini" | "openai-compatible" | "local";
   model: string;
   messages: ChatMessage[];
   temperature: number;
-  providerKeys?: ProviderKeys;
+  key?: ProviderKey;
   writeDelta: (delta: string) => void;
 }) {
-  if (input.provider === "openai") {
-    const client = input.providerKeys?.openai ? new OpenAI({ apiKey: input.providerKeys.openai }) : null;
+  if (input.provider === "openai" || input.provider === "openai-compatible") {
+    const client = input.key?.apiKey
+      ? new OpenAI({
+          apiKey: input.key.apiKey,
+          baseURL:
+            input.provider === "openai"
+              ? input.key.baseUrl || "https://api.openai.com/v1"
+              : requireBaseUrl(input.key)
+        })
+      : null;
     if (!client) {
-      throw new Error("OpenAI is not configured.");
+      throw new Error(`${input.provider} is not configured.`);
     }
 
     return streamOpenAI({ ...input, client });
   }
 
   if (input.provider === "anthropic") {
-    const client = input.providerKeys?.anthropic ? new Anthropic({ apiKey: input.providerKeys.anthropic }) : null;
+    const client = input.key?.apiKey ? new Anthropic({ apiKey: input.key.apiKey }) : null;
     if (!client) {
       throw new Error("Anthropic is not configured.");
     }
@@ -265,7 +341,7 @@ async function streamProvider(input: {
   }
 
   if (input.provider === "gemini") {
-    const client = input.providerKeys?.gemini ? new GoogleGenerativeAI(input.providerKeys.gemini) : null;
+    const client = input.key?.apiKey ? new GoogleGenerativeAI(input.key.apiKey) : null;
     if (!client) {
       throw new Error("Gemini is not configured.");
     }
@@ -274,6 +350,50 @@ async function streamProvider(input: {
   }
 
   return streamLocal(input);
+}
+
+function requireBaseUrl(key: ProviderKey) {
+  if (!key.baseUrl) {
+    throw new Error(`Base URL is required for ${key.displayName}.`);
+  }
+
+  return key.baseUrl;
+}
+
+function legacyProviderKeys(keys: { openai?: string; anthropic?: string; gemini?: string }): ProviderKeys {
+  const result: ProviderKeys = [];
+  if (keys.openai) {
+    result.push({
+      provider: "openai",
+      displayName: "OpenAI",
+      apiFormat: "OPENAI",
+      apiKey: keys.openai,
+      baseUrl: "https://api.openai.com/v1",
+      defaultModel: "gpt-4o-mini"
+    });
+  }
+
+  if (keys.anthropic) {
+    result.push({
+      provider: "anthropic",
+      displayName: "Anthropic",
+      apiFormat: "ANTHROPIC",
+      apiKey: keys.anthropic,
+      defaultModel: "claude-3-5-sonnet-latest"
+    });
+  }
+
+  if (keys.gemini) {
+    result.push({
+      provider: "gemini",
+      displayName: "Gemini",
+      apiFormat: "GEMINI",
+      apiKey: keys.gemini,
+      defaultModel: "gemini-1.5-flash"
+    });
+  }
+
+  return result;
 }
 
 async function streamOpenAI(input: {

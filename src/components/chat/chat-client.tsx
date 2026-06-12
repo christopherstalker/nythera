@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { KeyRound, Menu, Mic, Paperclip, Plus, SendHorizontal, Settings2, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ChatMessage as ChatMessageView } from "@/components/chat/chat-message";
 import { useChat, type ChatMessage } from "@/hooks/useChat";
@@ -121,17 +122,27 @@ export function ChatClient({ chatId, characterName, characterAvatarUrl, summary,
               <div className="absolute right-0 top-12 z-20 w-[320px] rounded-2xl border border-border bg-card p-4 shadow-card-glow">
                 <h2 className="text-sm font-semibold">Chat settings</h2>
                 <label className="mt-4 block text-xs font-medium text-muted-foreground">Model</label>
-                <select
+                <Input
                   value={model}
                   onChange={(event) => setModel(event.target.value)}
-                  className="focus-ring mt-2 h-11 w-full rounded-xl border border-border bg-[hsl(var(--input))] px-3 text-sm"
-                >
-                  <option value="gpt-4o-mini">OpenAI gpt-4o-mini</option>
-                  <option value="gpt-4o">OpenAI gpt-4o</option>
-                  <option value="claude-3-5-sonnet-latest">Anthropic Claude Sonnet</option>
-                  <option value="gemini-1.5-flash">Gemini Flash</option>
-                  <option value="local-dev-roleplay">Local fallback</option>
-                </select>
+                  list="model-presets"
+                  placeholder="openrouter:openai/gpt-4o-mini"
+                  className="mt-2"
+                />
+                <datalist id="model-presets">
+                  <option value="gpt-4o-mini" />
+                  <option value="gpt-4o" />
+                  <option value="claude-3-5-sonnet-latest" />
+                  <option value="gemini-1.5-flash" />
+                  <option value="openrouter:openai/gpt-4o-mini" />
+                  <option value="deepseek:deepseek-chat" />
+                  <option value="groq:llama-3.1-8b-instant" />
+                  <option value="mistral:mistral-small-latest" />
+                  <option value="local-dev-roleplay" />
+                </datalist>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  Use saved provider ids as prefixes, for example openrouter:model or groq:model.
+                </p>
                 <label className="mt-4 block text-xs font-medium text-muted-foreground">Creativity: {temperature.toFixed(1)}</label>
                 <input
                   value={temperature}

@@ -145,7 +145,7 @@ async function main() {
       userId: user.id,
       characterId: createdCharacters[0].id,
       title: "Ash Library demo",
-      model: "gpt-3.5-turbo",
+      model: "gpt-4o-mini",
       temperature: 0.7,
       summary: "The user is testing long-term character memory and streaming chat setup."
     },
@@ -154,7 +154,7 @@ async function main() {
       userId: user.id,
       characterId: createdCharacters[0].id,
       title: "Ash Library demo",
-      model: "gpt-3.5-turbo",
+      model: "gpt-4o-mini",
       temperature: 0.7,
       messageCount: 2,
       summary: "The user is testing long-term character memory and streaming chat setup.",
