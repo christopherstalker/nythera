@@ -12,7 +12,9 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed",
     "prisma:studio": "prisma studio",
+    "proxy:build": "tsc -p proxy-service/tsconfig.json",
     "proxy:dev": "tsx proxy-service/src/server.ts",
+    "proxy:start": "node dist/proxy-service/server.js",
     "jobs:dev": "tsx src/jobs/worker.ts",
     "check": "npm run typecheck && npm run lint"
   },

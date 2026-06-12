@@ -1,0 +1,16 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["es2022"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2022",
+    "types": ["node"],
+    "rootDir": "./src",
+    "outDir": "../dist/proxy-service",
+    "noEmit": false,
+    "incremental": false,
+    "tsBuildInfoFile": "../dist/proxy-service.tsbuildinfo"
+  },
+  "include": ["src/**/*.ts"]
+}
