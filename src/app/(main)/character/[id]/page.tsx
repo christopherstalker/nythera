@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { Copy, Flag, Heart, MessageCircle, Share2, Sparkles, Star, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { CharacterAvatar } from "@/components/character/character-avatar";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageShell, Surface, SurfaceMuted } from "@/components/ui/page";
 import { cn } from "@/lib/utils";
 
 type Character = {
@@ -101,39 +104,39 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
   }
 
   if (error) {
-    return <div className="container py-10 text-sm text-destructive">{error}</div>;
+    return (
+      <PageShell>
+        <EmptyState icon={Flag} title="Character unavailable" description={error} />
+      </PageShell>
+    );
   }
 
   if (!character) {
     return (
-      <div className="container py-10">
-        <div className="skeleton h-72 rounded-2xl" />
-      </div>
+      <PageShell>
+        <div className="skeleton h-[520px] rounded-[30px]" />
+      </PageShell>
     );
   }
 
   return (
-    <div className="container py-8">
-      <section className="app-panel overflow-hidden">
-        <div className="hero-gradient px-6 py-8 sm:px-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+    <PageShell>
+      <Surface className="overflow-hidden">
+        <div className="relative isolate px-5 py-7 sm:px-8 sm:py-9">
+          <div className="pointer-events-none absolute inset-0 -z-10 hero-gradient opacity-90" />
+          <div className="flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-end">
-              <div className="grid h-[120px] w-[120px] shrink-0 place-items-center overflow-hidden rounded-full border-2 border-primary bg-primary/10 shadow-violet-strong">
-                {character.avatarUrl ? (
-                  <img src={character.avatarUrl} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <span className="text-character text-5xl font-bold text-primary">{character.name[0]}</span>
-                )}
-              </div>
-              <div>
-                <h1 className="max-w-3xl text-[32px] font-bold leading-10 tracking-tight text-white sm:text-[40px] sm:leading-[48px]">
+              <CharacterAvatar name={character.name} avatarUrl={character.avatarUrl} size="xl" className="border-2 border-primary/30 shadow-violet-hover" />
+              <div className="min-w-0">
+                <h1 className="max-w-3xl text-[2.3rem] font-semibold leading-tight tracking-tight text-white sm:text-[3.3rem]">
                   {character.name}
                 </h1>
-                <p className="mt-2 flex items-center gap-2 text-sm text-[#a0a0a0]">
+                <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
                   <User className="h-4 w-4" />
                   by @{character.creator?.username ?? "velora"}
                 </p>
-                <div className="mt-4 flex flex-wrap gap-2">
+                <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">{character.description}</p>
+                <div className="mt-5 flex flex-wrap gap-2">
                   {character.tags.map((tag) => (
                     <Badge key={tag}>{tag}</Badge>
                   ))}
@@ -144,19 +147,19 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
             <div className="flex flex-wrap gap-2">
               <Button onClick={startChat} size="lg" className="px-7">
                 <MessageCircle className="h-4 w-4" />
-                Chat Now
+                Start chat
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 size="lg"
-                className={cn("border-white/20 bg-white/5 text-white", liked && "border-destructive text-destructive")}
+                className={cn(liked && "border-[#f0a8c8]/40 bg-[#f0a8c8]/10 text-[#ffd5e5]")}
                 onClick={likeCharacter}
               >
-                <Heart className={cn("h-4 w-4 text-destructive", liked && "fill-destructive")} />
+                <Heart className={cn("h-4 w-4 text-[#f0a8c8]", liked && "fill-[#f0a8c8]")} />
                 Like
               </Button>
-              <Button type="button" variant="outline" size="lg" className="border-white/20 bg-white/5 text-white">
+              <Button type="button" variant="outline" size="lg">
                 <Share2 className="h-4 w-4" />
                 Share
               </Button>
@@ -164,28 +167,26 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
           </div>
         </div>
 
-        <div className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_340px]">
           <main className="space-y-5">
-            <div className="grid gap-3 rounded-2xl border border-border bg-background/55 p-4 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-3">
               <Stat icon={MessageCircle} value="Live" label="chat-ready" />
-              <Stat icon={Heart} value={String(character.likes)} label="likes" red />
+              <Stat icon={Heart} value={String(character.likes)} label="likes" rose />
               <Stat icon={Star} value="4.8" label="rating" />
             </div>
 
-            <Panel title="Personality">{character.personality}</Panel>
-            <Panel title="Description">{character.description}</Panel>
-            {character.scenario ? <Panel title="Scenario">{character.scenario}</Panel> : null}
-
-            <div className="rounded-2xl border border-border bg-background/55 p-5">
-              <h2 className="text-lg font-semibold leading-6">First Message</h2>
-              <blockquote className="mt-4 border-l-[3px] border-primary bg-card px-4 py-3 text-sm leading-7 text-muted-foreground">
-                {character.greeting}
-              </blockquote>
-            </div>
+            <ProfileSection title="Personality">{character.personality}</ProfileSection>
+            {character.scenario ? <ProfileSection title="Scenario">{character.scenario}</ProfileSection> : null}
+            <ProfileSection title="Greeting">
+              <span className="block border-l-[3px] border-primary/55 pl-4 text-foreground/90">{character.greeting}</span>
+            </ProfileSection>
+            <ProfileSection title="Memory and lore">
+              {character.scenario ? "This persona is configured with a scene foundation and can retrieve relevant saved memories during chat." : "No extra lore notes are available yet."}
+            </ProfileSection>
           </main>
 
           <aside className="space-y-4">
-            <section className="rounded-2xl border border-border bg-background/55 p-5">
+            <SurfaceMuted className="p-5">
               <h2 className="text-lg font-semibold leading-6">Communication style</h2>
               <div className="mt-4 flex flex-wrap gap-2">
                 {styleEntries.length > 0 ? (
@@ -198,9 +199,9 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
                   <span className="text-sm text-muted-foreground">No style settings yet.</span>
                 )}
               </div>
-            </section>
+            </SurfaceMuted>
 
-            <section className="rounded-2xl border border-border bg-background/55 p-5">
+            <SurfaceMuted className="p-5">
               <h2 className="text-lg font-semibold leading-6">Creator actions</h2>
               <div className="mt-4 grid gap-2">
                 <Button type="button" variant="outline" onClick={cloneCharacter}>
@@ -212,39 +213,39 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
                   Report
                 </Button>
               </div>
-            </section>
+            </SurfaceMuted>
 
-            <section className="rounded-2xl border border-border bg-primary/10 p-5">
+            <SurfaceMuted className="p-5">
               <Sparkles className="h-5 w-5 text-primary" />
               <p className="mt-3 text-sm leading-6 text-muted-foreground">
                 Long-term memory can retrieve relevant user facts into the character prompt before replies.
               </p>
-            </section>
+            </SurfaceMuted>
           </aside>
         </div>
-      </section>
-    </div>
+      </Surface>
+    </PageShell>
   );
 }
 
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+function ProfileSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-border bg-background/55 p-5">
+    <SurfaceMuted className="p-5">
       <h2 className="text-lg font-semibold leading-6">{title}</h2>
       <p className="mt-3 whitespace-pre-wrap text-base leading-7 text-muted-foreground">{children}</p>
-    </section>
+    </SurfaceMuted>
   );
 }
 
-function Stat({ icon: Icon, value, label, red = false }: { icon: typeof MessageCircle; value: string; label: string; red?: boolean }) {
+function Stat({ icon: Icon, value, label, rose = false }: { icon: typeof MessageCircle; value: string; label: string; rose?: boolean }) {
   return (
-    <div className="flex items-center gap-3">
-      <Icon className={cn("h-5 w-5", red ? "text-destructive" : "text-primary")} />
+    <SurfaceMuted className="flex items-center gap-3 p-4">
+      <Icon className={cn("h-5 w-5", rose ? "text-[#f0a8c8]" : "text-primary")} />
       <div>
         <p className="font-semibold text-foreground">{value}</p>
         <p className="text-xs text-muted-foreground">{label}</p>
       </div>
-    </div>
+    </SurfaceMuted>
   );
 }
 

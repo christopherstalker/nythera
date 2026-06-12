@@ -3,9 +3,10 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
-import { Mail } from "lucide-react";
+import { Bot, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PageShell, Surface, SurfaceMuted } from "@/components/ui/page";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -30,11 +31,16 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="container flex min-h-[calc(100vh-4rem)] items-center justify-center py-10">
-      <form onSubmit={onSubmit} className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-card-glow">
-        <h1 className="text-2xl font-bold">Sign in</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Sign in to Velora and manage your characters, memories, chats, and model keys.</p>
-        <div className="mt-6 space-y-3">
+    <PageShell className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
+      <Surface className="w-full max-w-md p-6 sm:p-7">
+        <div className="grid h-12 w-12 place-items-center rounded-3xl border border-primary/25 bg-primary/10 text-primary shadow-inset">
+          <Bot className="h-6 w-6" />
+        </div>
+        <h1 className="mt-6 text-2xl font-semibold tracking-tight">Sign in to Velora</h1>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          Continue your characters, memories, chats, and model key settings.
+        </p>
+        <form onSubmit={onSubmit} className="mt-6 space-y-3">
           <Input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" type="email" required />
           <Input
             value={password}
@@ -43,19 +49,19 @@ export default function LoginPage() {
             type="password"
             required
           />
-        </div>
-        {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
-        <Button className="mt-5 w-full" type="submit">
-          <Mail className="h-4 w-4" />
-          Sign in
-        </Button>
-        <p className="mt-4 text-sm text-muted-foreground">
+          {error ? <p className="rounded-2xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
+          <Button className="w-full" type="submit">
+            <Mail className="h-4 w-4" />
+            Sign in
+          </Button>
+        </form>
+        <SurfaceMuted className="mt-5 p-4 text-sm text-muted-foreground">
           Need an account?{" "}
-          <Link href="/register" className="font-semibold text-primary">
-            Register
+          <Link href="/register" className="font-semibold text-[#ddd6ff]">
+            Create one
           </Link>
-        </p>
-      </form>
-    </div>
+        </SurfaceMuted>
+      </Surface>
+    </PageShell>
   );
 }

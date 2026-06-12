@@ -4,15 +4,15 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "focus-ring inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 text-sm font-semibold transition duration-200 disabled:pointer-events-none disabled:opacity-50",
+  "focus-ring inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-full px-4 text-sm font-semibold transition duration-200 disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        primary: "primary-gradient text-primary-foreground shadow-card-glow hover:shadow-violet-strong",
-        secondary: "bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground",
-        ghost: "text-foreground hover:bg-primary/10 hover:text-primary",
-        outline: "border border-border bg-transparent text-foreground hover:border-primary/55 hover:bg-primary/10 hover:text-primary",
-        destructive: "bg-destructive text-destructive-foreground hover:bg-[#f87171]"
+        primary: "primary-gradient text-primary-foreground shadow-violet-hover hover:-translate-y-0.5 hover:shadow-violet-strong",
+        secondary: "border border-primary/[0.14] bg-primary/[0.095] text-[#ddd6ff] hover:border-primary/25 hover:bg-primary/[0.14] hover:text-white",
+        ghost: "text-muted-foreground hover:bg-white/[0.055] hover:text-foreground",
+        outline: "border border-white/[0.06] bg-white/[0.025] text-foreground hover:border-primary/25 hover:bg-primary/[0.08] hover:text-[#ddd6ff]",
+        destructive: "bg-destructive/90 text-destructive-foreground hover:bg-destructive"
       },
       size: {
         sm: "h-8 px-3 text-xs",

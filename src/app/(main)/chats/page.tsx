@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { MessageSquare, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CharacterAvatar } from "@/components/character/character-avatar";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader, PageShell, Surface } from "@/components/ui/page";
 
 type Chat = {
   id: string;
@@ -28,51 +31,63 @@ export default function ChatsPage() {
   }, []);
 
   return (
-    <div className="container py-8">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div>
-          <h1 className="text-[32px] font-bold leading-10 tracking-tight">Chats</h1>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">Resume active character threads and memory-backed conversations.</p>
-        </div>
-        <Button asChild>
-          <Link href="/explore">
-            <Plus className="h-4 w-4" />
-            New Chat
-          </Link>
-        </Button>
-      </div>
+    <PageShell className="space-y-6">
+      <PageHeader
+        icon={MessageSquare}
+        title="Chats"
+        description="Resume active character threads and memory-backed conversations."
+        actions={
+          <Button asChild>
+            <Link href="/explore">
+              <Plus className="h-4 w-4" />
+              New chat
+            </Link>
+          </Button>
+        }
+      />
 
-      {error ? <p className="mt-4 rounded-2xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">{error}</p> : null}
+      {error ? (
+        <EmptyState icon={MessageSquare} title="Sign in required" description={error} action={<Button asChild><Link href="/login">Sign in</Link></Button>} />
+      ) : null}
 
-      <div className="mt-6 grid gap-3">
-        {chats.map((chat, index) => (
-          <Link
-            key={chat.id}
-            href={`/chat/${chat.id}`}
-            className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 no-underline shadow-card-glow transition duration-200 hover:-translate-y-0.5 hover:border-primary/45 hover:bg-primary/10"
-          >
-            <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full border-2 border-primary bg-primary/10 text-primary">
-              {chat.character.avatarUrl ? (
-                <img src={chat.character.avatarUrl} alt="" className="h-full w-full object-cover" />
-              ) : (
-                <MessageSquare className="h-5 w-5" />
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-foreground">{chat.title || chat.character.name}</p>
-              <p className="mt-1 truncate text-[13px] leading-5 text-muted-foreground">{chat.messages[0]?.content || "No messages yet"}</p>
-            </div>
-            <span className="text-xs text-muted-foreground">{index === 0 ? "now" : "saved"}</span>
-          </Link>
-        ))}
-      </div>
+      {!error && chats.length > 0 ? (
+        <Surface className="overflow-hidden p-2">
+          <div className="grid gap-2">
+            {chats.map((chat, index) => (
+              <Link
+                key={chat.id}
+                href={`/chat/${chat.id}`}
+                className="flex items-center gap-3 rounded-[24px] border border-transparent bg-white/[0.025] p-3 no-underline transition duration-200 hover:border-primary/25 hover:bg-primary/10"
+              >
+                <CharacterAvatar name={chat.character.name} avatarUrl={chat.character.avatarUrl} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-foreground">{chat.title || chat.character.name}</p>
+                  <p className="mt-1 truncate text-[13px] leading-5 text-muted-foreground">{chat.messages[0]?.content || "No messages yet"}</p>
+                </div>
+                <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1 text-xs text-muted-foreground shadow-inset">
+                  {index === 0 ? "now" : "saved"}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </Surface>
+      ) : null}
 
       {!error && chats.length === 0 ? (
-        <div className="mt-6 rounded-2xl border border-border bg-card p-10 text-center shadow-card-glow">
-          <MessageSquare className="mx-auto h-12 w-12 text-border" />
-          <p className="mt-4 text-base text-muted-foreground">No chats yet.</p>
-        </div>
+        <EmptyState
+          icon={MessageSquare}
+          title="No chats yet"
+          description="Explore public characters or create your own to begin a conversation."
+          action={
+            <Button asChild>
+              <Link href="/explore">
+                <Plus className="h-4 w-4" />
+                Explore characters
+              </Link>
+            </Button>
+          }
+        />
       ) : null}
-    </div>
+    </PageShell>
   );
 }

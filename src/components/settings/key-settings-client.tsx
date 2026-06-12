@@ -1,9 +1,10 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { KeyRound, Trash2 } from "lucide-react";
+import { LockKeyhole, ShieldCheck, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Surface, SurfaceMuted } from "@/components/ui/page";
 
 type SavedKey = {
   id: string;
@@ -112,22 +113,29 @@ export function KeySettingsClient() {
   }
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5 shadow-card-glow">
-      <div className="flex items-center gap-3">
-        <KeyRound className="h-5 w-5 text-primary" />
+    <Surface className="p-5">
+      <div className="flex items-start gap-3">
+        <ShieldCheck className="mt-1 h-5 w-5 text-[#8fd8c2]" />
         <div>
-          <h2 className="font-semibold">Model keys</h2>
-          <p className="text-sm text-muted-foreground">
-            Bring any OpenAI-compatible provider key, or use native OpenAI, Anthropic, and Gemini adapters. Keys stay encrypted server-side.
+          <h2 className="font-semibold">Secure model access</h2>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            Connect your preferred AI provider when you want live responses. Velora stores access securely and only shows masked keys after saving.
           </p>
         </div>
       </div>
+
+      <SurfaceMuted className="mt-5 flex items-start gap-3 p-4">
+        <LockKeyhole className="mt-0.5 h-4 w-4 text-[#8fd8c2]" />
+        <p className="text-xs leading-5 text-muted-foreground">
+          Your browser never receives saved secrets. You can still chat with the local fallback until you add a provider.
+        </p>
+      </SurfaceMuted>
 
       <form onSubmit={onSubmit} className="mt-5 grid gap-3">
         <select
           value={providerPresets.some((preset) => preset.provider === provider) ? provider : "custom"}
           onChange={(event) => applyPreset(event.target.value)}
-          className="focus-ring h-11 rounded-2xl border border-border bg-[hsl(var(--input))] px-3 text-sm"
+          className="focus-ring h-11 rounded-2xl border border-white/[0.06] bg-white/[0.035] px-4 text-sm shadow-inset"
         >
           {providerPresets.map((preset) => (
             <option key={preset.provider} value={preset.provider}>
@@ -137,47 +145,47 @@ export function KeySettingsClient() {
           <option value="custom">Custom OpenAI-compatible</option>
         </select>
         <div className="grid gap-3 md:grid-cols-2">
-          <Input value={provider} onChange={(event) => setProvider(event.target.value)} placeholder="provider id, e.g. openrouter" required />
+          <Input value={provider} onChange={(event) => setProvider(event.target.value)} placeholder="Provider nickname, e.g. openrouter" required />
           <Input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Display name" required />
         </div>
         <div className="grid gap-3 md:grid-cols-[180px_1fr]">
           <select
             value={apiFormat}
             onChange={(event) => setApiFormat(event.target.value as ApiFormat)}
-            className="focus-ring h-11 rounded-2xl border border-border bg-[hsl(var(--input))] px-3 text-sm"
+            className="focus-ring h-11 rounded-2xl border border-white/[0.06] bg-white/[0.035] px-4 text-sm shadow-inset"
           >
             <option value="OPENAI_COMPATIBLE">OpenAI-compatible</option>
-            <option value="OPENAI">OpenAI native</option>
-            <option value="ANTHROPIC">Anthropic native</option>
-            <option value="GEMINI">Gemini native</option>
+            <option value="OPENAI">OpenAI</option>
+            <option value="ANTHROPIC">Anthropic</option>
+            <option value="GEMINI">Gemini</option>
           </select>
           <Input
             value={baseUrl}
             onChange={(event) => setBaseUrl(event.target.value)}
-            placeholder="Base URL, e.g. https://openrouter.ai/api/v1"
+            placeholder="Connection URL, e.g. https://openrouter.ai/api/v1"
             disabled={apiFormat === "ANTHROPIC" || apiFormat === "GEMINI"}
           />
         </div>
         <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-          <Input value={defaultModel} onChange={(event) => setDefaultModel(event.target.value)} placeholder="Default model, e.g. openai/gpt-4o-mini" />
-          <Input value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="Paste provider API key" type="password" required />
+          <Input value={defaultModel} onChange={(event) => setDefaultModel(event.target.value)} placeholder="Preferred model, e.g. gpt-4o-mini" />
+          <Input value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="Paste access key" type="password" required />
           <Button type="submit" disabled={saving || !apiKey.trim() || !provider.trim() || !displayName.trim()}>
             {saving ? "Saving" : "Save"}
           </Button>
         </div>
-        <Input value={label} onChange={(event) => setLabel(event.target.value)} placeholder="Label, optional" />
+        <Input value={label} onChange={(event) => setLabel(event.target.value)} placeholder="Private note, optional" />
       </form>
 
-      {status ? <p className="mt-3 text-sm text-muted-foreground">{status}</p> : null}
+      {status ? <p className="mt-3 rounded-2xl border border-white/[0.055] bg-white/[0.028] p-3 text-sm text-muted-foreground shadow-inset">{status}</p> : null}
 
       <div className="mt-5 grid gap-3">
         {keys.length === 0 ? (
-          <p className="rounded-2xl border border-border bg-background/55 p-3 text-sm text-muted-foreground">
-            No keys saved. Chat still works with local fallback, but live models need a saved provider key.
+          <p className="rounded-3xl border border-white/[0.055] bg-white/[0.028] p-4 text-sm leading-6 text-muted-foreground shadow-inset">
+            No secure access saved yet. Chat still works with local fallback; add a provider when you want live model responses.
           </p>
         ) : (
           keys.map((key) => (
-            <div key={key.id} className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-background/55 p-3">
+            <div key={key.id} className="flex items-center justify-between gap-3 rounded-3xl border border-white/[0.055] bg-white/[0.028] p-4 shadow-inset">
               <div>
                 <p className="text-sm font-semibold">{key.displayName}</p>
                 <p className="text-xs text-muted-foreground">
@@ -192,6 +200,6 @@ export function KeySettingsClient() {
           ))
         )}
       </div>
-    </section>
+    </Surface>
   );
 }

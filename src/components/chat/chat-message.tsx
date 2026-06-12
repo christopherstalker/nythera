@@ -1,4 +1,5 @@
-import { Bot, User } from "lucide-react";
+import { User } from "lucide-react";
+import { CharacterAvatar } from "@/components/character/character-avatar";
 import { cn } from "@/lib/utils";
 
 type ChatMessageProps = {
@@ -17,30 +18,25 @@ export function ChatMessage({ role, content, characterName, avatarUrl }: ChatMes
 
   return (
     <div className={cn("flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300", isUser && "flex-row-reverse")}>
-      <div
-        className={cn(
-          "grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full border",
-          isUser ? "border-border bg-[#1a1a1a] text-foreground" : "border-primary bg-primary/10 text-primary"
-        )}
-      >
-        {isUser ? (
+      {isUser ? (
+        <div className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full border border-white/[0.055] bg-white/[0.045] text-foreground shadow-inset">
           <User className="h-4 w-4" />
-        ) : avatarUrl ? (
-          <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+        </div>
+      ) : (
+        <CharacterAvatar name={characterName} avatarUrl={avatarUrl} size="sm" className="h-9 w-9" />
+      )}
+      <div className={cn("max-w-[84%] sm:max-w-[70%]", isUser && "items-end")}>
+        {isUser ? (
+          <p className="mb-1 text-right text-xs font-medium text-muted-foreground">You</p>
         ) : (
-          <Bot className="h-4 w-4" />
+          <p className="mb-1 text-xs font-medium text-[#d8d0ff]">{characterName}</p>
         )}
-      </div>
-      <div className={cn("max-w-[70%] sm:max-w-[68%]", isUser && "items-end")}>
-        {!isUser ? (
-          <p className="text-character mb-1 text-xs font-semibold uppercase text-primary">{characterName}</p>
-        ) : null}
         <div
           className={cn(
-            "rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm",
+            "whitespace-pre-wrap rounded-[24px] px-4 py-3 text-sm leading-6 shadow-inset",
             isUser
-              ? "rounded-br bg-[#1a1a1a] text-foreground"
-              : "rounded-bl border border-border bg-card text-foreground"
+              ? "rounded-br-md border border-primary/[0.14] bg-primary/[0.095] text-foreground"
+              : "rounded-bl-md border border-white/[0.055] bg-white/[0.035] text-foreground"
           )}
         >
           {content ? (

@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { MessageCircle } from "lucide-react";
 import { ChatClient } from "@/components/chat/chat-client";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageShell } from "@/components/ui/page";
 import type { ChatMessage } from "@/hooks/useChat";
 
 type Chat = {
@@ -26,11 +29,19 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   }, [params.id]);
 
   if (error) {
-    return <div className="container py-10 text-sm text-destructive">{error}</div>;
+    return (
+      <PageShell>
+        <EmptyState icon={MessageCircle} title="Chat unavailable" description={error} />
+      </PageShell>
+    );
   }
 
   if (!chat) {
-    return <div className="container py-10 text-sm text-muted-foreground">Loading chat...</div>;
+    return (
+      <PageShell>
+        <div className="skeleton h-[calc(100vh-10rem)] rounded-[30px]" />
+      </PageShell>
+    );
   }
 
   return (

@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ShieldAlert } from "lucide-react";
+import { ShieldAlert, Users, Bot, FileWarning, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader, PageShell, Surface, SurfaceMuted } from "@/components/ui/page";
+import { cn } from "@/lib/utils";
 
 type Report = {
   id: string;
@@ -38,81 +41,120 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="container py-8">
-      <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
-        <aside className="rounded-2xl border border-border bg-card p-5 shadow-card-glow">
-          <ShieldAlert className="h-6 w-6 text-primary" />
-          <h1 className="mt-4 text-[32px] font-bold leading-10 tracking-tight">Moderation</h1>
-          <div className="mt-6 space-y-2">
-            {["Reports", "Characters", "Users", "Safety logs"].map((item, index) => (
-              <div key={item} className={index === 0 ? "rounded-xl bg-primary/15 px-3 py-2 text-sm font-medium text-primary" : "rounded-xl px-3 py-2 text-sm text-muted-foreground"}>
-                {item}
+    <PageShell className="space-y-6">
+      <PageHeader
+        icon={ShieldAlert}
+        title="Moderation"
+        description="Review reports, scan safety state, and keep public characters aligned with Velora policy."
+      />
+
+      <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <Surface className="h-fit p-4 lg:sticky lg:top-24">
+          <div className="space-y-2">
+            {[
+              { item: "Reports", icon: FileWarning, count: reports.length },
+              { item: "Characters", icon: Bot, count: 0 },
+              { item: "Users", icon: Users, count: 0 },
+              { item: "Safety logs", icon: Activity, count: 0 }
+            ].map(({ item, icon: Icon, count }, index) => (
+              <div
+                key={String(item)}
+                className={cn(
+                  "flex items-center justify-between rounded-3xl border px-3 py-3 text-sm transition",
+                  index === 0
+                    ? "border-primary/25 bg-primary/[0.1] text-[#e5ddff]"
+                    : "border-transparent text-muted-foreground hover:bg-white/[0.045] hover:text-foreground"
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  <Icon className="h-4 w-4" />
+                  {item}
+                </span>
+                <span className="rounded-full border border-white/[0.045] bg-white/[0.028] px-2 py-0.5 text-xs shadow-inset">{String(count)}</span>
               </div>
             ))}
           </div>
-        </aside>
+        </Surface>
 
-        <main className="rounded-2xl border border-border bg-card shadow-card-glow">
-          <div className="border-b border-border p-5">
-            <h2 className="text-2xl font-bold leading-8">Report queue</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Review public character and message reports.</p>
-            {error ? <p className="mt-4 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
+        <Surface className="overflow-hidden">
+          <div className="border-b border-white/[0.045] p-5">
+            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+              <div>
+                <h2 className="text-2xl font-semibold leading-8 tracking-tight">Report queue</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Review public character and message reports.</p>
+              </div>
+              <div className="flex gap-2">
+                <Status status="PENDING" />
+                <Status status="REVIEWED" />
+              </div>
+            </div>
+            {error ? <p className="mt-4 rounded-2xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] border-collapse text-sm">
-              <thead className="bg-card text-character text-xs uppercase tracking-[0.08em] text-muted-foreground">
-                <tr>
-                  <th className="px-5 py-3 text-left font-semibold">Reason</th>
-                  <th className="px-5 py-3 text-left font-semibold">Target</th>
-                  <th className="px-5 py-3 text-left font-semibold">Status</th>
-                  <th className="px-5 py-3 text-right font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reports.map((report) => (
-                  <tr key={report.id} className="border-t border-border bg-background transition hover:bg-card">
-                    <td className="px-5 py-4 font-medium text-foreground">{report.reason}</td>
-                    <td className="max-w-[360px] px-5 py-4 text-muted-foreground">
-                      <p className="truncate">{report.character?.name ?? report.message?.content ?? report.details ?? "No report target details"}</p>
-                    </td>
-                    <td className="px-5 py-4">
-                      <Status status={report.status} />
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="sm" onClick={() => updateReport(report.id, "REVIEWED")}>
-                          Review
-                        </Button>
-                        <Button variant="destructive" size="sm" onClick={() => updateReport(report.id, "RESOLVED")}>
-                          Resolve
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {error ? (
+            <div className="p-6">
+              <EmptyState icon={ShieldAlert} title="Admin access required" description={error} />
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[760px] border-collapse text-sm">
+                  <thead className="text-xs text-muted-foreground">
+                    <tr>
+                      <th className="px-5 py-3 text-left font-semibold">Reason</th>
+                      <th className="px-5 py-3 text-left font-semibold">Target</th>
+                      <th className="px-5 py-3 text-left font-semibold">Status</th>
+                      <th className="px-5 py-3 text-right font-semibold">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reports.map((report) => (
+                      <tr key={report.id} className="border-t border-white/[0.04] bg-white/[0.016] transition hover:bg-white/[0.035]">
+                        <td className="px-5 py-4 font-medium text-foreground">{report.reason}</td>
+                        <td className="max-w-[360px] px-5 py-4 text-muted-foreground">
+                          <p className="truncate">{report.character?.name ?? report.message?.content ?? report.details ?? "No report target details"}</p>
+                        </td>
+                        <td className="px-5 py-4">
+                          <Status status={report.status} />
+                        </td>
+                        <td className="px-5 py-4">
+                          <div className="flex justify-end gap-2">
+                            <Button variant="outline" size="sm" onClick={() => updateReport(report.id, "REVIEWED")}>
+                              Review
+                            </Button>
+                            <Button variant="destructive" size="sm" onClick={() => updateReport(report.id, "RESOLVED")}>
+                              Resolve
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-          {!error && reports.length === 0 ? (
-            <div className="border-t border-border p-10 text-center text-sm text-muted-foreground">No reports in queue.</div>
-          ) : null}
-        </main>
+              {reports.length === 0 ? (
+                <div className="border-t border-white/[0.045] p-6">
+                  <SurfaceMuted className="p-8 text-center text-sm text-muted-foreground">No reports in queue.</SurfaceMuted>
+                </div>
+              ) : null}
+            </>
+          )}
+        </Surface>
       </div>
-    </div>
+    </PageShell>
   );
 }
 
 function Status({ status }: { status: string }) {
   const className =
     status === "PENDING"
-      ? "border-[#f59e0b]/30 bg-[#f59e0b]/10 text-[#f59e0b]"
+      ? "border-[#f2c572]/30 bg-[#f2c572]/10 text-[#f2c572]"
       : status === "RESOLVED"
-        ? "border-[#10b981]/30 bg-[#10b981]/10 text-[#10b981]"
+        ? "border-[#8fd8c2]/30 bg-[#8fd8c2]/10 text-[#8fd8c2]"
         : status === "REJECTED"
           ? "border-destructive/30 bg-destructive/10 text-destructive"
-          : "border-primary/30 bg-primary/10 text-primary";
+          : "border-primary/20 bg-primary/[0.075] text-[#ddd6ff]";
 
-  return <span className={`rounded-full border px-3 py-1 text-xs font-medium ${className}`}>{status}</span>;
+  return <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${className}`}>{status}</span>;
 }

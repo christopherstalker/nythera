@@ -1,8 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search, Sparkles } from "lucide-react";
+import { Compass, Search, Sparkles, TrendingUp } from "lucide-react";
 import { CharacterCard } from "@/components/character/character-card";
+import { CategoryChips } from "@/components/ui/category-chips";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader, PageShell, Surface, SurfaceMuted } from "@/components/ui/page";
+import { SearchBar } from "@/components/ui/search-bar";
 
 type Character = {
   id: string;
@@ -73,63 +77,51 @@ export default function ExplorePage() {
   }, [activeCategory, characters, query]);
 
   return (
-    <div className="container py-8">
-      <section className="rounded-[28px] border border-border bg-card p-6 shadow-card-glow">
-        <div className="flex flex-col justify-between gap-5 xl:flex-row xl:items-end">
-          <div>
-            <div className="flex items-center gap-2 text-primary">
-              <Sparkles className="h-4 w-4" />
-              <span className="text-character text-xs font-semibold uppercase">Explore</span>
+    <PageShell className="space-y-6">
+      <Surface className="overflow-hidden p-5 sm:p-7">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_440px] xl:items-end">
+          <PageHeader
+            icon={Compass}
+            title="Find your next character"
+            description="Search by mood, genre, personality, or story hook. Public characters appear after moderation approval."
+          />
+          <div className="space-y-3">
+            <SearchBar value={query} onChange={setQuery} showFilterIcon placeholder="Search characters, tags, creators..." />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <SurfaceMuted className="flex items-center gap-3 px-4 py-3">
+                <TrendingUp className="h-4 w-4 text-[#f0a8c8]" />
+                <div>
+                  <p className="text-xs font-semibold text-foreground">Trending now</p>
+                  <p className="text-xs text-muted-foreground">Fantasy, friend, coach</p>
+                </div>
+              </SurfaceMuted>
+              <SurfaceMuted className="flex items-center gap-3 px-4 py-3">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <div>
+                  <p className="text-xs font-semibold text-foreground">{filtered.length} visible</p>
+                  <p className="text-xs text-muted-foreground">Filtered characters</p>
+                </div>
+              </SurfaceMuted>
             </div>
-            <h1 className="mt-3 text-[32px] font-bold leading-10 tracking-tight">Find your next character</h1>
-            <p className="mt-2 max-w-2xl text-base leading-7 text-muted-foreground">
-              Public characters appear after moderation approval. Search names, descriptions, and tags without leaving the immersive chat flow.
-            </p>
-          </div>
-
-          <label className="relative w-full xl:w-[420px]">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              className="focus-ring h-12 w-full rounded-full border border-border bg-[hsl(var(--input))] px-11 text-sm transition focus:border-primary"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search characters..."
-            />
-          </label>
-        </div>
-
-        <div className="mt-6 overflow-x-auto pb-1">
-          <div className="flex min-w-fit gap-2">
-            {categories.map((category) => (
-              <button
-                key={category}
-                type="button"
-                onClick={() => setActiveCategory(category)}
-                className={`rounded-full px-4 py-2 text-sm font-medium transition duration-200 ${
-                  activeCategory === category
-                    ? "bg-primary/15 text-primary"
-                    : "text-muted-foreground hover:bg-primary/10 hover:text-foreground"
-                }`}
-              >
-                {category}
-              </button>
-            ))}
           </div>
         </div>
-      </section>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-        {filtered.map((character) => (
-          <CharacterCard key={character.id} character={character} />
-        ))}
-      </div>
+        <CategoryChips categories={categories} active={activeCategory} onSelect={setActiveCategory} className="mt-6" />
+      </Surface>
 
-      {filtered.length === 0 ? (
-        <div className="mt-6 rounded-2xl border border-border bg-card p-10 text-center">
-          <Search className="mx-auto h-12 w-12 text-border" />
-          <p className="mt-4 text-base text-muted-foreground">No characters match this search.</p>
+      {filtered.length > 0 ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {filtered.map((character) => (
+            <CharacterCard key={character.id} character={character} />
+          ))}
         </div>
-      ) : null}
-    </div>
+      ) : (
+        <EmptyState
+          icon={Search}
+          title="No characters found"
+          description="Try a softer mood, a broader genre, or clear the category filter to open the catalog back up."
+        />
+      )}
+    </PageShell>
   );
 }

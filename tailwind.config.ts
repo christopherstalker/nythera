@@ -58,10 +58,11 @@ const config: Config = {
         sm: "calc(var(--radius) - 4px)"
       },
       boxShadow: {
-        soft: "0 18px 50px rgba(0, 0, 0, 0.34)",
-        "card-glow": "0 0 40px rgba(139, 92, 246, 0.1)",
-        "violet-hover": "0 8px 30px rgba(139, 92, 246, 0.15)",
-        "violet-strong": "0 0 30px rgba(139, 92, 246, 0.4)"
+        soft: "0 22px 70px rgba(0, 0, 0, 0.38)",
+        "card-glow": "0 18px 60px rgba(7, 5, 14, 0.42)",
+        "violet-hover": "0 18px 55px rgba(139, 124, 255, 0.16)",
+        "violet-strong": "0 0 44px rgba(155, 124, 255, 0.28)",
+        inset: "inset 0 1px 0 rgba(255, 255, 255, 0.05)"
       }
     }
   },
