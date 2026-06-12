@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { Bot, Mail } from "lucide-react";
+import { OAuthButtons } from "@/components/auth/oauth-buttons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageShell, Surface, SurfaceMuted } from "@/components/ui/page";
@@ -40,6 +41,7 @@ export default function LoginPage() {
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
           Continue your characters, memories, chats, and model key settings.
         </p>
+        <OAuthButtons intent="login" />
         <form onSubmit={onSubmit} className="mt-6 space-y-3">
           <Input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" type="email" required />
           <Input

@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { Bot, UserPlus } from "lucide-react";
+import { OAuthButtons } from "@/components/auth/oauth-buttons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageShell, Surface, SurfaceMuted } from "@/components/ui/page";
@@ -46,6 +47,7 @@ export default function RegisterPage() {
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
           Save characters, resume chats, and add provider keys when you want live models.
         </p>
+        <OAuthButtons intent="register" />
         <form onSubmit={onSubmit} className="mt-6 space-y-3">
           <Input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" type="email" required />
           <Input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Username" required />
