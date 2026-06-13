@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { LogIn, MessageCircle, Plus } from "lucide-react";
 import { CharacterAvatar } from "@/components/character/character-avatar";
 import { Button } from "@/components/ui/button";
@@ -22,10 +23,21 @@ type ChatPreview = {
 };
 
 export function ContinueChatsPanel() {
+  const { status } = useSession();
   const [chats, setChats] = useState<ChatPreview[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "signed-out" | "error">("loading");
 
   useEffect(() => {
+    if (status === "loading") {
+      return;
+    }
+
+    if (status === "unauthenticated") {
+      setState("signed-out");
+      setChats([]);
+      return;
+    }
+
     const controller = new AbortController();
     fetch("/api/chats", { signal: controller.signal })
       .then((response) => {
@@ -55,7 +67,7 @@ export function ContinueChatsPanel() {
       });
 
     return () => controller.abort();
-  }, []);
+  }, [status]);
 
   return (
     <Surface className="p-5">
