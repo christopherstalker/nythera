@@ -1,8 +1,8 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Bot, Eye, Globe, Link2, Lock, Save, SlidersHorizontal, Sparkles, Upload } from "lucide-react";
+import { AlertTriangle, Bot, Eye, Globe, ImagePlus, Link2, Lock, Save, SlidersHorizontal, Sparkles, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -182,7 +182,7 @@ export default function CreateCharacterPage() {
                       className={cn(
                         "focus-ring rounded-full border px-4 py-2 text-sm font-medium transition",
                         step === index
-                          ? "border-primary/25 bg-primary/[0.1] text-[#e5ddff]"
+                          ? "border-primary/25 bg-primary/[0.1] text-foreground"
                           : "border-white/[0.045] bg-white/[0.028] text-muted-foreground hover:border-primary/20 hover:bg-primary/[0.075] hover:text-foreground"
                       )}
                     >
@@ -270,6 +270,33 @@ export default function CreateCharacterPage() {
 }
 
 function BasicsStep({ draft, update }: { draft: Draft; update: <K extends keyof Draft>(field: K, value: Draft[K]) => void }) {
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+
+  function onAvatarFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setAvatarError("Choose an image file.");
+      return;
+    }
+
+    if (file.size > 1_500_000) {
+      setAvatarError("Avatar image must be smaller than 1.5MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      update("avatarUrl", String(reader.result ?? ""));
+      setAvatarError(null);
+    };
+    reader.onerror = () => setAvatarError("Could not read avatar image.");
+    reader.readAsDataURL(file);
+  }
+
   return (
     <FormSection title="Basics" description="Start with what a person should understand before they send the first message.">
       <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
@@ -278,13 +305,26 @@ function BasicsStep({ draft, update }: { draft: Draft; update: <K extends keyof 
             {draft.avatarUrl ? <img src={draft.avatarUrl} alt="" className="h-full w-full object-cover" /> : <Upload className="h-8 w-8" />}
           </div>
           <p className="mt-4 text-sm font-medium">Avatar</p>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">Paste an image URL to give the character a face.</p>
-          <Input className="mt-4" value={draft.avatarUrl} onChange={(event) => update("avatarUrl", event.target.value)} placeholder="Optional image URL" />
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">Choose an image from your computer to give the character a face.</p>
+          <div className="mt-4 flex flex-col gap-2">
+            <label className="focus-ring inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-full border border-primary/20 bg-primary/[0.1] px-4 text-sm font-medium text-foreground transition hover:bg-primary/[0.16]">
+              <ImagePlus className="h-4 w-4" />
+              Choose file
+              <input type="file" accept="image/*" className="sr-only" onChange={onAvatarFile} />
+            </label>
+            {draft.avatarUrl ? (
+              <Button type="button" variant="outline" size="sm" onClick={() => update("avatarUrl", "")}>
+                <X className="h-4 w-4" />
+                Clear avatar
+              </Button>
+            ) : null}
+          </div>
+          {avatarError ? <p className="mt-3 text-xs leading-5 text-destructive">{avatarError}</p> : null}
         </div>
 
         <div className="grid gap-4">
           <Field label="Name" helper="A short, memorable name works best.">
-            <Input value={draft.name} onChange={(event) => update("name", event.target.value)} placeholder="Mira of the Ash Library" required />
+            <Input value={draft.name} onChange={(event) => update("name", event.target.value)} placeholder="Velora Guide" required />
           </Field>
           <Field label="First greeting" helper="Write the message users see before they reply.">
             <Textarea value={draft.greeting} onChange={(event) => update("greeting", event.target.value)} placeholder="First message" required />
@@ -476,7 +516,7 @@ function VisibilityCard({ icon: Icon, label, selected, onClick }: { icon: typeof
       className={cn(
         "focus-ring rounded-3xl border p-4 text-left transition",
         selected
-          ? "border-primary/25 bg-primary/[0.11] text-[#e5ddff]"
+          ? "border-primary/25 bg-primary/[0.11] text-foreground"
           : "border-white/[0.055] bg-white/[0.028] text-muted-foreground hover:border-primary/20 hover:bg-primary/[0.075]"
       )}
     >

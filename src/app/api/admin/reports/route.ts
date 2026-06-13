@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { json, parseJson, requireModerator, requireUser, routeError } from "@/lib/api";
+import { json, parseJson, requirePlatformAdmin, requireUser, routeError } from "@/lib/api";
 
 const reportUpdateSchema = z.object({
   id: z.string(),
@@ -12,7 +12,7 @@ const reportUpdateSchema = z.object({
 export async function GET() {
   try {
     const user = await requireUser();
-    requireModerator(user.role);
+    requirePlatformAdmin(user);
 
     const reports = await prisma.report.findMany({
       orderBy: { createdAt: "desc" },
@@ -53,7 +53,7 @@ export async function GET() {
 export async function PATCH(request: Request) {
   try {
     const user = await requireUser();
-    requireModerator(user.role);
+    requirePlatformAdmin(user);
     const input = await parseJson(request, reportUpdateSchema);
 
     const report = await prisma.report.update({

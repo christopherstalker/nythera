@@ -3,6 +3,7 @@ import { ZodError } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { RateLimitError } from "@/lib/rate-limit";
+import { isPlatformAdminEmail } from "@/lib/admin";
 
 export class HttpError extends Error {
   constructor(
@@ -44,6 +45,16 @@ export async function requireUser() {
 export function requireModerator(role: string) {
   if (role !== "ADMIN" && role !== "MODERATOR") {
     throw new HttpError(403, "Moderator access required.");
+  }
+}
+
+export function isPlatformAdmin(email?: string | null) {
+  return isPlatformAdminEmail(email);
+}
+
+export function requirePlatformAdmin(user: { email: string }) {
+  if (!isPlatformAdmin(user.email)) {
+    throw new HttpError(403, "Admin access required.");
   }
 }
 

@@ -92,6 +92,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           where: { id: token.sub },
           select: {
             id: true,
+            email: true,
             username: true,
             role: true,
             avatarUrl: true,
@@ -100,6 +101,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         });
 
         if (dbUser) {
+          token.email = dbUser.email;
           token.role = dbUser.role;
           token.username = dbUser.username;
           token.picture = dbUser.avatarUrl ?? dbUser.image ?? token.picture;
@@ -111,6 +113,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     session({ session, token }) {
       if (session.user && token.sub) {
         session.user.id = token.sub;
+        session.user.email = token.email ?? session.user.email;
         session.user.role = token.role as Role | undefined;
         session.user.username = token.username as string | null | undefined;
       }

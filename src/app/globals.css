@@ -4,27 +4,27 @@
 
 @layer base {
   :root {
-    --background: 255 20% 98%;
-    --foreground: 258 26% 10%;
-    --card: 0 0% 100%;
-    --card-foreground: 258 26% 10%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 258 26% 10%;
-    --primary: 252 100% 73%;
+    --background: 255 36% 97%;
+    --foreground: 258 24% 12%;
+    --card: 255 55% 99%;
+    --card-foreground: 258 24% 12%;
+    --popover: 255 55% 99%;
+    --popover-foreground: 258 24% 12%;
+    --primary: 257 76% 58%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 252 100% 80%;
-    --primary-active: 252 82% 64%;
-    --secondary: 338 70% 74%;
+    --primary-hover: 257 80% 64%;
+    --primary-active: 257 68% 50%;
+    --secondary: 338 68% 58%;
     --secondary-foreground: 258 26% 10%;
-    --muted: 252 18% 93%;
-    --muted-foreground: 252 10% 43%;
-    --accent: 252 100% 73%;
+    --muted: 252 28% 92%;
+    --muted-foreground: 252 11% 42%;
+    --accent: 257 76% 58%;
     --accent-foreground: 0 0% 100%;
     --destructive: 355 83% 67%;
     --destructive-foreground: 0 0% 100%;
-    --border: 252 16% 84%;
-    --input: 252 18% 95%;
-    --ring: 252 100% 73%;
+    --border: 252 18% 84%;
+    --input: 252 30% 94%;
+    --ring: 257 76% 58%;
     --radius: 1.25rem;
     --glow-violet: 155 124 255;
     --glow-rose: 240 168 200;
@@ -73,8 +73,8 @@
   body {
     @apply min-h-screen bg-background text-foreground antialiased;
     background:
-      linear-gradient(180deg, rgba(155, 124, 255, 0.1) 0%, rgba(155, 124, 255, 0) 18rem),
-      linear-gradient(135deg, rgba(240, 168, 200, 0.08) 0%, rgba(240, 168, 200, 0) 22rem),
+      linear-gradient(180deg, rgba(109, 40, 217, 0.08) 0%, rgba(109, 40, 217, 0) 18rem),
+      linear-gradient(135deg, rgba(190, 92, 136, 0.055) 0%, rgba(190, 92, 136, 0) 22rem),
       hsl(var(--background));
   }
 
@@ -169,6 +169,35 @@
     background: linear-gradient(90deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.085) 50%, rgba(255, 255, 255, 0.045) 100%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
+  }
+
+  html:not(.dark) .app-surface {
+    border-color: rgba(73, 63, 112, 0.12);
+    background: rgba(255, 255, 255, 0.72);
+    box-shadow:
+      0 22px 70px rgba(58, 45, 98, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.86);
+  }
+
+  html:not(.dark) .app-surface-muted {
+    border-color: rgba(73, 63, 112, 0.1);
+    background: rgba(255, 255, 255, 0.56);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  }
+
+  html:not(.dark) .hero-gradient {
+    background:
+      linear-gradient(135deg, rgba(109, 40, 217, 0.12), rgba(190, 92, 136, 0.06) 46%, rgba(255, 255, 255, 0.72) 100%),
+      linear-gradient(180deg, #ffffff 0%, #f3f0fb 100%);
+  }
+
+  html:not(.dark) .violet-pill {
+    color: hsl(var(--foreground));
+  }
+
+  html:not(.dark) .skeleton {
+    background: linear-gradient(90deg, rgba(58, 45, 98, 0.055) 0%, rgba(58, 45, 98, 0.1) 50%, rgba(58, 45, 98, 0.055) 100%);
+    background-size: 200% 100%;
   }
 }
 

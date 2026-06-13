@@ -1,65 +1,14 @@
 import Link from "next/link";
-import { ArrowRight, Brain, Compass, Heart, KeyRound, MessageCircle, Plus, Sparkles, Wand2 } from "lucide-react";
+import { ArrowRight, Brain, Compass, KeyRound, MessageCircle, Plus, Sparkles, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageShell, SectionHeader, Surface, SurfaceMuted } from "@/components/ui/page";
 import { SearchBar } from "@/components/ui/search-bar";
-import { CharacterCard } from "@/components/character/character-card";
 import { CharacterAvatar } from "@/components/character/character-avatar";
-
-const featured = [
-  {
-    id: "demo-mira-of-the-ash-library",
-    name: "Mira of the Ash Library",
-    description: "A careful fantasy archivist who remembers quests, debts, rumors, and the user's choices across sessions.",
-    tags: ["fantasy", "roleplay", "lore"],
-    likes: 128,
-    ratingAverage: 4.8
-  },
-  {
-    id: "demo-ari-next-door",
-    name: "Ari Next Door",
-    description: "A warm friend persona focused on casual check-ins, light jokes, and remembering personal details safely.",
-    tags: ["friend", "casual", "comfort"],
-    likes: 76,
-    ratingAverage: 4.5
-  },
-  {
-    id: "demo-voss-habit-coach",
-    name: "Voss, Habit Coach",
-    description: "A practical accountability coach with direct feedback, weekly planning, and preference-aware encouragement.",
-    tags: ["coach", "productivity"],
-    likes: 93,
-    ratingAverage: 4.6
-  },
-  {
-    id: "demo-mira-of-the-ash-library",
-    name: "Mira: Ash Door",
-    description: "A darker story fork with memory-backed artifacts, hidden rooms, and unresolved debts.",
-    tags: ["mystery", "fantasy", "story"],
-    likes: 62,
-    ratingAverage: 4.7
-  }
-];
+import { ContinueChatsPanel } from "@/components/chat/continue-chats-panel";
+import { FeaturedCharacters } from "@/components/character/featured-characters";
 
 const categories = ["For You", "Trending", "Romance", "Fantasy", "Anime", "Coach", "Friend", "Roleplay", "Lore"];
-
-const continueItems = [
-  {
-    href: "/chat/demo-chat-mira",
-    name: "Ash Library demo",
-    character: "Mira",
-    text: "Local proxy fallback is active. Add your own model key for live streaming.",
-    time: "now"
-  },
-  {
-    href: "/explore",
-    name: "Find a new thread",
-    character: "Velora",
-    text: "Browse public characters by mood, genre, and conversation style.",
-    time: "open"
-  }
-];
 
 export default function HomePage() {
   return (
@@ -116,17 +65,17 @@ export default function HomePage() {
                 </div>
                 <div className="mt-5 rounded-[28px] border border-white/[0.055] bg-[#15111f] p-4 shadow-inset">
                   <div className="flex items-center gap-4">
-                    <CharacterAvatar name="Mira" size="lg" className="border-primary/[0.18] bg-primary/[0.075]" />
+                    <CharacterAvatar name="Velora" size="lg" className="border-primary/[0.18] bg-primary/[0.075]" />
                     <div className="min-w-0">
-                      <p className="truncate text-lg font-semibold">Mira of the Ash Library</p>
-                      <p className="mt-1 text-sm text-muted-foreground">Fantasy archivist</p>
+                      <p className="truncate text-lg font-semibold">Your first character</p>
+                      <p className="mt-1 text-sm text-muted-foreground">A private persona you shape</p>
                     </div>
                   </div>
                   <p className="mt-5 text-sm leading-7 text-muted-foreground">
-                    &ldquo;The ash door remembers your name. Tell me which promise you want to keep first.&rdquo;
+                    &ldquo;Set the voice, the opening scene, and the kind of memory this conversation should keep.&rdquo;
                   </p>
                   <div className="mt-5 flex flex-wrap gap-2">
-                    {["lore", "memory", "mystery"].map((tag) => (
+                    {["private", "memory", "custom"].map((tag) => (
                       <Badge key={tag}>{tag}</Badge>
                     ))}
                   </div>
@@ -137,28 +86,7 @@ export default function HomePage() {
         </Surface>
 
         <div className="grid content-start gap-5">
-          <Surface className="p-5">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold">Continue chatting</h2>
-              <MessageCircle className="h-4 w-4 text-primary" />
-            </div>
-            <div className="mt-4 space-y-3">
-              {continueItems.map((item) => (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className="flex items-start gap-3 rounded-3xl border border-white/[0.045] bg-white/[0.028] p-3 no-underline shadow-inset transition hover:border-primary/20 hover:bg-primary/[0.075]"
-                >
-                  <CharacterAvatar name={item.character} size="sm" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-foreground">{item.name}</p>
-                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{item.text}</p>
-                  </div>
-                  <span className="text-xs text-muted-foreground">{item.time}</span>
-                </Link>
-              ))}
-            </div>
-          </Surface>
+          <ContinueChatsPanel />
 
           <Surface className="p-5">
             <div className="grid grid-cols-3 gap-3 text-center">
@@ -179,7 +107,7 @@ export default function HomePage() {
                 href="/explore"
                 className={`rounded-full border px-4 py-2 text-sm font-medium no-underline transition ${
                   index === 0
-                    ? "border-primary/25 bg-primary/[0.1] text-[#e5ddff]"
+                    ? "border-primary/25 bg-primary/[0.1] text-foreground"
                     : "border-white/[0.045] bg-white/[0.028] text-muted-foreground hover:border-primary/20 hover:bg-primary/[0.075] hover:text-foreground"
                 }`}
               >
@@ -204,10 +132,8 @@ export default function HomePage() {
           }
         />
 
-        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {featured.map((item) => (
-            <CharacterCard key={`${item.id}-${item.name}`} character={item} />
-          ))}
+        <div className="mt-5">
+          <FeaturedCharacters />
         </div>
       </section>
 

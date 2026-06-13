@@ -1,5 +1,6 @@
 import { User } from "lucide-react";
 import { CharacterAvatar } from "@/components/character/character-avatar";
+import { RichMessageText } from "@/components/chat/rich-message-text";
 import { cn } from "@/lib/utils";
 
 type ChatMessageProps = {
@@ -29,7 +30,7 @@ export function ChatMessage({ role, content, characterName, avatarUrl }: ChatMes
         {isUser ? (
           <p className="mb-1 text-right text-xs font-medium text-muted-foreground">You</p>
         ) : (
-          <p className="mb-1 text-xs font-medium text-[#d8d0ff]">{characterName}</p>
+          <p className="mb-1 text-xs font-medium text-primary">{characterName}</p>
         )}
         <div
           className={cn(
@@ -40,7 +41,7 @@ export function ChatMessage({ role, content, characterName, avatarUrl }: ChatMes
           )}
         >
           {content ? (
-            content
+            <RichMessageText text={content} />
           ) : (
             <span className="flex items-center gap-1.5 py-1" aria-label={`${characterName} is typing`}>
               <span className="typing-dot" />

@@ -80,7 +80,7 @@ export function CharacterCard({ character }: CharacterCardProps) {
                 </span>
               </div>
             </div>
-            {character.tags[0] ? <Badge className="border-primary/[0.16] bg-primary/[0.075] text-[#ddd6ff]">{character.tags[0]}</Badge> : null}
+            {character.tags[0] ? <Badge className="border-primary/[0.16] bg-primary/[0.075] text-foreground">{character.tags[0]}</Badge> : null}
           </div>
           <p className="mt-4 line-clamp-3 text-sm leading-6 text-muted-foreground">{truncate(character.description, 180)}</p>
 

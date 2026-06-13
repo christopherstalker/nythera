@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Compass, Search, Sparkles, TrendingUp } from "lucide-react";
+import Link from "next/link";
+import { Compass, Plus, Search, Sparkles, TrendingUp } from "lucide-react";
 import { CharacterCard } from "@/components/character/character-card";
+import { Button } from "@/components/ui/button";
 import { CategoryChips } from "@/components/ui/category-chips";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader, PageShell, Surface, SurfaceMuted } from "@/components/ui/page";
@@ -18,50 +20,23 @@ type Character = {
   ratingAverage?: number;
 };
 
-const demoCharacters: Character[] = [
-  {
-    id: "demo-mira-of-the-ash-library",
-    name: "Mira of the Ash Library",
-    description: "A careful fantasy archivist who remembers quests, debts, rumors, and the user's choices across sessions.",
-    tags: ["fantasy", "roleplay", "lore"],
-    likes: 128,
-    ratingAverage: 4.8
-  },
-  {
-    id: "demo-voss-habit-coach",
-    name: "Voss, Habit Coach",
-    description: "A practical accountability coach with direct feedback, weekly planning, and preference-aware encouragement.",
-    tags: ["coach", "productivity"],
-    likes: 93,
-    ratingAverage: 4.6
-  },
-  {
-    id: "demo-ari-next-door",
-    name: "Ari Next Door",
-    description: "A warm friend persona focused on casual check-ins, light jokes, and remembering personal details safely.",
-    tags: ["friend", "casual"],
-    likes: 76,
-    ratingAverage: 4.5
-  }
-];
-
 const categories = ["For You", "Trending", "Romance", "Fantasy", "Anime", "Coach", "Friend", "Roleplay"];
 
 export default function ExplorePage() {
-  const [characters, setCharacters] = useState<Character[]>(demoCharacters);
+  const [characters, setCharacters] = useState<Character[]>([]);
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("For You");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const controller = new AbortController();
     fetch("/api/characters?take=36", { signal: controller.signal })
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((body) => {
-        if (Array.isArray(body.characters) && body.characters.length > 0) {
-          setCharacters(body.characters);
-        }
+        setCharacters(Array.isArray(body.characters) ? body.characters : []);
       })
-      .catch(() => undefined);
+      .catch(() => setCharacters([]))
+      .finally(() => setLoading(false));
     return () => controller.abort();
   }, []);
 
@@ -109,7 +84,13 @@ export default function ExplorePage() {
         <CategoryChips categories={categories} active={activeCategory} onSelect={setActiveCategory} className="mt-6" />
       </Surface>
 
-      {filtered.length > 0 ? (
+      {loading ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <div key={index} className="h-[340px] rounded-[32px] skeleton" />
+          ))}
+        </div>
+      ) : filtered.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {filtered.map((character) => (
             <CharacterCard key={character.id} character={character} />
@@ -118,8 +99,22 @@ export default function ExplorePage() {
       ) : (
         <EmptyState
           icon={Search}
-          title="No characters found"
-          description="Try a softer mood, a broader genre, or clear the category filter to open the catalog back up."
+          title={characters.length === 0 ? "No characters yet" : "No characters found"}
+          description={
+            characters.length === 0
+              ? "The public catalog is empty now. Create your own character to begin building Velora from your account."
+              : "Try a softer mood, a broader genre, or clear the category filter to open the catalog back up."
+          }
+          action={
+            characters.length === 0 ? (
+              <Button asChild>
+                <Link href="/create-character">
+                  <Plus className="h-4 w-4" />
+                  Create character
+                </Link>
+              </Button>
+            ) : null
+          }
         />
       )}
     </PageShell>

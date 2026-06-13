@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
-import { Bot, Mail } from "lucide-react";
+import { Mail } from "lucide-react";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,8 +34,8 @@ export default function LoginPage() {
   return (
     <PageShell className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
       <Surface className="w-full max-w-md p-6 sm:p-7">
-        <div className="grid h-12 w-12 place-items-center rounded-3xl border border-primary/25 bg-primary/10 text-primary shadow-inset">
-          <Bot className="h-6 w-6" />
+        <div className="grid h-12 w-12 place-items-center overflow-hidden rounded-3xl border border-primary/25 bg-primary/10 shadow-inset">
+          <img src="/icon.svg" alt="" className="h-full w-full object-cover" />
         </div>
         <h1 className="mt-6 text-2xl font-semibold tracking-tight">Sign in to Velora</h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
@@ -59,7 +59,7 @@ export default function LoginPage() {
         </form>
         <SurfaceMuted className="mt-5 p-4 text-sm text-muted-foreground">
           Need an account?{" "}
-          <Link href="/register" className="font-semibold text-[#ddd6ff]">
+          <Link href="/register" className="font-semibold text-primary">
             Create one
           </Link>
         </SurfaceMuted>

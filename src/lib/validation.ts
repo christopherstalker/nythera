@@ -1,5 +1,23 @@
 import { z } from "zod";
 
+const imageDataUrlPattern = /^data:image\/(?:png|jpe?g|webp|gif|svg\+xml);base64,[a-zA-Z0-9+/=\s]+$/;
+
+export const imageSourceSchema = z
+  .string()
+  .trim()
+  .max(2_100_000, "Image must be smaller than 1.5MB.")
+  .refine((value) => {
+    if (value === "") {
+      return true;
+    }
+
+    if (imageDataUrlPattern.test(value)) {
+      return true;
+    }
+
+    return z.string().url().safeParse(value).success;
+  }, "Use a valid image file or image URL.");
+
 export const communicationStyleSchema = z.object({
   tone: z.string().max(80).optional(),
   humor: z.coerce.number().min(0).max(10).optional(),
@@ -27,7 +45,7 @@ export const characterPersonaSchema = z.object({
 
 export const characterCreateSchema = z.object({
   name: z.string().min(2).max(80),
-  avatarUrl: z.string().url().optional().or(z.literal("")),
+  avatarUrl: imageSourceSchema.optional().or(z.literal("")),
   description: z.string().min(20).max(5000),
   personality: z.string().min(20).max(5000),
   scenario: z.string().max(5000).optional(),

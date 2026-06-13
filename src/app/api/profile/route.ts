@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { json, parseJson, requireUser, routeError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { imageSourceSchema } from "@/lib/validation";
 
 const profileSchema = z.object({
   username: z
@@ -8,9 +9,11 @@ const profileSchema = z.object({
     .min(3)
     .max(24)
     .regex(/^[a-zA-Z0-9_]+$/)
-    .optional(),
+    .optional()
+    .or(z.literal(""))
+    .nullable(),
   bio: z.string().max(800).optional().nullable(),
-  avatarUrl: z.string().url().optional().or(z.literal("")).nullable(),
+  avatarUrl: imageSourceSchema.optional().or(z.literal("")).nullable(),
   ageVerified: z.boolean().optional()
 });
 
@@ -43,7 +46,7 @@ export async function PATCH(request: Request) {
     const profile = await prisma.user.update({
       where: { id: user.id },
       data: {
-        username: input.username,
+        username: input.username === "" ? null : input.username,
         bio: input.bio,
         avatarUrl: input.avatarUrl === "" ? null : input.avatarUrl,
         ageVerified: input.ageVerified

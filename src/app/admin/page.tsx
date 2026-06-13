@@ -28,7 +28,7 @@ export default function AdminPage() {
     fetch("/api/admin/reports")
       .then((response) => (response.ok ? response.json() : Promise.reject(response)))
       .then((body) => setReports(body.reports ?? []))
-      .catch(() => setError("Moderator or admin access required."));
+      .catch(() => setError("Admin access is limited to chrisstalker@gmail.com."));
   }, []);
 
   async function updateReport(id: string, status: string) {
@@ -62,7 +62,7 @@ export default function AdminPage() {
                 className={cn(
                   "flex items-center justify-between rounded-3xl border px-3 py-3 text-sm transition",
                   index === 0
-                    ? "border-primary/25 bg-primary/[0.1] text-[#e5ddff]"
+                    ? "border-primary/25 bg-primary/[0.1] text-foreground"
                     : "border-transparent text-muted-foreground hover:bg-white/[0.045] hover:text-foreground"
                 )}
               >
@@ -154,7 +154,7 @@ function Status({ status }: { status: string }) {
         ? "border-[#8fd8c2]/30 bg-[#8fd8c2]/10 text-[#8fd8c2]"
         : status === "REJECTED"
           ? "border-destructive/30 bg-destructive/10 text-destructive"
-          : "border-primary/20 bg-primary/[0.075] text-[#ddd6ff]";
+          : "border-primary/20 bg-primary/[0.075] text-foreground";
 
   return <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${className}`}>{status}</span>;
 }
