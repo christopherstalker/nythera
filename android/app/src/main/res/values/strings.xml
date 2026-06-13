@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Velora</string>
+    <string name="launch_url">https://velora-ai-character-platform.vercel.app</string>
+    <string name="asset_statements">[{"relation":["delegate_permission/common.handle_all_urls"],"target":{"namespace":"web","site":"https://velora-ai-character-platform.vercel.app"}}]</string>
+</resources>

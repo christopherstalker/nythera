@@ -10,6 +10,20 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
 
+const MAX_SESSION_IMAGE_URL_LENGTH = 2048;
+
+function safeSessionImageUrl(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  if (value.startsWith("data:") || value.length > MAX_SESSION_IMAGE_URL_LENGTH) {
+    return null;
+  }
+
+  return value;
+}
+
 const providers = [
   env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
     ? Google({
@@ -61,7 +75,7 @@ const providers = [
         id: user.id,
         email: user.email,
         name: user.name ?? user.username,
-        image: user.avatarUrl ?? user.image,
+        image: safeSessionImageUrl(user.avatarUrl ?? user.image),
         role: user.role,
         username: user.username
       };
@@ -104,7 +118,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           token.email = dbUser.email;
           token.role = dbUser.role;
           token.username = dbUser.username;
-          token.picture = dbUser.avatarUrl ?? dbUser.image ?? token.picture;
+          const safeImage = safeSessionImageUrl(dbUser.avatarUrl ?? dbUser.image);
+          if (safeImage) {
+            token.picture = safeImage;
+          } else {
+            delete token.picture;
+          }
         }
       }
 
@@ -116,6 +135,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.email = token.email ?? session.user.email;
         session.user.role = token.role as Role | undefined;
         session.user.username = token.username as string | null | undefined;
+        session.user.image = safeSessionImageUrl(token.picture) ?? null;
       }
 
       return session;

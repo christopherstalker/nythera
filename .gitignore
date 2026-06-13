@@ -4,6 +4,7 @@ node_modules
 .env*.local
 !.env.example
 dist
+output/
 coverage
 *.tsbuildinfo
 prisma/dev.db
