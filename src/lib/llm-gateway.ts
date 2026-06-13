@@ -32,6 +32,7 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
   let lastError: unknown = null;
 
   for (const attempt of attempts) {
+    let emittedAny = false;
     try {
       let outputText = "";
       const usage = await streamProvider({
@@ -47,6 +48,7 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
       });
 
       for await (const delta of usage.deltas) {
+        emittedAny = true;
         yield { type: "delta", text: delta };
       }
 
@@ -61,6 +63,16 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
       return;
     } catch (error) {
       lastError = error;
+      console.warn("Gateway provider attempt failed.", {
+        provider: attempt.providerName,
+        model: attempt.model,
+        emittedAny,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      if (emittedAny) {
+        yield { type: "error", message: "The model stream was interrupted." };
+        return;
+      }
     }
   }
 
@@ -111,17 +123,17 @@ function routeModel(requested: string, keys: ProviderKeys): GatewayRoute {
 
   if (normalized.includes("claude")) {
     const key = keys.find((item) => item.apiFormat === "ANTHROPIC" || item.provider === "anthropic");
-    return key ? routeFromKey(key, raw) : { provider: "anthropic", providerName: "anthropic", model: raw };
+    return key ? routeFromKey(key, raw) : routeFromAvailableKey(keys) ?? { provider: "anthropic", providerName: "anthropic", model: raw };
   }
 
   if (normalized.includes("gemini")) {
     const key = keys.find((item) => item.apiFormat === "GEMINI" || item.provider === "gemini");
-    return key ? routeFromKey(key, raw) : { provider: "gemini", providerName: "gemini", model: raw };
+    return key ? routeFromKey(key, raw) : routeFromAvailableKey(keys) ?? { provider: "gemini", providerName: "gemini", model: raw };
   }
 
   if (normalized.includes("4o") || normalized.includes("gpt-4")) {
     const key = keys.find((item) => item.apiFormat === "OPENAI" || item.provider === "openai");
-    return key ? routeFromKey(key, raw) : { provider: "openai", providerName: "openai", model: raw };
+    return key ? routeFromKey(key, raw) : routeFromAvailableKey(keys) ?? { provider: "openai", providerName: "openai", model: raw };
   }
 
   const defaultKey = keys.find((key) => key.defaultModel) ?? keys[0];
@@ -130,6 +142,11 @@ function routeModel(requested: string, keys: ProviderKeys): GatewayRoute {
   }
 
   return { provider: "local", providerName: "local", model: FALLBACK_MODEL };
+}
+
+function routeFromAvailableKey(keys: ProviderKeys) {
+  const key = keys.find((item) => item.defaultModel) ?? keys[0];
+  return key ? routeFromKey(key, key.defaultModel || "gpt-4o-mini") : null;
 }
 
 function fallbackRoutes(primary: GatewayRoute, keys: ProviderKeys) {

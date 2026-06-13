@@ -29,7 +29,7 @@ const providerPresets: Array<{
 }> = [
   { provider: "openai", displayName: "OpenAI", apiFormat: "OPENAI", baseUrl: "https://api.openai.com/v1", defaultModel: "gpt-4o-mini" },
   { provider: "anthropic", displayName: "Anthropic", apiFormat: "ANTHROPIC", baseUrl: "", defaultModel: "claude-3-5-sonnet-latest" },
-  { provider: "gemini", displayName: "Gemini", apiFormat: "GEMINI", baseUrl: "", defaultModel: "gemini-1.5-flash" },
+  { provider: "gemini", displayName: "Gemini", apiFormat: "GEMINI", baseUrl: "", defaultModel: "gemini-2.5-flash" },
   { provider: "openrouter", displayName: "OpenRouter", apiFormat: "OPENAI_COMPATIBLE", baseUrl: "https://openrouter.ai/api/v1", defaultModel: "openai/gpt-4o-mini" },
   { provider: "deepseek", displayName: "DeepSeek", apiFormat: "OPENAI_COMPATIBLE", baseUrl: "https://api.deepseek.com/v1", defaultModel: "deepseek-chat" },
   { provider: "groq", displayName: "Groq", apiFormat: "OPENAI_COMPATIBLE", baseUrl: "https://api.groq.com/openai/v1", defaultModel: "llama-3.1-8b-instant" },

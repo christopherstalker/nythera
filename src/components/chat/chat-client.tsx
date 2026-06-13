@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import { KeyRound, Menu, MessageCircle, Mic, Paperclip, Plus, SendHorizontal, Settings2, Sparkles, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,10 @@ export function ChatClient({ chatId, characterName, characterAvatarUrl, summary,
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { messages, send, isStreaming, error } = useChat(chatId, initialMessages);
   const lastMessage = messages[messages.length - 1]?.content || "New conversation";
+  const backgroundStyle = useMemo(
+    () => (characterAvatarUrl ? { backgroundImage: `url(${characterAvatarUrl})` } : undefined),
+    [characterAvatarUrl]
+  );
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -41,7 +45,20 @@ export function ChatClient({ chatId, characterName, characterAvatarUrl, summary,
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] bg-transparent">
+    <div className="relative isolate flex min-h-[calc(100vh-4rem)] overflow-hidden bg-background">
+      {backgroundStyle ? (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 -z-20 scale-110 bg-cover bg-center opacity-[0.18] blur-3xl saturate-125"
+          style={backgroundStyle}
+        />
+      ) : (
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-20 hero-gradient opacity-70" />
+      )}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_0%,rgba(139,92,246,0.16),transparent_36%),linear-gradient(180deg,rgba(10,9,14,0.78),rgba(10,9,14,0.94)_42%,rgba(10,9,14,0.98))]"
+      />
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-50 w-[296px] border-r border-white/[0.045] bg-background/90 shadow-card-glow backdrop-blur-2xl transition-transform duration-300 lg:sticky lg:top-16 lg:z-0 lg:h-[calc(100vh-4rem)] lg:translate-x-0",
@@ -147,7 +164,7 @@ export function ChatClient({ chatId, characterName, characterAvatarUrl, summary,
                   <option value="gpt-4o-mini" />
                   <option value="gpt-4o" />
                   <option value="claude-3-5-sonnet-latest" />
-                  <option value="gemini-1.5-flash" />
+                  <option value="gemini-2.5-flash" />
                   <option value="openrouter:openai/gpt-4o-mini" />
                   <option value="deepseek:deepseek-chat" />
                   <option value="groq:llama-3.1-8b-instant" />

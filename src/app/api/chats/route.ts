@@ -12,7 +12,7 @@ export async function GET() {
         userId: user.id,
         archivedAt: null
       },
-      orderBy: { updatedAt: "desc" },
+      orderBy: [{ lastActiveAt: "desc" }, { updatedAt: "desc" }],
       include: {
         character: {
           select: {
@@ -22,7 +22,7 @@ export async function GET() {
           }
         },
         messages: {
-          orderBy: { createdAt: "desc" },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           take: 1,
           select: {
             id: true,
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
         data: {
           userId: user.id,
           characterId: character.id,
-          title: input.title ?? character.name,
+          title: input.title ?? null,
           temperature: input.temperature,
           model,
           messageCount: 1

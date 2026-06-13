@@ -1,5 +1,6 @@
 import "server-only";
 
+import { MemoryCategory, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createEmbedding } from "@/lib/proxy";
 import type { ProviderKeys } from "@/lib/user-keys";
@@ -19,11 +20,12 @@ export async function searchMemories(input: {
   try {
     return await prisma.$queryRawUnsafe<RetrievedMemory[]>(
       `
-        SELECT id, content, importance, category, 1 - (embedding <=> $1::vector) AS similarity
+        SELECT id, content, importance, category, confidence, metadata, 1 - (embedding <=> $1::vector) AS similarity
         FROM "Memory"
         WHERE "userId" = $2
           AND embedding IS NOT NULL
           AND ("characterId" = $3 OR "characterId" IS NULL)
+          AND (1 - (embedding <=> $1::vector)) >= 0.18
         ORDER BY embedding <=> $1::vector, importance DESC
         LIMIT $4
       `,
@@ -43,20 +45,39 @@ export async function createMemory(input: {
   characterId?: string | null;
   sourceChatId?: string | null;
   content: string;
+  category?: MemoryCategory;
+  metadata?: Prisma.InputJsonValue;
   importance?: number;
+  confidence?: number;
+  providerKeys?: ProviderKeys;
 }) {
+  const existing = await prisma.memory.findFirst({
+    where: {
+      userId: input.userId,
+      characterId: input.characterId ?? null,
+      content: input.content
+    }
+  });
+
+  if (existing) {
+    return existing;
+  }
+
   const memory = await prisma.memory.create({
     data: {
       userId: input.userId,
       characterId: input.characterId,
       sourceChatId: input.sourceChatId,
       content: input.content,
-      importance: input.importance ?? 1
+      category: input.category ?? MemoryCategory.OTHER,
+      metadata: input.metadata ?? Prisma.JsonNull,
+      importance: input.importance ?? 1,
+      confidence: input.confidence ?? 0.75
     }
   });
 
   try {
-    const embedding = await createEmbedding(input.content);
+    const embedding = await createEmbedding(input.content, input.providerKeys);
     await prisma.$executeRawUnsafe(
       `UPDATE "Memory" SET embedding = $1::vector WHERE id = $2`,
       toVectorLiteral(embedding),

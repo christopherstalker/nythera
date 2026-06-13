@@ -9,7 +9,7 @@ import { streamLlmResponse } from "@/lib/proxy";
 import { searchMemories } from "@/lib/vector";
 import { schedulePostMessageJobs } from "@/lib/memory";
 import { titleFromMessage } from "@/lib/utils";
-import { getDecryptedProviderKeys } from "@/lib/user-keys";
+import { getEffectiveProviderKeys } from "@/lib/user-keys";
 
 type Context = {
   params: {
@@ -21,6 +21,8 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export async function POST(request: Request, context: Context) {
+  const started = Date.now();
+
   try {
     const user = await requireUser();
     await enforceRateLimit({
@@ -50,8 +52,8 @@ export async function POST(request: Request, context: Context) {
       include: {
         character: true,
         messages: {
-          orderBy: { createdAt: "desc" },
-          take: 20
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          take: 40
         }
       }
     });
@@ -60,10 +62,21 @@ export async function POST(request: Request, context: Context) {
       throw new HttpError(404, "Chat not found.");
     }
 
+    if (input.requestId) {
+      const existingMessage = await prisma.message.findUnique({
+        where: { clientRequestId: input.requestId },
+        select: { id: true, chatId: true }
+      });
+
+      if (existingMessage?.chatId === chat.id) {
+        throw new HttpError(409, "Duplicate chat request ignored.");
+      }
+    }
+
     const model = input.model ?? chat.model;
     const temperature = input.temperature ?? chat.temperature;
 
-    const providerKeys = await getDecryptedProviderKeys(user.id);
+    const providerKeys = await getEffectiveProviderKeys(user.id);
     const [memories] = await Promise.all([
       searchMemories({
         userId: user.id,
@@ -76,7 +89,8 @@ export async function POST(request: Request, context: Context) {
         data: {
           chatId: chat.id,
           role: MessageRole.USER,
-          content: message
+          content: message,
+          clientRequestId: input.requestId
         }
       })
     ]);
@@ -92,6 +106,7 @@ export async function POST(request: Request, context: Context) {
     const encoder = new TextEncoder();
     let assistantText = "";
     let outputBlocked = false;
+    let assistantPersisted = false;
     let usage = {
       inputTokens: 0,
       outputTokens: 0,
@@ -138,6 +153,14 @@ export async function POST(request: Request, context: Context) {
             if (chunk.type === "usage") {
               usage = chunk;
             }
+
+            if (chunk.type === "error") {
+              throw new Error(chunk.message);
+            }
+          }
+
+          if (!assistantText.trim()) {
+            throw new Error("The model returned an empty response.");
           }
 
           const assistant = await prisma.message.create({
@@ -150,14 +173,16 @@ export async function POST(request: Request, context: Context) {
               flagged: outputBlocked
             }
           });
+          assistantPersisted = true;
 
           const updated = await prisma.chat.update({
             where: { id: chat.id },
             data: {
               messageCount: { increment: 2 },
-              title: chat.title || titleFromMessage(message),
+              title: chat.title && chat.title !== chat.character.name ? chat.title : titleFromMessage(message),
               model,
               temperature,
+              lastActiveAt: new Date(),
               updatedAt: new Date()
             },
             select: { messageCount: true }
@@ -172,7 +197,8 @@ export async function POST(request: Request, context: Context) {
               route: "chat",
               inputTokens: usage.inputTokens,
               outputTokens: usage.outputTokens,
-              status: outputBlocked ? "blocked_output" : "ok"
+              status: outputBlocked ? "blocked_output" : "ok",
+              latencyMs: Date.now() - started
             }
           });
 
@@ -182,13 +208,68 @@ export async function POST(request: Request, context: Context) {
             characterId: chat.characterId,
             latestUserMessage: message,
             latestAssistantMessage: assistant.content,
-            messageCount: updated.messageCount
+            messageCount: updated.messageCount,
+            providerKeys
           });
 
           send({ type: "message", message: assistant });
           send({ type: "done" });
         } catch (error) {
           console.error(error);
+          const errorMessage = error instanceof Error ? error.message : "The model stream failed.";
+          if (assistantText.trim() && !assistantPersisted) {
+            const assistant = await prisma.message.create({
+              data: {
+                chatId: chat.id,
+                role: MessageRole.ASSISTANT,
+                content: assistantText,
+                model: usage.model,
+                tokens: usage.outputTokens,
+                flagged: true
+              }
+            });
+            assistantPersisted = true;
+            await prisma.chat.update({
+              where: { id: chat.id },
+              data: {
+                messageCount: { increment: 2 },
+                title: chat.title && chat.title !== chat.character.name ? chat.title : titleFromMessage(message),
+                model,
+                temperature,
+                lastActiveAt: new Date(),
+                updatedAt: new Date()
+              }
+            });
+            send({ type: "message", message: assistant });
+          } else {
+            await prisma.chat.update({
+              where: { id: chat.id },
+              data: {
+                messageCount: { increment: 1 },
+                title: chat.title && chat.title !== chat.character.name ? chat.title : titleFromMessage(message),
+                model,
+                temperature,
+                lastActiveAt: new Date(),
+                updatedAt: new Date()
+              }
+            });
+          }
+
+          await prisma.llmRequestLog.create({
+            data: {
+              userId: user.id,
+              chatId: chat.id,
+              provider: usage.provider || "unknown",
+              model: usage.model || model,
+              route: "chat",
+              inputTokens: usage.inputTokens,
+              outputTokens: usage.outputTokens,
+              status: assistantPersisted ? "partial_error" : "error",
+              error: errorMessage.slice(0, 2000),
+              latencyMs: Date.now() - started
+            }
+          });
+
           send({ type: "error", message: "The model stream failed." });
         } finally {
           controller.close();

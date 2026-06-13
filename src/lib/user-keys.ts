@@ -1,6 +1,7 @@
 import "server-only";
 
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
+import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 
 export type ProviderApiFormat = "OPENAI" | "ANTHROPIC" | "GEMINI" | "OPENAI_COMPATIBLE";
@@ -105,6 +106,30 @@ export async function getDecryptedProviderKeys(userId: string): Promise<Provider
     defaultModel: row.defaultModel,
     label: row.label
   }));
+}
+
+export async function getEffectiveProviderKeys(userId: string): Promise<ProviderKeys> {
+  const userKeys = await getDecryptedProviderKeys(userId);
+  const userProviders = new Set(userKeys.map((key) => key.provider));
+  const serverKeys = getServerProviderKeys().filter((key) => !userProviders.has(key.provider));
+
+  return [...userKeys, ...serverKeys];
+}
+
+export function getServerProviderKeys(): ProviderKeys {
+  const keys: ProviderKeys = [];
+
+  if (env.GEMINI_API_KEY) {
+    keys.push({
+      provider: "gemini",
+      displayName: "Velora Gemini",
+      apiFormat: "GEMINI",
+      apiKey: env.GEMINI_API_KEY,
+      defaultModel: "gemini-2.5-flash"
+    });
+  }
+
+  return keys;
 }
 
 export async function deleteUserApiKey(input: { userId: string; provider: string }) {

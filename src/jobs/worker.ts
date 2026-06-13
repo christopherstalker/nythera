@@ -3,7 +3,7 @@ import "dotenv/config";
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
 import { env } from "@/lib/env";
-import { summarizeChat } from "@/lib/memory";
+import { extractMemoriesFromExchange, summarizeChat } from "@/lib/memory";
 
 if (!env.REDIS_URL) {
   console.log("REDIS_URL is not set. Background worker is disabled.");
@@ -23,8 +23,13 @@ const worker = new Worker(
     }
 
     if (job.name === "extract-memories") {
-      // Production extraction should call a structured LLM endpoint.
-      // The API route already performs opportunistic local extraction if Redis is absent.
+      await extractMemoriesFromExchange({
+        chatId: String(job.data.chatId),
+        userId: String(job.data.userId),
+        characterId: String(job.data.characterId),
+        latestUserMessage: String(job.data.latestUserMessage ?? ""),
+        latestAssistantMessage: String(job.data.latestAssistantMessage ?? "")
+      });
       return;
     }
 

@@ -39,6 +39,7 @@ app.use(express.json({ limit: "1mb" }));
 
 const port = Number(process.env.PORT ?? 4000);
 const internalToken = process.env.INTERNAL_API_TOKEN;
+const serverGeminiKey = process.env.GEMINI_API_KEY;
 
 const legacyProviderKeysSchema = z
   .object({
@@ -106,7 +107,8 @@ app.post("/v1/embeddings", async (request, response) => {
     return;
   }
 
-  const openaiKey = parsed.data.providerKeys?.find((key) => key.apiFormat === "OPENAI" || key.provider === "openai");
+  const providerKeys = withServerProviderKeys(parsed.data.providerKeys ?? []);
+  const openaiKey = providerKeys.find((key) => key.apiFormat === "OPENAI" || key.provider === "openai");
   const requestOpenAI = openaiKey
     ? new OpenAI({ apiKey: openaiKey.apiKey, baseURL: openaiKey.baseUrl || "https://api.openai.com/v1" })
     : null;
@@ -156,13 +158,14 @@ app.post("/v1/chat/stream", async (request, response) => {
     connection: "keep-alive"
   });
 
-  const providerKeys = parsed.data.providerKeys ?? [];
+  const providerKeys = withServerProviderKeys(parsed.data.providerKeys ?? []);
   const route = routeModel(parsed.data.model, providerKeys);
   const attempts = [route, ...fallbackRoutes(route, providerKeys)];
   let streamed = "";
   let lastError: unknown = null;
 
   for (const attempt of attempts) {
+    const streamedBeforeAttempt = streamed.length;
     try {
       const usage = await streamProvider({
         provider: attempt.provider,
@@ -186,7 +189,7 @@ app.post("/v1/chat/stream", async (request, response) => {
         `data: ${JSON.stringify({
           type: "usage",
           inputTokens: usage.inputTokens,
-          outputTokens: usage.outputTokens,
+          outputTokens: usage.outputTokens || estimateTokens(streamed),
           provider: attempt.providerName,
           model: attempt.model
         })}\n\n`
@@ -199,7 +202,9 @@ app.post("/v1/chat/stream", async (request, response) => {
         model: attempt.model,
         chatId: parsed.data.chatId,
         userId,
-        latencyMs: Date.now() - started
+        latencyMs: Date.now() - started,
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens || estimateTokens(streamed)
       });
       return;
     } catch (error) {
@@ -207,8 +212,19 @@ app.post("/v1/chat/stream", async (request, response) => {
       logger.warn({
         error: error instanceof Error ? error.message : String(error),
         provider: attempt.providerName,
-        model: attempt.model
+        model: attempt.model,
+        emittedAny: streamed.length > streamedBeforeAttempt
       });
+      if (streamed.length > streamedBeforeAttempt) {
+        response.write(
+          `data: ${JSON.stringify({
+            type: "error",
+            message: "The model stream was interrupted."
+          })}\n\n`
+        );
+        response.end();
+        return;
+      }
       await delay(300);
     }
   }
@@ -246,17 +262,17 @@ function routeModel(requested: string, keys: ProviderKeys): GatewayRoute {
 
   if (normalized.includes("claude")) {
     const key = keys.find((item) => item.apiFormat === "ANTHROPIC" || item.provider === "anthropic");
-    return key ? routeFromKey(key, raw) : { provider: "anthropic", providerName: "anthropic", model: raw };
+    return key ? routeFromKey(key, raw) : routeFromAvailableKey(keys) ?? { provider: "anthropic", providerName: "anthropic", model: raw };
   }
 
   if (normalized.includes("gemini")) {
     const key = keys.find((item) => item.apiFormat === "GEMINI" || item.provider === "gemini");
-    return key ? routeFromKey(key, raw) : { provider: "gemini", providerName: "gemini", model: raw };
+    return key ? routeFromKey(key, raw) : routeFromAvailableKey(keys) ?? { provider: "gemini", providerName: "gemini", model: raw };
   }
 
   if (normalized.includes("4o") || normalized.includes("gpt-4")) {
     const key = keys.find((item) => item.apiFormat === "OPENAI" || item.provider === "openai");
-    return key ? routeFromKey(key, raw) : { provider: "openai", providerName: "openai", model: raw };
+    return key ? routeFromKey(key, raw) : routeFromAvailableKey(keys) ?? { provider: "openai", providerName: "openai", model: raw };
   }
 
   const defaultKey = keys.find((key) => key.defaultModel) ?? keys[0];
@@ -265,6 +281,11 @@ function routeModel(requested: string, keys: ProviderKeys): GatewayRoute {
   }
 
   return { provider: "local", providerName: "local", model: "local-dev-roleplay" };
+}
+
+function routeFromAvailableKey(keys: ProviderKeys) {
+  const key = keys.find((item) => item.defaultModel) ?? keys[0];
+  return key ? routeFromKey(key, key.defaultModel || "gpt-4o-mini") : null;
 }
 
 function fallbackRoutes(primary: GatewayRoute, keys: ProviderKeys) {
@@ -389,11 +410,29 @@ function legacyProviderKeys(keys: { openai?: string; anthropic?: string; gemini?
       displayName: "Gemini",
       apiFormat: "GEMINI",
       apiKey: keys.gemini,
-      defaultModel: "gemini-1.5-flash"
+      defaultModel: "gemini-2.5-flash"
     });
   }
 
   return result;
+}
+
+function withServerProviderKeys(keys: ProviderKeys): ProviderKeys {
+  const providers = new Set(keys.map((key) => key.provider));
+  if (serverGeminiKey && !providers.has("gemini")) {
+    return [
+      ...keys,
+      {
+        provider: "gemini",
+        displayName: "Velora Gemini",
+        apiFormat: "GEMINI",
+        apiKey: serverGeminiKey,
+      defaultModel: "gemini-2.5-flash"
+      }
+    ];
+  }
+
+  return keys;
 }
 
 async function streamOpenAI(input: {

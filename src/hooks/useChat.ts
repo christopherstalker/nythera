@@ -26,15 +26,16 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
       }
 
       const userMessage: ChatMessage = {
-        id: `local-user-${Date.now()}`,
+        id: `local-user-${createRequestId()}`,
         role: "USER",
         content
       };
       const assistantMessage: ChatMessage = {
-        id: `local-assistant-${Date.now()}`,
+        id: `local-assistant-${createRequestId()}`,
         role: "ASSISTANT",
         content: ""
       };
+      const requestId = createRequestId();
 
       setMessages((current) => [...current, userMessage, assistantMessage]);
       setIsStreaming(true);
@@ -47,7 +48,8 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
           body: JSON.stringify({
             message: content,
             model: options?.model,
-            temperature: options?.temperature
+            temperature: options?.temperature,
+            requestId
           })
         });
 
@@ -80,7 +82,7 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
               continue;
             }
 
-            const payload = JSON.parse(data) as { type: string; text?: string; message?: ChatMessage; error?: string };
+            const payload = JSON.parse(data) as { type: string; text?: string; message?: ChatMessage | string; error?: string };
 
             if (payload.type === "delta" && payload.text) {
               setMessages((current) =>
@@ -92,14 +94,14 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
               );
             }
 
-            if (payload.type === "message" && payload.message) {
+            if (payload.type === "message" && payload.message && typeof payload.message !== "string") {
               setMessages((current) =>
-                current.map((message) => (message.id === assistantMessage.id ? payload.message! : message))
+                current.map((message) => (message.id === assistantMessage.id ? payload.message as ChatMessage : message))
               );
             }
 
             if (payload.type === "error") {
-              throw new Error(payload.error ?? "The model stream failed.");
+              throw new Error(payload.error ?? (typeof payload.message === "string" ? payload.message : undefined) ?? "The model stream failed.");
             }
           }
         }
@@ -117,4 +119,12 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
   );
 
   return { messages, isStreaming, error, send };
+}
+
+function createRequestId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }

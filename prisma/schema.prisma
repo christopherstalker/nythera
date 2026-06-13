@@ -112,6 +112,7 @@ model Character {
   scenario           String?          @db.Text
   greeting           String           @db.Text
   communicationStyle Json?
+  persona            Json?
   visibility         Visibility       @default(PRIVATE)
   moderationStatus   ModerationStatus @default(PENDING)
   tags               String[]         @default([])
@@ -174,6 +175,7 @@ model Chat {
   messageCount Int       @default(0)
   summary      String?   @db.Text
   archivedAt   DateTime?
+  lastActiveAt DateTime  @default(now())
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -187,14 +189,15 @@ model Chat {
 }
 
 model Message {
-  id        String      @id @default(cuid())
-  chatId    String
-  role      MessageRole
-  content   String      @db.Text
-  tokens    Int?
-  model     String?
-  flagged   Boolean     @default(false)
-  createdAt DateTime    @default(now())
+  id              String      @id @default(cuid())
+  chatId          String
+  role            MessageRole
+  content         String      @db.Text
+  tokens          Int?
+  model           String?
+  clientRequestId String?     @unique
+  flagged         Boolean     @default(false)
+  createdAt       DateTime    @default(now())
 
   chat    Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
   reports Report[]
@@ -210,6 +213,8 @@ model Memory {
   embedding    Unsupported("vector(1536)")?
   importance   Float                        @default(1.0)
   category     MemoryCategory               @default(OTHER)
+  metadata     Json?
+  confidence   Float                        @default(0.75)
   sourceChatId String?
   pinned       Boolean                      @default(false)
   createdAt    DateTime                     @default(now())
@@ -264,19 +269,19 @@ model LlmRequestLog {
 }
 
 model UserApiKey {
-  id           String      @id @default(cuid())
+  id           String   @id @default(cuid())
   userId       String
   provider     String
   displayName  String
-  apiFormat    String      @default("OPENAI_COMPATIBLE")
+  apiFormat    String   @default("OPENAI_COMPATIBLE")
   baseUrl      String?
   defaultModel String?
   label        String?
-  encryptedKey String      @db.Text
+  encryptedKey String   @db.Text
   last4        String
-  isDefault    Boolean     @default(true)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  isDefault    Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -321,6 +326,9 @@ enum MemoryCategory {
   USER_PROFILE
   PREFERENCE
   RELATIONSHIP
+  FACT
+  EMOTIONAL_CONTEXT
+  RECURRING_TOPIC
   EVENT
   WORLD_STATE
   OTHER

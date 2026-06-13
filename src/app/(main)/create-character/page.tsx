@@ -19,6 +19,15 @@ type Draft = {
   scenario: string;
   greeting: string;
   tags: string;
+  role: string;
+  traits: string;
+  speakingStyle: string;
+  emotionalTone: string;
+  boundaries: string;
+  motivation: string;
+  behavioralRules: string;
+  verbosityLevel: "concise" | "balanced" | "expressive" | "immersive";
+  relationshipStyle: "friend" | "romantic" | "mentor" | "rival";
   visibility: "PRIVATE" | "UNLISTED" | "PUBLIC";
   isNSFW: boolean;
   tone: string;
@@ -38,6 +47,15 @@ const initialDraft: Draft = {
   scenario: "A flexible starting scene for the first conversation.",
   greeting: "Hey, I am ready. What should we start with?",
   tags: "roleplay, friend",
+  role: "A thoughtful companion who anchors the conversation in a vivid scene.",
+  traits: "warm, curious, consistent, emotionally attentive",
+  speakingStyle: "Cinematic, natural, and grounded in sensory details.",
+  emotionalTone: "soft, inviting, and emotionally present",
+  boundaries: "Keep the interaction safe, fictional, respectful, and consensual.",
+  motivation: "Help the user feel immersed while preserving continuity and emotional safety.",
+  behavioralRules: "Stay in character, remember preferences, avoid generic assistant phrasing, ask scene-forward questions.",
+  verbosityLevel: "balanced",
+  relationshipStyle: "friend",
   visibility: "PRIVATE",
   isNSFW: false,
   tone: "soft, cinematic",
@@ -100,6 +118,18 @@ export default function CreateCharacterPage() {
       visibility: draft.visibility,
       isNSFW: draft.isNSFW,
       tags: tagList,
+      persona: {
+        name: draft.name,
+        role: draft.role,
+        personalityTraits: splitList(draft.traits, 16),
+        speakingStyle: draft.speakingStyle,
+        emotionalTone: draft.emotionalTone,
+        boundaries: splitList(draft.boundaries, 12),
+        motivation: draft.motivation,
+        behavioralRules: splitList(draft.behavioralRules, 12),
+        verbosityLevel: draft.verbosityLevel,
+        relationshipStyle: draft.relationshipStyle
+      },
       communicationStyle: {
         tone: draft.tone,
         humor: draft.humor,
@@ -215,13 +245,14 @@ export default function CreateCharacterPage() {
             <div className="p-5 pt-0">
               <CharacterAvatar name={draft.name} avatarUrl={draft.avatarUrl} size="xl" className="-mt-14 border-2 border-[#15111f]" />
               <h3 className="mt-4 truncate text-2xl font-semibold tracking-tight">{draft.name}</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{draft.tone}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{draft.role}</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {tagList.map((tag) => (
                   <Badge key={tag}>{tag}</Badge>
                 ))}
               </div>
               <PreviewSection title="Description">{draft.description}</PreviewSection>
+              <PreviewSection title="Persona">{`${draft.relationshipStyle} - ${draft.emotionalTone}`}</PreviewSection>
               <PreviewSection title="Personality">{draft.personality}</PreviewSection>
               <PreviewSection title="Scenario">{draft.scenario}</PreviewSection>
               <div className="mt-4 rounded-3xl border border-white/[0.055] bg-white/[0.032] px-4 py-3 text-sm leading-6 text-muted-foreground shadow-inset">
@@ -281,6 +312,15 @@ function PersonalityStep({ draft, update }: { draft: Draft; update: <K extends k
           <Field label="Tone" helper="A few words that keep replies emotionally consistent.">
             <Input value={draft.tone} onChange={(event) => update("tone", event.target.value)} placeholder="soft, cinematic" />
           </Field>
+          <Field label="Role" helper="The identity anchor injected into every model request.">
+            <Input value={draft.role} onChange={(event) => update("role", event.target.value)} placeholder="A careful archive keeper, mentor, rival, or companion" />
+          </Field>
+          <Field label="Personality traits" helper="Comma-separated traits used for consistent behavior.">
+            <Input value={draft.traits} onChange={(event) => update("traits", event.target.value)} placeholder="warm, sly, brave, meticulous" />
+          </Field>
+          <Field label="Speaking style" helper="How the character sounds sentence by sentence.">
+            <Textarea value={draft.speakingStyle} onChange={(event) => update("speakingStyle", event.target.value)} placeholder="Voice, rhythm, word choice" />
+          </Field>
         </div>
 
         <SurfaceMuted className="space-y-4 p-5">
@@ -293,15 +333,51 @@ function PersonalityStep({ draft, update }: { draft: Draft; update: <K extends k
           <Slider label="Seriousness" value={draft.seriousness} onChange={(value) => update("seriousness", value)} />
           <Slider label="Initiative" value={draft.initiative} onChange={(value) => update("initiative", value)} />
           <Slider label="Roleplay intensity" value={draft.roleplayIntensity} onChange={(value) => update("roleplayIntensity", value)} />
-          <Field label="Message length">
+          <Field label="Emotional tone">
+            <Input value={draft.emotionalTone} onChange={(event) => update("emotionalTone", event.target.value)} placeholder="gentle, intense, playful" />
+          </Field>
+          <Field label="Motivation">
+            <Textarea value={draft.motivation} onChange={(event) => update("motivation", event.target.value)} placeholder="What they want from the conversation" />
+          </Field>
+          <Field label="Boundaries">
+            <Textarea value={draft.boundaries} onChange={(event) => update("boundaries", event.target.value)} placeholder="Comma-separated boundaries" />
+          </Field>
+          <Field label="Behavioral rules">
+            <Textarea value={draft.behavioralRules} onChange={(event) => update("behavioralRules", event.target.value)} placeholder="Comma-separated rules for consistency" />
+          </Field>
+          <Field label="Verbosity">
+            <select
+              value={draft.verbosityLevel}
+              onChange={(event) => update("verbosityLevel", event.target.value as Draft["verbosityLevel"])}
+              className="focus-ring h-11 w-full rounded-2xl border border-white/[0.06] bg-white/[0.035] px-4 text-sm shadow-inset"
+            >
+              <option value="concise">Concise replies</option>
+              <option value="balanced">Balanced replies</option>
+              <option value="expressive">Expressive replies</option>
+              <option value="immersive">Immersive replies</option>
+            </select>
+          </Field>
+          <Field label="Relationship style">
+            <select
+              value={draft.relationshipStyle}
+              onChange={(event) => update("relationshipStyle", event.target.value as Draft["relationshipStyle"])}
+              className="focus-ring h-11 w-full rounded-2xl border border-white/[0.06] bg-white/[0.035] px-4 text-sm shadow-inset"
+            >
+              <option value="friend">Friend</option>
+              <option value="romantic">Romantic</option>
+              <option value="mentor">Mentor</option>
+              <option value="rival">Rival</option>
+            </select>
+          </Field>
+          <Field label="Reply length">
             <select
               value={draft.messageLength}
               onChange={(event) => update("messageLength", event.target.value as Draft["messageLength"])}
               className="focus-ring h-11 w-full rounded-2xl border border-white/[0.06] bg-white/[0.035] px-4 text-sm shadow-inset"
             >
-              <option value="short">Short replies</option>
-              <option value="medium">Medium replies</option>
-              <option value="long">Long replies</option>
+              <option value="short">Short</option>
+              <option value="medium">Medium</option>
+              <option value="long">Long</option>
             </select>
           </Field>
         </SurfaceMuted>
@@ -417,4 +493,12 @@ function PreviewSection({ title, children }: { title: string; children: React.Re
       <p className="mt-2 line-clamp-3 text-sm leading-6 text-muted-foreground">{children}</p>
     </div>
   );
+}
+
+function splitList(value: string, limit: number) {
+  return value
+    .split(/[,;\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, limit);
 }

@@ -65,6 +65,7 @@ export async function PATCH(request: Request, context: Context) {
         ...input,
         avatarUrl: input.avatarUrl === "" ? null : input.avatarUrl,
         communicationStyle: input.communicationStyle === undefined ? undefined : input.communicationStyle ?? Prisma.JsonNull,
+        persona: input.persona === undefined ? undefined : input.persona ?? Prisma.JsonNull,
         moderationStatus: input.visibility === "PUBLIC" ? "PENDING" : undefined
       }
     });
@@ -120,6 +121,7 @@ export async function POST(_request: Request, context: Context) {
         scenario: source.scenario,
         greeting: source.greeting,
         communicationStyle: source.communicationStyle ?? Prisma.JsonNull,
+        persona: source.persona ?? Prisma.JsonNull,
         visibility: "PRIVATE",
         moderationStatus: "APPROVED",
         tags: source.tags,

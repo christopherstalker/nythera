@@ -1,5 +1,6 @@
 import { env } from "@/lib/env";
 import { streamGatewayResponse } from "@/lib/llm-gateway";
+import { getServerProviderKeys, type ProviderKeys } from "@/lib/user-keys";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -10,13 +11,19 @@ export async function POST(request: Request) {
     return Response.json({ error: "Internal token required." }, { status: 401 });
   }
 
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return Response.json({ error: "Invalid proxy request." }, { status: 400 });
+  }
+  const record = body as Record<string, unknown>;
+  const providerKeys = withServerProviderKeys(Array.isArray(record.providerKeys) ? record.providerKeys as ProviderKeys : []);
+  const input = { ...record, providerKeys } as Parameters<typeof streamGatewayResponse>[0];
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        for await (const chunk of streamGatewayResponse(body)) {
+        for await (const chunk of streamGatewayResponse(input)) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
         }
       } finally {
@@ -31,4 +38,9 @@ export async function POST(request: Request) {
       "cache-control": "no-cache, no-transform"
     }
   });
+}
+
+function withServerProviderKeys(keys: ProviderKeys) {
+  const providers = new Set(keys.map((key) => key.provider));
+  return [...keys, ...getServerProviderKeys().filter((key) => !providers.has(key.provider))];
 }

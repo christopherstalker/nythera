@@ -9,6 +9,7 @@ import { CharacterAvatar } from "@/components/character/character-avatar";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell, Surface, SurfaceMuted } from "@/components/ui/page";
 import { cn } from "@/lib/utils";
+import type { CharacterPersona } from "@/types";
 
 type Character = {
   id: string;
@@ -22,6 +23,7 @@ type Character = {
   likes: number;
   visibility?: string;
   communicationStyle?: Record<string, unknown> | null;
+  persona?: CharacterPersona | null;
   creator?: {
     username?: string | null;
   } | null;
@@ -176,6 +178,18 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
             </div>
 
             <ProfileSection title="Personality">{character.personality}</ProfileSection>
+            {character.persona ? (
+              <ProfileSection title="Persona engine">
+                {[
+                  character.persona.role ? `Role: ${character.persona.role}` : null,
+                  character.persona.emotionalTone ? `Emotional tone: ${character.persona.emotionalTone}` : null,
+                  character.persona.relationshipStyle ? `Relationship: ${character.persona.relationshipStyle}` : null,
+                  character.persona.speakingStyle ? `Speaking style: ${character.persona.speakingStyle}` : null
+                ]
+                  .filter(Boolean)
+                  .join("\n")}
+              </ProfileSection>
+            ) : null}
             {character.scenario ? <ProfileSection title="Scenario">{character.scenario}</ProfileSection> : null}
             <ProfileSection title="Greeting">
               <span className="block border-l-[3px] border-primary/55 pl-4 text-foreground/90">{character.greeting}</span>

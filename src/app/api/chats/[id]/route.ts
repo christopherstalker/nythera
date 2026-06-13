@@ -20,8 +20,7 @@ export async function GET(_request: Request, context: Context) {
       include: {
         character: true,
         messages: {
-          orderBy: { createdAt: "asc" },
-          take: 80
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }]
         }
       }
     });
@@ -63,7 +62,8 @@ export async function PATCH(request: Request, context: Context) {
         title: input.title ?? (chat.title || titleFromMessage(chat.messages[0]?.content ?? "Untitled chat")),
         archivedAt: input.archived === undefined ? undefined : input.archived ? new Date() : null,
         temperature: input.temperature,
-        model: input.model
+        model: input.model,
+        lastActiveAt: new Date()
       }
     });
 

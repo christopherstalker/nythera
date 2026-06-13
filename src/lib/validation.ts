@@ -10,6 +10,21 @@ export const communicationStyleSchema = z.object({
   roleplayIntensity: z.coerce.number().min(0).max(10).optional()
 });
 
+const personaListSchema = z.array(z.string().trim().min(1).max(160)).max(16);
+
+export const characterPersonaSchema = z.object({
+  name: z.string().trim().min(1).max(80).optional(),
+  role: z.string().trim().min(1).max(120).optional(),
+  personalityTraits: personaListSchema.optional(),
+  speakingStyle: z.string().trim().max(500).optional(),
+  emotionalTone: z.string().trim().max(240).optional(),
+  boundaries: personaListSchema.optional(),
+  motivation: z.string().trim().max(800).optional(),
+  behavioralRules: personaListSchema.optional(),
+  verbosityLevel: z.enum(["concise", "balanced", "expressive", "immersive"]).optional(),
+  relationshipStyle: z.enum(["friend", "romantic", "mentor", "rival"]).optional()
+});
+
 export const characterCreateSchema = z.object({
   name: z.string().min(2).max(80),
   avatarUrl: z.string().url().optional().or(z.literal("")),
@@ -18,6 +33,7 @@ export const characterCreateSchema = z.object({
   scenario: z.string().max(5000).optional(),
   greeting: z.string().min(2).max(2000),
   communicationStyle: communicationStyleSchema.optional(),
+  persona: characterPersonaSchema.optional(),
   visibility: z.enum(["PRIVATE", "PUBLIC", "UNLISTED"]).default("PRIVATE"),
   tags: z.array(z.string().min(1).max(32)).max(12).default([]),
   isNSFW: z.boolean().default(false)
@@ -42,7 +58,8 @@ export const chatUpdateSchema = z.object({
 export const streamMessageSchema = z.object({
   message: z.string().min(1).max(4000),
   temperature: z.coerce.number().min(0).max(2).optional(),
-  model: z.string().max(160).optional()
+  model: z.string().max(160).optional(),
+  requestId: z.string().min(8).max(120).optional()
 });
 
 export const registerSchema = z.object({

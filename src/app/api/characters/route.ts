@@ -73,7 +73,9 @@ export async function POST(request: Request) {
 
     const input = await parseJson(request, characterCreateSchema);
     const moderation = moderateText({
-      text: [input.name, input.description, input.personality, input.scenario, input.greeting].filter(Boolean).join("\n"),
+      text: [input.name, input.description, input.personality, input.scenario, input.greeting, JSON.stringify(input.persona ?? {})]
+        .filter(Boolean)
+        .join("\n"),
       userIsMinor: isMinor(user.birthDate),
       context: "character"
     });
@@ -92,6 +94,7 @@ export async function POST(request: Request) {
         scenario: input.scenario,
         greeting: input.greeting,
         communicationStyle: input.communicationStyle ?? Prisma.JsonNull,
+        persona: input.persona ?? Prisma.JsonNull,
         visibility: input.visibility,
         tags: input.tags,
         isNSFW: input.isNSFW,

@@ -39,6 +39,7 @@ export async function* streamLlmResponse(input: StreamInput): AsyncGenerator<Str
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
+    let receivedDone = false;
 
     while (true) {
       const { value, done } = await reader.read();
@@ -60,12 +61,41 @@ export async function* streamLlmResponse(input: StreamInput): AsyncGenerator<Str
           continue;
         }
 
-        const chunk = JSON.parse(data) as StreamChunk;
+        let chunk: StreamChunk;
+        try {
+          chunk = JSON.parse(data) as StreamChunk;
+        } catch {
+          continue;
+        }
+        if (chunk.type === "done") {
+          receivedDone = true;
+        }
         yield chunk;
       }
     }
 
-    yield { type: "done" };
+    buffer += decoder.decode();
+    if (buffer.trim()) {
+      const data = buffer
+        .split("\n")
+        .find((line) => line.startsWith("data: "))
+        ?.slice(6);
+      if (data) {
+        try {
+          const chunk = JSON.parse(data) as StreamChunk;
+          if (chunk.type === "done") {
+            receivedDone = true;
+          }
+          yield chunk;
+        } catch {
+          // Ignore a trailing partial SSE frame from a failed upstream stream.
+        }
+      }
+    }
+
+    if (!receivedDone) {
+      yield { type: "done" };
+    }
   } catch (error) {
     console.error("External LLM proxy failed, using Vercel gateway.", error);
     yield* streamGatewayResponse(input);
