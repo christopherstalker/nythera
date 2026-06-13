@@ -45,7 +45,7 @@ export function ChatClient({ chatId, characterName, characterAvatarUrl, summary,
   }
 
   return (
-    <div className="relative isolate flex min-h-[calc(100vh-4rem)] overflow-hidden bg-background">
+    <div className="relative isolate flex min-h-[calc(100dvh-4rem)] overflow-hidden bg-background">
       {backgroundStyle ? (
         <div
           aria-hidden="true"
@@ -222,7 +222,7 @@ export function ChatClient({ chatId, characterName, characterAvatarUrl, summary,
           </div>
         </div>
 
-        <form onSubmit={onSubmit} className="shrink-0 border-t border-white/[0.045] bg-background/86 px-4 py-4 backdrop-blur-2xl sm:px-6">
+        <form onSubmit={onSubmit} className="shrink-0 border-t border-white/[0.045] bg-background/86 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 backdrop-blur-2xl sm:px-6">
           <div className="mx-auto flex max-w-4xl items-end gap-2 rounded-[30px] border border-white/[0.055] bg-card/[0.76] p-2 shadow-card-glow shadow-inset">
             <IconButton label="Attach file">
               <Paperclip className="h-4 w-4" />

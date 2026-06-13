@@ -16,9 +16,9 @@ export default function HomePage() {
       <section className="grid items-stretch gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
         <Surface className="relative isolate overflow-hidden p-5 sm:p-7 lg:p-9">
           <div className="pointer-events-none absolute inset-0 -z-10 hero-gradient opacity-90" />
-          <div className="grid min-h-[500px] gap-8 lg:grid-cols-[minmax(0,1.15fr)_360px] lg:items-end">
+          <div className="grid min-h-[430px] gap-8 sm:min-h-[500px] lg:grid-cols-[minmax(0,1.15fr)_360px] lg:items-end">
             <div className="self-center">
-              <h1 className="max-w-3xl text-[2.75rem] font-semibold leading-[1.02] tracking-tight text-foreground sm:text-[3.8rem] xl:text-[4.1rem]">
+              <h1 className="max-w-3xl text-[2.35rem] font-semibold leading-[1.04] tracking-tight text-foreground sm:text-[3.8rem] xl:text-[4.1rem]">
                 Meet characters who remember your story.
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">

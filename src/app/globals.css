@@ -60,6 +60,8 @@
 
   html {
     scroll-behavior: smooth;
+    min-height: 100%;
+    background: hsl(var(--background));
   }
 
   html.dark {
@@ -72,6 +74,9 @@
 
   body {
     @apply min-h-screen bg-background text-foreground antialiased;
+    min-height: 100dvh;
+    -webkit-tap-highlight-color: transparent;
+    text-rendering: optimizeLegibility;
     background:
       linear-gradient(180deg, rgba(109, 40, 217, 0.08) 0%, rgba(109, 40, 217, 0) 18rem),
       linear-gradient(135deg, rgba(190, 92, 136, 0.055) 0%, rgba(190, 92, 136, 0) 22rem),
@@ -152,6 +157,12 @@
     border-radius: 999px;
   }
 
+  @supports (padding: max(0px)) {
+    .safe-bottom {
+      padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+  }
+
   .typing-dot {
     @apply h-2 w-2 rounded-full bg-primary;
     animation: typing-pulse 1s infinite ease-in-out;
@@ -204,6 +215,11 @@
   html:not(.dark) .skeleton {
     background: linear-gradient(90deg, rgba(58, 45, 98, 0.055) 0%, rgba(58, 45, 98, 0.1) 50%, rgba(58, 45, 98, 0.055) 100%);
     background-size: 200% 100%;
+  }
+
+  html:not(.dark) nav[aria-label="Mobile primary navigation"] {
+    border-color: rgba(73, 63, 112, 0.12);
+    background: rgba(255, 255, 255, 0.88);
   }
 }
 

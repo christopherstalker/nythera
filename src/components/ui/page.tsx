@@ -2,7 +2,11 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function PageShell({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn("container mx-auto w-full max-w-[1480px] px-4 py-6 sm:px-6 lg:px-8", className)}>{children}</div>;
+  return (
+    <div className={cn("container mx-auto w-full max-w-[1480px] px-4 pb-[calc(6.25rem+env(safe-area-inset-bottom))] pt-5 sm:px-6 sm:pt-6 lg:px-8 lg:py-6", className)}>
+      {children}
+    </div>
+  );
 }
 
 export function PageHeader({

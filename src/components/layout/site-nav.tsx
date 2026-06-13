@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { ChevronDown, Compass, KeyRound, LogOut, MessageSquare, Plus, Search, Settings, ShieldCheck, User } from "lucide-react";
+import { ChevronDown, Compass, Home, KeyRound, LogOut, MessageSquare, Plus, Search, Settings, ShieldCheck, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isPlatformAdminEmail } from "@/lib/admin";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,13 @@ const baseLinks = [
 ];
 
 const adminLink = { href: "/admin", label: "Admin", icon: ShieldCheck };
+const mobileLinks = [
+  { href: "/", label: "Home", icon: Home },
+  { href: "/explore", label: "Explore", icon: Compass },
+  { href: "/chats", label: "Chats", icon: MessageSquare },
+  { href: "/create-character", label: "Create", icon: Plus },
+  { href: "/settings", label: "Settings", icon: KeyRound }
+];
 
 export function SiteNav() {
   const pathname = usePathname();
@@ -26,9 +33,16 @@ export function SiteNav() {
   const canUseAdmin = isPlatformAdminEmail(session?.user?.email);
   const links = canUseAdmin ? [...baseLinks, adminLink] : baseLinks;
   const initial = session?.user?.username?.[0] ?? session?.user?.email?.[0] ?? "V";
+  const showMobileDock = !(
+    pathname.startsWith("/chat/") ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/register") ||
+    pathname.startsWith("/admin")
+  );
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/[0.045] bg-background/78 backdrop-blur-2xl">
+    <>
+      <header className="sticky top-0 z-40 border-b border-white/[0.045] bg-background/78 backdrop-blur-2xl">
       <div className="container mx-auto flex h-16 max-w-[1480px] items-center gap-3 px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex shrink-0 items-center gap-2 no-underline">
           <span className="grid h-9 w-9 place-items-center overflow-hidden rounded-2xl border border-primary/[0.18] bg-primary/[0.075] shadow-inset">
@@ -118,26 +132,38 @@ export function SiteNav() {
         </div>
       </div>
 
-      <nav className="container mx-auto flex h-12 max-w-[1480px] items-center gap-1 overflow-x-auto border-t border-white/[0.06] px-4 sm:px-6 lg:hidden">
-        {[{ href: "/create-character", label: "Create", icon: Plus }, ...baseLinks].map((link) => {
+      </header>
+      {showMobileDock ? <MobileDock pathname={pathname} /> : null}
+    </>
+  );
+}
+
+function MobileDock({ pathname }: { pathname: string }) {
+  return (
+    <nav
+      aria-label="Mobile primary navigation"
+      className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-50 rounded-[30px] border border-white/[0.075] bg-card/92 p-1.5 shadow-card-glow shadow-inset backdrop-blur-2xl lg:hidden"
+    >
+      <div className="grid grid-cols-5 gap-1">
+        {mobileLinks.map((link) => {
           const Icon = link.icon;
-          const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
+          const active = link.href === "/" ? pathname === "/" : pathname === link.href || pathname.startsWith(`${link.href}/`);
           return (
             <Link
               key={link.href}
               href={link.href}
               className={cn(
-                "flex min-w-fit items-center gap-2 rounded-full border border-transparent px-3 py-2 text-xs font-medium text-muted-foreground no-underline transition",
-                active ? "border-primary/25 bg-primary/[0.12] text-foreground" : "hover:bg-white/[0.055] hover:text-foreground"
+                "focus-ring flex min-h-[58px] flex-col items-center justify-center gap-1 rounded-[22px] px-1 text-[11px] font-medium text-muted-foreground no-underline transition",
+                active ? "bg-primary/[0.14] text-foreground shadow-inset" : "hover:bg-white/[0.055] hover:text-foreground"
               )}
             >
-              <Icon className="h-3.5 w-3.5" />
-              {link.label}
+              <Icon className="h-4 w-4" />
+              <span className="max-w-full truncate">{link.label}</span>
             </Link>
           );
         })}
-      </nav>
-    </header>
+      </div>
+    </nav>
   );
 }
 

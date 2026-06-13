@@ -32,7 +32,7 @@ export default function LoginPage() {
   }
 
   return (
-    <PageShell className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
+    <PageShell className="flex min-h-[calc(100dvh-4rem)] items-center justify-center pb-5 sm:pb-6">
       <Surface className="w-full max-w-md p-6 sm:p-7">
         <div className="grid h-12 w-12 place-items-center overflow-hidden rounded-3xl border border-primary/25 bg-primary/10 shadow-inset">
           <img src="/icon.svg" alt="" className="h-full w-full object-cover" />
