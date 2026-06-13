@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Velora",
+    "slug": "velora-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/velora-icon.png",
+    "scheme": "velora",
+    "userInterfaceStyle": "dark",
+    "android": {
+      "package": "ai.velora.app",
+      "versionCode": 2,
+      "permissions": ["INTERNET"],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/velora-adaptive-icon.png",
+        "backgroundColor": "#0B0B12"
+      },
+      "predictiveBackGestureEnabled": true
+    },
+    "web": {
+      "favicon": "./assets/velora-icon.png"
+    },
+    "plugins": ["expo-web-browser", "expo-secure-store"],
+    "extra": {
+      "apiUrl": "https://velora-ai-character-platform.vercel.app"
+    }
+  }
+}
