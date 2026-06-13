@@ -22,7 +22,7 @@ export async function GET() {
           }
         },
         messages: {
-          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          orderBy: [{ createdAt: "desc" }, { sequence: "desc" }, { id: "desc" }],
           take: 1,
           select: {
             id: true,
@@ -84,6 +84,7 @@ export async function POST(request: Request) {
       await tx.message.create({
         data: {
           chatId: created.id,
+          sequence: 1,
           role: MessageRole.ASSISTANT,
           content: character.greeting,
           model

@@ -1,28 +1,33 @@
 /*
 System Audit Report - 2026-06-13
 
-Architecture:
-- Next.js app routes own the product UI, auth pages, admin, character discovery/profile, create flow, settings, and chat view.
-- API routes under src/app/api provide character CRUD, chat CRUD, message pagination, streaming chat, memory search, key management, auth, moderation reports, and an internal LLM proxy route.
-- The LLM path is server-only: chat stream route -> prompt assembly -> get decrypted/server provider keys -> built-in gateway or INTERNAL_API_TOKEN-protected external proxy.
-- Prisma persists users, characters, chats, messages, memories, reports, LLM request logs, and encrypted user model keys.
-- A pgvector-backed Memory model exists, but memory extraction and retrieval were only partially wired and not strongly structured.
+Architecture Summary:
+- Frontend: Next.js App Router owns public landing/explore, character profiles, chat, create-character wizard, settings/BYOK, auth, and admin moderation.
+- Backend APIs: src/app/api contains character CRUD, chat CRUD, paginated messages, SSE chat streaming, profile/key management, moderation reports, auth, memory search, and an INTERNAL_API_TOKEN-protected LLM proxy endpoint.
+- LLM path: chat stream route -> safety/moderation -> persona+memory prompt assembly -> effective provider keys (user BYOK plus server Gemini fallback) -> external proxy if configured, otherwise built-in gateway.
+- Database: Prisma/Postgres/Neon persists users, encrypted provider keys, characters, chats, ordered messages, pgvector memories, reports, and LLM request logs.
+- Memory/vector: Memory uses pgvector(1536), semantic retrieval, deterministic fallback embeddings, and post-message extraction/summarization jobs with inline fallback when Redis is unavailable.
+- Streaming: SSE chunks are parsed with buffering on both proxy and client; assistant messages are persisted after generation, partial streams are preserved when possible, and request logs store latency/tokens/provider/model/fallback state.
 
-Verified Findings:
-- Chat messages are persisted, but chat restore was capped at 80 messages and prompt short-term context was capped at 20 messages.
-- Streaming appends a user message before model generation and assistant message after generation, but partial-stream error persistence and client error parsing needed hardening.
-- The proxy does not expose decrypted provider keys to the browser; /api/keys returns only metadata and last4.
-- Gemini routing exists through BYOK provider keys, but there was no server-managed GEMINI_API_KEY fallback.
-- LLM request logs existed, but latency and failure states were incomplete.
-- Prompt assembly was centralized, but persona data was unstructured and the requested deterministic section order was not explicit.
+Verified Working:
+- Production pages / and /explore render with no client runtime exceptions after the guest chat-fetch hotfix.
+- /api/characters returns an empty public catalog after the user requested bot deletion.
+- Server-side provider keys are not returned to the browser; /api/keys exposes only metadata and last4.
+- Gemini proxy validation succeeded through /api/proxy/llm using gemini-2.5-flash with streaming chunks and no fallback.
+- Prompt assembly is centralized and injects system safety, authoritative persona, sanitized long-term memory, chat summary, recent history, and current user input.
 
-Implementation Targets:
-- Add persistent structured character persona and inject it into every LLM prompt.
-- Expand short-term context to 40 messages and retrieve top semantic long-term memories.
-- Store structured memory candidates after assistant responses with dedupe and embeddings.
-- Restore full chat history for chat switching, add explicit lastActiveAt, improve title generation, and reduce duplicate message risk.
-- Add immersive avatar-derived chat background without reducing message readability.
-- Add server-side Gemini env fallback, deterministic proxy prompt assembly, safer SSE parsing, latency/error logging, and large seed dataset.
+Missing / Improved Components:
+- Persona schema now supports archetype, initiative level, relationship dynamics including antagonist, forbidden behaviors, and stable behavioral rules.
+- Prompt injection protection now detects meta-instruction attacks, adds a system security note, sanitizes memory/summary/history context, and prevents memory poisoning writes.
+- Message ordering now has a nullable per-chat sequence fallback in addition to timestamp/id ordering.
+- Chat background uses avatar-derived blurred imagery with low opacity, dark overlay, will-change hint, and reduced-motion-safe drift.
+- Character dataset generation is restored as a file-only generator; seed import remains disabled so the DB is not repopulated automatically.
+
+Residual Risks / Next Production Hardening:
+- Memory extraction remains deterministic/rule-based; a future LLM extractor should classify memories with confidence while preserving poisoning safeguards.
+- Chat summary is extractive and threshold-based; an LLM summary job can improve compression quality when queue infrastructure is stable.
+- Title generation uses LLM with local fallback; it should be monitored for latency and provider cost.
+- Redis worker is optional; production should configure REDIS_URL if async jobs should not run inline.
 */
 
 export {};

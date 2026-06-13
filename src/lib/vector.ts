@@ -2,6 +2,7 @@ import "server-only";
 
 import { MemoryCategory, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { sanitizePromptContext, shouldStoreMemoryFromText } from "@/lib/prompt-security";
 import { createEmbedding } from "@/lib/proxy";
 import type { ProviderKeys } from "@/lib/user-keys";
 import type { RetrievedMemory } from "@/types";
@@ -51,11 +52,17 @@ export async function createMemory(input: {
   confidence?: number;
   providerKeys?: ProviderKeys;
 }) {
+  const content = sanitizePromptContext(input.content, 1000);
+  if (!content || !shouldStoreMemoryFromText(content)) {
+    console.warn("Unsafe memory content rejected.");
+    return null;
+  }
+
   const existing = await prisma.memory.findFirst({
     where: {
       userId: input.userId,
       characterId: input.characterId ?? null,
-      content: input.content
+      content
     }
   });
 
@@ -68,7 +75,7 @@ export async function createMemory(input: {
       userId: input.userId,
       characterId: input.characterId,
       sourceChatId: input.sourceChatId,
-      content: input.content,
+      content,
       category: input.category ?? MemoryCategory.OTHER,
       metadata: input.metadata ?? Prisma.JsonNull,
       importance: input.importance ?? 1,
@@ -77,7 +84,7 @@ export async function createMemory(input: {
   });
 
   try {
-    const embedding = await createEmbedding(input.content, input.providerKeys);
+    const embedding = await createEmbedding(content, input.providerKeys);
     await prisma.$executeRawUnsafe(
       `UPDATE "Memory" SET embedding = $1::vector WHERE id = $2`,
       toVectorLiteral(embedding),

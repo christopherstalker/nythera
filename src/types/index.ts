@@ -15,14 +15,18 @@ export type CommunicationStyle = {
 export type CharacterPersona = {
   name?: string;
   role?: string;
+  archetype?: string;
   personalityTraits?: string[];
   speakingStyle?: string;
   emotionalTone?: string;
+  initiativeLevel?: "low" | "medium" | "high";
   boundaries?: string[];
   motivation?: string;
   behavioralRules?: string[];
+  forbiddenBehaviors?: string[];
   verbosityLevel?: "concise" | "balanced" | "expressive" | "immersive";
-  relationshipStyle?: "friend" | "romantic" | "mentor" | "rival";
+  relationshipStyle?: "friend" | "romantic" | "mentor" | "rival" | "antagonist";
+  relationshipDynamics?: "friend" | "romantic" | "mentor" | "rival" | "antagonist";
 };
 
 export type PromptMessage = {
@@ -42,6 +46,15 @@ export type RetrievedMemory = {
 
 export type StreamChunk =
   | { type: "delta"; text: string }
-  | { type: "usage"; inputTokens: number; outputTokens: number; model: string; provider: string }
+  | {
+      type: "usage";
+      inputTokens: number;
+      outputTokens: number;
+      model: string;
+      provider: string;
+      latencyMs?: number;
+      fallbackTriggered?: boolean;
+      attempts?: string[];
+    }
   | { type: "error"; message: string }
   | { type: "done" };

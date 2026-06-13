@@ -3,12 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { HttpError, getRequestIp, parseJson, requireUser, routeError } from "@/lib/api";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { moderateText, sanitizeUserText } from "@/lib/safety";
+import { detectPromptInjection } from "@/lib/prompt-security";
 import { streamMessageSchema } from "@/lib/validation";
 import { assembleCharacterPrompt } from "@/lib/prompts";
 import { streamLlmResponse } from "@/lib/proxy";
 import { searchMemories } from "@/lib/vector";
 import { schedulePostMessageJobs } from "@/lib/memory";
-import { titleFromMessage } from "@/lib/utils";
+import { generateChatTitle } from "@/lib/chat-history";
 import { getEffectiveProviderKeys } from "@/lib/user-keys";
 
 type Context = {
@@ -33,6 +34,7 @@ export async function POST(request: Request, context: Context) {
 
     const input = await parseJson(request, streamMessageSchema);
     const message = sanitizeUserText(input.message);
+    const injectionAssessment = detectPromptInjection(message);
     const moderation = moderateText({
       text: message,
       userIsMinor: isMinor(user.birthDate),
@@ -52,7 +54,7 @@ export async function POST(request: Request, context: Context) {
       include: {
         character: true,
         messages: {
-          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          orderBy: [{ createdAt: "desc" }, { sequence: "desc" }, { id: "desc" }],
           take: 40
         }
       }
@@ -77,37 +79,53 @@ export async function POST(request: Request, context: Context) {
     const temperature = input.temperature ?? chat.temperature;
 
     const providerKeys = await getEffectiveProviderKeys(user.id);
-    const [memories] = await Promise.all([
-      searchMemories({
-        userId: user.id,
-        characterId: chat.characterId,
-        query: message,
-        limit: 5,
-        providerKeys
-      }),
-      prisma.message.create({
-        data: {
-          chatId: chat.id,
-          role: MessageRole.USER,
-          content: message,
-          clientRequestId: input.requestId
-        }
-      })
-    ]);
+    const lastSequence = await prisma.message.aggregate({
+      where: { chatId: chat.id },
+      _max: { sequence: true }
+    });
+    const userSequence = (lastSequence._max.sequence ?? chat.messages.length) + 1;
+    const assistantSequence = userSequence + 1;
+
+    await prisma.message.create({
+      data: {
+        chatId: chat.id,
+        sequence: userSequence,
+        role: MessageRole.USER,
+        content: message,
+        clientRequestId: input.requestId
+      }
+    });
+
+    const memories = await searchMemories({
+      userId: user.id,
+      characterId: chat.characterId,
+      query: message,
+      limit: 5,
+      providerKeys
+    });
 
     const prompt = assembleCharacterPrompt({
       character: chat.character,
       memories,
       summary: chat.summary,
       recentMessages: chat.messages.reverse(),
-      currentMessage: message
+      currentMessage: message,
+      injectionAssessment
     });
 
     const encoder = new TextEncoder();
     let assistantText = "";
     let outputBlocked = false;
     let assistantPersisted = false;
-    let usage = {
+    let usage: {
+      inputTokens: number;
+      outputTokens: number;
+      model: string;
+      provider: string;
+      latencyMs?: number;
+      fallbackTriggered?: boolean;
+      attempts?: string[];
+    } = {
       inputTokens: 0,
       outputTokens: 0,
       model,
@@ -166,6 +184,7 @@ export async function POST(request: Request, context: Context) {
           const assistant = await prisma.message.create({
             data: {
               chatId: chat.id,
+              sequence: assistantSequence,
               role: MessageRole.ASSISTANT,
               content: assistantText,
               model: usage.model,
@@ -174,12 +193,21 @@ export async function POST(request: Request, context: Context) {
             }
           });
           assistantPersisted = true;
+          const nextTitle =
+            chat.title && chat.title !== chat.character.name
+              ? chat.title
+              : await generateChatTitle({
+                  userMessage: message,
+                  assistantMessage: assistantText,
+                  model: usage.model || model,
+                  providerKeys
+                });
 
           const updated = await prisma.chat.update({
             where: { id: chat.id },
             data: {
               messageCount: { increment: 2 },
-              title: chat.title && chat.title !== chat.character.name ? chat.title : titleFromMessage(message),
+              title: nextTitle,
               model,
               temperature,
               lastActiveAt: new Date(),
@@ -197,7 +225,8 @@ export async function POST(request: Request, context: Context) {
               route: "chat",
               inputTokens: usage.inputTokens,
               outputTokens: usage.outputTokens,
-              status: outputBlocked ? "blocked_output" : "ok",
+              status: outputBlocked ? "blocked_output" : usage.fallbackTriggered ? "ok_fallback" : "ok",
+              error: usage.fallbackTriggered ? `fallback attempts: ${(usage.attempts ?? []).join(" -> ")}`.slice(0, 2000) : null,
               latencyMs: Date.now() - started
             }
           });
@@ -221,6 +250,7 @@ export async function POST(request: Request, context: Context) {
             const assistant = await prisma.message.create({
               data: {
                 chatId: chat.id,
+                sequence: assistantSequence,
                 role: MessageRole.ASSISTANT,
                 content: assistantText,
                 model: usage.model,
@@ -229,11 +259,20 @@ export async function POST(request: Request, context: Context) {
               }
             });
             assistantPersisted = true;
+            const nextTitle =
+              chat.title && chat.title !== chat.character.name
+                ? chat.title
+                : await generateChatTitle({
+                    userMessage: message,
+                    assistantMessage: assistantText,
+                    model: usage.model || model,
+                    providerKeys
+                  });
             await prisma.chat.update({
               where: { id: chat.id },
               data: {
                 messageCount: { increment: 2 },
-                title: chat.title && chat.title !== chat.character.name ? chat.title : titleFromMessage(message),
+                title: nextTitle,
                 model,
                 temperature,
                 lastActiveAt: new Date(),
@@ -246,7 +285,7 @@ export async function POST(request: Request, context: Context) {
               where: { id: chat.id },
               data: {
                 messageCount: { increment: 1 },
-                title: chat.title && chat.title !== chat.character.name ? chat.title : titleFromMessage(message),
+                title: chat.title && chat.title !== chat.character.name ? chat.title : message.slice(0, 54),
                 model,
                 temperature,
                 lastActiveAt: new Date(),

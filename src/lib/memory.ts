@@ -3,6 +3,7 @@ import "server-only";
 import { MemoryCategory, MessageRole, Prisma } from "@prisma/client";
 import { enqueueJob } from "@/lib/queue";
 import { prisma } from "@/lib/prisma";
+import { sanitizePromptContext, shouldStoreMemoryFromText } from "@/lib/prompt-security";
 import { createMemory } from "@/lib/vector";
 import type { ProviderKeys } from "@/lib/user-keys";
 
@@ -39,6 +40,10 @@ export async function extractMemoriesFromExchange(input: {
   latestAssistantMessage: string;
   providerKeys?: ProviderKeys;
 }) {
+  if (!shouldStoreMemoryFromText(input.latestUserMessage) || !shouldStoreMemoryFromText(input.latestAssistantMessage)) {
+    return [];
+  }
+
   const candidates = extractMemoryCandidates(input.latestUserMessage, input.latestAssistantMessage);
   if (candidates.length === 0) {
     return [];
@@ -137,12 +142,17 @@ function addPattern(
     return;
   }
 
+  const sanitized = sanitizePromptContext(captured, 240);
+  if (!sanitized || !shouldStoreMemoryFromText(sanitized)) {
+    return;
+  }
+
   candidates.push({
-    content: `${label}: ${captured}`,
+    content: `${label}: ${sanitized}`,
     category,
     importance,
     confidence: 0.82,
-    metadata: { extractor: "rule", captured }
+    metadata: { extractor: "rule", captured: sanitized }
   });
 }
 

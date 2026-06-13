@@ -30,9 +30,12 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
   const route = routeModel(input.model, keys);
   const attempts = [route, ...fallbackRoutes(route, keys)];
   let lastError: unknown = null;
+  const started = Date.now();
+  const attemptLabels: string[] = [];
 
-  for (const attempt of attempts) {
+  for (const [index, attempt] of attempts.entries()) {
     let emittedAny = false;
+    attemptLabels.push(`${attempt.providerName}:${attempt.model}`);
     try {
       let outputText = "";
       const usage = await streamProvider({
@@ -57,7 +60,10 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
         inputTokens: estimateTokens(input.messages.map((message) => message.content).join("\n")),
         outputTokens: estimateTokens(outputText),
         provider: attempt.providerName,
-        model: attempt.model
+        model: attempt.model,
+        latencyMs: Date.now() - started,
+        fallbackTriggered: index > 0,
+        attempts: attemptLabels
       };
       yield { type: "done" };
       return;
@@ -77,7 +83,7 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
   }
 
   console.error("All gateway providers failed, using local fallback.", lastError);
-  yield* fallbackStream(input);
+  yield* fallbackStream(input, started, attemptLabels);
 }
 
 export async function createGatewayEmbedding(text: string, providerKeys?: ProviderKeys) {
@@ -350,7 +356,7 @@ async function* streamLocalDeltas(messages: PromptMessage[], writeDelta: (delta:
   }
 }
 
-async function* fallbackStream(input: StreamInput): AsyncGenerator<StreamChunk> {
+async function* fallbackStream(input: StreamInput, started = Date.now(), attempts: string[] = []): AsyncGenerator<StreamChunk> {
   let outputText = "";
   for await (const delta of streamLocalDeltas(input.messages, (text) => {
     outputText += text;
@@ -364,7 +370,10 @@ async function* fallbackStream(input: StreamInput): AsyncGenerator<StreamChunk> 
     inputTokens: estimateTokens(input.messages.map((message) => message.content).join("\n")),
     outputTokens: estimateTokens(outputText),
     model: FALLBACK_MODEL,
-    provider: "local"
+    provider: "local",
+    latencyMs: Date.now() - started,
+    fallbackTriggered: attempts.length > 0,
+    attempts: [...attempts, `local:${FALLBACK_MODEL}`]
   };
   yield { type: "done" };
 }

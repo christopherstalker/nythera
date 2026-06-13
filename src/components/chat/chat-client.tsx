@@ -49,7 +49,7 @@ export function ChatClient({ chatId, characterName, characterAvatarUrl, summary,
       {backgroundStyle ? (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 -z-20 scale-110 bg-cover bg-center opacity-[0.18] blur-3xl saturate-125"
+          className="chat-avatar-bg pointer-events-none absolute inset-0 -z-20 scale-110 bg-cover bg-center opacity-[0.16] blur-[48px] saturate-125"
           style={backgroundStyle}
         />
       ) : (

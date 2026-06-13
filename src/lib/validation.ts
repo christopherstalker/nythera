@@ -33,14 +33,18 @@ const personaListSchema = z.array(z.string().trim().min(1).max(160)).max(16);
 export const characterPersonaSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   role: z.string().trim().min(1).max(120).optional(),
+  archetype: z.string().trim().min(1).max(120).optional(),
   personalityTraits: personaListSchema.optional(),
   speakingStyle: z.string().trim().max(500).optional(),
   emotionalTone: z.string().trim().max(240).optional(),
+  initiativeLevel: z.enum(["low", "medium", "high"]).optional(),
   boundaries: personaListSchema.optional(),
   motivation: z.string().trim().max(800).optional(),
   behavioralRules: personaListSchema.optional(),
+  forbiddenBehaviors: personaListSchema.optional(),
   verbosityLevel: z.enum(["concise", "balanced", "expressive", "immersive"]).optional(),
-  relationshipStyle: z.enum(["friend", "romantic", "mentor", "rival"]).optional()
+  relationshipStyle: z.enum(["friend", "romantic", "mentor", "rival", "antagonist"]).optional(),
+  relationshipDynamics: z.enum(["friend", "romantic", "mentor", "rival", "antagonist"]).optional()
 });
 
 export const characterCreateSchema = z.object({

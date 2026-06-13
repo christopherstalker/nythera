@@ -1,3 +1,5 @@
+import { detectPromptInjection } from "@/lib/prompt-security";
+
 const BLOCK_PATTERNS = [
   {
     flag: "sexual_content",
@@ -15,14 +17,6 @@ const BLOCK_PATTERNS = [
     flag: "dangerous_violence",
     pattern: /\b(build a bomb|make explosives|poison someone|hide a body|mass shooting)\b/i
   }
-];
-
-const INJECTION_PATTERNS = [
-  /ignore (all )?(previous|above) instructions/i,
-  /reveal (the )?(system|developer) prompt/i,
-  /you are now in developer mode/i,
-  /jailbreak/i,
-  /print your hidden instructions/i
 ];
 
 export type ModerationResult = {
@@ -43,9 +37,10 @@ export function moderateText(input: {
     flags.push("minor_romantic_content");
   }
 
-  const injection = INJECTION_PATTERNS.some((pattern) => pattern.test(input.text));
-  if (injection) {
+  const injection = detectPromptInjection(input.text);
+  if (injection.detected) {
     flags.push("prompt_injection_attempt");
+    flags.push(...injection.flags);
   }
 
   const selfHarm = flags.includes("self_harm");

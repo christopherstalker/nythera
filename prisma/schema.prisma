@@ -191,6 +191,7 @@ model Chat {
 model Message {
   id              String      @id @default(cuid())
   chatId          String
+  sequence        Int?
   role            MessageRole
   content         String      @db.Text
   tokens          Int?
@@ -202,7 +203,8 @@ model Message {
   chat    Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
   reports Report[]
 
-  @@index([chatId, createdAt])
+  @@unique([chatId, sequence])
+  @@index([chatId, createdAt, sequence])
 }
 
 model Memory {

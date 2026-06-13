@@ -20,7 +20,7 @@ export async function GET(_request: Request, context: Context) {
       include: {
         character: true,
         messages: {
-          orderBy: [{ createdAt: "asc" }, { id: "asc" }]
+          orderBy: [{ createdAt: "asc" }, { sequence: "asc" }, { id: "asc" }]
         }
       }
     });
@@ -46,7 +46,7 @@ export async function PATCH(request: Request, context: Context) {
       },
       include: {
         messages: {
-          orderBy: { createdAt: "asc" },
+          orderBy: [{ createdAt: "asc" }, { sequence: "asc" }, { id: "asc" }],
           take: 2
         }
       }
