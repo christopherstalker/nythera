@@ -11,3 +11,15 @@ dist
 coverage
 *.tsbuildinfo
 .vercel
+
+output
+*.apk
+*.aab
+
+mobile/node_modules
+mobile/android
+mobile/ios
+mobile/.expo
+mobile/dist
+mobile/web-build
+mobile/*.tsbuildinfo
