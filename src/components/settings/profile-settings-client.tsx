@@ -79,6 +79,7 @@ export function ProfileSettingsClient() {
 
     const body = await response.json();
     setProfile(body.profile);
+    window.dispatchEvent(new CustomEvent("velora:profile-updated", { detail: { profile: body.profile } }));
     setStatus("Profile saved.");
   }
 

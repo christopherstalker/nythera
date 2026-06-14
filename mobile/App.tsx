@@ -32,6 +32,8 @@ type User = {
   name?: string | null;
   avatarUrl?: string | null;
   bio?: string | null;
+  role?: string | null;
+  ageVerified?: boolean;
 };
 
 type Character = {
@@ -101,6 +103,13 @@ type CreateCharacterInput = {
   roleplayIntensity: number;
 };
 
+type ProfileUpdateInput = {
+  username: string;
+  avatarUrl: string;
+  bio: string;
+  ageVerified: boolean;
+};
+
 async function tokenStoreGet() {
   return SecureStore.getItemAsync(TOKEN_KEY);
 }
@@ -144,6 +153,41 @@ function getGoogleAuthError(error: unknown) {
   }
 
   return error instanceof Error ? error.message : "Google sign-in failed.";
+}
+
+async function pickImageDataUrl() {
+  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!permission.granted) {
+    Alert.alert("Photo access", "Allow photo access to choose an avatar from your phone.");
+    return null;
+  }
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: "images",
+    allowsEditing: true,
+    aspect: [1, 1],
+    quality: 0.68,
+    base64: true
+  });
+
+  if (result.canceled) {
+    return null;
+  }
+
+  const asset = result.assets[0];
+  if (!asset?.base64) {
+    Alert.alert("Avatar", "Could not read this image. Try another one.");
+    return null;
+  }
+
+  const mimeType = asset.mimeType?.startsWith("image/") ? asset.mimeType : "image/jpeg";
+  const dataUrl = `data:${mimeType};base64,${asset.base64}`;
+  if (dataUrl.length > 2_100_000) {
+    Alert.alert("Avatar too large", "Choose or crop a smaller image. Velora accepts avatars under about 1.5MB.");
+    return null;
+  }
+
+  return dataUrl;
 }
 
 export default function App() {
@@ -422,6 +466,36 @@ export default function App() {
     }
   }
 
+  async function updateProfile(input: ProfileUpdateInput) {
+    if (!token) {
+      return;
+    }
+
+    if (input.username && !/^[a-zA-Z0-9_]{3,24}$/.test(input.username)) {
+      Alert.alert("Username", "Username must be 3-24 letters, numbers, or underscores.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const body = await api<{ user: User }>("/api/mobile/profile", token, {
+        method: "PATCH",
+        body: JSON.stringify({
+          username: input.username.trim(),
+          avatarUrl: input.avatarUrl,
+          bio: input.bio.trim(),
+          ageVerified: input.ageVerified
+        })
+      });
+      setUser(body.user);
+      setStatus("Profile saved.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not save profile.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function logout() {
     await tokenStoreClear();
     setToken(null);
@@ -460,7 +534,7 @@ export default function App() {
     }
 
     if (tab === "settings") {
-      return <SettingsScreen user={user} apiUrl={API_URL} onLogout={logout} />;
+      return <SettingsScreen user={user} apiUrl={API_URL} busy={busy} onSave={updateProfile} onLogout={logout} />;
     }
 
     return (
@@ -601,11 +675,17 @@ function AuthScreen({
 }
 
 function AppHeader({ user, status }: { user: User; status: string | null }) {
+  const displayName = user.username ?? user.name ?? user.email;
   return (
     <View style={styles.header}>
-      <View>
-        <Text style={styles.brand}>Velora</Text>
-        <Text style={styles.muted}>{user.username ?? user.name ?? user.email}</Text>
+      <View style={styles.headerIdentity}>
+        <View style={styles.headerAvatar}>
+          {user.avatarUrl ? <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} /> : <Text style={styles.headerAvatarText}>{displayName.slice(0, 1).toUpperCase()}</Text>}
+        </View>
+        <View>
+          <Text style={styles.brand}>Velora</Text>
+          <Text style={styles.muted}>{displayName}</Text>
+        </View>
       </View>
       {status ? <Text style={styles.headerStatus}>{status}</Text> : null}
     </View>
@@ -805,38 +885,10 @@ function CreateScreen({ busy, onCreate }: { busy: boolean; onCreate: (input: Cre
 
   async function pickAvatar() {
     try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert("Photo access", "Allow photo access to choose an avatar from your phone.");
-        return;
+      const dataUrl = await pickImageDataUrl();
+      if (dataUrl) {
+        setAvatarUrl(dataUrl);
       }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: "images",
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.68,
-        base64: true
-      });
-
-      if (result.canceled) {
-        return;
-      }
-
-      const asset = result.assets[0];
-      if (!asset?.base64) {
-        Alert.alert("Avatar", "Could not read this image. Try another one.");
-        return;
-      }
-
-      const mimeType = asset.mimeType?.startsWith("image/") ? asset.mimeType : "image/jpeg";
-      const dataUrl = `data:${mimeType};base64,${asset.base64}`;
-      if (dataUrl.length > 2_100_000) {
-        Alert.alert("Avatar too large", "Choose or crop a smaller image. Velora accepts avatars under about 1.5MB.");
-        return;
-      }
-
-      setAvatarUrl(dataUrl);
     } catch (error) {
       Alert.alert("Avatar", error instanceof Error ? error.message : "Could not open image picker.");
     }
@@ -1186,20 +1238,78 @@ function CreatePreview({
   );
 }
 
-function SettingsScreen({ user, apiUrl, onLogout }: { user: User; apiUrl: string; onLogout: () => void }) {
+function SettingsScreen({
+  user,
+  apiUrl,
+  busy,
+  onSave,
+  onLogout
+}: {
+  user: User;
+  apiUrl: string;
+  busy: boolean;
+  onSave: (input: ProfileUpdateInput) => void;
+  onLogout: () => void;
+}) {
+  const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl ?? "");
+  const [username, setUsername] = useState(user.username ?? "");
+  const [bio, setBio] = useState(user.bio ?? "");
+  const [ageVerified, setAgeVerified] = useState(user.ageVerified ?? false);
+  const displayName = username.trim() || user.name || user.email;
+
+  useEffect(() => {
+    setAvatarUrl(user.avatarUrl ?? "");
+    setUsername(user.username ?? "");
+    setBio(user.bio ?? "");
+    setAgeVerified(user.ageVerified ?? false);
+  }, [user.id, user.avatarUrl, user.username, user.bio, user.ageVerified]);
+
+  async function pickProfileAvatar() {
+    try {
+      const dataUrl = await pickImageDataUrl();
+      if (dataUrl) {
+        setAvatarUrl(dataUrl);
+      }
+    } catch (error) {
+      Alert.alert("Avatar", error instanceof Error ? error.message : "Could not open image picker.");
+    }
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.listContent}>
-      <ScreenIntro title="Settings" description="Native Android app connected to the Velora production backend." />
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{user.name ?? user.username ?? "Velora user"}</Text>
-        <Text style={styles.bodyText}>{user.email}</Text>
-        <Text style={styles.muted}>{apiUrl}</Text>
+      <ScreenIntro title="Profile" description="Your account avatar and identity are shared between the website and Android app." />
+      <View style={styles.formSection}>
+        <Text style={styles.sectionTitle}>Account identity</Text>
+        <Text style={styles.muted}>{user.email}</Text>
+        <Pressable style={styles.avatarPicker} onPress={pickProfileAvatar}>
+          <View style={styles.avatarPickerImage}>
+            {avatarUrl ? <Image source={{ uri: avatarUrl }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{displayName.slice(0, 1).toUpperCase()}</Text>}
+          </View>
+          <View style={styles.cardTitleWrap}>
+            <Text style={styles.cardTitle}>{avatarUrl ? "Change profile avatar" : "Choose profile avatar"}</Text>
+            <Text style={styles.muted}>Pick and crop an image from your phone.</Text>
+          </View>
+        </Pressable>
+        <FieldLabel label="Username" hint="3-24 letters, numbers, or underscores" />
+        <TextInput value={username} onChangeText={setUsername} placeholder="username" placeholderTextColor="#8d879d" autoCapitalize="none" style={styles.input} />
+        <FieldLabel label="Bio" hint="Optional profile note" />
+        <TextInput value={bio} onChangeText={setBio} placeholder="A short note about you" placeholderTextColor="#8d879d" style={styles.textarea} multiline />
+        <ToggleRow
+          title="Age-gated settings"
+          description="Confirm this account can access mature-content controls where allowed."
+          value={ageVerified}
+          onToggle={() => setAgeVerified((current) => !current)}
+        />
+        <View style={styles.createActions}>
+          {avatarUrl ? <SecondaryButton label="Clear avatar" onPress={() => setAvatarUrl("")} /> : null}
+          <PrimaryButton label={busy ? "Saving..." : "Save profile"} disabled={busy} onPress={() => onSave({ username, avatarUrl, bio, ageVerified })} />
+        </View>
       </View>
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Google Play setup</Text>
+        <Text style={styles.cardTitle}>App connection</Text>
+        <Text style={styles.bodyText}>{apiUrl}</Text>
         <Text style={styles.bodyText}>Package: ai.velora.app</Text>
         <Text style={styles.bodyText}>Scheme: velora</Text>
-        <Text style={styles.bodyText}>Build profile: production app-bundle</Text>
       </View>
       <SecondaryButton label="Sign out" onPress={onLogout} />
     </ScrollView>
@@ -1390,8 +1500,31 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255,255,255,0.06)",
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
     gap: 12
+  },
+  headerIdentity: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1
+  },
+  headerAvatar: {
+    height: 42,
+    width: 42,
+    borderRadius: 21,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(167,139,250,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(167,139,250,0.25)"
+  },
+  headerAvatarText: {
+    color: "#D9D1FF",
+    fontSize: 16,
+    fontWeight: "800"
   },
   brand: {
     color: "#F8F7FF",

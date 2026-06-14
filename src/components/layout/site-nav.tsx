@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
@@ -25,20 +25,64 @@ const mobileLinks = [
   { href: "/settings", label: "Settings", icon: KeyRound }
 ];
 
+type ProfilePreview = {
+  username?: string | null;
+  avatarUrl?: string | null;
+};
+
 export function SiteNav() {
   const pathname = usePathname();
   const { data: session, status } = useSession();
   const [open, setOpen] = useState(false);
+  const [profilePreview, setProfilePreview] = useState<ProfilePreview | null>(null);
   const isAuthenticated = status === "authenticated";
   const canUseAdmin = isPlatformAdminEmail(session?.user?.email);
   const links = canUseAdmin ? [...baseLinks, adminLink] : baseLinks;
-  const initial = session?.user?.username?.[0] ?? session?.user?.email?.[0] ?? "V";
+  const displayName = profilePreview?.username ?? session?.user?.username ?? session?.user?.name ?? session?.user?.email ?? "Velora user";
+  const avatarUrl = profilePreview?.avatarUrl ?? session?.user?.image ?? null;
+  const initial = displayName[0] ?? "V";
   const showMobileDock = !(
     pathname.startsWith("/chat/") ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/admin")
   );
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setProfilePreview(null);
+      return;
+    }
+
+    let cancelled = false;
+    fetch("/api/profile", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body) => {
+        if (!cancelled && body?.profile) {
+          setProfilePreview({
+            username: body.profile.username,
+            avatarUrl: body.profile.avatarUrl
+          });
+        }
+      })
+      .catch(() => undefined);
+
+    const onProfileUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ profile?: ProfilePreview }>).detail;
+      if (detail?.profile) {
+        setProfilePreview({
+          username: detail.profile.username,
+          avatarUrl: detail.profile.avatarUrl
+        });
+      }
+    };
+
+    window.addEventListener("velora:profile-updated", onProfileUpdated);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("velora:profile-updated", onProfileUpdated);
+    };
+  }, [isAuthenticated]);
 
   return (
     <>
@@ -100,13 +144,22 @@ export function SiteNav() {
                 className="focus-ring flex h-10 items-center gap-2 rounded-full border border-white/[0.055] bg-white/[0.035] px-2 pr-3 shadow-inset transition hover:border-primary/25 hover:bg-primary/[0.075]"
                 onClick={() => setOpen((current) => !current)}
               >
-                <span className="grid h-7 w-7 place-items-center rounded-full border border-primary/30 bg-primary/15 text-xs font-bold uppercase text-foreground">
-                  {initial}
+                <span className="grid h-7 w-7 place-items-center overflow-hidden rounded-full border border-primary/30 bg-primary/15 text-xs font-bold uppercase text-foreground">
+                  {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : initial}
                 </span>
                 <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
               {open ? (
                 <div className="absolute right-0 mt-2 w-56 rounded-3xl border border-white/[0.055] bg-card/95 p-2 shadow-card-glow backdrop-blur-xl">
+                  <div className="mb-1 flex items-center gap-3 rounded-2xl bg-white/[0.035] p-2">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full border border-primary/25 bg-primary/12 text-sm font-bold uppercase">
+                      {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : initial}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-foreground">{displayName}</p>
+                      <p className="truncate text-xs text-muted-foreground">{session?.user?.email}</p>
+                    </div>
+                  </div>
                   <MenuLink href="/settings" icon={Settings} label="Settings" onClick={() => setOpen(false)} />
                   <MenuLink href="/chats" icon={MessageSquare} label="Chats" onClick={() => setOpen(false)} />
                   {canUseAdmin ? <MenuLink href="/admin" icon={ShieldCheck} label="Admin" onClick={() => setOpen(false)} /> : null}

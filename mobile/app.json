@@ -9,7 +9,7 @@
     "userInterfaceStyle": "dark",
     "android": {
       "package": "ai.velora.app",
-      "versionCode": 3,
+      "versionCode": 4,
       "permissions": ["INTERNET"],
       "adaptiveIcon": {
         "foregroundImage": "./assets/velora-adaptive-icon.png",
