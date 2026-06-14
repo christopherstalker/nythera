@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus, Search } from "lucide-react";
 import { CharacterGrid } from "@/components/characters/CharacterGrid";
 import type { CharacterSummary } from "@/components/characters/CharacterCard";
-import { sampleCharacters } from "@/components/characters/sampleCharacters";
 import { Button } from "@/components/ui/button";
 import { CategoryPill } from "@/components/ui/category-pill";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -19,6 +18,7 @@ export default function ExplorePage() {
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("For You");
   const [loading, setLoading] = useState(true);
+  const hasActiveFilters = query.trim().length > 0 || activeCategory !== "For You";
 
   useEffect(() => {
     const controller = new AbortController();
@@ -46,11 +46,6 @@ export default function ExplorePage() {
     return () => controller.abort();
   }, [activeCategory, query]);
 
-  const filtered = useMemo(() => {
-    const catalog = characters.length > 0 ? characters : sampleCharacters;
-    return catalog;
-  }, [characters]);
-
   return (
     <PageShell className="space-y-6">
       <SearchBar value={query} onChange={setQuery} placeholder="Search characters..." />
@@ -63,26 +58,26 @@ export default function ExplorePage() {
         </div>
       </div>
 
-      {loading || filtered.length > 0 ? (
-        <CharacterGrid characters={filtered} loading={loading} />
+      {loading || characters.length > 0 ? (
+        <CharacterGrid characters={characters} loading={loading} />
       ) : (
         <EmptyState
           icon={Search}
-          title={characters.length === 0 ? "No characters yet" : "No characters found"}
+          title={hasActiveFilters ? "No characters found" : "No characters yet"}
           description={
-            characters.length === 0
-              ? "The public catalog is empty right now. Create a character to start building Velora."
-              : "Try another character name, mood, or category."
+            hasActiveFilters
+              ? "Try another character name, mood, or category."
+              : "The public catalog is empty right now. Create a character to start building Velora."
           }
           action={
-            characters.length === 0 ? (
+            hasActiveFilters ? null : (
               <Button asChild>
                 <Link href="/create-character">
                   <Plus className="h-4 w-4" />
                   Create character
                 </Link>
               </Button>
-            ) : null
+            )
           }
         />
       )}

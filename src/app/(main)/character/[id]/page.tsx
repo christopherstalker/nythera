@@ -239,7 +239,7 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
                 </h1>
                 <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
                   <User className="h-4 w-4" />
-                  by @{character.creator?.username ?? "velora"}
+                  by @{character.creator?.username ?? "user"}
                 </p>
                 <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">{character.description}</p>
                 <div className="mt-5 flex flex-wrap gap-2">

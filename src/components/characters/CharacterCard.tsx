@@ -24,14 +24,9 @@ type CharacterCardProps = {
 
 export function CharacterCard({ character, className }: CharacterCardProps) {
   const router = useRouter();
-  const creator = character.creator?.username ?? "velora";
+  const creator = character.creator?.username ?? "user";
 
   function openProfile() {
-    if (character.id.startsWith("sample-")) {
-      router.push("/create-character");
-      return;
-    }
-
     router.push(`/character/${character.id}`);
   }
 
