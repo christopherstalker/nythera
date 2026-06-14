@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MessageSquare, Plus } from "lucide-react";
+import { MessageCircle, Plus } from "lucide-react";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { CharacterAvatar } from "@/components/character/character-avatar";
 import { EmptyState } from "@/components/ui/empty-state";
-import { PageHeader, PageShell, Surface } from "@/components/ui/page";
+import { PageHeader, PageShell } from "@/components/ui/page";
 
 type Chat = {
   id: string;
@@ -22,20 +22,22 @@ type Chat = {
 export default function ChatsPage() {
   const [chats, setChats] = useState<Chat[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/chats")
       .then((response) => (response.ok ? response.json() : Promise.reject(response)))
       .then((body) => setChats(body.chats ?? []))
-      .catch(() => setError("Sign in to view chats."));
+      .catch(() => setError("Sign in to view chats."))
+      .finally(() => setLoading(false));
   }, []);
 
   return (
-    <PageShell className="space-y-10">
+    <PageShell className="space-y-6">
       <PageHeader
-        icon={MessageSquare}
+        icon={MessageCircle}
         title="Chats"
-        description="Resume active character threads and memory-backed conversations."
+        description="Resume recent character conversations."
         actions={
           <Button asChild>
             <Link href="/explore">
@@ -46,36 +48,33 @@ export default function ChatsPage() {
         }
       />
 
-      {error ? (
-        <EmptyState icon={MessageSquare} title="Sign in required" description={error} action={<Button asChild><Link href="/login">Sign in</Link></Button>} />
-      ) : null}
-
-      {!error && chats.length > 0 ? (
-        <Surface className="overflow-hidden p-3 sm:p-4">
-          <div className="grid gap-3">
-            {chats.map((chat, index) => (
-              <Link
-                key={chat.id}
-                href={`/chat/${chat.id}`}
-                className="flex items-center gap-4 rounded-[26px] border border-white/[0.015] bg-white/[0.022] p-4 no-underline shadow-inset transition duration-200 hover:-translate-y-0.5 hover:border-primary/[0.14] hover:bg-primary/[0.06]"
-              >
-                <CharacterAvatar name={chat.character.name} avatarUrl={chat.character.avatarUrl} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-foreground">{chat.title || chat.character.name}</p>
-                  <p className="mt-1 truncate text-[13px] leading-5 text-muted-foreground">{chat.messages[0]?.content || "No messages yet"}</p>
-                </div>
-                <span className="rounded-full bg-white/[0.035] px-3 py-1 text-xs text-muted-foreground shadow-inset">
-                  {index === 0 ? "now" : "saved"}
-                </span>
-              </Link>
-            ))}
-          </div>
-        </Surface>
-      ) : null}
-
-      {!error && chats.length === 0 ? (
+      {loading ? (
+        <div className="grid gap-3">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="skeleton h-20" />
+          ))}
+        </div>
+      ) : error ? (
+        <EmptyState icon={MessageCircle} title="Sign in required" description={error} action={<Button asChild><Link href="/login">Sign in</Link></Button>} />
+      ) : chats.length > 0 ? (
+        <div className="grid gap-3">
+          {chats.map((chat) => (
+            <Link
+              key={chat.id}
+              href={`/chat/${chat.id}`}
+              className="flex items-center gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 no-underline shadow-[var(--shadow-card)] transition-colors duration-150 hover:bg-[var(--bg-elevated)] active:scale-[0.99]"
+            >
+              <Avatar name={chat.character.name} src={chat.character.avatarUrl} size="sm" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{chat.title || chat.character.name}</p>
+                <p className="mt-1 truncate text-[13px] leading-5 text-[var(--text-secondary)]">{chat.messages[0]?.content || "No messages yet"}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      ) : (
         <EmptyState
-          icon={MessageSquare}
+          icon={MessageCircle}
           title="No chats yet"
           description="Explore public characters or create your own to begin a conversation."
           action={
@@ -87,7 +86,7 @@ export default function ChatsPage() {
             </Button>
           }
         />
-      ) : null}
+      )}
     </PageShell>
   );
 }

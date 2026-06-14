@@ -81,7 +81,8 @@ export const streamMessageSchema = z.object({
   message: z.string().min(1).max(4000),
   temperature: z.coerce.number().min(0).max(2).optional(),
   model: z.string().max(160).optional(),
-  requestId: z.string().min(8).max(120).optional()
+  requestId: z.string().min(8).max(120).optional(),
+  regenerate: z.boolean().optional()
 });
 
 export const registerSchema = z.object({
@@ -97,4 +98,53 @@ export const registerSchema = z.object({
 export const reportSchema = z.object({
   reason: z.string().min(3).max(120),
   details: z.string().max(2000).optional()
+});
+
+export const ratingSchema = z.object({
+  value: z.coerce.number().int().min(1).max(5),
+  review: z.string().trim().max(1200).optional().or(z.literal(""))
+});
+
+const listFromTextSchema = z
+  .array(z.string().trim().min(1).max(160))
+  .max(24)
+  .default([]);
+
+export const userPersonaSchema = z.object({
+  displayName: z.string().trim().min(2).max(80),
+  avatarUrl: imageSourceSchema.optional().or(z.literal("")).nullable(),
+  summary: z.string().trim().min(10).max(2000),
+  background: z.string().trim().max(3000).optional().or(z.literal("")).nullable(),
+  traits: listFromTextSchema,
+  likes: listFromTextSchema,
+  dislikes: listFromTextSchema,
+  boundaries: listFromTextSchema,
+  visibility: z.enum(["PRIVATE", "PUBLIC", "UNLISTED"]).default("PRIVATE")
+});
+
+export const memoryCreateSchema = z.object({
+  content: z.string().trim().min(2).max(2000),
+  characterId: z.string().min(1).optional().nullable(),
+  category: z
+    .enum([
+      "USER_PROFILE",
+      "PREFERENCE",
+      "RELATIONSHIP",
+      "FACT",
+      "EMOTIONAL_CONTEXT",
+      "RECURRING_TOPIC",
+      "EVENT",
+      "WORLD_STATE",
+      "OTHER"
+    ])
+    .default("OTHER"),
+  importance: z.coerce.number().min(0).max(5).default(1),
+  pinned: z.boolean().default(false)
+});
+
+export const memoryUpdateSchema = z.object({
+  content: z.string().trim().min(2).max(2000).optional(),
+  importance: z.coerce.number().min(0).max(5).optional(),
+  pinned: z.boolean().optional(),
+  category: memoryCreateSchema.shape.category.optional()
 });

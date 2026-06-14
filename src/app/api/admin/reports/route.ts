@@ -75,6 +75,16 @@ export async function PATCH(request: Request) {
       });
     }
 
+    if (input.banUser && report.character?.creatorId) {
+      await prisma.user.update({
+        where: { id: report.character.creatorId },
+        data: {
+          bannedAt: new Date(),
+          banReason: `Moderation report ${report.id}: ${report.reason}`.slice(0, 2000)
+        }
+      });
+    }
+
     return json({ report });
   } catch (error) {
     return routeError(error);

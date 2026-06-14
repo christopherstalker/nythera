@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "@/app/globals.css";
-import { SiteNav } from "@/components/layout/site-nav";
+import { AppShell } from "@/components/layout/AppShell";
 import { SessionProvider } from "@/components/providers/session-provider";
 
 const inter = Inter({
@@ -37,8 +37,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#0B0B12" },
-    { media: "(prefers-color-scheme: light)", color: "#F7F5FC" }
+    { media: "(prefers-color-scheme: dark)", color: "#0d0d0d" },
+    { media: "(prefers-color-scheme: light)", color: "#0d0d0d" }
   ]
 };
 
@@ -47,8 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className="dark" suppressHydrationWarning>
       <body className={`${inter.className} min-h-screen overflow-x-hidden`}>
         <SessionProvider>
-          <SiteNav />
-          <main className="min-h-[calc(100dvh-4rem)]">{children}</main>
+          <AppShell>{children}</AppShell>
         </SessionProvider>
       </body>
     </html>

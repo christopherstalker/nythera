@@ -15,7 +15,10 @@ const mobileProfileSchema = z.object({
     .nullable(),
   bio: z.string().max(800).optional().nullable(),
   avatarUrl: imageSourceSchema.optional().or(z.literal("")).nullable(),
-  ageVerified: z.boolean().optional()
+  ageVerified: z.boolean().optional(),
+  memoryEnabled: z.boolean().optional(),
+  compactMode: z.boolean().optional(),
+  notificationsEnabled: z.boolean().optional()
 });
 
 export const dynamic = "force-dynamic";
@@ -39,7 +42,10 @@ export async function PATCH(request: Request) {
         username: input.username === "" ? null : input.username,
         bio: input.bio,
         avatarUrl: input.avatarUrl === "" ? null : input.avatarUrl,
-        ageVerified: input.ageVerified
+        ageVerified: input.ageVerified,
+        memoryEnabled: input.memoryEnabled,
+        compactMode: input.compactMode,
+        notificationsEnabled: input.notificationsEnabled
       },
       select: {
         id: true,
@@ -50,7 +56,10 @@ export async function PATCH(request: Request) {
         avatarUrl: true,
         bio: true,
         role: true,
-        ageVerified: true
+        ageVerified: true,
+        memoryEnabled: true,
+        compactMode: true,
+        notificationsEnabled: true
       }
     });
 

@@ -12,6 +12,8 @@ export type ChatMessage = {
 type SendOptions = {
   model?: string;
   temperature?: number;
+  regenerate?: boolean;
+  replaceAssistantId?: string;
 };
 
 export function useChat(chatId: string, initialMessages: ChatMessage[]) {
@@ -44,7 +46,16 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
         content: ""
       };
 
-      setMessages((current) => [...current, userMessage, assistantMessage]);
+      setMessages((current) => {
+        if (options?.regenerate) {
+          const withoutTarget = options.replaceAssistantId
+            ? current.filter((message) => message.id !== options.replaceAssistantId)
+            : current.filter((message, index) => !(index === current.length - 1 && message.role === "ASSISTANT"));
+          return [...withoutTarget, assistantMessage];
+        }
+
+        return [...current, userMessage, assistantMessage];
+      });
       setIsStreaming(true);
       setError(null);
 
@@ -56,7 +67,8 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
             message: trimmedContent,
             model: options?.model,
             temperature: options?.temperature,
-            requestId
+            requestId,
+            regenerate: options?.regenerate
           })
         });
 
@@ -124,9 +136,7 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
       } catch (caught) {
         const message = caught instanceof Error ? caught.message : "Unexpected chat error.";
         setError(message);
-        setMessages((current) =>
-          current.filter((item) => item.id !== assistantMessage.id || item.content.length > 0)
-        );
+        setMessages((current) => current.filter((item) => item.id !== assistantMessage.id || item.content.length > 0));
       } finally {
         setIsStreaming(false);
       }
@@ -134,7 +144,60 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
     [chatId, isStreaming]
   );
 
-  return { messages, isStreaming, error, send };
+  const editMessage = useCallback(async (messageId: string, content: string) => {
+    const trimmed = content.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    const response = await fetch(`/api/messages?id=${encodeURIComponent(messageId)}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ content: trimmed })
+    });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      setError(body?.error ?? "Could not edit message.");
+      return;
+    }
+
+    const body = await response.json();
+    setMessages((current) => current.map((message) => (message.id === messageId ? body.message : message)));
+  }, []);
+
+  const deleteMessage = useCallback(async (messageId: string) => {
+    const response = await fetch(`/api/messages?id=${encodeURIComponent(messageId)}`, { method: "DELETE" });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      setError(body?.error ?? "Could not delete message.");
+      return;
+    }
+
+    setMessages((current) => current.filter((message) => message.id !== messageId));
+  }, []);
+
+  const branchFromMessage = useCallback(
+    async (messageId: string) => {
+      const response = await fetch(`/api/chats/${chatId}/branch`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ messageId })
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        setError(body?.error ?? "Could not branch chat.");
+        return null;
+      }
+
+      const body = await response.json();
+      return body.chat?.id as string | undefined;
+    },
+    [chatId]
+  );
+
+  return { messages, isStreaming, error, send, editMessage, deleteMessage, branchFromMessage };
 }
 
 function createRequestId() {

@@ -62,6 +62,10 @@ export async function PATCH(request: Request, context: Context) {
     }
 
     const input = await parseJson(request, characterUpdateSchema);
+    if (input.isNSFW && !user.ageVerified) {
+      throw new HttpError(403, "Confirm age-gated access in profile settings before marking characters as NSFW.");
+    }
+
     const updated = await prisma.character.update({
       where: { id: context.params.id },
       data: {

@@ -20,16 +20,16 @@ export function SearchBar({
 }: SearchBarProps) {
   return (
     <label className={cn("relative block w-full", className)}>
-      <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
       <input
         aria-label={placeholder}
         value={value}
         onChange={(event) => onChange?.(event.target.value)}
         placeholder={placeholder}
-        className="focus-ring h-14 w-full rounded-full border border-white/[0.03] bg-white/[0.035] px-12 text-[15px] text-foreground shadow-card-glow shadow-inset placeholder:text-muted-foreground transition duration-200 focus:border-primary/[0.24] focus:bg-white/[0.06]"
+        className="focus-ring h-12 w-full rounded-[var(--radius-pill)] border border-[var(--border-default)] bg-[var(--bg-input)] px-11 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] transition-colors duration-200 focus:border-[var(--accent-purple)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-purple)]"
       />
       {showFilterIcon ? (
-        <span className="pointer-events-none absolute right-3 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-primary/10 text-primary">
+        <span className="pointer-events-none absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-[var(--bg-elevated)] text-[var(--text-secondary)]">
           <SlidersHorizontal className="h-4 w-4" />
         </span>
       ) : null}

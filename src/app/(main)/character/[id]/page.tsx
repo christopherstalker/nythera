@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Copy, Flag, Heart, MessageCircle, Share2, Sparkles, Star, User } from "lucide-react";
+import { Copy, Edit3, Flag, Heart, MessageCircle, Share2, Sparkles, Star, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CharacterAvatar } from "@/components/character/character-avatar";
@@ -13,6 +14,7 @@ import type { CharacterPersona } from "@/types";
 
 type Character = {
   id: string;
+  creatorId: string;
   name: string;
   avatarUrl?: string | null;
   description: string;
@@ -21,6 +23,9 @@ type Character = {
   greeting: string;
   tags: string[];
   likes: number;
+  ratingAverage: number;
+  ratingCount: number;
+  isNSFW?: boolean;
   visibility?: string;
   communicationStyle?: Record<string, unknown> | null;
   persona?: CharacterPersona | null;
@@ -32,15 +37,40 @@ type Character = {
 export default function CharacterPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [character, setCharacter] = useState<Character | null>(null);
+  const [viewer, setViewer] = useState<{ canEdit: boolean; liked: boolean; rating?: { value: number; review?: string | null } | null }>({
+    canEdit: false,
+    liked: false,
+    rating: null
+  });
   const [error, setError] = useState<string | null>(null);
   const [liked, setLiked] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("Policy or safety issue");
+  const [reportDetails, setReportDetails] = useState("");
+  const [ratingValue, setRatingValue] = useState(0);
+  const [reviewText, setReviewText] = useState("");
+  const [reviews, setReviews] = useState<Array<{ value: number; review?: string | null; user?: { username?: string | null } | null }>>([]);
+  const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/characters/${params.id}`)
       .then((response) => (response.ok ? response.json() : Promise.reject(response)))
-      .then((body) => setCharacter(body.character))
+      .then((body) => {
+        setCharacter(body.character);
+        setViewer(body.viewer ?? { canEdit: false, liked: false, rating: null });
+        setLiked(Boolean(body.viewer?.liked));
+        setRatingValue(Number(body.viewer?.rating?.value ?? 0));
+        setReviewText(body.viewer?.rating?.review ?? "");
+      })
       .catch(() => setError("Character not found or unavailable."));
   }, [params.id]);
+
+  useEffect(() => {
+    fetch(`/api/characters/${params.id}/rating`, { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body) => setReviews(Array.isArray(body?.reviews) ? body.reviews : []))
+      .catch(() => undefined);
+  }, [params.id, viewer.rating]);
 
   const styleEntries = useMemo(() => {
     if (!character?.communicationStyle) {
@@ -105,6 +135,80 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
     }
   }
 
+  async function shareCharacter() {
+    if (!character) {
+      return;
+    }
+
+    const url = `${window.location.origin}/character/${character.id}`;
+    if (navigator.share) {
+      await navigator.share({ title: character.name, text: character.description, url }).catch(() => undefined);
+    } else {
+      await navigator.clipboard?.writeText(url);
+      setStatus("Character link copied.");
+    }
+  }
+
+  async function reportCharacter() {
+    const response = await fetch(`/api/characters/${params.id}/report`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ reason: reportReason, details: reportDetails })
+    });
+
+    if (response.status === 401) {
+      router.push("/login");
+      return;
+    }
+
+    if (response.ok) {
+      setReportOpen(false);
+      setReportDetails("");
+      setStatus("Report submitted.");
+      return;
+    }
+
+    const body = await response.json().catch(() => null);
+    setStatus(body?.error ?? "Could not submit report.");
+  }
+
+  async function submitRating() {
+    if (!ratingValue) {
+      setStatus("Choose a rating first.");
+      return;
+    }
+
+    const response = await fetch(`/api/characters/${params.id}/rating`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ value: ratingValue, review: reviewText })
+    });
+
+    if (response.status === 401) {
+      router.push("/login");
+      return;
+    }
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      setStatus(body?.error ?? "Could not save rating.");
+      return;
+    }
+
+    const body = await response.json();
+    setCharacter((current) =>
+      current
+        ? {
+            ...current,
+            ratingAverage: body.rating.average,
+            ratingCount: body.rating.count
+          }
+        : current
+    );
+    setViewer((current) => ({ ...current, rating: { value: ratingValue, review: reviewText } }));
+    setStatus("Rating saved.");
+  }
+
   if (error) {
     return (
       <PageShell>
@@ -147,6 +251,14 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
             </div>
 
             <div className="flex flex-wrap gap-2">
+              {viewer.canEdit ? (
+                <Button asChild variant="outline" size="lg">
+                  <Link href={`/character/${character.id}/edit`}>
+                    <Edit3 className="h-4 w-4" />
+                    Edit
+                  </Link>
+                </Button>
+              ) : null}
               <Button onClick={startChat} size="lg" className="px-7">
                 <MessageCircle className="h-4 w-4" />
                 Start chat
@@ -161,7 +273,7 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
                 <Heart className={cn("h-4 w-4 text-[#f0a8c8]", liked && "fill-[#f0a8c8]")} />
                 Like
               </Button>
-              <Button type="button" variant="outline" size="lg">
+              <Button type="button" variant="outline" size="lg" onClick={shareCharacter}>
                 <Share2 className="h-4 w-4" />
                 Share
               </Button>
@@ -174,8 +286,10 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
             <div className="grid gap-4 sm:grid-cols-3">
               <Stat icon={MessageCircle} value="Live" label="chat-ready" />
               <Stat icon={Heart} value={String(character.likes)} label="likes" rose />
-              <Stat icon={Star} value="4.8" label="rating" />
+              <Stat icon={Star} value={(character.ratingAverage || 0).toFixed(1)} label={`${character.ratingCount || 0} ratings`} />
             </div>
+            <RatingPanel value={ratingValue} review={reviewText} onValueChange={setRatingValue} onReviewChange={setReviewText} onSubmit={submitRating} />
+            <ReviewsPanel reviews={reviews} />
 
             <ProfileSection title="Personality">{character.personality}</ProfileSection>
             {character.persona ? (
@@ -222,7 +336,11 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
                   <Copy className="h-4 w-4" />
                   Clone character
                 </Button>
-                <Button type="button" variant="outline">
+                <Button type="button" variant="outline" onClick={shareCharacter}>
+                  <Share2 className="h-4 w-4" />
+                  Copy public link
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setReportOpen(true)}>
                   <Flag className="h-4 w-4 text-destructive" />
                   Report
                 </Button>
@@ -238,6 +356,31 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
           </aside>
         </div>
       </Surface>
+      {status ? <p className="mt-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 text-sm text-[var(--text-secondary)]">{status}</p> : null}
+      {reportOpen ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4">
+          <div className="w-full max-w-md rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 shadow-[var(--shadow-card)]">
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-lg font-semibold">Report character</h2>
+              <button type="button" onClick={() => setReportOpen(false)} className="focus-ring grid h-8 w-8 place-items-center rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <label className="mt-4 block">
+              <span className="text-sm font-medium text-[var(--text-primary)]">Reason</span>
+              <input value={reportReason} onChange={(event) => setReportReason(event.target.value)} className="focus-ring mt-2 h-11 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-sm" />
+            </label>
+            <label className="mt-4 block">
+              <span className="text-sm font-medium text-[var(--text-primary)]">Details</span>
+              <textarea value={reportDetails} onChange={(event) => setReportDetails(event.target.value)} className="focus-ring mt-2 min-h-28 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-input)] px-3 py-2 text-sm" />
+            </label>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setReportOpen(false)}>Cancel</Button>
+              <Button type="button" variant="destructive" onClick={reportCharacter}>Submit report</Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </PageShell>
   );
 }
@@ -247,6 +390,70 @@ function ProfileSection({ title, children }: { title: string; children: React.Re
     <SurfaceMuted className="p-6">
       <h2 className="text-lg font-semibold leading-6">{title}</h2>
       <p className="mt-4 whitespace-pre-wrap text-base leading-8 text-muted-foreground">{children}</p>
+    </SurfaceMuted>
+  );
+}
+
+function RatingPanel({
+  value,
+  review,
+  onValueChange,
+  onReviewChange,
+  onSubmit
+}: {
+  value: number;
+  review: string;
+  onValueChange: (value: number) => void;
+  onReviewChange: (value: string) => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <SurfaceMuted className="p-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold leading-6">Rate this character</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Help other roleplayers find consistent personas.</p>
+        </div>
+        <div className="flex gap-1">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <button key={star} type="button" onClick={() => onValueChange(star)} className="focus-ring rounded-md p-1 text-[#f2c572]">
+              <Star className={cn("h-6 w-6", value >= star && "fill-[#f2c572]")} />
+            </button>
+          ))}
+        </div>
+      </div>
+      <textarea
+        value={review}
+        onChange={(event) => onReviewChange(event.target.value)}
+        placeholder="Optional review..."
+        className="focus-ring mt-4 min-h-24 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[var(--text-primary)]"
+      />
+      <Button type="button" className="mt-3" onClick={onSubmit}>
+        Save rating
+      </Button>
+    </SurfaceMuted>
+  );
+}
+
+function ReviewsPanel({ reviews }: { reviews: Array<{ value: number; review?: string | null; user?: { username?: string | null } | null }> }) {
+  if (reviews.length === 0) {
+    return null;
+  }
+
+  return (
+    <SurfaceMuted className="p-5">
+      <h2 className="text-lg font-semibold leading-6">Recent reviews</h2>
+      <div className="mt-4 grid gap-3">
+        {reviews.map((review, index) => (
+          <div key={index} className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-input)] p-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-medium text-[var(--text-primary)]">@{review.user?.username ?? "user"}</p>
+              <p className="text-xs text-[#f2c572]">{review.value}/5</p>
+            </div>
+            {review.review ? <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[var(--text-secondary)]">{review.review}</p> : null}
+          </div>
+        ))}
+      </div>
     </SurfaceMuted>
   );
 }

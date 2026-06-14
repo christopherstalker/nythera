@@ -106,6 +106,9 @@ export async function requireMobileUser(request: Request) {
       role: true,
       ageVerified: true,
       birthDate: true,
+      memoryEnabled: true,
+      compactMode: true,
+      notificationsEnabled: true,
       bannedAt: true
     }
   });
@@ -214,6 +217,9 @@ export function publicMobileUser(user: {
   bio?: string | null;
   role?: string;
   ageVerified?: boolean;
+  memoryEnabled?: boolean;
+  compactMode?: boolean;
+  notificationsEnabled?: boolean;
 }) {
   return {
     id: user.id,
@@ -223,6 +229,9 @@ export function publicMobileUser(user: {
     avatarUrl: user.avatarUrl ?? user.image ?? null,
     bio: user.bio ?? null,
     role: user.role,
-    ageVerified: user.ageVerified ?? false
+    ageVerified: user.ageVerified ?? false,
+    memoryEnabled: user.memoryEnabled ?? true,
+    compactMode: user.compactMode ?? false,
+    notificationsEnabled: user.notificationsEnabled ?? false
   };
 }

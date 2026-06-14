@@ -12,6 +12,7 @@ import { searchMemories } from "@/lib/vector";
 import { schedulePostMessageJobs } from "@/lib/memory";
 import { generateChatTitle } from "@/lib/chat-history";
 import { getEffectiveProviderKeys } from "@/lib/user-keys";
+import { formatUserPersonaForPrompt } from "@/lib/user-persona";
 
 type Context = {
   params: {
@@ -97,17 +98,25 @@ export async function POST(request: Request, context: Context) {
       }
     });
 
-    const memories = await searchMemories({
-      userId: user.id,
-      characterId: chat.characterId,
-      query: message,
-      limit: 5,
-      providerKeys
-    });
+    const [memories, userPersona] = await Promise.all([
+      user.memoryEnabled
+        ? searchMemories({
+            userId: user.id,
+            characterId: chat.characterId,
+            query: message,
+            limit: 5,
+            providerKeys
+          })
+        : Promise.resolve([]),
+      prisma.userPersona.findUnique({
+        where: { userId: user.id }
+      })
+    ]);
 
     const prompt = assembleCharacterPrompt({
       character: chat.character,
       memories,
+      userPersona: formatUserPersonaForPrompt(userPersona),
       summary: chat.summary,
       recentMessages: chat.messages.reverse(),
       currentMessage: message,
@@ -219,15 +228,17 @@ export async function POST(request: Request, context: Context) {
       }
     });
 
-    await schedulePostMessageJobs({
-      chatId: chat.id,
-      userId: user.id,
-      characterId: chat.characterId,
-      latestUserMessage: message,
-      latestAssistantMessage: assistantMessage.content,
-      messageCount: updated.messageCount,
-      providerKeys
-    });
+    if (user.memoryEnabled) {
+      await schedulePostMessageJobs({
+        chatId: chat.id,
+        userId: user.id,
+        characterId: chat.characterId,
+        latestUserMessage: message,
+        latestAssistantMessage: assistantMessage.content,
+        messageCount: updated.messageCount,
+        providerKeys
+      });
+    }
 
     return json({ chat: updated, userMessage, assistantMessage });
   } catch (error) {

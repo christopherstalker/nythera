@@ -74,6 +74,10 @@ export async function POST(request: Request) {
     });
 
     const input = await parseJson(request, characterCreateSchema);
+    if (input.isNSFW && !user.ageVerified) {
+      throw new HttpError(403, "Confirm age-gated access in profile settings before creating NSFW characters.");
+    }
+
     const moderation = moderateText({
       text: [input.name, input.description, input.personality, input.scenario, input.greeting, JSON.stringify(input.persona ?? {})]
         .filter(Boolean)

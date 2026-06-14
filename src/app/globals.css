@@ -4,54 +4,86 @@
 
 @layer base {
   :root {
-    --background: 255 36% 97%;
-    --foreground: 258 24% 12%;
-    --card: 255 55% 99%;
-    --card-foreground: 258 24% 12%;
-    --popover: 255 55% 99%;
-    --popover-foreground: 258 24% 12%;
-    --primary: 257 76% 58%;
+    /* Backgrounds */
+    --bg-base: #0d0d0d;
+    --bg-surface: #1a1a1a;
+    --bg-elevated: #242424;
+    --bg-input: #2a2a2a;
+
+    /* Text */
+    --text-primary: #ffffff;
+    --text-secondary: #9b9b9b;
+    --text-muted: #5c5c5c;
+
+    /* Accents */
+    --accent-purple: #9b59b6;
+    --accent-purple-hover: #8e44ad;
+    --accent-purple-soft: rgba(155, 89, 182, 0.15);
+
+    /* Borders */
+    --border-default: #2e2e2e;
+    --border-subtle: #1f1f1f;
+
+    /* Chat bubbles */
+    --bubble-user: #2d1b4e;
+    --bubble-char: #1a1a1a;
+
+    /* Sidebar */
+    --sidebar-width: 260px;
+    --sidebar-collapsed: 64px;
+
+    /* Radius */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 20px;
+    --radius-bubble: 18px;
+    --radius-pill: 9999px;
+
+    /* Shadows */
+    --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.4);
+
+    --background: 0 0% 5%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 14%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 283 39% 53%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 257 80% 64%;
-    --primary-active: 257 68% 50%;
-    --secondary: 338 68% 58%;
-    --secondary-foreground: 258 26% 10%;
-    --muted: 252 28% 92%;
-    --muted-foreground: 252 11% 42%;
-    --accent: 257 76% 58%;
+    --secondary: 0 0% 14%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 16%;
+    --muted-foreground: 0 0% 61%;
+    --accent: 283 39% 53%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 355 83% 67%;
+    --destructive: 0 73% 58%;
     --destructive-foreground: 0 0% 100%;
-    --border: 252 18% 84%;
-    --input: 252 30% 94%;
-    --ring: 257 76% 58%;
-    --radius: 1.25rem;
-    --glow-violet: 155 124 255;
-    --glow-rose: 240 168 200;
+    --border: 0 0% 18%;
+    --input: 0 0% 16%;
+    --ring: 283 39% 53%;
+    --radius: 12px;
   }
 
   .dark {
-    --background: 255 22% 4%;
-    --foreground: 255 30% 96%;
-    --card: 255 22% 8%;
-    --card-foreground: 255 30% 96%;
-    --popover: 255 20% 8%;
-    --popover-foreground: 255 30% 96%;
-    --primary: 254 92% 74%;
+    --background: 0 0% 5%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 14%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 283 39% 53%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 252 100% 80%;
-    --primary-active: 252 82% 64%;
-    --secondary: 338 70% 74%;
-    --secondary-foreground: 255 30% 96%;
-    --muted: 254 16% 13%;
-    --muted-foreground: 254 12% 72%;
-    --accent: 252 100% 73%;
+    --secondary: 0 0% 14%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 16%;
+    --muted-foreground: 0 0% 61%;
+    --accent: 283 39% 53%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 355 83% 67%;
+    --destructive: 0 73% 58%;
     --destructive-foreground: 0 0% 100%;
-    --border: 252 16% 18%;
-    --input: 252 18% 11%;
-    --ring: 252 100% 73%;
+    --border: 0 0% 18%;
+    --input: 0 0% 16%;
+    --ring: 283 39% 53%;
   }
 
   * {
@@ -59,35 +91,19 @@
   }
 
   html {
-    scroll-behavior: smooth;
     min-height: 100%;
-    background: hsl(var(--background));
-  }
-
-  html.dark {
+    background: var(--bg-base);
     color-scheme: dark;
-  }
-
-  html:not(.dark) {
-    color-scheme: light;
+    scroll-behavior: smooth;
   }
 
   body {
     @apply min-h-screen bg-background text-foreground antialiased;
     min-height: 100dvh;
+    background: var(--bg-base);
+    color: var(--text-primary);
     -webkit-tap-highlight-color: transparent;
     text-rendering: optimizeLegibility;
-    background:
-      linear-gradient(180deg, rgba(109, 40, 217, 0.08) 0%, rgba(109, 40, 217, 0) 18rem),
-      linear-gradient(135deg, rgba(190, 92, 136, 0.055) 0%, rgba(190, 92, 136, 0) 22rem),
-      hsl(var(--background));
-  }
-
-  .dark body {
-    background:
-      radial-gradient(circle at 50% -10rem, rgba(157, 129, 255, 0.14), transparent 30rem),
-      radial-gradient(circle at 98% 10rem, rgba(124, 58, 237, 0.075), transparent 21rem),
-      linear-gradient(180deg, #08070d 0%, #0d0b13 46%, #09080e 100%);
   }
 
   a {
@@ -95,57 +111,68 @@
   }
 
   ::selection {
-    background: rgba(var(--glow-violet), 0.34);
-    color: #ffffff;
+    background: var(--accent-purple-soft);
+    color: var(--text-primary);
   }
 }
 
 @layer components {
   .focus-ring {
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+    @apply focus-visible:outline-none;
+  }
+
+  .focus-ring:focus-visible {
+    box-shadow:
+      0 0 0 2px var(--bg-base),
+      0 0 0 4px rgba(155, 89, 182, 0.6);
   }
 
   .app-surface {
-    @apply rounded-[30px] border border-white/[0.025] bg-card/[0.58] shadow-card-glow shadow-inset backdrop-blur-xl;
+    @apply rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-card)];
   }
 
   .app-surface-muted {
-    @apply rounded-[24px] border border-white/[0.025] bg-white/[0.022] shadow-inset;
+    @apply rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)];
   }
 
-  .app-panel {
-    @apply app-surface;
+  .nav-item {
+    @apply focus-ring flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium text-[var(--text-secondary)] no-underline transition-colors duration-150 hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)];
   }
 
-  .hero-gradient {
-    background:
-      radial-gradient(circle at 50% 0%, rgba(167, 139, 250, 0.16), transparent 36rem),
-      linear-gradient(180deg, rgba(23, 20, 33, 0.8) 0%, rgba(13, 11, 18, 0.92) 100%);
+  .nav-item-active {
+    @apply bg-[var(--accent-purple-soft)] text-[var(--accent-purple)];
   }
 
-  .primary-gradient {
-    background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 58%, #c4b5fd 100%);
+  .bubble-char {
+    max-width: 75%;
+    border: 1px solid var(--border-default);
+    border-radius: 4px 18px 18px 18px;
+    background: var(--bubble-char);
+    padding: 12px 16px;
+    color: var(--text-primary);
+    font-size: 15px;
+    line-height: 1.55;
   }
 
-  .soft-gradient {
-    background: linear-gradient(135deg, rgba(155, 124, 255, 0.16), rgba(240, 168, 200, 0.06));
-  }
-
-  .violet-pill {
-    @apply inline-flex items-center rounded-full border border-primary/[0.1] bg-primary/[0.07] px-3 py-1 text-xs font-medium text-[#d9d1ff];
-  }
-
-  .red-pill {
-    @apply inline-flex items-center rounded-full border border-destructive/25 bg-destructive/10 px-3 py-1 text-xs font-medium text-destructive;
+  .bubble-user {
+    max-width: 75%;
+    align-self: flex-end;
+    border-radius: 18px 4px 18px 18px;
+    background: var(--bubble-user);
+    padding: 12px 16px;
+    color: #e9d5ff;
+    font-size: 15px;
+    line-height: 1.55;
   }
 
   .chat-scroll {
     scrollbar-width: thin;
-    scrollbar-color: rgba(var(--glow-violet), 0.35) transparent;
+    scrollbar-color: var(--bg-elevated) transparent;
   }
 
   .chat-scroll::-webkit-scrollbar {
     width: 8px;
+    height: 8px;
   }
 
   .chat-scroll::-webkit-scrollbar-track {
@@ -153,73 +180,20 @@
   }
 
   .chat-scroll::-webkit-scrollbar-thumb {
-    background: rgba(var(--glow-violet), 0.35);
-    border-radius: 999px;
+    background: var(--bg-elevated);
+    border-radius: 9999px;
   }
 
-  @supports (padding: max(0px)) {
-    .safe-bottom {
-      padding-bottom: max(1rem, env(safe-area-inset-bottom));
-    }
+  .scrollbar-none {
+    scrollbar-width: none;
   }
 
-  .typing-dot {
-    @apply h-2 w-2 rounded-full bg-primary;
-    animation: typing-pulse 1s infinite ease-in-out;
-  }
-
-  .typing-dot:nth-child(2) {
-    animation-delay: 150ms;
-  }
-
-  .typing-dot:nth-child(3) {
-    animation-delay: 300ms;
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
   }
 
   .skeleton {
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.085) 50%, rgba(255, 255, 255, 0.045) 100%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
-  }
-
-  .chat-avatar-bg {
-    transform: translate3d(0, 0, 0) scale(1.12);
-    will-change: transform;
-    animation: avatar-drift 28s ease-in-out infinite alternate;
-  }
-
-  html:not(.dark) .app-surface {
-    border-color: rgba(73, 63, 112, 0.12);
-    background: rgba(255, 255, 255, 0.72);
-    box-shadow:
-      0 22px 70px rgba(58, 45, 98, 0.1),
-      inset 0 1px 0 rgba(255, 255, 255, 0.86);
-  }
-
-  html:not(.dark) .app-surface-muted {
-    border-color: rgba(73, 63, 112, 0.1);
-    background: rgba(255, 255, 255, 0.56);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
-  }
-
-  html:not(.dark) .hero-gradient {
-    background:
-      linear-gradient(135deg, rgba(109, 40, 217, 0.12), rgba(190, 92, 136, 0.06) 46%, rgba(255, 255, 255, 0.72) 100%),
-      linear-gradient(180deg, #ffffff 0%, #f3f0fb 100%);
-  }
-
-  html:not(.dark) .violet-pill {
-    color: hsl(var(--foreground));
-  }
-
-  html:not(.dark) .skeleton {
-    background: linear-gradient(90deg, rgba(58, 45, 98, 0.055) 0%, rgba(58, 45, 98, 0.1) 50%, rgba(58, 45, 98, 0.055) 100%);
-    background-size: 200% 100%;
-  }
-
-  html:not(.dark) nav[aria-label="Mobile primary navigation"] {
-    border-color: rgba(73, 63, 112, 0.12);
-    background: rgba(255, 255, 255, 0.88);
+    @apply animate-pulse rounded-xl bg-[var(--bg-elevated)];
   }
 }
 
@@ -243,37 +217,6 @@
   }
 }
 
-@keyframes typing-pulse {
-  0%,
-  80%,
-  100% {
-    opacity: 0.35;
-    transform: translateY(0);
-  }
-  40% {
-    opacity: 1;
-    transform: translateY(-3px);
-  }
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
-@keyframes avatar-drift {
-  0% {
-    transform: translate3d(-1.5%, -1%, 0) scale(1.12);
-  }
-  100% {
-    transform: translate3d(1.5%, 1%, 0) scale(1.16);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -286,9 +229,5 @@
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 1ms !important;
-  }
-
-  .chat-avatar-bg {
-    animation: none !important;
   }
 }

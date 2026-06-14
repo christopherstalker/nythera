@@ -15,6 +15,8 @@ const envSchema = z.object({
   EMAIL_FROM: z.string().optional(),
   INTERNAL_API_TOKEN: z.string().optional(),
   LLM_PROXY_URL: z.string().url().optional(),
+  OPENAI_API_KEY: z.string().optional(),
+  ANTHROPIC_API_KEY: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),
   REDIS_URL: z.string().optional(),
   UPSTASH_REDIS_REST_URL: z.string().optional(),

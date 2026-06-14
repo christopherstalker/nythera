@@ -22,6 +22,9 @@ model User {
   role          Role      @default(USER)
   ageVerified   Boolean   @default(false)
   birthDate     DateTime?
+  memoryEnabled Boolean   @default(true)
+  compactMode   Boolean   @default(false)
+  notificationsEnabled Boolean @default(false)
   bannedAt      DateTime?
   banReason     String?   @db.Text
   createdAt     DateTime  @default(now())
@@ -31,8 +34,10 @@ model User {
   sessions           Session[]
   authenticators     Authenticator[]
   passwordCredential PasswordCredential?
+  persona            UserPersona?
   characters         Character[]
   chats              Chat[]
+  chatShares         ChatShare[]
   memories           Memory[]
   reports            Report[]            @relation("ReporterReports")
   characterLikes     CharacterLike[]
@@ -155,6 +160,7 @@ model CharacterRating {
   userId      String
   characterId String
   value       Int
+  review      String?  @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -183,9 +189,46 @@ model Chat {
   character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
   messages  Message[]
   memories  Memory[]
+  shares    ChatShare[]
 
   @@index([userId, updatedAt])
   @@index([characterId])
+}
+
+model ChatShare {
+  id                String   @id @default(cuid())
+  chatId            String
+  userId            String
+  title             String?
+  characterSnapshot Json
+  messagesSnapshot  Json
+  createdAt         DateTime @default(now())
+  expiresAt         DateTime?
+
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([chatId])
+  @@index([userId, createdAt])
+}
+
+model UserPersona {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  displayName  String
+  avatarUrl    String?
+  summary      String   @db.Text
+  background   String?  @db.Text
+  traits       String[] @default([])
+  likes        String[] @default([])
+  dislikes     String[] @default([])
+  boundaries   String[] @default([])
+  visibility   Visibility @default(PRIVATE)
+  metadata     Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Message {

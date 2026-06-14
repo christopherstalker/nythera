@@ -31,6 +31,9 @@ export async function requireUser() {
       role: true,
       ageVerified: true,
       birthDate: true,
+      memoryEnabled: true,
+      compactMode: true,
+      notificationsEnabled: true,
       bannedAt: true
     }
   });

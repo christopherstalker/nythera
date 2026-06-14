@@ -4,14 +4,14 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "focus-ring inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-full px-4 text-sm font-semibold transition duration-200 disabled:pointer-events-none disabled:opacity-50",
+  "focus-ring inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius-pill)] text-sm font-semibold transition-all duration-200 active:scale-95 disabled:pointer-events-none disabled:opacity-40",
   {
     variants: {
       variant: {
-        primary: "primary-gradient text-primary-foreground shadow-violet-hover hover:-translate-y-0.5 hover:shadow-violet-strong",
-        secondary: "bg-primary/[0.105] text-foreground shadow-inset hover:-translate-y-0.5 hover:bg-primary/[0.15]",
-        ghost: "text-muted-foreground hover:bg-white/[0.045] hover:text-foreground",
-        outline: "bg-primary/[0.105] text-foreground shadow-inset hover:-translate-y-0.5 hover:bg-primary/[0.15]",
+        primary: "bg-[var(--accent-purple)] text-white hover:bg-[var(--accent-purple-hover)]",
+        secondary: "bg-[var(--bg-elevated)] text-[var(--text-primary)] hover:bg-[var(--accent-purple-soft)] hover:text-white",
+        ghost: "text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]",
+        outline: "border border-[var(--border-default)] bg-transparent text-[var(--text-primary)] hover:bg-[var(--bg-elevated)]",
         destructive: "bg-destructive/90 text-destructive-foreground hover:bg-destructive"
       },
       size: {

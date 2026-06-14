@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
 import { characterUpdateSchema } from "@/lib/validation";
@@ -11,6 +12,7 @@ type Context = {
 
 export async function GET(_request: Request, context: Context) {
   try {
+    const session = await auth();
     const character = await prisma.character.findUnique({
       where: { id: context.params.id },
       include: {
@@ -36,7 +38,36 @@ export async function GET(_request: Request, context: Context) {
       }
     }
 
-    return json({ character });
+    const [liked, myRating] = session?.user?.id
+      ? await Promise.all([
+          prisma.characterLike.findUnique({
+            where: {
+              userId_characterId: {
+                userId: session.user.id,
+                characterId: character.id
+              }
+            },
+            select: { userId: true }
+          }),
+          prisma.characterRating.findUnique({
+            where: {
+              userId_characterId: {
+                userId: session.user.id,
+                characterId: character.id
+              }
+            }
+          })
+        ])
+      : [null, null];
+
+    return json({
+      character,
+      viewer: {
+        canEdit: Boolean(session?.user?.id && session.user.id === character.creatorId),
+        liked: Boolean(liked),
+        rating: myRating
+      }
+    });
   } catch (error) {
     return routeError(error);
   }
@@ -59,6 +90,10 @@ export async function PATCH(request: Request, context: Context) {
     }
 
     const input = await parseJson(request, characterUpdateSchema);
+    if (input.isNSFW && !user.ageVerified) {
+      throw new HttpError(403, "Confirm age-gated access in profile settings before marking characters as NSFW.");
+    }
+
     const updated = await prisma.character.update({
       where: { id: context.params.id },
       data: {

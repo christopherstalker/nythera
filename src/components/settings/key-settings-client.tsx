@@ -1,10 +1,10 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import { LockKeyhole, ShieldCheck, Trash2 } from "lucide-react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
+import { Copy, Eye, EyeOff, Save, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Surface, SurfaceMuted } from "@/components/ui/page";
 
 type SavedKey = {
   id: string;
@@ -20,40 +20,70 @@ type SavedKey = {
 
 type ApiFormat = "OPENAI" | "ANTHROPIC" | "GEMINI" | "OPENAI_COMPATIBLE";
 
-const providerPresets: Array<{
+const providers: Array<{
   provider: string;
   displayName: string;
   apiFormat: ApiFormat;
   baseUrl: string;
   defaultModel: string;
+  placeholder: string;
 }> = [
-  { provider: "openai", displayName: "OpenAI", apiFormat: "OPENAI", baseUrl: "https://api.openai.com/v1", defaultModel: "gpt-4o-mini" },
-  { provider: "anthropic", displayName: "Anthropic", apiFormat: "ANTHROPIC", baseUrl: "", defaultModel: "claude-3-5-sonnet-latest" },
-  { provider: "gemini", displayName: "Gemini", apiFormat: "GEMINI", baseUrl: "", defaultModel: "gemini-2.5-flash" },
-  { provider: "openrouter", displayName: "OpenRouter", apiFormat: "OPENAI_COMPATIBLE", baseUrl: "https://openrouter.ai/api/v1", defaultModel: "openai/gpt-4o-mini" },
-  { provider: "deepseek", displayName: "DeepSeek", apiFormat: "OPENAI_COMPATIBLE", baseUrl: "https://api.deepseek.com/v1", defaultModel: "deepseek-chat" },
-  { provider: "groq", displayName: "Groq", apiFormat: "OPENAI_COMPATIBLE", baseUrl: "https://api.groq.com/openai/v1", defaultModel: "llama-3.1-8b-instant" },
-  { provider: "together", displayName: "Together AI", apiFormat: "OPENAI_COMPATIBLE", baseUrl: "https://api.together.xyz/v1", defaultModel: "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo" },
-  { provider: "mistral", displayName: "Mistral", apiFormat: "OPENAI_COMPATIBLE", baseUrl: "https://api.mistral.ai/v1", defaultModel: "mistral-small-latest" }
+  {
+    provider: "openai",
+    displayName: "OpenAI",
+    apiFormat: "OPENAI",
+    baseUrl: "https://api.openai.com/v1",
+    defaultModel: "gpt-4o-mini",
+    placeholder: "sk-..."
+  },
+  {
+    provider: "anthropic",
+    displayName: "Anthropic",
+    apiFormat: "ANTHROPIC",
+    baseUrl: "",
+    defaultModel: "claude-3-5-sonnet-latest",
+    placeholder: "sk-ant-..."
+  },
+  {
+    provider: "gemini",
+    displayName: "Gemini",
+    apiFormat: "GEMINI",
+    baseUrl: "",
+    defaultModel: "gemini-2.5-flash",
+    placeholder: "AIza..."
+  }
 ];
 
-const defaultPreset = providerPresets[0];
-
 export function KeySettingsClient() {
+  const { status: sessionStatus } = useSession();
   const [keys, setKeys] = useState<SavedKey[]>([]);
-  const [provider, setProvider] = useState(defaultPreset.provider);
-  const [displayName, setDisplayName] = useState(defaultPreset.displayName);
-  const [apiFormat, setApiFormat] = useState<ApiFormat>(defaultPreset.apiFormat);
-  const [baseUrl, setBaseUrl] = useState(defaultPreset.baseUrl);
-  const [defaultModel, setDefaultModel] = useState(defaultPreset.defaultModel);
-  const [apiKey, setApiKey] = useState("");
-  const [label, setLabel] = useState("");
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [visible, setVisible] = useState<Record<string, boolean>>({});
+  const [saving, setSaving] = useState<Record<string, boolean>>({});
+  const [custom, setCustom] = useState({
+    provider: "openrouter",
+    displayName: "OpenRouter",
+    apiFormat: "OPENAI_COMPATIBLE" as ApiFormat,
+    baseUrl: "https://openrouter.ai/api/v1",
+    defaultModel: "openai/gpt-4o-mini",
+    apiKey: ""
+  });
   const [status, setStatus] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    void refresh();
-  }, []);
+    if (sessionStatus === "authenticated") {
+      void refresh();
+      return;
+    }
+
+    if (sessionStatus === "unauthenticated") {
+      setStatus("Sign in to manage model keys.");
+    }
+  }, [sessionStatus]);
+
+  const savedByProvider = useMemo(() => {
+    return new Map(keys.map((key) => [key.provider, key]));
+  }, [keys]);
 
   async function refresh() {
     const response = await fetch("/api/keys");
@@ -66,45 +96,42 @@ export function KeySettingsClient() {
     setKeys(body.keys ?? []);
   }
 
-  async function onSubmit(event: FormEvent) {
+  async function saveProvider(event: FormEvent<HTMLFormElement>, providerName: string) {
     event.preventDefault();
-    setSaving(true);
+    const config = providers.find((item) => item.provider === providerName);
+    const apiKey = values[providerName]?.trim();
+    if (!config || !apiKey) {
+      return;
+    }
+
+    setSaving((current) => ({ ...current, [providerName]: true }));
     setStatus(null);
+
     const response = await fetch("/api/keys", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ provider, displayName, apiFormat, baseUrl, defaultModel, apiKey, label })
+      body: JSON.stringify({
+        provider: config.provider,
+        displayName: config.displayName,
+        apiFormat: config.apiFormat,
+        baseUrl: config.baseUrl,
+        defaultModel: config.defaultModel,
+        apiKey,
+        label: `${config.displayName} key`
+      })
     });
-    setSaving(false);
+
+    setSaving((current) => ({ ...current, [providerName]: false }));
 
     if (!response.ok) {
       const body = await response.json().catch(() => null);
-      setStatus(body?.error ?? "Could not save key.");
+      setStatus(body?.error ?? `Could not save ${config.displayName} key.`);
       return;
     }
 
-    setApiKey("");
-    setLabel("");
-    setStatus("Key saved. Only the masked key is shown from now on.");
+    setValues((current) => ({ ...current, [providerName]: "" }));
+    setStatus(`${config.displayName} key saved.`);
     await refresh();
-  }
-
-  function applyPreset(providerName: string) {
-    const preset = providerPresets.find((item) => item.provider === providerName);
-    if (!preset) {
-      setProvider("custom-provider");
-      setDisplayName("Custom provider");
-      setApiFormat("OPENAI_COMPATIBLE");
-      setBaseUrl("");
-      setDefaultModel("");
-      return;
-    }
-
-    setProvider(preset.provider);
-    setDisplayName(preset.displayName);
-    setApiFormat(preset.apiFormat);
-    setBaseUrl(preset.baseUrl);
-    setDefaultModel(preset.defaultModel);
   }
 
   async function remove(providerName: string) {
@@ -112,94 +139,163 @@ export function KeySettingsClient() {
     await refresh();
   }
 
+  async function saveCustom(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!custom.provider.trim() || !custom.apiKey.trim()) {
+      return;
+    }
+
+    setStatus(null);
+    const response = await fetch("/api/keys", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        provider: custom.provider,
+        displayName: custom.displayName || custom.provider,
+        apiFormat: custom.apiFormat,
+        baseUrl: custom.baseUrl,
+        defaultModel: custom.defaultModel,
+        apiKey: custom.apiKey,
+        label: `${custom.displayName || custom.provider} key`
+      })
+    });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      setStatus(body?.error ?? "Could not save custom provider.");
+      return;
+    }
+
+    setCustom((current) => ({ ...current, apiKey: "" }));
+    setStatus("Custom provider saved.");
+    await refresh();
+  }
+
+  async function copy(providerName: string) {
+    const value = values[providerName] ?? "";
+    if (value) {
+      await navigator.clipboard?.writeText(value);
+      setStatus("Key copied.");
+    }
+  }
+
   return (
-    <Surface className="p-6">
-      <div className="flex items-start gap-3">
-        <ShieldCheck className="mt-1 h-5 w-5 text-[#8fd8c2]" />
-        <div>
-          <h2 className="font-semibold">Secure model access</h2>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Connect your preferred AI provider when you want live responses. Velora stores access securely and only shows masked keys after saving.
-          </p>
-        </div>
-      </div>
+    <div className="grid gap-4">
+      {providers.map((provider) => {
+        const saved = savedByProvider.get(provider.provider);
+        const value = values[provider.provider] ?? "";
+        const isVisible = visible[provider.provider] ?? false;
 
-      <SurfaceMuted className="mt-6 flex items-start gap-3 p-4">
-        <LockKeyhole className="mt-0.5 h-4 w-4 text-[#8fd8c2]" />
-        <p className="text-xs leading-5 text-muted-foreground">
-          Your browser never receives saved secrets. You can still chat with the local fallback until you add a provider.
-        </p>
-      </SurfaceMuted>
-
-      <form onSubmit={onSubmit} className="mt-6 grid gap-4">
-        <select
-          value={providerPresets.some((preset) => preset.provider === provider) ? provider : "custom"}
-          onChange={(event) => applyPreset(event.target.value)}
-          className="focus-ring h-12 rounded-[22px] border border-white/[0.035] bg-white/[0.032] px-4 text-sm shadow-inset"
-        >
-          {providerPresets.map((preset) => (
-            <option key={preset.provider} value={preset.provider}>
-              {preset.displayName}
-            </option>
-          ))}
-          <option value="custom">Custom OpenAI-compatible</option>
-        </select>
-        <div className="grid gap-3 md:grid-cols-2">
-          <Input value={provider} onChange={(event) => setProvider(event.target.value)} placeholder="Provider nickname, e.g. openrouter" required />
-          <Input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Display name" required />
-        </div>
-        <div className="grid gap-3 md:grid-cols-[180px_1fr]">
-          <select
-            value={apiFormat}
-            onChange={(event) => setApiFormat(event.target.value as ApiFormat)}
-            className="focus-ring h-12 rounded-[22px] border border-white/[0.035] bg-white/[0.032] px-4 text-sm shadow-inset"
+        return (
+          <form
+            key={provider.provider}
+            onSubmit={(event) => saveProvider(event, provider.provider)}
+            className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4"
           >
-            <option value="OPENAI_COMPATIBLE">OpenAI-compatible</option>
-            <option value="OPENAI">OpenAI</option>
-            <option value="ANTHROPIC">Anthropic</option>
-            <option value="GEMINI">Gemini</option>
-          </select>
-          <Input
-            value={baseUrl}
-            onChange={(event) => setBaseUrl(event.target.value)}
-            placeholder="Connection URL, e.g. https://openrouter.ai/api/v1"
-            disabled={apiFormat === "ANTHROPIC" || apiFormat === "GEMINI"}
-          />
-        </div>
-        <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-          <Input value={defaultModel} onChange={(event) => setDefaultModel(event.target.value)} placeholder="Preferred model, e.g. gpt-4o-mini" />
-          <Input value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="Paste access key" type="password" required />
-          <Button type="submit" disabled={saving || !apiKey.trim() || !provider.trim() || !displayName.trim()}>
-            {saving ? "Saving" : "Save"}
-          </Button>
-        </div>
-        <Input value={label} onChange={(event) => setLabel(event.target.value)} placeholder="Private note, optional" />
-      </form>
-
-      {status ? <p className="mt-3 rounded-2xl border border-white/[0.055] bg-white/[0.028] p-3 text-sm text-muted-foreground shadow-inset">{status}</p> : null}
-
-      <div className="mt-6 grid gap-3">
-        {keys.length === 0 ? (
-          <p className="rounded-3xl border border-white/[0.025] bg-white/[0.024] p-5 text-sm leading-7 text-muted-foreground shadow-inset">
-            No secure access saved yet. Chat still works with local fallback; add a provider when you want live model responses.
-          </p>
-        ) : (
-          keys.map((key) => (
-            <div key={key.id} className="flex items-center justify-between gap-3 rounded-3xl border border-white/[0.025] bg-white/[0.024] p-5 shadow-inset">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm font-semibold">{key.displayName}</p>
-                <p className="text-xs text-muted-foreground">
-                  {key.label || key.apiFormat} - {key.defaultModel || "no default model"} - ending in {key.last4}
+                <h3 className="text-sm font-semibold text-[var(--text-primary)]">{provider.displayName}</h3>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
+                  {saved ? `Saved key ending in ${saved.last4}` : "No key saved"}
                 </p>
-                {key.baseUrl ? <p className="mt-1 max-w-[52rem] truncate text-xs text-muted-foreground">{key.baseUrl}</p> : null}
               </div>
-              <Button type="button" variant="outline" size="icon" title="Delete key" onClick={() => remove(key.provider)}>
-                <Trash2 className="h-4 w-4" />
+              {saved ? (
+                <Button type="button" variant="outline" size="sm" onClick={() => remove(provider.provider)}>
+                  <Trash2 className="h-4 w-4" />
+                  Remove
+                </Button>
+              ) : null}
+            </div>
+
+            <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto_auto_auto]">
+              <Input
+                value={value}
+                onChange={(event) => setValues((current) => ({ ...current, [provider.provider]: event.target.value }))}
+                type={isVisible ? "text" : "password"}
+                placeholder={provider.placeholder}
+                autoComplete="off"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label={isVisible ? "Hide key" : "Show key"}
+                onClick={() => setVisible((current) => ({ ...current, [provider.provider]: !isVisible }))}
+              >
+                {isVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+              <Button type="button" variant="outline" size="icon" aria-label="Copy key" onClick={() => copy(provider.provider)} disabled={!value}>
+                <Copy className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label="Clear key input"
+                onClick={() => setValues((current) => ({ ...current, [provider.provider]: "" }))}
+                disabled={!value}
+              >
+                <X className="h-4 w-4" />
               </Button>
             </div>
-          ))
-        )}
-      </div>
-    </Surface>
+
+            <Button type="submit" className="mt-3" disabled={!value.trim() || saving[provider.provider]}>
+              <Save className="h-4 w-4" />
+              {saving[provider.provider] ? "Saving..." : "Save"}
+            </Button>
+          </form>
+        );
+      })}
+
+      {keys.filter((key) => !providers.some((provider) => provider.provider === key.provider)).length > 0 ? (
+        <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
+          <h3 className="text-sm font-semibold text-[var(--text-primary)]">Saved custom providers</h3>
+          <div className="mt-3 grid gap-2">
+            {keys
+              .filter((key) => !providers.some((provider) => provider.provider === key.provider))
+              .map((key) => (
+                <div key={key.provider} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-input)] p-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-[var(--text-primary)]">{key.displayName}</p>
+                    <p className="mt-1 truncate text-xs text-[var(--text-muted)]">{key.provider} · {key.defaultModel || "no default model"} · ending in {key.last4}</p>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={() => remove(key.provider)}>
+                    <Trash2 className="h-4 w-4" />
+                    Remove
+                  </Button>
+                </div>
+              ))}
+          </div>
+        </div>
+      ) : null}
+
+      <form onSubmit={saveCustom} className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
+        <h3 className="text-sm font-semibold text-[var(--text-primary)]">Custom provider</h3>
+        <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">Use OpenAI-compatible providers such as OpenRouter, Groq, DeepSeek, Together, or Mistral.</p>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <Input value={custom.provider} onChange={(event) => setCustom((current) => ({ ...current, provider: event.target.value }))} placeholder="provider id" />
+          <Input value={custom.displayName} onChange={(event) => setCustom((current) => ({ ...current, displayName: event.target.value }))} placeholder="Display name" />
+          <select
+            value={custom.apiFormat}
+            onChange={(event) => setCustom((current) => ({ ...current, apiFormat: event.target.value as ApiFormat }))}
+            className="focus-ring h-12 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] px-4 text-sm text-[var(--text-primary)]"
+          >
+            <option value="OPENAI_COMPATIBLE">OpenAI-compatible</option>
+            <option value="OPENAI">OpenAI native</option>
+            <option value="ANTHROPIC">Anthropic native</option>
+            <option value="GEMINI">Gemini native</option>
+          </select>
+          <Input value={custom.defaultModel} onChange={(event) => setCustom((current) => ({ ...current, defaultModel: event.target.value }))} placeholder="Default model" />
+          <Input value={custom.baseUrl} onChange={(event) => setCustom((current) => ({ ...current, baseUrl: event.target.value }))} placeholder="Base URL" className="sm:col-span-2" />
+          <Input value={custom.apiKey} onChange={(event) => setCustom((current) => ({ ...current, apiKey: event.target.value }))} type="password" placeholder="API key" className="sm:col-span-2" autoComplete="off" />
+        </div>
+        <Button type="submit" className="mt-3" disabled={!custom.provider.trim() || !custom.apiKey.trim()}>
+          <Save className="h-4 w-4" />
+          Save custom provider
+        </Button>
+      </form>
+
+      {status ? <p className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 text-sm text-[var(--text-secondary)]">{status}</p> : null}
+    </div>
   );
 }

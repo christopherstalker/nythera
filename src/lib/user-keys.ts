@@ -119,6 +119,27 @@ export async function getEffectiveProviderKeys(userId: string): Promise<Provider
 export function getServerProviderKeys(): ProviderKeys {
   const keys: ProviderKeys = [];
 
+  if (env.OPENAI_API_KEY) {
+    keys.push({
+      provider: "openai",
+      displayName: "Velora OpenAI",
+      apiFormat: "OPENAI",
+      apiKey: env.OPENAI_API_KEY,
+      baseUrl: "https://api.openai.com/v1",
+      defaultModel: "gpt-4o-mini"
+    });
+  }
+
+  if (env.ANTHROPIC_API_KEY) {
+    keys.push({
+      provider: "anthropic",
+      displayName: "Velora Anthropic",
+      apiFormat: "ANTHROPIC",
+      apiKey: env.ANTHROPIC_API_KEY,
+      defaultModel: "claude-3-5-sonnet-latest"
+    });
+  }
+
   if (env.GEMINI_API_KEY) {
     keys.push({
       provider: "gemini",

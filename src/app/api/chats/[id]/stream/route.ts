@@ -11,6 +11,7 @@ import { searchMemories } from "@/lib/vector";
 import { schedulePostMessageJobs } from "@/lib/memory";
 import { generateChatTitle } from "@/lib/chat-history";
 import { getEffectiveProviderKeys } from "@/lib/user-keys";
+import { formatUserPersonaForPrompt } from "@/lib/user-persona";
 
 type Context = {
   params: {
@@ -79,36 +80,63 @@ export async function POST(request: Request, context: Context) {
     const temperature = input.temperature ?? chat.temperature;
 
     const providerKeys = await getEffectiveProviderKeys(user.id);
-    const lastSequence = await prisma.message.aggregate({
-      where: { chatId: chat.id },
-      _max: { sequence: true }
-    });
-    const userSequence = (lastSequence._max.sequence ?? chat.messages.length) + 1;
-    const assistantSequence = userSequence + 1;
+    let recentMessages = chat.messages.reverse();
+    let assistantSequence: number;
 
-    await prisma.message.create({
-      data: {
-        chatId: chat.id,
-        sequence: userSequence,
-        role: MessageRole.USER,
-        content: message,
-        clientRequestId: input.requestId
+    if (input.regenerate) {
+      const latestAssistant = [...recentMessages].reverse().find((item) => item.role === MessageRole.ASSISTANT);
+      if (latestAssistant) {
+        recentMessages = recentMessages.filter((item) => item.id !== latestAssistant.id);
+        await prisma.message.delete({
+          where: { id: latestAssistant.id }
+        });
       }
-    });
 
-    const memories = await searchMemories({
-      userId: user.id,
-      characterId: chat.characterId,
-      query: message,
-      limit: 5,
-      providerKeys
-    });
+      const lastSequence = await prisma.message.aggregate({
+        where: { chatId: chat.id },
+        _max: { sequence: true }
+      });
+      assistantSequence = (lastSequence._max.sequence ?? recentMessages.length) + 1;
+    } else {
+      const lastSequence = await prisma.message.aggregate({
+        where: { chatId: chat.id },
+        _max: { sequence: true }
+      });
+      const userSequence = (lastSequence._max.sequence ?? chat.messages.length) + 1;
+      assistantSequence = userSequence + 1;
+
+      await prisma.message.create({
+        data: {
+          chatId: chat.id,
+          sequence: userSequence,
+          role: MessageRole.USER,
+          content: message,
+          clientRequestId: input.requestId
+        }
+      });
+    }
+
+    const [memories, userPersona] = await Promise.all([
+      user.memoryEnabled
+        ? searchMemories({
+            userId: user.id,
+            characterId: chat.characterId,
+            query: message,
+            limit: 5,
+            providerKeys
+          })
+        : Promise.resolve([]),
+      prisma.userPersona.findUnique({
+        where: { userId: user.id }
+      })
+    ]);
 
     const prompt = assembleCharacterPrompt({
       character: chat.character,
       memories,
+      userPersona: formatUserPersonaForPrompt(userPersona),
       summary: chat.summary,
-      recentMessages: chat.messages.reverse(),
+      recentMessages,
       currentMessage: message,
       injectionAssessment
     });
@@ -203,10 +231,11 @@ export async function POST(request: Request, context: Context) {
                   providerKeys
                 });
 
+          const actualMessageCount = await prisma.message.count({ where: { chatId: chat.id } });
           const updated = await prisma.chat.update({
             where: { id: chat.id },
             data: {
-              messageCount: { increment: 2 },
+              messageCount: actualMessageCount,
               title: nextTitle,
               model,
               temperature,
@@ -231,15 +260,17 @@ export async function POST(request: Request, context: Context) {
             }
           });
 
-          await schedulePostMessageJobs({
-            chatId: chat.id,
-            userId: user.id,
-            characterId: chat.characterId,
-            latestUserMessage: message,
-            latestAssistantMessage: assistant.content,
-            messageCount: updated.messageCount,
-            providerKeys
-          });
+          if (user.memoryEnabled) {
+            await schedulePostMessageJobs({
+              chatId: chat.id,
+              userId: user.id,
+              characterId: chat.characterId,
+              latestUserMessage: message,
+              latestAssistantMessage: assistant.content,
+              messageCount: updated.messageCount,
+              providerKeys
+            });
+          }
 
           send({ type: "message", message: assistant });
           send({ type: "done" });
@@ -268,10 +299,11 @@ export async function POST(request: Request, context: Context) {
                     model: usage.model || model,
                     providerKeys
                   });
+            const actualMessageCount = await prisma.message.count({ where: { chatId: chat.id } });
             await prisma.chat.update({
               where: { id: chat.id },
               data: {
-                messageCount: { increment: 2 },
+                messageCount: actualMessageCount,
                 title: nextTitle,
                 model,
                 temperature,
@@ -281,10 +313,11 @@ export async function POST(request: Request, context: Context) {
             });
             send({ type: "message", message: assistant });
           } else {
+            const actualMessageCount = await prisma.message.count({ where: { chatId: chat.id } });
             await prisma.chat.update({
               where: { id: chat.id },
               data: {
-                messageCount: { increment: 1 },
+                messageCount: actualMessageCount,
                 title: chat.title && chat.title !== chat.character.name ? chat.title : message.slice(0, 54),
                 model,
                 temperature,

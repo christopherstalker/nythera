@@ -1,4 +1,4 @@
-import { Bot } from "lucide-react";
+import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
 type CharacterAvatarProps = {
@@ -16,21 +16,5 @@ const sizes = {
 };
 
 export function CharacterAvatar({ name, avatarUrl, size = "md", className }: CharacterAvatarProps) {
-  return (
-    <div
-      className={cn(
-        "grid shrink-0 place-items-center overflow-hidden rounded-full border border-primary/[0.18] bg-primary/[0.075] text-primary shadow-inset",
-        sizes[size],
-        className
-      )}
-    >
-      {avatarUrl ? (
-        <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
-      ) : name ? (
-        <span className="font-semibold">{name.slice(0, 1).toUpperCase()}</span>
-      ) : (
-        <Bot className="h-5 w-5" />
-      )}
-    </div>
-  );
+  return <Avatar name={name} src={avatarUrl} className={cn("border border-[var(--border-default)] bg-[var(--bg-elevated)]", sizes[size], className)} />;
 }

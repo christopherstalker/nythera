@@ -14,6 +14,7 @@ export async function GET(request: Request) {
     const search = searchParams.get("q")?.trim();
     const tag = searchParams.get("tag")?.trim();
     const visibility = searchParams.get("visibility") as Visibility | null;
+    const sort = searchParams.get("sort") ?? "trending";
     const take = Math.min(Number(searchParams.get("take") ?? 24), 50);
 
     const where: Prisma.CharacterWhereInput = mine
@@ -40,9 +41,16 @@ export async function GET(request: Request) {
       where.tags = { has: tag };
     }
 
+    const orderBy =
+      sort === "new"
+        ? [{ createdAt: "desc" as const }]
+        : sort === "top-rated"
+          ? [{ ratingAverage: "desc" as const }, { ratingCount: "desc" as const }, { likes: "desc" as const }]
+          : [{ likes: "desc" as const }, { ratingAverage: "desc" as const }, { createdAt: "desc" as const }];
+
     const characters = await prisma.character.findMany({
       where,
-      orderBy: [{ likes: "desc" }, { createdAt: "desc" }],
+      orderBy,
       take,
       include: {
         creator: {
@@ -72,6 +80,10 @@ export async function POST(request: Request) {
     });
 
     const input = await parseJson(request, characterCreateSchema);
+    if (input.isNSFW && !user.ageVerified) {
+      throw new HttpError(403, "Confirm age-gated access in profile settings before creating NSFW characters.");
+    }
+
     const moderation = moderateText({
       text: [input.name, input.description, input.personality, input.scenario, input.greeting, JSON.stringify(input.persona ?? {})]
         .filter(Boolean)

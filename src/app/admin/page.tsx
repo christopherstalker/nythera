@@ -13,7 +13,9 @@ type Report = {
   details?: string | null;
   status: string;
   character?: {
+    id: string;
     name: string;
+    creatorId: string;
   } | null;
   message?: {
     content: string;
@@ -31,11 +33,11 @@ export default function AdminPage() {
       .catch(() => setError("Admin access is limited to chrisstalker@gmail.com."));
   }, []);
 
-  async function updateReport(id: string, status: string) {
+  async function updateReport(id: string, status: string, extras?: { blockCharacter?: boolean; banUser?: boolean }) {
     await fetch("/api/admin/reports", {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id, status })
+      body: JSON.stringify({ id, status, ...extras })
     });
     setReports((current) => current.map((report) => (report.id === id ? { ...report, status } : report)));
   }
@@ -125,6 +127,16 @@ export default function AdminPage() {
                             <Button variant="destructive" size="sm" onClick={() => updateReport(report.id, "RESOLVED")}>
                               Resolve
                             </Button>
+                            {report.character ? (
+                              <>
+                                <Button variant="destructive" size="sm" onClick={() => updateReport(report.id, "RESOLVED", { blockCharacter: true })}>
+                                  Block
+                                </Button>
+                                <Button variant="destructive" size="sm" onClick={() => updateReport(report.id, "RESOLVED", { blockCharacter: true, banUser: true })}>
+                                  Ban creator
+                                </Button>
+                              </>
+                            ) : null}
                           </div>
                         </td>
                       </tr>

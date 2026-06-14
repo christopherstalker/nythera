@@ -39,6 +39,8 @@ app.use(express.json({ limit: "1mb" }));
 
 const port = Number(process.env.PORT ?? 4000);
 const internalToken = process.env.INTERNAL_API_TOKEN;
+const serverOpenAIKey = process.env.OPENAI_API_KEY;
+const serverAnthropicKey = process.env.ANTHROPIC_API_KEY;
 const serverGeminiKey = process.env.GEMINI_API_KEY;
 
 const legacyProviderKeysSchema = z
@@ -165,6 +167,7 @@ app.post("/v1/chat/stream", async (request, response) => {
   let lastError: unknown = null;
 
   for (const attempt of attempts) {
+    const attemptLabels = attempts.slice(0, attempts.indexOf(attempt) + 1).map((item) => `${item.providerName}:${item.model}`);
     const streamedBeforeAttempt = streamed.length;
     try {
       const usage = await streamProvider({
@@ -191,7 +194,10 @@ app.post("/v1/chat/stream", async (request, response) => {
           inputTokens: usage.inputTokens,
           outputTokens: usage.outputTokens || estimateTokens(streamed),
           provider: attempt.providerName,
-          model: attempt.model
+          model: attempt.model,
+          latencyMs: Date.now() - started,
+          fallbackTriggered: attempts.indexOf(attempt) > 0,
+          attempts: attemptLabels
         })}\n\n`
       );
       response.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
@@ -419,20 +425,40 @@ function legacyProviderKeys(keys: { openai?: string; anthropic?: string; gemini?
 
 function withServerProviderKeys(keys: ProviderKeys): ProviderKeys {
   const providers = new Set(keys.map((key) => key.provider));
-  if (serverGeminiKey && !providers.has("gemini")) {
-    return [
-      ...keys,
-      {
-        provider: "gemini",
-        displayName: "Velora Gemini",
-        apiFormat: "GEMINI",
-        apiKey: serverGeminiKey,
-      defaultModel: "gemini-2.5-flash"
-      }
-    ];
+  const result = [...keys];
+
+  if (serverOpenAIKey && !providers.has("openai")) {
+    result.push({
+      provider: "openai",
+      displayName: "Velora OpenAI",
+      apiFormat: "OPENAI",
+      apiKey: serverOpenAIKey,
+      baseUrl: "https://api.openai.com/v1",
+      defaultModel: "gpt-4o-mini"
+    });
   }
 
-  return keys;
+  if (serverAnthropicKey && !providers.has("anthropic")) {
+    result.push({
+      provider: "anthropic",
+      displayName: "Velora Anthropic",
+      apiFormat: "ANTHROPIC",
+      apiKey: serverAnthropicKey,
+      defaultModel: "claude-3-5-sonnet-latest"
+    });
+  }
+
+  if (serverGeminiKey && !providers.has("gemini")) {
+    result.push({
+      provider: "gemini",
+      displayName: "Velora Gemini",
+      apiFormat: "GEMINI",
+      apiKey: serverGeminiKey,
+      defaultModel: "gemini-2.5-flash"
+    });
+  }
+
+  return result;
 }
 
 async function streamOpenAI(input: {
