@@ -16,6 +16,7 @@ type SavedKey = {
   label?: string | null;
   last4: string;
   updatedAt: string;
+  isDefault: boolean;
 };
 
 type ApiFormat = "OPENAI" | "ANTHROPIC" | "GEMINI" | "OPENAI_COMPATIBLE";
@@ -196,7 +197,7 @@ export function KeySettingsClient() {
               <div>
                 <h3 className="text-sm font-semibold text-[var(--text-primary)]">{provider.displayName}</h3>
                 <p className="mt-1 text-xs text-[var(--text-muted)]">
-                  {saved ? `Saved key ending in ${saved.last4}` : "No key saved"}
+                  {saved ? `${saved.isDefault ? "Active key" : "Saved key"} ending in ${saved.last4}` : "No key saved"}
                 </p>
               </div>
               {saved ? (

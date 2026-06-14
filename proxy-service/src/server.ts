@@ -42,6 +42,7 @@ const internalToken = process.env.INTERNAL_API_TOKEN;
 const serverOpenAIKey = process.env.OPENAI_API_KEY;
 const serverAnthropicKey = process.env.ANTHROPIC_API_KEY;
 const serverGeminiKey = process.env.GEMINI_API_KEY;
+const APP_DEFAULT_MODELS = new Set(["gpt-4o-mini", "gpt-3.5-turbo"]);
 
 const legacyProviderKeysSchema = z
   .object({
@@ -259,6 +260,13 @@ function routeModel(requested: string, keys: ProviderKeys): GatewayRoute {
   const explicit = parseExplicitProviderModel(raw, keys);
   if (explicit) {
     return explicit;
+  }
+
+  if (APP_DEFAULT_MODELS.has(normalized)) {
+    const defaultKey = keys[0];
+    if (defaultKey) {
+      return routeFromKey(defaultKey, defaultKey.defaultModel || raw);
+    }
   }
 
   const exactDefault = keys.find((key) => key.defaultModel?.toLowerCase() === normalized);

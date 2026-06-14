@@ -14,6 +14,7 @@ export type ProviderKey = {
   baseUrl?: string | null;
   defaultModel?: string | null;
   label?: string | null;
+  isDefault?: boolean;
 };
 
 export type ProviderKeys = ProviderKey[];
@@ -32,40 +33,52 @@ export async function saveUserApiKey(input: {
   const provider = normalizeProviderId(input.provider);
   const displayName = input.displayName?.trim() || providerToDisplayName(provider);
 
-  return prisma.userApiKey.upsert({
-    where: {
-      userId_provider: {
+  return prisma.$transaction(async (tx) => {
+    await tx.userApiKey.updateMany({
+      where: {
         userId: input.userId,
-        provider
+        provider: { not: provider }
+      },
+      data: { isDefault: false }
+    });
+
+    return tx.userApiKey.upsert({
+      where: {
+        userId_provider: {
+          userId: input.userId,
+          provider
+        }
+      },
+      update: {
+        displayName,
+        apiFormat: input.apiFormat,
+        baseUrl: normalizeOptionalUrl(input.baseUrl),
+        defaultModel: input.defaultModel?.trim() || null,
+        encryptedKey: encryptSecret(trimmed),
+        last4: trimmed.slice(-4),
+        label: input.label || null,
+        isDefault: true
+      },
+      create: {
+        userId: input.userId,
+        provider,
+        displayName,
+        apiFormat: input.apiFormat,
+        baseUrl: normalizeOptionalUrl(input.baseUrl),
+        defaultModel: input.defaultModel?.trim() || null,
+        encryptedKey: encryptSecret(trimmed),
+        last4: trimmed.slice(-4),
+        label: input.label || null,
+        isDefault: true
       }
-    },
-    update: {
-      displayName,
-      apiFormat: input.apiFormat,
-      baseUrl: normalizeOptionalUrl(input.baseUrl),
-      defaultModel: input.defaultModel?.trim() || null,
-      encryptedKey: encryptSecret(trimmed),
-      last4: trimmed.slice(-4),
-      label: input.label || null
-    },
-    create: {
-      userId: input.userId,
-      provider,
-      displayName,
-      apiFormat: input.apiFormat,
-      baseUrl: normalizeOptionalUrl(input.baseUrl),
-      defaultModel: input.defaultModel?.trim() || null,
-      encryptedKey: encryptSecret(trimmed),
-      last4: trimmed.slice(-4),
-      label: input.label || null
-    }
+    });
   });
 }
 
 export async function listUserApiKeys(userId: string) {
   return prisma.userApiKey.findMany({
     where: { userId },
-    orderBy: { provider: "asc" },
+    orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }, { provider: "asc" }],
     select: {
       id: true,
       provider: true,
@@ -93,6 +106,7 @@ export async function getDecryptedProviderKeys(userId: string): Promise<Provider
       baseUrl: true,
       defaultModel: true,
       label: true,
+      isDefault: true,
       encryptedKey: true
     }
   });
@@ -104,7 +118,8 @@ export async function getDecryptedProviderKeys(userId: string): Promise<Provider
     apiKey: decryptSecret(row.encryptedKey),
     baseUrl: row.baseUrl,
     defaultModel: row.defaultModel,
-    label: row.label
+    label: row.label,
+    isDefault: row.isDefault
   }));
 }
 
@@ -154,10 +169,43 @@ export function getServerProviderKeys(): ProviderKeys {
 }
 
 export async function deleteUserApiKey(input: { userId: string; provider: string }) {
-  await prisma.userApiKey.deleteMany({
-    where: {
-      userId: input.userId,
-      provider: normalizeProviderId(input.provider)
+  const provider = normalizeProviderId(input.provider);
+
+  await prisma.$transaction(async (tx) => {
+    const deleted = await tx.userApiKey.deleteMany({
+      where: {
+        userId: input.userId,
+        provider
+      }
+    });
+
+    if (deleted.count === 0) {
+      return;
+    }
+
+    const hasDefault = await tx.userApiKey.findFirst({
+      where: {
+        userId: input.userId,
+        isDefault: true
+      },
+      select: { id: true }
+    });
+
+    if (hasDefault) {
+      return;
+    }
+
+    const nextDefault = await tx.userApiKey.findFirst({
+      where: { userId: input.userId },
+      orderBy: [{ updatedAt: "desc" }, { provider: "asc" }],
+      select: { id: true }
+    });
+
+    if (nextDefault) {
+      await tx.userApiKey.update({
+        where: { id: nextDefault.id },
+        data: { isDefault: true }
+      });
     }
   });
 }

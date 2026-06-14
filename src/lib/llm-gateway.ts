@@ -17,6 +17,7 @@ type StreamInput = {
 };
 
 const FALLBACK_MODEL = "local-dev-roleplay";
+const APP_DEFAULT_MODELS = new Set(["gpt-4o-mini", "gpt-3.5-turbo"]);
 
 type GatewayRoute = {
   provider: "openai" | "anthropic" | "gemini" | "openai-compatible" | "local";
@@ -120,6 +121,13 @@ function routeModel(requested: string, keys: ProviderKeys): GatewayRoute {
   const explicit = parseExplicitProviderModel(raw, keys);
   if (explicit) {
     return explicit;
+  }
+
+  if (APP_DEFAULT_MODELS.has(normalized)) {
+    const defaultKey = keys[0];
+    if (defaultKey) {
+      return routeFromKey(defaultKey, defaultKey.defaultModel || raw);
+    }
   }
 
   const exactDefault = keys.find((key) => key.defaultModel?.toLowerCase() === normalized);
