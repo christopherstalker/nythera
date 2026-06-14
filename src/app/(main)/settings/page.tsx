@@ -7,16 +7,16 @@ import { PageHeader, PageShell, Surface, SurfaceMuted } from "@/components/ui/pa
 
 export default function SettingsPage() {
   return (
-    <PageShell className="space-y-6">
+    <PageShell className="space-y-10">
       <PageHeader
         icon={Settings}
         title="Keys and settings"
         description="Manage secure model access, profile details, theme, and account data from one calm place."
       />
-      <div className="grid gap-5 xl:grid-cols-2 xl:items-start">
+      <div className="grid gap-7 xl:grid-cols-2 xl:items-start">
         <KeySettingsClient />
 
-        <Surface className="p-5">
+        <Surface className="p-6">
           <div className="flex items-start gap-3">
             <Paintbrush className="mt-1 h-5 w-5 text-primary" />
             <div>
@@ -32,7 +32,7 @@ export default function SettingsPage() {
 
         <ProfileSettingsClient />
 
-        <Surface className="p-5">
+        <Surface className="p-6">
           <div className="flex items-start gap-3">
             <ShieldCheck className="mt-1 h-5 w-5 text-[#8fd8c2]" />
             <div>
@@ -42,8 +42,8 @@ export default function SettingsPage() {
               </p>
             </div>
           </div>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <SurfaceMuted className="p-4">
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <SurfaceMuted className="p-5">
               <p className="text-sm font-semibold text-foreground">Export account data</p>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">Download chats, character metadata, and profile settings.</p>
               <Button variant="outline" className="mt-4">
@@ -51,7 +51,7 @@ export default function SettingsPage() {
                 Export data
               </Button>
             </SurfaceMuted>
-            <SurfaceMuted className="p-4">
+            <SurfaceMuted className="p-5">
               <p className="text-sm font-semibold text-foreground">Delete account</p>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">Request deletion for profile, chats, memories, and keys.</p>
               <Button variant="destructive" className="mt-4">

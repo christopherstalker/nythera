@@ -124,11 +124,11 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
   return (
     <PageShell>
       <Surface className="overflow-hidden">
-        <div className="relative isolate px-5 py-7 sm:px-8 sm:py-9">
+        <div className="relative isolate px-6 py-9 sm:px-9 sm:py-11">
           <div className="pointer-events-none absolute inset-0 -z-10 hero-gradient opacity-90" />
-          <div className="flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-end">
-              <CharacterAvatar name={character.name} avatarUrl={character.avatarUrl} size="xl" className="border-2 border-primary/30 shadow-violet-hover" />
+          <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-end">
+              <CharacterAvatar name={character.name} avatarUrl={character.avatarUrl} size="xl" className="h-32 w-32 border-2 border-white/[0.045] shadow-violet-hover" />
               <div className="min-w-0">
                 <h1 className="max-w-3xl text-[2.3rem] font-semibold leading-tight tracking-tight text-white sm:text-[3.3rem]">
                   {character.name}
@@ -169,9 +169,9 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
           </div>
         </div>
 
-        <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-          <main className="space-y-5">
-            <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <main className="space-y-6">
+            <div className="grid gap-4 sm:grid-cols-3">
               <Stat icon={MessageCircle} value="Live" label="chat-ready" />
               <Stat icon={Heart} value={String(character.likes)} label="likes" rose />
               <Stat icon={Star} value="4.8" label="rating" />
@@ -192,14 +192,14 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
             ) : null}
             {character.scenario ? <ProfileSection title="Scenario">{character.scenario}</ProfileSection> : null}
             <ProfileSection title="Greeting">
-              <span className="block border-l-[3px] border-primary/55 pl-4 text-foreground/90">{character.greeting}</span>
+              <span className="block rounded-[24px] bg-primary/[0.065] px-4 py-3 text-foreground/90 shadow-inset">{character.greeting}</span>
             </ProfileSection>
             <ProfileSection title="Memory and lore">
               {character.scenario ? "This persona is configured with a scene foundation and can retrieve relevant saved memories during chat." : "No extra lore notes are available yet."}
             </ProfileSection>
           </main>
 
-          <aside className="space-y-4">
+          <aside className="space-y-5">
             <SurfaceMuted className="p-5">
               <h2 className="text-lg font-semibold leading-6">Communication style</h2>
               <div className="mt-4 flex flex-wrap gap-2">
@@ -244,9 +244,9 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
 
 function ProfileSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <SurfaceMuted className="p-5">
+    <SurfaceMuted className="p-6">
       <h2 className="text-lg font-semibold leading-6">{title}</h2>
-      <p className="mt-3 whitespace-pre-wrap text-base leading-7 text-muted-foreground">{children}</p>
+      <p className="mt-4 whitespace-pre-wrap text-base leading-8 text-muted-foreground">{children}</p>
     </SurfaceMuted>
   );
 }

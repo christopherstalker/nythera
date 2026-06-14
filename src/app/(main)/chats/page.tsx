@@ -31,7 +31,7 @@ export default function ChatsPage() {
   }, []);
 
   return (
-    <PageShell className="space-y-6">
+    <PageShell className="space-y-10">
       <PageHeader
         icon={MessageSquare}
         title="Chats"
@@ -51,20 +51,20 @@ export default function ChatsPage() {
       ) : null}
 
       {!error && chats.length > 0 ? (
-        <Surface className="overflow-hidden p-2">
-          <div className="grid gap-2">
+        <Surface className="overflow-hidden p-3 sm:p-4">
+          <div className="grid gap-3">
             {chats.map((chat, index) => (
               <Link
                 key={chat.id}
                 href={`/chat/${chat.id}`}
-                className="flex items-center gap-3 rounded-[24px] border border-transparent bg-white/[0.025] p-3 no-underline transition duration-200 hover:border-primary/25 hover:bg-primary/10"
+                className="flex items-center gap-4 rounded-[26px] border border-white/[0.015] bg-white/[0.022] p-4 no-underline shadow-inset transition duration-200 hover:-translate-y-0.5 hover:border-primary/[0.14] hover:bg-primary/[0.06]"
               >
                 <CharacterAvatar name={chat.character.name} avatarUrl={chat.character.avatarUrl} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-foreground">{chat.title || chat.character.name}</p>
                   <p className="mt-1 truncate text-[13px] leading-5 text-muted-foreground">{chat.messages[0]?.content || "No messages yet"}</p>
                 </div>
-                <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1 text-xs text-muted-foreground shadow-inset">
+                <span className="rounded-full bg-white/[0.035] px-3 py-1 text-xs text-muted-foreground shadow-inset">
                   {index === 0 ? "now" : "saved"}
                 </span>
               </Link>

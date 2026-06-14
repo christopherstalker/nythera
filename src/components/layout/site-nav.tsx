@@ -86,10 +86,10 @@ export function SiteNav() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-white/[0.03] bg-background/72 backdrop-blur-2xl">
-      <div className="container mx-auto flex h-16 max-w-[1480px] items-center gap-3 px-4 sm:px-6 lg:px-8">
+      <header className="sticky top-0 z-40 bg-background/68 backdrop-blur-2xl">
+      <div className="container mx-auto flex h-[68px] max-w-[1360px] items-center gap-3 px-4 py-2 sm:px-6 lg:px-8">
         <Link href="/" className="flex shrink-0 items-center gap-2 no-underline">
-          <span className="grid h-9 w-9 place-items-center overflow-hidden rounded-full border border-primary/[0.16] bg-primary/[0.08] shadow-inset">
+          <span className="grid h-9 w-9 place-items-center overflow-hidden rounded-full bg-primary/[0.09] shadow-inset">
             <img src="/icon.svg" alt="" className="h-full w-full object-cover" />
           </span>
           <span className="hidden text-base font-semibold tracking-tight sm:inline">
@@ -97,13 +97,13 @@ export function SiteNav() {
           </span>
         </Link>
 
-        <div className="mx-auto hidden w-full max-w-lg items-center md:flex">
+        <div className="mx-auto hidden w-full max-w-[30rem] items-center md:flex">
           <label className="relative w-full">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               aria-label="Search characters"
               placeholder="Search characters, moods, worlds..."
-            className="focus-ring h-11 w-full rounded-full border border-white/[0.035] bg-white/[0.032] px-11 text-sm text-foreground shadow-inset placeholder:text-muted-foreground transition focus:border-primary/25 focus:bg-white/[0.055]"
+            className="focus-ring h-11 w-full rounded-full border border-white/[0.025] bg-white/[0.03] px-11 text-sm text-foreground shadow-inset placeholder:text-muted-foreground transition focus:border-primary/20 focus:bg-white/[0.055]"
             />
           </label>
         </div>
@@ -117,8 +117,8 @@ export function SiteNav() {
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  "flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium text-muted-foreground no-underline transition duration-200 hover:bg-white/[0.045] hover:text-foreground",
-                  active && "bg-primary/[0.11] text-foreground shadow-inset"
+                  "flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium text-muted-foreground no-underline transition duration-200 hover:bg-white/[0.04] hover:text-foreground",
+                  active && "bg-primary/[0.105] text-foreground shadow-inset"
                 )}
               >
                 <Icon className="h-4 w-4" />
@@ -141,18 +141,18 @@ export function SiteNav() {
               <button
                 type="button"
                 aria-label="Open user menu"
-                className="focus-ring flex h-10 items-center gap-2 rounded-full border border-white/[0.04] bg-white/[0.032] px-2 pr-3 shadow-inset transition hover:border-primary/20 hover:bg-primary/[0.075]"
+                className="focus-ring flex h-10 items-center gap-2 rounded-full border border-white/[0.025] bg-white/[0.03] px-2 pr-3 shadow-inset transition hover:border-primary/[0.16] hover:bg-primary/[0.07]"
                 onClick={() => setOpen((current) => !current)}
               >
-                <span className="grid h-7 w-7 place-items-center overflow-hidden rounded-full border border-primary/30 bg-primary/15 text-xs font-bold uppercase text-foreground">
+                <span className="grid h-7 w-7 place-items-center overflow-hidden rounded-full border border-primary/30 bg-primary/[0.15] text-xs font-bold uppercase text-foreground">
                   {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : initial}
                 </span>
                 <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
               {open ? (
-                <div className="absolute right-0 mt-2 w-56 rounded-3xl border border-white/[0.055] bg-card/95 p-2 shadow-card-glow backdrop-blur-xl">
-                  <div className="mb-1 flex items-center gap-3 rounded-2xl bg-white/[0.035] p-2">
-                    <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full border border-primary/25 bg-primary/12 text-sm font-bold uppercase">
+                <div className="absolute right-0 mt-2 w-56 rounded-3xl border border-white/[0.035] bg-card/95 p-2 shadow-card-glow backdrop-blur-xl">
+                  <div className="mb-1 flex items-center gap-3 rounded-2xl bg-white/[0.028] p-2">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full border border-primary/25 bg-primary/[0.12] text-sm font-bold uppercase">
                       {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : initial}
                     </span>
                     <div className="min-w-0">
@@ -195,7 +195,7 @@ function MobileDock({ pathname }: { pathname: string }) {
   return (
     <nav
       aria-label="Mobile primary navigation"
-      className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-50 rounded-[30px] border border-white/[0.075] bg-card/92 p-1.5 shadow-card-glow shadow-inset backdrop-blur-2xl lg:hidden"
+      className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-50 rounded-[30px] border border-white/[0.035] bg-card/90 p-1.5 shadow-card-glow shadow-inset backdrop-blur-2xl lg:hidden"
     >
       <div className="grid grid-cols-5 gap-1">
         {mobileLinks.map((link) => {

@@ -45,11 +45,11 @@ export function ChatClient({ chatId, characterName, characterAvatarUrl, summary,
   }
 
   return (
-    <div className="relative isolate flex min-h-[calc(100dvh-4rem)] overflow-hidden bg-background">
+    <div className="relative isolate flex min-h-[calc(100dvh-68px)] overflow-hidden bg-background">
       {backgroundStyle ? (
         <div
           aria-hidden="true"
-          className="chat-avatar-bg pointer-events-none absolute inset-0 -z-20 scale-110 bg-cover bg-center opacity-[0.16] blur-[48px] saturate-125"
+          className="chat-avatar-bg pointer-events-none absolute inset-0 -z-20 scale-110 bg-cover bg-center opacity-[0.12] blur-[56px] saturate-125"
           style={backgroundStyle}
         />
       ) : (
@@ -57,15 +57,15 @@ export function ChatClient({ chatId, characterName, characterAvatarUrl, summary,
       )}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_0%,rgba(139,92,246,0.16),transparent_36%),linear-gradient(180deg,rgba(10,9,14,0.78),rgba(10,9,14,0.94)_42%,rgba(10,9,14,0.98))]"
+        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_0%,rgba(139,92,246,0.11),transparent_38%),linear-gradient(180deg,rgba(9,8,13,0.84),rgba(9,8,13,0.95)_42%,rgba(9,8,13,0.99))]"
       />
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-[296px] border-r border-white/[0.045] bg-background/90 shadow-card-glow backdrop-blur-2xl transition-transform duration-300 lg:sticky lg:top-16 lg:z-0 lg:h-[calc(100vh-4rem)] lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 w-[304px] bg-background/72 shadow-card-glow backdrop-blur-2xl transition-transform duration-300 lg:sticky lg:top-[68px] lg:z-0 lg:h-[calc(100vh-68px)] lg:translate-x-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex h-full flex-col p-4">
+        <div className="flex h-full flex-col gap-5 p-5">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold text-foreground">Chats</p>
@@ -80,17 +80,17 @@ export function ChatClient({ chatId, characterName, characterAvatarUrl, summary,
               <X className="h-4 w-4" />
             </button>
           </div>
-          <Button asChild className="mt-4 w-full">
+          <Button asChild className="w-full">
             <Link href="/explore">
               <Plus className="h-4 w-4" />
               New chat
             </Link>
           </Button>
 
-          <div className="mt-5 space-y-2">
+          <div className="space-y-2">
             <Link
               href={`/chat/${chatId}`}
-              className="block rounded-3xl border border-primary/25 bg-primary/[0.12] p-3 no-underline shadow-inset"
+              className="block rounded-3xl border border-primary/[0.14] bg-primary/[0.09] p-3 no-underline shadow-inset"
             >
               <div className="flex items-start gap-3">
                 <CharacterAvatar name={characterName} avatarUrl={characterAvatarUrl} size="sm" />
@@ -104,16 +104,16 @@ export function ChatClient({ chatId, characterName, characterAvatarUrl, summary,
           </div>
 
           <div className="mt-auto space-y-3">
-            <SurfaceMuted className="p-3">
+            <SurfaceMuted className="p-4">
               <KeyRound className="h-4 w-4 text-primary" />
               <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                Secure model access lives in Settings. Local fallback remains available.
+                Secure model access lives in Settings. Velora keeps provider keys away from the browser.
               </p>
             </SurfaceMuted>
-            <SurfaceMuted className="p-3">
+            <SurfaceMuted className="p-4">
               <Sparkles className="h-4 w-4 text-[#f0a8c8]" />
               <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                Memory retrieval is added to the prompt when relevant facts are available.
+                Relevant memories can quietly return to the conversation when they matter.
               </p>
             </SurfaceMuted>
           </div>
@@ -123,12 +123,13 @@ export function ChatClient({ chatId, characterName, characterAvatarUrl, summary,
       {sidebarOpen ? <button aria-label="Close sidebar overlay" className="fixed inset-0 z-40 bg-black/70 lg:hidden" onClick={() => setSidebarOpen(false)} /> : null}
 
       <section className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-16 z-20 flex min-h-16 shrink-0 items-center justify-between border-b border-white/[0.045] bg-background/82 px-4 backdrop-blur-2xl sm:px-6">
+        <header className="sticky top-[68px] z-20 shrink-0 px-4 pt-4 sm:px-6">
+          <div className="mx-auto flex min-h-16 max-w-4xl items-center justify-between rounded-full border border-white/[0.025] bg-background/56 px-3 py-2 shadow-card-glow shadow-inset backdrop-blur-2xl sm:px-4">
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
               aria-label="Open chats"
-              className="focus-ring rounded-full p-2 text-muted-foreground hover:bg-white/[0.055] hover:text-foreground lg:hidden"
+              className="focus-ring rounded-full p-2 text-muted-foreground hover:bg-white/[0.045] hover:text-foreground lg:hidden"
               onClick={() => setSidebarOpen(true)}
             >
               <Menu className="h-5 w-5" />
@@ -136,7 +137,7 @@ export function ChatClient({ chatId, characterName, characterAvatarUrl, summary,
             <CharacterAvatar name={characterName} avatarUrl={characterAvatarUrl} />
             <div className="min-w-0">
               <h1 className="truncate text-base font-semibold">{characterName}</h1>
-              <p className="truncate text-xs text-muted-foreground">Cozy chat with memory-aware replies</p>
+              <p className="truncate text-xs text-muted-foreground">Memory-aware conversation</p>
             </div>
           </div>
           <div className="relative">
@@ -150,7 +151,7 @@ export function ChatClient({ chatId, characterName, characterAvatarUrl, summary,
               <Settings2 className="h-4 w-4" />
             </Button>
             {settingsOpen ? (
-              <div className="absolute right-0 top-12 z-20 w-[min(22rem,calc(100vw-2rem))] rounded-3xl border border-white/[0.055] bg-card/95 p-4 shadow-card-glow backdrop-blur-xl">
+              <div className="absolute right-0 top-12 z-20 w-[min(22rem,calc(100vw-2rem))] rounded-3xl border border-white/[0.035] bg-card/95 p-5 shadow-card-glow backdrop-blur-xl">
                 <h2 className="text-sm font-semibold">Chat settings</h2>
                 <label className="mt-4 block text-xs font-medium text-muted-foreground">Preferred model</label>
                 <Input
@@ -191,12 +192,13 @@ export function ChatClient({ chatId, characterName, characterAvatarUrl, summary,
               </div>
             ) : null}
           </div>
+          </div>
         </header>
 
-        <div className="chat-scroll flex-1 overflow-y-auto px-4 py-6 sm:px-8 lg:px-12">
-          <div className="mx-auto max-w-4xl space-y-5">
+        <div className="chat-scroll flex-1 overflow-y-auto px-4 py-8 sm:px-8 lg:px-12">
+          <div className="mx-auto max-w-4xl space-y-6 pb-4 pt-4">
             {summary ? (
-              <p className="mx-auto max-w-2xl rounded-full border border-white/[0.08] bg-white/[0.04] px-4 py-2 text-center text-xs italic text-muted-foreground shadow-inset">
+              <p className="mx-auto max-w-2xl rounded-full bg-white/[0.03] px-4 py-2 text-center text-xs italic text-muted-foreground shadow-inset">
                 {summary}
               </p>
             ) : null}
@@ -222,8 +224,8 @@ export function ChatClient({ chatId, characterName, characterAvatarUrl, summary,
           </div>
         </div>
 
-        <form onSubmit={onSubmit} className="shrink-0 border-t border-white/[0.045] bg-background/86 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 backdrop-blur-2xl sm:px-6">
-          <div className="mx-auto flex max-w-4xl items-end gap-2 rounded-[30px] border border-white/[0.055] bg-card/[0.76] p-2 shadow-card-glow shadow-inset">
+        <form onSubmit={onSubmit} className="shrink-0 px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-3 sm:px-6">
+          <div className="mx-auto flex max-w-4xl items-end gap-2 rounded-[30px] border border-white/[0.03] bg-card/[0.72] p-2 shadow-card-glow shadow-inset backdrop-blur-2xl">
             <IconButton label="Attach file">
               <Paperclip className="h-4 w-4" />
             </IconButton>

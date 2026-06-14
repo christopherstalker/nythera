@@ -41,15 +41,15 @@ export default function AdminPage() {
   }
 
   return (
-    <PageShell className="space-y-6">
+    <PageShell className="space-y-10">
       <PageHeader
         icon={ShieldAlert}
         title="Moderation"
         description="Review reports, scan safety state, and keep public characters aligned with Velora policy."
       />
 
-      <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <Surface className="h-fit p-4 lg:sticky lg:top-24">
+      <div className="grid gap-7 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <Surface className="h-fit p-4 lg:sticky lg:top-28">
           <div className="space-y-2">
             {[
               { item: "Reports", icon: FileWarning, count: reports.length },
@@ -62,22 +62,22 @@ export default function AdminPage() {
                 className={cn(
                   "flex items-center justify-between rounded-3xl border px-3 py-3 text-sm transition",
                   index === 0
-                    ? "border-primary/25 bg-primary/[0.1] text-foreground"
-                    : "border-transparent text-muted-foreground hover:bg-white/[0.045] hover:text-foreground"
+                    ? "border-primary/[0.14] bg-primary/[0.09] text-foreground shadow-inset"
+                    : "border-transparent text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
                 )}
               >
                 <span className="flex items-center gap-2">
                   <Icon className="h-4 w-4" />
                   {item}
                 </span>
-                <span className="rounded-full border border-white/[0.045] bg-white/[0.028] px-2 py-0.5 text-xs shadow-inset">{String(count)}</span>
+                <span className="rounded-full bg-white/[0.03] px-2 py-0.5 text-xs shadow-inset">{String(count)}</span>
               </div>
             ))}
           </div>
         </Surface>
 
         <Surface className="overflow-hidden">
-          <div className="border-b border-white/[0.045] p-5">
+          <div className="p-6">
             <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
               <div>
                 <h2 className="text-2xl font-semibold leading-8 tracking-tight">Report queue</h2>
@@ -109,7 +109,7 @@ export default function AdminPage() {
                   </thead>
                   <tbody>
                     {reports.map((report) => (
-                      <tr key={report.id} className="border-t border-white/[0.04] bg-white/[0.016] transition hover:bg-white/[0.035]">
+                      <tr key={report.id} className="border-t border-white/[0.025] bg-white/[0.012] transition hover:bg-white/[0.028]">
                         <td className="px-5 py-4 font-medium text-foreground">{report.reason}</td>
                         <td className="max-w-[360px] px-5 py-4 text-muted-foreground">
                           <p className="truncate">{report.character?.name ?? report.message?.content ?? report.details ?? "No report target details"}</p>
@@ -134,7 +134,7 @@ export default function AdminPage() {
               </div>
 
               {reports.length === 0 ? (
-                <div className="border-t border-white/[0.045] p-6">
+                <div className="p-6">
                   <SurfaceMuted className="p-8 text-center text-sm text-muted-foreground">No reports in queue.</SurfaceMuted>
                 </div>
               ) : null}

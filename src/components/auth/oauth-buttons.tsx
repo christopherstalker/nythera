@@ -19,11 +19,11 @@ export function OAuthButtons({ intent }: OAuthButtonsProps) {
   }
 
   return (
-    <div className="mt-6 space-y-4">
+    <div className="mt-7 space-y-5">
       <Button
         type="button"
         variant="outline"
-        className="h-11 w-full border-white/[0.08] bg-white/[0.045] text-foreground hover:border-primary/25 hover:bg-primary/[0.08]"
+        className="h-12 w-full border-white/[0.035] bg-white/[0.032] text-foreground hover:border-primary/[0.16] hover:bg-primary/[0.07]"
         onClick={handleGoogleSignIn}
         disabled={isLoading}
       >
@@ -31,9 +31,9 @@ export function OAuthButtons({ intent }: OAuthButtonsProps) {
         {isLoading ? "Opening Google..." : label}
       </Button>
       <div className="flex items-center gap-3 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-        <span className="h-px flex-1 bg-white/[0.08]" />
+        <span className="h-px flex-1 bg-white/[0.055]" />
         <span>or use email</span>
-        <span className="h-px flex-1 bg-white/[0.08]" />
+        <span className="h-px flex-1 bg-white/[0.055]" />
       </div>
     </div>
   );

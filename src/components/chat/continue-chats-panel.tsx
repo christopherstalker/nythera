@@ -70,13 +70,13 @@ export function ContinueChatsPanel() {
   }, [status]);
 
   return (
-    <Surface className="p-5">
+    <Surface className="p-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">Continue chatting</h2>
+        <h2 className="text-base font-semibold">Continue chatting</h2>
         <MessageCircle className="h-4 w-4 text-primary" />
       </div>
 
-      <div className="mt-4 space-y-3">
+      <div className="mt-5 space-y-3">
         {state === "loading" ? (
           <>
             <div className="h-[72px] rounded-3xl skeleton" />
@@ -119,7 +119,7 @@ export function ContinueChatsPanel() {
                 <Link
                   key={chat.id}
                   href={`/chat/${chat.id}`}
-                  className="flex items-start gap-3 rounded-3xl border border-white/[0.045] bg-white/[0.028] p-3 no-underline shadow-inset transition hover:border-primary/20 hover:bg-primary/[0.075]"
+                  className="flex items-start gap-3 rounded-3xl border border-white/[0.025] bg-white/[0.024] p-3.5 no-underline shadow-inset transition hover:-translate-y-0.5 hover:border-primary/[0.14] hover:bg-primary/[0.06]"
                 >
                   <CharacterAvatar name={characterName} avatarUrl={chat.character?.avatarUrl} size="sm" />
                   <div className="min-w-0 flex-1">
@@ -148,9 +148,9 @@ function PanelEmpty({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-3xl border border-white/[0.045] bg-white/[0.028] p-4 text-sm shadow-inset">
+    <div className="rounded-3xl border border-white/[0.025] bg-white/[0.024] p-4 text-sm shadow-inset">
       <div className="flex items-start gap-3">
-        <div className="grid h-9 w-9 place-items-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
+        <div className="grid h-9 w-9 place-items-center rounded-2xl bg-primary/10 text-primary">
           <Icon className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">

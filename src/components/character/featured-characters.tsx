@@ -34,11 +34,10 @@ export function FeaturedCharacters() {
 
   if (loading) {
     return (
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="h-[340px] rounded-[32px] skeleton" />
-        <div className="h-[340px] rounded-[32px] skeleton" />
-        <div className="h-[340px] rounded-[32px] skeleton" />
-        <div className="h-[340px] rounded-[32px] skeleton" />
+    <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="h-[360px] rounded-[30px] skeleton" />
+      <div className="h-[360px] rounded-[30px] skeleton" />
+      <div className="h-[360px] rounded-[30px] skeleton" />
       </div>
     );
   }
@@ -62,7 +61,7 @@ export function FeaturedCharacters() {
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
       {characters.map((item) => (
         <CharacterCard key={item.id} character={item} />
       ))}

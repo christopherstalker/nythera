@@ -113,7 +113,7 @@ export function KeySettingsClient() {
   }
 
   return (
-    <Surface className="p-5">
+    <Surface className="p-6">
       <div className="flex items-start gap-3">
         <ShieldCheck className="mt-1 h-5 w-5 text-[#8fd8c2]" />
         <div>
@@ -124,18 +124,18 @@ export function KeySettingsClient() {
         </div>
       </div>
 
-      <SurfaceMuted className="mt-5 flex items-start gap-3 p-4">
+      <SurfaceMuted className="mt-6 flex items-start gap-3 p-4">
         <LockKeyhole className="mt-0.5 h-4 w-4 text-[#8fd8c2]" />
         <p className="text-xs leading-5 text-muted-foreground">
           Your browser never receives saved secrets. You can still chat with the local fallback until you add a provider.
         </p>
       </SurfaceMuted>
 
-      <form onSubmit={onSubmit} className="mt-5 grid gap-3">
+      <form onSubmit={onSubmit} className="mt-6 grid gap-4">
         <select
           value={providerPresets.some((preset) => preset.provider === provider) ? provider : "custom"}
           onChange={(event) => applyPreset(event.target.value)}
-          className="focus-ring h-11 rounded-2xl border border-white/[0.06] bg-white/[0.035] px-4 text-sm shadow-inset"
+          className="focus-ring h-12 rounded-[22px] border border-white/[0.035] bg-white/[0.032] px-4 text-sm shadow-inset"
         >
           {providerPresets.map((preset) => (
             <option key={preset.provider} value={preset.provider}>
@@ -152,7 +152,7 @@ export function KeySettingsClient() {
           <select
             value={apiFormat}
             onChange={(event) => setApiFormat(event.target.value as ApiFormat)}
-            className="focus-ring h-11 rounded-2xl border border-white/[0.06] bg-white/[0.035] px-4 text-sm shadow-inset"
+            className="focus-ring h-12 rounded-[22px] border border-white/[0.035] bg-white/[0.032] px-4 text-sm shadow-inset"
           >
             <option value="OPENAI_COMPATIBLE">OpenAI-compatible</option>
             <option value="OPENAI">OpenAI</option>
@@ -178,14 +178,14 @@ export function KeySettingsClient() {
 
       {status ? <p className="mt-3 rounded-2xl border border-white/[0.055] bg-white/[0.028] p-3 text-sm text-muted-foreground shadow-inset">{status}</p> : null}
 
-      <div className="mt-5 grid gap-3">
+      <div className="mt-6 grid gap-3">
         {keys.length === 0 ? (
-          <p className="rounded-3xl border border-white/[0.055] bg-white/[0.028] p-4 text-sm leading-6 text-muted-foreground shadow-inset">
+          <p className="rounded-3xl border border-white/[0.025] bg-white/[0.024] p-5 text-sm leading-7 text-muted-foreground shadow-inset">
             No secure access saved yet. Chat still works with local fallback; add a provider when you want live model responses.
           </p>
         ) : (
           keys.map((key) => (
-            <div key={key.id} className="flex items-center justify-between gap-3 rounded-3xl border border-white/[0.055] bg-white/[0.028] p-4 shadow-inset">
+            <div key={key.id} className="flex items-center justify-between gap-3 rounded-3xl border border-white/[0.025] bg-white/[0.024] p-5 shadow-inset">
               <div>
                 <p className="text-sm font-semibold">{key.displayName}</p>
                 <p className="text-xs text-muted-foreground">

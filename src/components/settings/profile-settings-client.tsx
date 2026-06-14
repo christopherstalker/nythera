@@ -84,7 +84,7 @@ export function ProfileSettingsClient() {
   }
 
   return (
-    <Surface className="p-5">
+    <Surface className="p-6">
       <div className="flex items-start gap-3">
         <UserCog className="mt-1 h-5 w-5 text-primary" />
         <div>
@@ -92,10 +92,10 @@ export function ProfileSettingsClient() {
           <p className="mt-1 text-sm leading-6 text-muted-foreground">Public identity, avatar, and safety preferences.</p>
         </div>
       </div>
-      <form key={profile?.email ?? "loading-profile"} onSubmit={onSubmit} className="mt-5 grid gap-4 lg:grid-cols-2">
+      <form key={profile?.email ?? "loading-profile"} onSubmit={onSubmit} className="mt-6 grid gap-4 lg:grid-cols-2">
         <Input name="email" value={profile?.email ?? ""} disabled placeholder="Email" />
         <Input name="username" defaultValue={profile?.username ?? ""} placeholder="Username" />
-        <div className="rounded-[26px] border border-white/[0.055] bg-white/[0.028] p-4 shadow-inset lg:col-span-2">
+        <div className="rounded-[26px] border border-white/[0.025] bg-white/[0.024] p-5 shadow-inset lg:col-span-2">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-full border border-primary/20 bg-primary/10 text-lg font-semibold uppercase text-foreground">
               {avatarValue ? <img src={avatarValue} alt="" className="h-full w-full object-cover" /> : profile?.email?.slice(0, 1) ?? "V"}
@@ -104,7 +104,7 @@ export function ProfileSettingsClient() {
               <p className="text-sm font-medium text-foreground">Profile avatar</p>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">Choose an image from your computer. PNG, JPG, WebP, GIF, or SVG up to 1.5MB.</p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <label className="focus-ring inline-flex h-10 cursor-pointer items-center gap-2 rounded-full border border-primary/20 bg-primary/[0.1] px-4 text-sm font-medium text-foreground transition hover:bg-primary/[0.16]">
+                <label className="focus-ring inline-flex h-10 cursor-pointer items-center gap-2 rounded-full bg-primary/[0.11] px-4 text-sm font-medium text-foreground shadow-inset transition hover:bg-primary/[0.16]">
                   <ImagePlus className="h-4 w-4" />
                   Choose file
                   <input type="file" accept="image/*" className="sr-only" onChange={onAvatarFile} />
@@ -119,7 +119,7 @@ export function ProfileSettingsClient() {
             </div>
           </div>
         </div>
-        <label className="flex min-h-11 items-center gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.035] px-4 text-sm shadow-inset">
+        <label className="flex min-h-12 items-center gap-2 rounded-[22px] border border-white/[0.035] bg-white/[0.032] px-4 text-sm shadow-inset">
           <input name="ageVerified" type="checkbox" defaultChecked={profile?.ageVerified ?? false} className="accent-[hsl(var(--primary))]" />
           I confirm I can access age-gated content settings
         </label>

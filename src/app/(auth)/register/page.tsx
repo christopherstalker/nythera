@@ -38,24 +38,25 @@ export default function RegisterPage() {
   }
 
   return (
-    <PageShell className="flex min-h-[calc(100dvh-4rem)] items-center justify-center pb-5 sm:pb-6">
-      <Surface className="w-full max-w-md p-6 sm:p-7">
-        <div className="grid h-12 w-12 place-items-center overflow-hidden rounded-3xl border border-primary/25 bg-primary/10 shadow-inset">
+    <PageShell className="flex min-h-[calc(100dvh-68px)] items-center justify-center pb-5 sm:pb-6">
+      <Surface className="w-full max-w-md p-7 sm:p-8">
+        <div className="grid h-12 w-12 place-items-center overflow-hidden rounded-full bg-primary/10 shadow-inset">
           <img src="/icon.svg" alt="" className="h-full w-full object-cover" />
         </div>
-        <h1 className="mt-6 text-2xl font-semibold tracking-tight">Create your Velora account</h1>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+        <h1 className="mt-7 text-2xl font-semibold tracking-tight">Create your Velora account</h1>
+        <p className="mt-3 text-sm leading-7 text-muted-foreground">
           Save characters, resume chats, and add provider keys when you want live models.
         </p>
         <OAuthButtons intent="register" />
-        <form onSubmit={onSubmit} className="mt-6 space-y-3">
-          <Input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" type="email" required />
-          <Input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Username" required />
+        <form onSubmit={onSubmit} className="mt-7 space-y-4">
+          <Input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" type="email" autoComplete="email" required />
+          <Input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Username" autoComplete="username" required />
           <Input
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             placeholder="Password"
             type="password"
+            autoComplete="new-password"
             required
           />
           {error ? <p className="rounded-2xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
@@ -64,7 +65,7 @@ export default function RegisterPage() {
             Register
           </Button>
         </form>
-        <SurfaceMuted className="mt-5 p-4 text-sm text-muted-foreground">
+        <SurfaceMuted className="mt-6 p-4 text-sm text-muted-foreground">
           Already registered?{" "}
           <Link href="/login" className="font-semibold text-primary">
             Sign in

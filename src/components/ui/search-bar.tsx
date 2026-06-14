@@ -26,7 +26,7 @@ export function SearchBar({
         value={value}
         onChange={(event) => onChange?.(event.target.value)}
         placeholder={placeholder}
-        className="focus-ring h-14 w-full rounded-full border border-white/[0.04] bg-white/[0.04] px-12 text-[15px] text-foreground shadow-card-glow shadow-inset placeholder:text-muted-foreground transition duration-200 focus:border-primary/30 focus:bg-white/[0.065]"
+        className="focus-ring h-14 w-full rounded-full border border-white/[0.03] bg-white/[0.035] px-12 text-[15px] text-foreground shadow-card-glow shadow-inset placeholder:text-muted-foreground transition duration-200 focus:border-primary/[0.24] focus:bg-white/[0.06]"
       />
       {showFilterIcon ? (
         <span className="pointer-events-none absolute right-3 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-primary/10 text-primary">

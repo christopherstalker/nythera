@@ -15,13 +15,13 @@ export function EmptyState({
   className?: string;
 }) {
   return (
-    <div className={cn("app-surface flex flex-col items-center px-6 py-12 text-center", className)}>
-      <div className="grid h-14 w-14 place-items-center rounded-3xl border border-primary/[0.16] bg-primary/[0.075] text-primary shadow-inset">
+    <div className={cn("app-surface flex flex-col items-center px-8 py-16 text-center sm:py-20", className)}>
+      <div className="grid h-14 w-14 place-items-center rounded-[24px] bg-primary/[0.085] text-primary shadow-inset">
         <Icon className="h-6 w-6" />
       </div>
-      <h2 className="mt-5 text-lg font-semibold text-foreground">{title}</h2>
-      <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">{description}</p>
-      {action ? <div className="mt-5">{action}</div> : null}
+      <h2 className="mt-6 text-xl font-semibold text-foreground">{title}</h2>
+      <p className="mt-3 max-w-md text-sm leading-7 text-muted-foreground">{description}</p>
+      {action ? <div className="mt-7">{action}</div> : null}
     </div>
   );
 }

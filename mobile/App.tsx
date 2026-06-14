@@ -802,45 +802,59 @@ function ChatScreen({ chat, busy, onBack, onSend }: { chat: Chat | null; busy: b
 
   return (
     <KeyboardAvoidingView style={styles.chatWrap} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <View pointerEvents="none" style={styles.chatBackground}>
+        {chat.character.avatarUrl ? <Image source={{ uri: chat.character.avatarUrl }} blurRadius={48} resizeMode="cover" style={styles.chatBackgroundImage} /> : null}
+        <View style={styles.chatOverlay} />
+      </View>
       <View style={styles.chatHeader}>
         <SecondaryButton label="Back" onPress={onBack} />
-        <Text style={styles.chatTitle}>{chat.title ?? chat.character.name}</Text>
+        <Avatar name={chat.character.name} uri={chat.character.avatarUrl} />
+        <View style={styles.chatTitleWrap}>
+          <Text style={styles.chatTitle}>{chat.title ?? chat.character.name}</Text>
+          <Text style={styles.muted}>Memory-aware conversation</Text>
+        </View>
       </View>
       <FlatList
         data={chat.messages}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.messages}
-        renderItem={({ item }) => <MessageBubble message={item} />}
+        renderItem={({ item }) => <MessageBubble message={item} character={chat.character} />}
       />
       {busy ? <TypingState /> : null}
       <View style={styles.composer}>
-        <TextInput
-          value={draft}
-          onChangeText={setDraft}
-          placeholder="Message character..."
-          placeholderTextColor="#8d879d"
-          style={[styles.input, styles.composerInput]}
-          multiline
-        />
-        <PrimaryButton
-          label="Send"
-          disabled={busy || !draft.trim()}
-          onPress={() => {
-            const next = draft;
-            setDraft("");
-            onSend(next);
-          }}
-        />
+        <View style={styles.composerShell}>
+          <TextInput
+            value={draft}
+            onChangeText={setDraft}
+            placeholder={`Message ${chat.character.name}...`}
+            placeholderTextColor="#8d879d"
+            style={[styles.input, styles.composerInput]}
+            multiline
+          />
+          <PrimaryButton
+            label="Send"
+            disabled={busy || !draft.trim()}
+            onPress={() => {
+              const next = draft;
+              setDraft("");
+              onSend(next);
+            }}
+          />
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
 }
 
-function MessageBubble({ message }: { message: Message }) {
+function MessageBubble({ message, character }: { message: Message; character: Character }) {
   const mine = message.role === "USER";
   return (
-    <View style={[styles.bubble, mine ? styles.userBubble : styles.characterBubble]}>
-      <Text style={styles.bubbleText}>{message.content}</Text>
+    <View style={[styles.messageRow, mine && styles.messageRowMine]}>
+      {!mine ? <Avatar name={character.name} uri={character.avatarUrl} size="sm" /> : null}
+      <View style={[styles.bubble, mine ? styles.userBubble : styles.characterBubble]}>
+        <Text style={styles.bubbleLabel}>{mine ? "You" : character.name}</Text>
+        <Text style={styles.bubbleText}>{message.content}</Text>
+      </View>
     </View>
   );
 }
@@ -1333,9 +1347,9 @@ function BottomTabs({ tab, onChange }: { tab: Tab; onChange: (tab: Tab) => void 
   );
 }
 
-function Avatar({ name, uri, size = "md" }: { name: string; uri?: string | null; size?: "md" | "lg" }) {
+function Avatar({ name, uri, size = "md" }: { name: string; uri?: string | null; size?: "sm" | "md" | "lg" }) {
   return (
-    <View style={[styles.avatar, size === "lg" && styles.avatarLarge]}>
+    <View style={[styles.avatar, size === "sm" && styles.avatarSmall, size === "lg" && styles.avatarLarge]}>
       {uri ? <Image source={{ uri }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{name.slice(0, 1).toUpperCase()}</Text>}
     </View>
   );
@@ -1495,8 +1509,6 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 18,
     paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.035)",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -1541,17 +1553,17 @@ const styles = StyleSheet.create({
     fontSize: 12
   },
   listContent: {
-    padding: 16,
-    paddingBottom: 110,
-    gap: 14
+    padding: 20,
+    paddingBottom: 118,
+    gap: 18
   },
   heroCard: {
     borderRadius: 32,
-    padding: 22,
+    padding: 24,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.045)",
-    backgroundColor: "#12101A",
-    gap: 14
+    borderColor: "rgba(255,255,255,0.028)",
+    backgroundColor: "#111019",
+    gap: 16
   },
   segmentRow: {
     flexDirection: "row",
@@ -1559,18 +1571,18 @@ const styles = StyleSheet.create({
     gap: 8
   },
   segmentPill: {
-    minHeight: 38,
+    minHeight: 40,
     borderRadius: 999,
     paddingHorizontal: 14,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: "rgba(255,255,255,0.038)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.07)"
+    borderColor: "rgba(255,255,255,0.045)"
   },
   segmentPillActive: {
-    backgroundColor: "rgba(167,139,250,0.18)",
-    borderColor: "rgba(167,139,250,0.34)"
+    backgroundColor: "rgba(167,139,250,0.16)",
+    borderColor: "rgba(167,139,250,0.22)"
   },
   segmentText: {
     color: "#9B94AA",
@@ -1593,36 +1605,36 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: 30,
-    padding: 16,
+    padding: 18,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.045)",
+    borderColor: "rgba(255,255,255,0.028)",
     backgroundColor: "#111019",
-    gap: 12
+    gap: 14
   },
   characterCard: {
     borderRadius: 30,
-    padding: 18,
+    padding: 22,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.045)",
+    borderColor: "rgba(255,255,255,0.028)",
     backgroundColor: "#111019",
-    gap: 10,
+    gap: 12,
     alignItems: "center"
   },
   characterAvatarWrap: {
-    height: 96,
-    width: 96,
-    borderRadius: 48,
+    height: 108,
+    width: 108,
+    borderRadius: 54,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(167,139,250,0.075)"
   },
   formSection: {
     borderRadius: 30,
-    padding: 16,
+    padding: 20,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.045)",
+    borderColor: "rgba(255,255,255,0.028)",
     backgroundColor: "#111019",
-    gap: 12
+    gap: 16
   },
   sectionTitle: {
     color: "#F8F7FF",
@@ -1637,9 +1649,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
-    backgroundColor: "rgba(167,139,250,0.08)",
+    backgroundColor: "rgba(167,139,250,0.075)",
     borderWidth: 1,
-    borderColor: "rgba(167,139,250,0.18)"
+    borderColor: "rgba(167,139,250,0.14)"
   },
   avatarPickerImage: {
     height: 72,
@@ -1658,8 +1670,8 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     padding: 16,
     borderWidth: 1,
-    borderColor: "rgba(167,139,250,0.18)",
-    backgroundColor: "#171321",
+    borderColor: "rgba(167,139,250,0.12)",
+    backgroundColor: "#12101A",
     gap: 12
   },
   previewGlow: {
@@ -1717,6 +1729,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(167,139,250,0.25)"
   },
+  avatarSmall: {
+    height: 40,
+    width: 40,
+    borderRadius: 20
+  },
   avatarLarge: {
     height: 88,
     width: 88,
@@ -1748,7 +1765,7 @@ const styles = StyleSheet.create({
   tag: {
     color: "#D9D1FF",
     backgroundColor: "rgba(167,139,250,0.12)",
-    borderColor: "rgba(167,139,250,0.18)",
+    borderColor: "rgba(167,139,250,0.12)",
     borderWidth: 1,
     borderRadius: 999,
     paddingHorizontal: 10,
@@ -1782,9 +1799,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: "rgba(255,255,255,0.038)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.07)"
+    borderColor: "rgba(255,255,255,0.045)"
   },
   choicePillActive: {
     backgroundColor: "rgba(167,139,250,0.16)",
@@ -1806,9 +1823,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
-    backgroundColor: "rgba(255,255,255,0.045)",
+    backgroundColor: "rgba(255,255,255,0.035)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.07)"
+    borderColor: "rgba(255,255,255,0.04)"
   },
   numberStepper: {
     flexDirection: "row",
@@ -1845,9 +1862,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
-    backgroundColor: "rgba(255,255,255,0.045)",
+    backgroundColor: "rgba(255,255,255,0.035)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.07)"
+    borderColor: "rgba(255,255,255,0.04)"
   },
   toggleTrack: {
     height: 34,
@@ -1875,9 +1892,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     color: "#F8F7FF",
-    backgroundColor: "rgba(255,255,255,0.045)",
+    backgroundColor: "rgba(255,255,255,0.038)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.055)",
+    borderColor: "rgba(255,255,255,0.04)",
     fontSize: 16
   },
   textarea: {
@@ -1886,9 +1903,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     color: "#F8F7FF",
-    backgroundColor: "rgba(255,255,255,0.045)",
+    backgroundColor: "rgba(255,255,255,0.038)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.055)",
+    borderColor: "rgba(255,255,255,0.04)",
     textAlignVertical: "top",
     fontSize: 16
   },
@@ -1941,9 +1958,9 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     padding: 8,
     flexDirection: "row",
-    backgroundColor: "rgba(17,16,25,0.96)",
+    backgroundColor: "rgba(17,16,25,0.94)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.055)",
+    borderColor: "rgba(255,255,255,0.035)",
     gap: 6
   },
   tab: {
@@ -1977,56 +1994,108 @@ const styles = StyleSheet.create({
     gap: 18
   },
   chatWrap: {
-    flex: 1
+    flex: 1,
+    backgroundColor: "#07060B"
+  },
+  chatBackground: {
+    ...StyleSheet.absoluteFill,
+    overflow: "hidden"
+  },
+  chatBackgroundImage: {
+    position: "absolute",
+    top: -60,
+    left: -60,
+    right: -60,
+    bottom: -60,
+    opacity: 0.12
+  },
+  chatOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "rgba(7,6,11,0.88)"
   },
   chatHeader: {
-    paddingHorizontal: 16,
+    marginHorizontal: 14,
+    marginTop: 8,
+    paddingHorizontal: 12,
     paddingVertical: 10,
+    borderRadius: 30,
+    backgroundColor: "rgba(17,16,25,0.74)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.03)",
     flexDirection: "row",
     alignItems: "center",
     gap: 12
   },
-  chatTitle: {
+  chatTitleWrap: {
     flex: 1,
+    minWidth: 0
+  },
+  chatTitle: {
     color: "#F8F7FF",
     fontSize: 18,
     fontWeight: "800"
   },
   messages: {
-    padding: 16,
-    paddingBottom: 20,
+    padding: 18,
+    paddingBottom: 28,
+    gap: 14
+  },
+  messageRow: {
+    maxWidth: "92%",
+    flexDirection: "row",
+    alignItems: "flex-end",
     gap: 10
   },
+  messageRowMine: {
+    alignSelf: "flex-end",
+    justifyContent: "flex-end"
+  },
   bubble: {
-    maxWidth: "86%",
-    borderRadius: 22,
-    paddingHorizontal: 14,
-    paddingVertical: 11
+    maxWidth: "100%",
+    borderRadius: 24,
+    paddingHorizontal: 15,
+    paddingVertical: 12
   },
   userBubble: {
     alignSelf: "flex-end",
-    backgroundColor: "rgba(167,139,250,0.22)"
+    backgroundColor: "rgba(167,139,250,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(167,139,250,0.12)"
   },
   characterBubble: {
     alignSelf: "flex-start",
-    backgroundColor: "rgba(255,255,255,0.07)",
+    backgroundColor: "rgba(255,255,255,0.06)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.06)"
+    borderColor: "rgba(255,255,255,0.035)"
+  },
+  bubbleLabel: {
+    color: "#AFA6C4",
+    fontSize: 11,
+    fontWeight: "700",
+    marginBottom: 4
   },
   bubbleText: {
     color: "#F8F7FF",
     fontSize: 15,
-    lineHeight: 22
+    lineHeight: 23
   },
   composer: {
     padding: 14,
     paddingBottom: 96,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.06)",
     gap: 10
   },
+  composerShell: {
+    borderRadius: 30,
+    padding: 8,
+    gap: 10,
+    backgroundColor: "rgba(17,16,25,0.88)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.035)"
+  },
   composerInput: {
-    maxHeight: 120
+    maxHeight: 120,
+    borderWidth: 0,
+    backgroundColor: "rgba(255,255,255,0.025)"
   },
   typing: {
     flexDirection: "row",

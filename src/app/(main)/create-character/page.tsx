@@ -165,9 +165,9 @@ export default function CreateCharacterPage() {
 
   return (
     <PageShell>
-      <div className="grid min-h-[calc(100vh-7rem)] gap-5 xl:grid-cols-[minmax(0,1fr)_430px]">
+      <div className="grid min-h-[calc(100vh-8rem)] gap-8 xl:grid-cols-[minmax(0,1fr)_420px]">
         <form onSubmit={onSubmit} className="app-surface overflow-hidden">
-          <div className="border-b border-white/[0.045] p-5 sm:p-7">
+          <div className="p-6 sm:p-8">
             <PageHeader
               icon={Bot}
               title="Create a character"
@@ -180,10 +180,10 @@ export default function CreateCharacterPage() {
                       type="button"
                       onClick={() => setStep(index)}
                       className={cn(
-                        "focus-ring rounded-full border px-4 py-2 text-sm font-medium transition",
+                        "focus-ring rounded-full border px-4 py-2.5 text-sm font-medium transition",
                         step === index
-                          ? "border-primary/25 bg-primary/[0.1] text-foreground"
-                          : "border-white/[0.045] bg-white/[0.028] text-muted-foreground hover:border-primary/20 hover:bg-primary/[0.075] hover:text-foreground"
+                          ? "border-primary/[0.16] bg-primary/[0.1] text-foreground shadow-inset"
+                          : "border-white/[0.025] bg-white/[0.022] text-muted-foreground hover:border-primary/[0.14] hover:bg-primary/[0.06] hover:text-foreground"
                       )}
                     >
                       {index + 1}. {label}
@@ -192,7 +192,7 @@ export default function CreateCharacterPage() {
                 </div>
               }
             />
-            <div className="mt-6 rounded-[26px] border border-white/[0.045] bg-white/[0.025] p-4 shadow-inset">
+            <div className="mt-8 rounded-[26px] border border-white/[0.025] bg-white/[0.024] p-5 shadow-inset">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-3">
                   <Sparkles className="mt-0.5 h-4 w-4 text-primary" />
@@ -203,21 +203,21 @@ export default function CreateCharacterPage() {
                     <p className="mt-1 text-xs leading-5 text-muted-foreground">{steps[step].hint}</p>
                   </div>
                 </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-white/[0.055] sm:w-44">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-white/[0.05] sm:w-48">
                   <div className="h-full rounded-full primary-gradient transition-all duration-300" style={{ width: `${((step + 1) / steps.length) * 100}%` }} />
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="p-5 sm:p-7">
+          <div className="px-6 pb-6 sm:px-8 sm:pb-8">
             {step === 0 ? <BasicsStep draft={draft} update={update} /> : null}
             {step === 1 ? <PersonalityStep draft={draft} update={update} /> : null}
             {step === 2 ? <SettingsStep draft={draft} update={update} /> : null}
 
             {error ? <p className="mt-5 rounded-2xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
 
-            <div className="mt-7 flex items-center justify-between border-t border-white/[0.045] pt-5">
+            <div className="mt-10 flex items-center justify-between gap-3 pt-2">
               <Button type="button" variant="outline" disabled={step === 0} onClick={() => setStep((current) => Math.max(0, current - 1))}>
                 Back
               </Button>
@@ -235,13 +235,13 @@ export default function CreateCharacterPage() {
           </div>
         </form>
 
-        <aside className="app-surface h-fit p-5 xl:sticky xl:top-24">
+        <aside className="app-surface h-fit p-6 xl:sticky xl:top-28">
           <div className="flex items-center gap-2">
             <Eye className="h-4 w-4 text-primary" />
             <h2 className="text-sm font-semibold">Live preview</h2>
           </div>
-          <div className="mt-5 overflow-hidden rounded-[30px] border border-white/[0.055] bg-[#15111f] shadow-inset">
-            <div className="h-24 bg-gradient-to-br from-primary/30 via-[#282039] to-[#15111f]" />
+          <div className="mt-6 overflow-hidden rounded-[30px] border border-white/[0.025] bg-white/[0.026] shadow-inset">
+            <div className="h-24 bg-[radial-gradient(circle_at_50%_0%,rgba(167,139,250,0.2),transparent_70%),linear-gradient(135deg,rgba(167,139,250,0.12),rgba(255,255,255,0.02))]" />
             <div className="p-5 pt-0">
               <CharacterAvatar name={draft.name} avatarUrl={draft.avatarUrl} size="xl" className="-mt-14 border-2 border-[#15111f]" />
               <h3 className="mt-4 truncate text-2xl font-semibold tracking-tight">{draft.name}</h3>
@@ -255,7 +255,7 @@ export default function CreateCharacterPage() {
               <PreviewSection title="Persona">{`${draft.relationshipStyle} - ${draft.emotionalTone}`}</PreviewSection>
               <PreviewSection title="Personality">{draft.personality}</PreviewSection>
               <PreviewSection title="Scenario">{draft.scenario}</PreviewSection>
-              <div className="mt-4 rounded-3xl border border-white/[0.055] bg-white/[0.032] px-4 py-3 text-sm leading-6 text-muted-foreground shadow-inset">
+              <div className="mt-5 rounded-3xl border border-white/[0.025] bg-white/[0.03] px-4 py-3 text-sm leading-7 text-muted-foreground shadow-inset">
                 {draft.greeting}
               </div>
               <Button type="button" variant="secondary" className="mt-4 w-full">
@@ -299,15 +299,15 @@ function BasicsStep({ draft, update }: { draft: Draft; update: <K extends keyof 
 
   return (
     <FormSection title="Basics" description="Start with what a person should understand before they send the first message.">
-      <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
-        <div className="rounded-[30px] border border-dashed border-white/[0.075] bg-white/[0.025] p-5 text-center shadow-inset transition hover:border-primary/25 hover:bg-primary/[0.07]">
-          <div className="mx-auto grid h-[120px] w-[120px] place-items-center overflow-hidden rounded-full border border-primary/[0.18] bg-primary/[0.075] text-primary">
+      <div className="grid gap-7 lg:grid-cols-[320px_1fr]">
+        <div className="rounded-[30px] border border-white/[0.025] bg-white/[0.024] p-6 text-center shadow-inset transition hover:border-primary/[0.14] hover:bg-primary/[0.055]">
+          <div className="mx-auto grid h-[124px] w-[124px] place-items-center overflow-hidden rounded-full bg-primary/[0.085] text-primary shadow-violet-hover">
             {draft.avatarUrl ? <img src={draft.avatarUrl} alt="" className="h-full w-full object-cover" /> : <Upload className="h-8 w-8" />}
           </div>
           <p className="mt-4 text-sm font-medium">Avatar</p>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">Choose an image from your computer to give the character a face.</p>
           <div className="mt-4 flex flex-col gap-2">
-            <label className="focus-ring inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-full border border-primary/20 bg-primary/[0.1] px-4 text-sm font-medium text-foreground transition hover:bg-primary/[0.16]">
+            <label className="focus-ring inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-full bg-primary/[0.11] px-4 text-sm font-medium text-foreground shadow-inset transition hover:bg-primary/[0.16]">
               <ImagePlus className="h-4 w-4" />
               Choose file
               <input type="file" accept="image/*" className="sr-only" onChange={onAvatarFile} />
@@ -322,7 +322,7 @@ function BasicsStep({ draft, update }: { draft: Draft; update: <K extends keyof 
           {avatarError ? <p className="mt-3 text-xs leading-5 text-destructive">{avatarError}</p> : null}
         </div>
 
-        <div className="grid gap-4">
+        <div className="grid gap-5">
           <Field label="Name" helper="A short, memorable name works best.">
             <Input value={draft.name} onChange={(event) => update("name", event.target.value)} placeholder="Velora Guide" required />
           </Field>
@@ -389,7 +389,7 @@ function PersonalityStep({ draft, update }: { draft: Draft; update: <K extends k
             <select
               value={draft.verbosityLevel}
               onChange={(event) => update("verbosityLevel", event.target.value as Draft["verbosityLevel"])}
-              className="focus-ring h-11 w-full rounded-2xl border border-white/[0.06] bg-white/[0.035] px-4 text-sm shadow-inset"
+              className="focus-ring h-12 w-full rounded-[22px] border border-white/[0.035] bg-white/[0.032] px-4 text-sm shadow-inset"
             >
               <option value="concise">Concise replies</option>
               <option value="balanced">Balanced replies</option>
@@ -401,7 +401,7 @@ function PersonalityStep({ draft, update }: { draft: Draft; update: <K extends k
             <select
               value={draft.relationshipStyle}
               onChange={(event) => update("relationshipStyle", event.target.value as Draft["relationshipStyle"])}
-              className="focus-ring h-11 w-full rounded-2xl border border-white/[0.06] bg-white/[0.035] px-4 text-sm shadow-inset"
+              className="focus-ring h-12 w-full rounded-[22px] border border-white/[0.035] bg-white/[0.032] px-4 text-sm shadow-inset"
             >
               <option value="friend">Friend</option>
               <option value="romantic">Romantic</option>
@@ -413,7 +413,7 @@ function PersonalityStep({ draft, update }: { draft: Draft; update: <K extends k
             <select
               value={draft.messageLength}
               onChange={(event) => update("messageLength", event.target.value as Draft["messageLength"])}
-              className="focus-ring h-11 w-full rounded-2xl border border-white/[0.06] bg-white/[0.035] px-4 text-sm shadow-inset"
+              className="focus-ring h-12 w-full rounded-[22px] border border-white/[0.035] bg-white/[0.032] px-4 text-sm shadow-inset"
             >
               <option value="short">Short</option>
               <option value="medium">Medium</option>
@@ -473,7 +473,7 @@ function FormSection({ title, description, children }: { title: string; descript
     <section>
       <h2 className="text-2xl font-semibold leading-8 tracking-tight">{title}</h2>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
-      <div className="mt-6">{children}</div>
+      <div className="mt-7">{children}</div>
     </section>
   );
 }
@@ -516,8 +516,8 @@ function VisibilityCard({ icon: Icon, label, selected, onClick }: { icon: typeof
       className={cn(
         "focus-ring rounded-3xl border p-4 text-left transition",
         selected
-          ? "border-primary/25 bg-primary/[0.11] text-foreground"
-          : "border-white/[0.055] bg-white/[0.028] text-muted-foreground hover:border-primary/20 hover:bg-primary/[0.075]"
+          ? "border-primary/[0.16] bg-primary/[0.1] text-foreground shadow-inset"
+          : "border-white/[0.025] bg-white/[0.024] text-muted-foreground hover:border-primary/[0.14] hover:bg-primary/[0.06]"
       )}
     >
       <Icon className="h-5 w-5" />

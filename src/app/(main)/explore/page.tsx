@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Compass, Plus, Search, Sparkles, TrendingUp } from "lucide-react";
+import { Compass, Plus, Search, Sparkles } from "lucide-react";
 import { CharacterCard } from "@/components/character/character-card";
 import { Button } from "@/components/ui/button";
 import { CategoryChips } from "@/components/ui/category-chips";
 import { EmptyState } from "@/components/ui/empty-state";
-import { PageHeader, PageShell, Surface, SurfaceMuted } from "@/components/ui/page";
+import { PageHeader, PageShell, Surface } from "@/components/ui/page";
 import { SearchBar } from "@/components/ui/search-bar";
 
 type Character = {
@@ -52,31 +52,20 @@ export default function ExplorePage() {
   }, [activeCategory, characters, query]);
 
   return (
-    <PageShell className="space-y-6">
-      <Surface className="overflow-hidden p-5 sm:p-7">
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_440px] xl:items-end">
+    <PageShell className="space-y-10">
+      <Surface className="relative isolate overflow-hidden px-5 py-8 sm:px-8 sm:py-10">
+        <div className="pointer-events-none absolute inset-0 -z-10 hero-gradient opacity-70" />
+        <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_460px] xl:items-end">
           <PageHeader
             icon={Compass}
             title="Find your next character"
-            description="Search by mood, genre, personality, or story hook. Public characters appear after moderation approval."
+            description="Search by mood, genre, personality, or story hook. Choose a presence that feels right, then start with one message."
           />
-          <div className="space-y-3">
-            <SearchBar value={query} onChange={setQuery} showFilterIcon placeholder="Search characters, tags, creators..." />
-            <div className="grid gap-3 sm:grid-cols-2">
-              <SurfaceMuted className="flex items-center gap-3 px-4 py-3">
-                <TrendingUp className="h-4 w-4 text-[#f0a8c8]" />
-                <div>
-                  <p className="text-xs font-semibold text-foreground">Trending now</p>
-                  <p className="text-xs text-muted-foreground">Fantasy, friend, coach</p>
-                </div>
-              </SurfaceMuted>
-              <SurfaceMuted className="flex items-center gap-3 px-4 py-3">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <div>
-                  <p className="text-xs font-semibold text-foreground">{filtered.length} visible</p>
-                  <p className="text-xs text-muted-foreground">Filtered characters</p>
-                </div>
-              </SurfaceMuted>
+          <div className="space-y-4">
+            <SearchBar value={query} onChange={setQuery} showFilterIcon placeholder="Search characters..." />
+            <div className="flex items-center gap-3 rounded-full bg-white/[0.025] px-4 py-3 text-xs leading-5 text-muted-foreground shadow-inset">
+              <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+              <span>{filtered.length} characters visible. Try fantasy, mentor, romance, friend, or a specific mood.</span>
             </div>
           </div>
         </div>
@@ -85,13 +74,13 @@ export default function ExplorePage() {
       </Surface>
 
       {loading ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 8 }).map((_, index) => (
-            <div key={index} className="h-[340px] rounded-[32px] skeleton" />
+            <div key={index} className="h-[360px] rounded-[30px] skeleton" />
           ))}
         </div>
       ) : filtered.length > 0 ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((character) => (
             <CharacterCard key={character.id} character={character} />
           ))}
