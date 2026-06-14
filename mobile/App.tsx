@@ -69,6 +69,7 @@ type Message = {
 };
 
 type Tab = "explore" | "chats" | "chat" | "create" | "settings";
+type PasswordAuthMode = "login" | "register";
 
 async function tokenStoreGet() {
   return SecureStore.getItemAsync(TOKEN_KEY);
@@ -172,6 +173,30 @@ export default function App() {
       setTab("explore");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Google sign-in failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function finishPasswordAuth(input: { mode: PasswordAuthMode; email: string; password: string; username: string }) {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const path = input.mode === "login" ? "/api/mobile/auth/login" : "/api/mobile/auth/register";
+      const body = await api<{ token: string; user: User }>(path, null, {
+        method: "POST",
+        body: JSON.stringify({
+          email: input.email.trim(),
+          password: input.password,
+          ...(input.mode === "register" ? { username: input.username.trim() } : {})
+        })
+      });
+      await tokenStoreSet(body.token);
+      setToken(body.token);
+      setUser(body.user);
+      setTab("explore");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Email sign-in failed.");
     } finally {
       setBusy(false);
     }
@@ -348,6 +373,7 @@ export default function App() {
           hasGoogleConfig={HAS_GOOGLE_CONFIG}
           status={status}
           onGoogle={() => void promptAsync()}
+          onPasswordAuth={(input) => void finishPasswordAuth(input)}
         />
       );
     }
@@ -400,27 +426,105 @@ function AuthScreen({
   requestReady,
   hasGoogleConfig,
   status,
-  onGoogle
+  onGoogle,
+  onPasswordAuth
 }: {
   busy: boolean;
   requestReady: boolean;
   hasGoogleConfig: boolean;
   status: string | null;
   onGoogle: () => void;
+  onPasswordAuth: (input: { mode: PasswordAuthMode; email: string; password: string; username: string }) => void;
 }) {
+  const [mode, setMode] = useState<PasswordAuthMode>("login");
+  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+
+  function submitPasswordAuth() {
+    const nextEmail = email.trim();
+    const nextUsername = username.trim();
+    if (!nextEmail.includes("@") || password.length < 8) {
+      Alert.alert("Check details", "Use a valid email and a password with at least 8 characters.");
+      return;
+    }
+
+    if (mode === "register" && !/^[a-zA-Z0-9_]{3,24}$/.test(nextUsername)) {
+      Alert.alert("Username", "Username must be 3-24 letters, numbers, or underscores.");
+      return;
+    }
+
+    onPasswordAuth({ mode, email: nextEmail, password, username: nextUsername });
+  }
+
   return (
-    <View style={styles.auth}>
-      <View style={styles.logoMark}>
-        <Text style={styles.logoV}>V</Text>
-      </View>
-      <Text style={styles.heroTitle}>Velora</Text>
-      <Text style={styles.heroText}>AI characters with memory, cozy chats, and secure model access.</Text>
-      <PrimaryButton label="Continue with Google" disabled={busy || !requestReady || !hasGoogleConfig} onPress={onGoogle} />
-      {!hasGoogleConfig ? (
-        <Text style={styles.warning}>Set EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID before building for Google Play.</Text>
-      ) : null}
-      {status ? <Text style={styles.statusText}>{status}</Text> : null}
-    </View>
+    <KeyboardAvoidingView style={styles.authWrap} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <ScrollView contentContainerStyle={styles.auth} keyboardShouldPersistTaps="handled">
+        <View style={styles.logoMark}>
+          <Text style={styles.logoV}>V</Text>
+        </View>
+        <Text style={styles.heroTitle}>Velora</Text>
+        <Text style={styles.heroText}>AI characters with memory, cozy chats, and secure model access.</Text>
+
+        <PrimaryButton label="Continue with Google" disabled={busy || !requestReady || !hasGoogleConfig} onPress={onGoogle} />
+        {!hasGoogleConfig ? <Text style={styles.warning}>Google login needs Android OAuth setup. Email login works now.</Text> : null}
+
+        <View style={styles.divider}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>or</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        <View style={styles.authCard}>
+          <View style={styles.authModeRow}>
+            <Pressable style={[styles.modePill, mode === "login" && styles.activeModePill]} onPress={() => setMode("login")}>
+              <Text style={[styles.modeText, mode === "login" && styles.activeModeText]}>Log in</Text>
+            </Pressable>
+            <Pressable style={[styles.modePill, mode === "register" && styles.activeModePill]} onPress={() => setMode("register")}>
+              <Text style={[styles.modeText, mode === "register" && styles.activeModeText]}>Create</Text>
+            </Pressable>
+          </View>
+
+          {mode === "register" ? (
+            <TextInput
+              value={username}
+              onChangeText={setUsername}
+              placeholder="Username"
+              placeholderTextColor="#8d879d"
+              autoCapitalize="none"
+              style={styles.input}
+            />
+          ) : null}
+
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            placeholder="Email"
+            placeholderTextColor="#8d879d"
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            textContentType="emailAddress"
+            style={styles.input}
+          />
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Password"
+            placeholderTextColor="#8d879d"
+            secureTextEntry
+            textContentType={mode === "login" ? "password" : "newPassword"}
+            style={styles.input}
+          />
+          <PrimaryButton label={busy ? "Please wait..." : mode === "login" ? "Log in with email" : "Create account"} disabled={busy} onPress={submitPasswordAuth} />
+          <Text style={styles.helperText}>
+            {mode === "login" ? "Use the same account you created on the website." : "This creates a normal Velora account without Google Play."}
+          </Text>
+        </View>
+
+        {status ? <Text style={styles.statusText}>{status}</Text> : null}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -718,10 +822,68 @@ const styles = StyleSheet.create({
     backgroundColor: "#0B0B12"
   },
   auth: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: "center",
     padding: 24,
     gap: 18
+  },
+  authWrap: {
+    flex: 1,
+    backgroundColor: "#0B0B12"
+  },
+  authCard: {
+    borderRadius: 26,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.07)",
+    backgroundColor: "#121018",
+    gap: 12
+  },
+  authModeRow: {
+    flexDirection: "row",
+    padding: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    gap: 4
+  },
+  modePill: {
+    flex: 1,
+    minHeight: 40,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  activeModePill: {
+    backgroundColor: "rgba(167,139,250,0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(167,139,250,0.24)"
+  },
+  modeText: {
+    color: "#9B94AA",
+    fontWeight: "700"
+  },
+  activeModeText: {
+    color: "#F8F7FF"
+  },
+  divider: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.08)"
+  },
+  dividerText: {
+    color: "#8d879d",
+    fontWeight: "700"
+  },
+  helperText: {
+    color: "#9B94AA",
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: "center"
   },
   logoMark: {
     height: 76,
