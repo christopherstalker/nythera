@@ -2,7 +2,7 @@ import { StatusBar } from "expo-status-bar";
 import * as ImagePicker from "expo-image-picker";
 import * as SecureStore from "expo-secure-store";
 import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-signin";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -62,6 +62,7 @@ type Message = {
   role: "USER" | "ASSISTANT" | "SYSTEM";
   content: string;
   createdAt: string;
+  sequence?: number | null;
 };
 
 type Tab = "explore" | "chats" | "chat" | "create" | "settings";
@@ -323,7 +324,7 @@ export default function App() {
 
     try {
       const body = await api<{ chats: Chat[] }>("/api/mobile/chats", token);
-      setChats(body.chats);
+      setChats(body.chats.map(normalizeChat));
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Could not load chats.");
     }
@@ -340,7 +341,7 @@ export default function App() {
         method: "POST",
         body: JSON.stringify({ characterId })
       });
-      setActiveChat(body.chat);
+      setActiveChat(normalizeChat(body.chat));
       setTab("chat");
       await loadChats();
     } catch (error) {
@@ -358,7 +359,7 @@ export default function App() {
     setBusy(true);
     try {
       const body = await api<{ chat: Chat }>(`/api/mobile/chats/${chatId}`, token);
-      setActiveChat(body.chat);
+      setActiveChat(normalizeChat(body.chat));
       setTab("chat");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Could not open chat.");
@@ -372,8 +373,9 @@ export default function App() {
       return;
     }
 
+    const requestId = createMobileRequestId();
     const optimistic: Message = {
-      id: `local-${Date.now()}`,
+      id: `local-user-${requestId}`,
       role: "USER",
       content: content.trim(),
       createdAt: new Date().toISOString()
@@ -388,7 +390,7 @@ export default function App() {
           method: "POST",
           body: JSON.stringify({
             message: content.trim(),
-            requestId: `mobile-${Date.now()}-${Math.random().toString(36).slice(2)}`
+            requestId
           })
         }
       );
@@ -397,7 +399,7 @@ export default function App() {
           ? {
               ...current,
               title: body.chat.title,
-              messages: [...current.messages.filter((message) => message.id !== optimistic.id), body.userMessage, body.assistantMessage]
+              messages: reconcileMessages(current.messages, optimistic.id, body.userMessage, body.assistantMessage)
             }
           : current
       );
@@ -790,6 +792,17 @@ function ChatsScreen({ chats, busy, onRefresh, onOpen }: { chats: Chat[]; busy: 
 
 function ChatScreen({ chat, busy, onBack, onSend }: { chat: Chat | null; busy: boolean; onBack: () => void; onSend: (content: string) => void }) {
   const [draft, setDraft] = useState("");
+  const listRef = useRef<FlatList<Message>>(null);
+
+  useEffect(() => {
+    if (!chat) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToEnd({ animated: true });
+    });
+  }, [chat?.id, chat?.messages.length, busy]);
 
   if (!chat) {
     return (
@@ -815,10 +828,12 @@ function ChatScreen({ chat, busy, onBack, onSend }: { chat: Chat | null; busy: b
         </View>
       </View>
       <FlatList
+        ref={listRef}
         data={chat.messages}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.messages}
         renderItem={({ item }) => <MessageBubble message={item} character={chat.character} />}
+        onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
       />
       {busy ? <TypingState /> : null}
       <View style={styles.composer}>
@@ -1107,6 +1122,61 @@ function CreateScreen({ busy, onCreate }: { busy: boolean; onCreate: (input: Cre
       </View>
     </ScrollView>
   );
+}
+
+function normalizeChat(chat: Chat): Chat {
+  return {
+    ...chat,
+    messages: orderMessages(chat.messages ?? [])
+  };
+}
+
+function reconcileMessages(messages: Message[], optimisticId: string, userMessage: Message, assistantMessage: Message) {
+  const next: Message[] = [];
+  let replacedOptimistic = false;
+
+  for (const message of messages) {
+    if (message.id === optimisticId) {
+      next.push(userMessage);
+      replacedOptimistic = true;
+      continue;
+    }
+
+    if (message.id !== userMessage.id && message.id !== assistantMessage.id) {
+      next.push(message);
+    }
+  }
+
+  if (!replacedOptimistic) {
+    next.push(userMessage);
+  }
+
+  next.push(assistantMessage);
+  return orderMessages(next);
+}
+
+function orderMessages(messages: Message[]) {
+  if (!messages.some((message) => typeof message.sequence === "number")) {
+    return messages;
+  }
+
+  return [...messages].sort((first, second) => {
+    const sequenceDelta = (first.sequence ?? Number.MAX_SAFE_INTEGER) - (second.sequence ?? Number.MAX_SAFE_INTEGER);
+    if (sequenceDelta !== 0) {
+      return sequenceDelta;
+    }
+
+    const timeDelta = new Date(first.createdAt).getTime() - new Date(second.createdAt).getTime();
+    if (timeDelta !== 0) {
+      return timeDelta;
+    }
+
+    return first.id.localeCompare(second.id);
+  });
+}
+
+function createMobileRequestId() {
+  return `mobile-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 function splitList(value: string, max: number) {

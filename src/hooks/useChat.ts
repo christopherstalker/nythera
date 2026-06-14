@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export type ChatMessage = {
   id: string;
@@ -19,23 +19,30 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    setMessages(initialMessages);
+    setError(null);
+    setIsStreaming(false);
+  }, [chatId, initialMessages]);
+
   const send = useCallback(
     async (content: string, options?: SendOptions) => {
-      if (!content.trim() || isStreaming) {
+      const trimmedContent = content.trim();
+      if (!trimmedContent || isStreaming) {
         return;
       }
 
+      const requestId = createRequestId();
       const userMessage: ChatMessage = {
-        id: `local-user-${createRequestId()}`,
+        id: `local-user-${requestId}`,
         role: "USER",
-        content
+        content: trimmedContent
       };
       const assistantMessage: ChatMessage = {
-        id: `local-assistant-${createRequestId()}`,
+        id: `local-assistant-${requestId}`,
         role: "ASSISTANT",
         content: ""
       };
-      const requestId = createRequestId();
 
       setMessages((current) => [...current, userMessage, assistantMessage]);
       setIsStreaming(true);
@@ -46,7 +53,7 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
-            message: content,
+            message: trimmedContent,
             model: options?.model,
             temperature: options?.temperature,
             requestId
@@ -62,47 +69,56 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
         const decoder = new TextDecoder();
         let buffer = "";
 
+        const processEvent = (event: string) => {
+          const data = event
+            .split(/\r?\n/)
+            .filter((line) => line.startsWith("data:"))
+            .map((line) => line.slice(line.startsWith("data: ") ? 6 : 5))
+            .join("\n");
+
+          if (!data) {
+            return;
+          }
+
+          const payload = JSON.parse(data) as { type: string; text?: string; message?: ChatMessage | string; error?: string };
+
+          if (payload.type === "delta" && payload.text) {
+            setMessages((current) =>
+              current.map((message) =>
+                message.id === assistantMessage.id
+                  ? { ...message, content: `${message.content}${payload.text}` }
+                  : message
+              )
+            );
+          }
+
+          if (payload.type === "message" && payload.message && typeof payload.message !== "string") {
+            setMessages((current) =>
+              current.map((message) => (message.id === assistantMessage.id ? payload.message as ChatMessage : message))
+            );
+          }
+
+          if (payload.type === "error") {
+            throw new Error(payload.error ?? (typeof payload.message === "string" ? payload.message : undefined) ?? "The model stream failed.");
+          }
+        };
+
         while (true) {
           const { value, done } = await reader.read();
           if (done) {
+            buffer += decoder.decode();
+            if (buffer.trim()) {
+              processEvent(buffer);
+            }
             break;
           }
 
           buffer += decoder.decode(value, { stream: true });
-          const events = buffer.split("\n\n");
+          const events = buffer.split(/\r?\n\r?\n/);
           buffer = events.pop() ?? "";
 
           for (const event of events) {
-            const data = event
-              .split("\n")
-              .find((line) => line.startsWith("data: "))
-              ?.slice(6);
-
-            if (!data) {
-              continue;
-            }
-
-            const payload = JSON.parse(data) as { type: string; text?: string; message?: ChatMessage | string; error?: string };
-
-            if (payload.type === "delta" && payload.text) {
-              setMessages((current) =>
-                current.map((message) =>
-                  message.id === assistantMessage.id
-                    ? { ...message, content: `${message.content}${payload.text}` }
-                    : message
-                )
-              );
-            }
-
-            if (payload.type === "message" && payload.message && typeof payload.message !== "string") {
-              setMessages((current) =>
-                current.map((message) => (message.id === assistantMessage.id ? payload.message as ChatMessage : message))
-              );
-            }
-
-            if (payload.type === "error") {
-              throw new Error(payload.error ?? (typeof payload.message === "string" ? payload.message : undefined) ?? "The model stream failed.");
-            }
+            processEvent(event);
           }
         }
       } catch (caught) {

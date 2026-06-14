@@ -26,7 +26,7 @@ export function ChatMessage({ role, content, characterName, avatarUrl }: ChatMes
       ) : (
         <CharacterAvatar name={characterName} avatarUrl={avatarUrl} size="sm" className="h-10 w-10" />
       )}
-      <div className={cn("max-w-[84%] sm:max-w-[70%]", isUser && "items-end")}>
+      <div className={cn("flex max-w-[84%] flex-col sm:max-w-[70%]", isUser && "items-end")}>
         {isUser ? (
           <p className="mb-1 text-right text-xs font-medium text-muted-foreground">You</p>
         ) : (
@@ -34,7 +34,7 @@ export function ChatMessage({ role, content, characterName, avatarUrl }: ChatMes
         )}
         <div
           className={cn(
-            "whitespace-pre-wrap rounded-[24px] px-4 py-3 text-sm leading-7 shadow-inset",
+            "whitespace-pre-wrap break-words rounded-[24px] px-4 py-3 text-sm leading-7 shadow-inset",
             isUser
               ? "rounded-br-md border border-primary/[0.08] bg-primary/[0.105] text-foreground"
               : "rounded-bl-md border border-white/[0.025] bg-white/[0.04] text-foreground"

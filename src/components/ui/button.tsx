@@ -11,7 +11,7 @@ const buttonVariants = cva(
         primary: "primary-gradient text-primary-foreground shadow-violet-hover hover:-translate-y-0.5 hover:shadow-violet-strong",
         secondary: "bg-primary/[0.105] text-foreground shadow-inset hover:-translate-y-0.5 hover:bg-primary/[0.15]",
         ghost: "text-muted-foreground hover:bg-white/[0.045] hover:text-foreground",
-        outline: "border border-white/[0.04] bg-white/[0.025] text-foreground shadow-inset hover:border-primary/[0.18] hover:bg-primary/[0.07]",
+        outline: "bg-primary/[0.105] text-foreground shadow-inset hover:-translate-y-0.5 hover:bg-primary/[0.15]",
         destructive: "bg-destructive/90 text-destructive-foreground hover:bg-destructive"
       },
       size: {

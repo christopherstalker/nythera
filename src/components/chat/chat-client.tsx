@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { KeyRound, Menu, MessageCircle, Mic, Paperclip, Plus, SendHorizontal, Settings2, Sparkles, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ export function ChatClient({ chatId, characterName, characterAvatarUrl, summary,
   const [temperature, setTemperature] = useState(0.8);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
   const { messages, send, isStreaming, error } = useChat(chatId, initialMessages);
   const lastMessage = messages[messages.length - 1]?.content || "New conversation";
   const backgroundStyle = useMemo(
@@ -43,6 +44,10 @@ export function ChatClient({ chatId, characterName, characterAvatarUrl, summary,
     setDraft("");
     void send(content, { model, temperature });
   }
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: isStreaming ? "smooth" : "auto", block: "end" });
+  }, [messages, isStreaming]);
 
   return (
     <div className="relative isolate flex min-h-[calc(100dvh-68px)] overflow-hidden bg-background">
@@ -142,7 +147,7 @@ export function ChatClient({ chatId, characterName, characterAvatarUrl, summary,
           </div>
           <div className="relative">
             <Button
-              variant="outline"
+              variant="secondary"
               size="icon"
               title="Chat settings"
               aria-label="Chat settings"
@@ -195,7 +200,7 @@ export function ChatClient({ chatId, characterName, characterAvatarUrl, summary,
           </div>
         </header>
 
-        <div className="chat-scroll flex-1 overflow-y-auto px-4 py-8 sm:px-8 lg:px-12">
+        <div className="chat-scroll flex-1 overflow-y-auto px-4 py-8 sm:px-8 lg:px-12" aria-live="polite">
           <div className="mx-auto max-w-4xl space-y-6 pb-4 pt-4">
             {summary ? (
               <p className="mx-auto max-w-2xl rounded-full bg-white/[0.03] px-4 py-2 text-center text-xs italic text-muted-foreground shadow-inset">
@@ -221,6 +226,7 @@ export function ChatClient({ chatId, characterName, characterAvatarUrl, summary,
               ))
             )}
             {error ? <p className="rounded-2xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
+            <div ref={bottomRef} aria-hidden="true" />
           </div>
         </div>
 

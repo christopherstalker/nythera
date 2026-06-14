@@ -119,7 +119,7 @@ export default function AdminPage() {
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex justify-end gap-2">
-                            <Button variant="outline" size="sm" onClick={() => updateReport(report.id, "REVIEWED")}>
+                            <Button variant="secondary" size="sm" onClick={() => updateReport(report.id, "REVIEWED")}>
                               Review
                             </Button>
                             <Button variant="destructive" size="sm" onClick={() => updateReport(report.id, "RESOLVED")}>
