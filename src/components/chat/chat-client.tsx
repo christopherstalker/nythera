@@ -18,17 +18,67 @@ type ChatClientProps = {
   initialMessages: ChatMessage[];
 };
 
+type SavedProviderKey = {
+  provider: string;
+  defaultModel?: string | null;
+  isDefault?: boolean;
+};
+
+const APP_DEFAULT_MODELS = new Set(["gpt-4o-mini", "gpt-3.5-turbo"]);
+
 export function ChatClient({ chatId, characterId, characterName, characterAvatarUrl, summary, model: initialModel, temperature: initialTemperature, initialMessages }: ChatClientProps) {
   const [draft, setDraft] = useState("");
   const [model, setModel] = useState(initialModel || "gpt-4o-mini");
+  const [activeRouteModel, setActiveRouteModel] = useState<string | null>(null);
+  const [manualModelOverride, setManualModelOverride] = useState(false);
   const [temperature, setTemperature] = useState(initialTemperature ?? 0.8);
   const { messages, send, editMessage, deleteMessage, branchFromMessage, isStreaming, error } = useChat(chatId, initialMessages);
   const setActiveChatId = useUiStore((state) => state.setActiveChatId);
+  const usesAutoModel = !manualModelOverride && APP_DEFAULT_MODELS.has(model.trim().toLowerCase());
+  const visibleModel = usesAutoModel && activeRouteModel ? activeRouteModel : model;
+
+  useEffect(() => {
+    setModel(initialModel || "gpt-4o-mini");
+    setManualModelOverride(false);
+    setActiveRouteModel(null);
+  }, [chatId, initialModel]);
 
   useEffect(() => {
     setActiveChatId(chatId);
     return () => setActiveChatId(null);
   }, [chatId, setActiveChatId]);
+
+  useEffect(() => {
+    if (!APP_DEFAULT_MODELS.has(model.trim().toLowerCase())) {
+      setActiveRouteModel(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    fetch("/api/keys", { signal: controller.signal })
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then((body: { keys?: SavedProviderKey[] }) => {
+        const activeKey = body.keys?.find((key) => key.isDefault) ?? body.keys?.[0];
+        if (activeKey?.provider) {
+          setActiveRouteModel(`${activeKey.provider}:${activeKey.defaultModel || model}`);
+        } else {
+          setActiveRouteModel(null);
+        }
+      })
+      .catch((error) => {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setActiveRouteModel(null);
+        }
+      });
+
+    return () => controller.abort();
+  }, [model]);
+
+  function handleModelChange(value: string) {
+    setManualModelOverride(true);
+    setActiveRouteModel(null);
+    setModel(value);
+  }
 
   function submitMessage() {
     const content = draft.trim();
@@ -84,9 +134,9 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
         onChange={setDraft}
         onSubmit={submitMessage}
         disabled={isStreaming}
-        model={model}
+        model={visibleModel}
         temperature={temperature}
-        onModelChange={setModel}
+        onModelChange={handleModelChange}
         onTemperatureChange={setTemperature}
       />
     </div>
