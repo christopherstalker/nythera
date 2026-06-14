@@ -1,7 +1,6 @@
 import { StatusBar } from "expo-status-bar";
-import * as Google from "expo-auth-session/providers/google";
 import * as SecureStore from "expo-secure-store";
-import * as WebBrowser from "expo-web-browser";
+import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-signin";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -19,17 +18,11 @@ import {
   View
 } from "react-native";
 
-WebBrowser.maybeCompleteAuthSession();
-
 const TOKEN_KEY = "velora.mobile.token";
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://velora-ai-character-platform.vercel.app";
 const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? "";
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? "";
-const HAS_GOOGLE_CONFIG = Platform.select({
-  android: Boolean(GOOGLE_ANDROID_CLIENT_ID),
-  web: Boolean(GOOGLE_WEB_CLIENT_ID),
-  default: Boolean(GOOGLE_ANDROID_CLIENT_ID || GOOGLE_WEB_CLIENT_ID)
-});
+const HAS_GOOGLE_CONFIG = Boolean(GOOGLE_WEB_CLIENT_ID && GOOGLE_ANDROID_CLIENT_ID);
 
 type User = {
   id: string;
@@ -101,6 +94,21 @@ async function api<T>(path: string, token?: string | null, options: RequestInit 
   return body as T;
 }
 
+function getGoogleAuthError(error: unknown) {
+  const coded = error as { code?: string; message?: string };
+  if (coded.code === statusCodes.SIGN_IN_CANCELLED) {
+    return "Google sign-in was cancelled.";
+  }
+  if (coded.code === statusCodes.IN_PROGRESS) {
+    return "Google sign-in is already in progress.";
+  }
+  if (coded.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+    return "Google Play Services is not available or needs an update.";
+  }
+
+  return error instanceof Error ? error.message : "Google sign-in failed.";
+}
+
 export default function App() {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -113,27 +121,17 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<string | null>(null);
 
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    androidClientId: GOOGLE_ANDROID_CLIENT_ID || "missing-google-android-client-id.apps.googleusercontent.com",
-    webClientId: GOOGLE_WEB_CLIENT_ID || "missing-google-web-client-id.apps.googleusercontent.com",
-    scopes: ["openid", "profile", "email"],
-    selectAccount: true
-  });
-
   useEffect(() => {
+    if (GOOGLE_WEB_CLIENT_ID) {
+      GoogleSignin.configure({
+        webClientId: GOOGLE_WEB_CLIENT_ID,
+        scopes: ["openid", "profile", "email"],
+        offlineAccess: false,
+        profileImageSize: 160
+      });
+    }
     void restoreSession();
   }, []);
-
-  useEffect(() => {
-    if (response?.type === "success") {
-      const idToken = response.params.id_token || response.authentication?.idToken;
-      if (idToken) {
-        void finishGoogleLogin(idToken);
-      } else {
-        setStatus("Google did not return an ID token. Check Android OAuth client setup.");
-      }
-    }
-  }, [response]);
 
   useEffect(() => {
     if (token) {
@@ -159,10 +157,27 @@ export default function App() {
     }
   }
 
-  async function finishGoogleLogin(idToken: string) {
+  async function finishGoogleLogin() {
     setBusy(true);
     setStatus(null);
     try {
+      if (!HAS_GOOGLE_CONFIG) {
+        throw new Error("Google login is not configured in this APK.");
+      }
+
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      await GoogleSignin.signOut().catch(() => undefined);
+      const google = await GoogleSignin.signIn();
+      if (google.type !== "success") {
+        setStatus("Google sign-in was cancelled.");
+        return;
+      }
+
+      const idToken = google.data.idToken;
+      if (!idToken) {
+        throw new Error("Google did not return an ID token. Check the Web OAuth client id.");
+      }
+
       const body = await api<{ token: string; user: User }>("/api/mobile/auth/google", null, {
         method: "POST",
         body: JSON.stringify({ idToken })
@@ -172,7 +187,7 @@ export default function App() {
       setUser(body.user);
       setTab("explore");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Google sign-in failed.");
+      setStatus(getGoogleAuthError(error));
     } finally {
       setBusy(false);
     }
@@ -369,10 +384,9 @@ export default function App() {
       return (
         <AuthScreen
           busy={busy}
-          requestReady={Boolean(request)}
           hasGoogleConfig={HAS_GOOGLE_CONFIG}
           status={status}
-          onGoogle={() => void promptAsync()}
+          onGoogle={() => void finishGoogleLogin()}
           onPasswordAuth={(input) => void finishPasswordAuth(input)}
         />
       );
@@ -407,7 +421,7 @@ export default function App() {
         onStartChat={startChat}
       />
     );
-  }, [activeChat, booting, busy, characters, chats, query, request, status, tab, token, user]);
+  }, [activeChat, booting, busy, characters, chats, query, status, tab, token, user]);
 
   return (
     <SafeAreaView style={styles.root}>
@@ -423,14 +437,12 @@ export default function App() {
 
 function AuthScreen({
   busy,
-  requestReady,
   hasGoogleConfig,
   status,
   onGoogle,
   onPasswordAuth
 }: {
   busy: boolean;
-  requestReady: boolean;
   hasGoogleConfig: boolean;
   status: string | null;
   onGoogle: () => void;
@@ -466,8 +478,8 @@ function AuthScreen({
         <Text style={styles.heroTitle}>Velora</Text>
         <Text style={styles.heroText}>AI characters with memory, cozy chats, and secure model access.</Text>
 
-        <PrimaryButton label="Continue with Google" disabled={busy || !requestReady || !hasGoogleConfig} onPress={onGoogle} />
-        {!hasGoogleConfig ? <Text style={styles.warning}>Google login needs Android OAuth setup. Email login works now.</Text> : null}
+        <PrimaryButton label="Continue with Google" disabled={busy || !hasGoogleConfig} onPress={onGoogle} />
+        {!hasGoogleConfig ? <Text style={styles.warning}>Google login needs Android and Web OAuth client IDs. Email login works now.</Text> : null}
 
         <View style={styles.divider}>
           <View style={styles.dividerLine} />

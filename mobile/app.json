@@ -20,7 +20,7 @@
     "web": {
       "favicon": "./assets/velora-icon.png"
     },
-    "plugins": ["expo-web-browser", "expo-secure-store"],
+    "plugins": ["expo-secure-store"],
     "extra": {
       "apiUrl": "https://velora-ai-character-platform.vercel.app"
     }
