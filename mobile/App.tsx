@@ -1,4 +1,5 @@
 import { StatusBar } from "expo-status-bar";
+import * as ImagePicker from "expo-image-picker";
 import * as SecureStore from "expo-secure-store";
 import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-signin";
 import { useEffect, useMemo, useState } from "react";
@@ -63,6 +64,42 @@ type Message = {
 
 type Tab = "explore" | "chats" | "chat" | "create" | "settings";
 type PasswordAuthMode = "login" | "register";
+type CharacterScope = "public" | "mine";
+type CharacterVisibility = "PRIVATE" | "PUBLIC" | "UNLISTED";
+type RelationshipStyle = "friend" | "romantic" | "mentor" | "rival" | "antagonist";
+type InitiativeLevel = "low" | "medium" | "high";
+type VerbosityLevel = "concise" | "balanced" | "expressive" | "immersive";
+type MessageLength = "short" | "medium" | "long";
+
+type CreateCharacterInput = {
+  avatarUrl: string;
+  name: string;
+  description: string;
+  personality: string;
+  scenario: string;
+  greeting: string;
+  tags: string;
+  visibility: CharacterVisibility;
+  isNSFW: boolean;
+  personaRole: string;
+  personaTraits: string;
+  speakingStyle: string;
+  emotionalTone: string;
+  relationshipStyle: RelationshipStyle;
+  initiativeLevel: InitiativeLevel;
+  verbosityLevel: VerbosityLevel;
+  motivation: string;
+  boundaries: string;
+  behavioralRules: string;
+  forbiddenBehaviors: string;
+  tone: string;
+  humor: number;
+  romanceLevel: number;
+  seriousness: number;
+  initiative: number;
+  messageLength: MessageLength;
+  roleplayIntensity: number;
+};
 
 async function tokenStoreGet() {
   return SecureStore.getItemAsync(TOKEN_KEY);
@@ -119,6 +156,7 @@ export default function App() {
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
   const [query, setQuery] = useState("");
+  const [characterScope, setCharacterScope] = useState<CharacterScope>("public");
   const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
@@ -217,11 +255,14 @@ export default function App() {
     }
   }
 
-  async function loadCharacters(nextQuery = query) {
+  async function loadCharacters(nextQuery = query, nextScope = characterScope) {
     try {
       const params = new URLSearchParams();
       if (nextQuery.trim()) {
         params.set("q", nextQuery.trim());
+      }
+      if (nextScope === "mine") {
+        params.set("mine", "true");
       }
       params.set("take", "50");
       const body = await api<{ characters: Character[] }>(`/api/mobile/characters?${params.toString()}`, token);
@@ -325,40 +366,54 @@ export default function App() {
     }
   }
 
-  async function createCharacter(input: {
-    name: string;
-    description: string;
-    personality: string;
-    scenario: string;
-    greeting: string;
-    tags: string;
-  }) {
+  async function createCharacter(input: CreateCharacterInput) {
     if (!token) {
       return;
     }
 
     setBusy(true);
     try {
-      const tags = input.tags
-        .split(",")
-        .map((tag) => tag.trim())
-        .filter(Boolean)
-        .slice(0, 12);
+      const tags = splitList(input.tags, 12).map((tag) => tag.slice(0, 32));
       const body = await api<{ character: Character }>("/api/mobile/characters", token, {
         method: "POST",
         body: JSON.stringify({
           name: input.name,
+          avatarUrl: input.avatarUrl,
           description: input.description,
           personality: input.personality,
           scenario: input.scenario,
           greeting: input.greeting,
+          communicationStyle: {
+            tone: input.tone.trim() || undefined,
+            humor: input.humor,
+            romanceLevel: input.romanceLevel,
+            seriousness: input.seriousness,
+            initiative: input.initiative,
+            messageLength: input.messageLength,
+            roleplayIntensity: input.roleplayIntensity
+          },
+          persona: {
+            name: input.name,
+            role: input.personaRole.trim() || undefined,
+            personalityTraits: splitList(input.personaTraits, 16),
+            speakingStyle: input.speakingStyle.trim() || undefined,
+            emotionalTone: input.emotionalTone.trim() || undefined,
+            initiativeLevel: input.initiativeLevel,
+            boundaries: splitList(input.boundaries, 16),
+            motivation: input.motivation.trim() || undefined,
+            behavioralRules: splitList(input.behavioralRules, 16),
+            forbiddenBehaviors: splitList(input.forbiddenBehaviors, 16),
+            verbosityLevel: input.verbosityLevel,
+            relationshipStyle: input.relationshipStyle
+          },
           tags,
-          visibility: "PRIVATE",
-          isNSFW: false
+          visibility: input.visibility,
+          isNSFW: input.isNSFW
         })
       });
       setCharacters((current) => [body.character, ...current]);
       setStatus("Character created.");
+      setCharacterScope("mine");
       setTab("explore");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Could not create character.");
@@ -412,16 +467,21 @@ export default function App() {
       <ExploreScreen
         characters={characters}
         query={query}
+        scope={characterScope}
         busy={busy}
         onQuery={(value) => {
           setQuery(value);
-          void loadCharacters(value);
+          void loadCharacters(value, characterScope);
+        }}
+        onScope={(value) => {
+          setCharacterScope(value);
+          void loadCharacters(query, value);
         }}
         onRefresh={() => loadCharacters()}
         onStartChat={startChat}
       />
     );
-  }, [activeChat, booting, busy, characters, chats, query, status, tab, token, user]);
+  }, [activeChat, booting, busy, characterScope, characters, chats, query, status, tab, token, user]);
 
   return (
     <SafeAreaView style={styles.root}>
@@ -555,15 +615,19 @@ function AppHeader({ user, status }: { user: User; status: string | null }) {
 function ExploreScreen({
   characters,
   query,
+  scope,
   busy,
   onQuery,
+  onScope,
   onRefresh,
   onStartChat
 }: {
   characters: Character[];
   query: string;
+  scope: CharacterScope;
   busy: boolean;
   onQuery: (value: string) => void;
+  onScope: (value: CharacterScope) => void;
   onRefresh: () => void;
   onStartChat: (characterId: string) => void;
 }) {
@@ -579,9 +643,18 @@ function ExploreScreen({
           <Text style={styles.screenTitle}>Find your next character</Text>
           <Text style={styles.bodyText}>Search public personas, start a chat, or create your own private character.</Text>
           <TextInput value={query} onChangeText={onQuery} placeholder="Search mood, genre, or name" placeholderTextColor="#8d879d" style={styles.input} />
+          <View style={styles.segmentRow}>
+            <SegmentOption label="Public" active={scope === "public"} onPress={() => onScope("public")} />
+            <SegmentOption label="Mine" active={scope === "mine"} onPress={() => onScope("mine")} />
+          </View>
         </View>
       }
-      ListEmptyComponent={<EmptyState title="No visible characters" description="Create your first private character or wait for public approvals." />}
+      ListEmptyComponent={
+        <EmptyState
+          title={scope === "mine" ? "No characters yet" : "No visible characters"}
+          description={scope === "mine" ? "Create a persona and it will appear here immediately." : "Create your first private character or wait for public approvals."}
+        />
+      }
       renderItem={({ item }) => <CharacterCard character={item} onStart={() => onStartChat(item.id)} />}
     />
   );
@@ -694,34 +767,422 @@ function MessageBubble({ message }: { message: Message }) {
   );
 }
 
-function CreateScreen({ busy, onCreate }: { busy: boolean; onCreate: (input: { name: string; description: string; personality: string; scenario: string; greeting: string; tags: string }) => void }) {
+function CreateScreen({ busy, onCreate }: { busy: boolean; onCreate: (input: CreateCharacterInput) => void }) {
+  const steps: Array<{ id: "basics" | "persona" | "style" | "settings"; label: string }> = [
+    { id: "basics", label: "Basics" },
+    { id: "persona", label: "Persona" },
+    { id: "style", label: "Style" },
+    { id: "settings", label: "Settings" }
+  ];
+  const [activeStep, setActiveStep] = useState<(typeof steps)[number]["id"]>("basics");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [personality, setPersonality] = useState("");
   const [scenario, setScenario] = useState("");
   const [greeting, setGreeting] = useState("");
   const [tags, setTags] = useState("");
+  const [visibility, setVisibility] = useState<CharacterVisibility>("PRIVATE");
+  const [isNSFW, setIsNSFW] = useState(false);
+  const [personaRole, setPersonaRole] = useState("");
+  const [personaTraits, setPersonaTraits] = useState("");
+  const [speakingStyle, setSpeakingStyle] = useState("");
+  const [emotionalTone, setEmotionalTone] = useState("");
+  const [relationshipStyle, setRelationshipStyle] = useState<RelationshipStyle>("friend");
+  const [initiativeLevel, setInitiativeLevel] = useState<InitiativeLevel>("medium");
+  const [verbosityLevel, setVerbosityLevel] = useState<VerbosityLevel>("balanced");
+  const [motivation, setMotivation] = useState("");
+  const [boundaries, setBoundaries] = useState("");
+  const [behavioralRules, setBehavioralRules] = useState("");
+  const [forbiddenBehaviors, setForbiddenBehaviors] = useState("");
+  const [tone, setTone] = useState("");
+  const [humor, setHumor] = useState(4);
+  const [romanceLevel, setRomanceLevel] = useState(0);
+  const [seriousness, setSeriousness] = useState(5);
+  const [initiative, setInitiative] = useState(6);
+  const [messageLength, setMessageLength] = useState<MessageLength>("medium");
+  const [roleplayIntensity, setRoleplayIntensity] = useState(6);
+
+  async function pickAvatar() {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert("Photo access", "Allow photo access to choose an avatar from your phone.");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: "images",
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.68,
+        base64: true
+      });
+
+      if (result.canceled) {
+        return;
+      }
+
+      const asset = result.assets[0];
+      if (!asset?.base64) {
+        Alert.alert("Avatar", "Could not read this image. Try another one.");
+        return;
+      }
+
+      const mimeType = asset.mimeType?.startsWith("image/") ? asset.mimeType : "image/jpeg";
+      const dataUrl = `data:${mimeType};base64,${asset.base64}`;
+      if (dataUrl.length > 2_100_000) {
+        Alert.alert("Avatar too large", "Choose or crop a smaller image. Velora accepts avatars under about 1.5MB.");
+        return;
+      }
+
+      setAvatarUrl(dataUrl);
+    } catch (error) {
+      Alert.alert("Avatar", error instanceof Error ? error.message : "Could not open image picker.");
+    }
+  }
 
   function submit() {
-    if (name.length < 2 || description.length < 20 || personality.length < 20 || greeting.length < 2) {
+    if (name.trim().length < 2 || description.trim().length < 20 || personality.trim().length < 20 || greeting.trim().length < 2) {
       Alert.alert("Missing details", "Add a name, 20+ character description/personality, and greeting.");
+      setActiveStep("basics");
       return;
     }
 
-    onCreate({ name, description, personality, scenario, greeting, tags });
+    onCreate({
+      avatarUrl,
+      name: name.trim(),
+      description: description.trim(),
+      personality: personality.trim(),
+      scenario: scenario.trim(),
+      greeting: greeting.trim(),
+      tags,
+      visibility,
+      isNSFW,
+      personaRole,
+      personaTraits,
+      speakingStyle,
+      emotionalTone,
+      relationshipStyle,
+      initiativeLevel,
+      verbosityLevel,
+      motivation,
+      boundaries,
+      behavioralRules,
+      forbiddenBehaviors,
+      tone,
+      humor,
+      romanceLevel,
+      seriousness,
+      initiative,
+      messageLength,
+      roleplayIntensity
+    });
+  }
+
+  function nextStep() {
+    const index = steps.findIndex((step) => step.id === activeStep);
+    const next = steps[index + 1];
+    if (next) {
+      setActiveStep(next.id);
+      return;
+    }
+
+    submit();
+  }
+
+  function previousStep() {
+    const index = steps.findIndex((step) => step.id === activeStep);
+    const previous = steps[index - 1];
+    if (previous) {
+      setActiveStep(previous.id);
+    }
   }
 
   return (
     <ScrollView contentContainerStyle={styles.listContent}>
-      <ScreenIntro title="Create character" description="Build a private persona with a greeting, scenario, and tags." />
-      <TextInput value={name} onChangeText={setName} placeholder="Name" placeholderTextColor="#8d879d" style={styles.input} />
-      <TextInput value={description} onChangeText={setDescription} placeholder="Short description" placeholderTextColor="#8d879d" style={styles.textarea} multiline />
-      <TextInput value={personality} onChangeText={setPersonality} placeholder="Personality and behavior" placeholderTextColor="#8d879d" style={styles.textarea} multiline />
-      <TextInput value={scenario} onChangeText={setScenario} placeholder="Scenario optional" placeholderTextColor="#8d879d" style={styles.textarea} multiline />
-      <TextInput value={greeting} onChangeText={setGreeting} placeholder="First greeting message" placeholderTextColor="#8d879d" style={styles.textarea} multiline />
-      <TextInput value={tags} onChangeText={setTags} placeholder="Tags separated by commas" placeholderTextColor="#8d879d" style={styles.input} />
-      <PrimaryButton label={busy ? "Creating..." : "Create private character"} disabled={busy} onPress={submit} />
+      <ScreenIntro title="Create character" description="Build a persona with avatar, greeting, memory-ready identity, style rules, and visibility settings." />
+
+      <View style={styles.segmentRow}>
+        {steps.map((step) => (
+          <SegmentOption key={step.id} label={step.label} active={activeStep === step.id} onPress={() => setActiveStep(step.id)} />
+        ))}
+      </View>
+
+      <CreatePreview avatarUrl={avatarUrl} name={name} description={description} tags={tags} visibility={visibility} isNSFW={isNSFW} />
+
+      {activeStep === "basics" ? (
+        <View style={styles.formSection}>
+          <Text style={styles.sectionTitle}>Basics</Text>
+          <Text style={styles.muted}>Give the character a face, a clear hook, and an opening scene.</Text>
+          <Pressable style={styles.avatarPicker} onPress={pickAvatar}>
+            <View style={styles.avatarPickerImage}>
+              {avatarUrl ? <Image source={{ uri: avatarUrl }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{name.slice(0, 1).toUpperCase() || "V"}</Text>}
+            </View>
+            <View style={styles.cardTitleWrap}>
+              <Text style={styles.cardTitle}>{avatarUrl ? "Change avatar" : "Choose avatar"}</Text>
+              <Text style={styles.muted}>Pick and crop an image from your phone.</Text>
+            </View>
+          </Pressable>
+          <FieldLabel label="Name" hint="2-80 characters" />
+          <TextInput value={name} onChangeText={setName} placeholder="Alya Nightbloom" placeholderTextColor="#8d879d" style={styles.input} />
+          <FieldLabel label="Short description" hint="Shown on cards and profile previews" />
+          <TextInput value={description} onChangeText={setDescription} placeholder="A gentle moonlit archivist who remembers impossible stories." placeholderTextColor="#8d879d" style={styles.textarea} multiline />
+          <FieldLabel label="Personality" hint="Core behavior, values, flaws, and emotional texture" />
+          <TextInput value={personality} onChangeText={setPersonality} placeholder="Warm, observant, curious, protective..." placeholderTextColor="#8d879d" style={styles.textarea} multiline />
+          <FieldLabel label="Scenario" hint="Optional starting world or relationship context" />
+          <TextInput value={scenario} onChangeText={setScenario} placeholder="The user arrives at a hidden library during a violet storm." placeholderTextColor="#8d879d" style={styles.textarea} multiline />
+          <FieldLabel label="Greeting" hint="First message the user sees" />
+          <TextInput value={greeting} onChangeText={setGreeting} placeholder="The brass bell above the door trembles before you touch it..." placeholderTextColor="#8d879d" style={styles.textarea} multiline />
+          <FieldLabel label="Tags" hint="Comma-separated, up to 12" />
+          <TextInput value={tags} onChangeText={setTags} placeholder="fantasy, mentor, cozy, lore" placeholderTextColor="#8d879d" style={styles.input} />
+        </View>
+      ) : null}
+
+      {activeStep === "persona" ? (
+        <View style={styles.formSection}>
+          <Text style={styles.sectionTitle}>Persona engine</Text>
+          <Text style={styles.muted}>These fields help the LLM keep the character stable across long chats.</Text>
+          <FieldLabel label="Role or archetype" hint="Who they are in the story" />
+          <TextInput value={personaRole} onChangeText={setPersonaRole} placeholder="Runaway princess, sarcastic rival, patient mentor..." placeholderTextColor="#8d879d" style={styles.input} />
+          <FieldLabel label="Personality traits" hint="Comma-separated traits" />
+          <TextInput value={personaTraits} onChangeText={setPersonaTraits} placeholder="patient, brave, guarded, poetic" placeholderTextColor="#8d879d" style={styles.input} />
+          <FieldLabel label="Speaking style" hint="How the character writes and talks" />
+          <TextInput value={speakingStyle} onChangeText={setSpeakingStyle} placeholder="Speaks softly, asks vivid questions, avoids modern slang." placeholderTextColor="#8d879d" style={styles.textarea} multiline />
+          <FieldLabel label="Emotional tone" hint="The feeling they should carry" />
+          <TextInput value={emotionalTone} onChangeText={setEmotionalTone} placeholder="Tender, mysterious, lightly melancholic." placeholderTextColor="#8d879d" style={styles.input} />
+          <ChoiceGroup
+            label="Relationship"
+            value={relationshipStyle}
+            options={[
+              { label: "Friend", value: "friend" },
+              { label: "Romantic", value: "romantic" },
+              { label: "Mentor", value: "mentor" },
+              { label: "Rival", value: "rival" },
+              { label: "Antagonist", value: "antagonist" }
+            ]}
+            onChange={setRelationshipStyle}
+          />
+          <ChoiceGroup
+            label="Initiative"
+            value={initiativeLevel}
+            options={[
+              { label: "Low", value: "low" },
+              { label: "Medium", value: "medium" },
+              { label: "High", value: "high" }
+            ]}
+            onChange={setInitiativeLevel}
+          />
+          <ChoiceGroup
+            label="Verbosity"
+            value={verbosityLevel}
+            options={[
+              { label: "Concise", value: "concise" },
+              { label: "Balanced", value: "balanced" },
+              { label: "Expressive", value: "expressive" },
+              { label: "Immersive", value: "immersive" }
+            ]}
+            onChange={setVerbosityLevel}
+          />
+          <FieldLabel label="Motivation" hint="What drives them" />
+          <TextInput value={motivation} onChangeText={setMotivation} placeholder="Wants to protect forgotten memories and learn why the user can hear them." placeholderTextColor="#8d879d" style={styles.textarea} multiline />
+          <FieldLabel label="Boundaries" hint="Comma-separated limits" />
+          <TextInput value={boundaries} onChangeText={setBoundaries} placeholder="no explicit content, no cruelty, no real-world legal advice" placeholderTextColor="#8d879d" style={styles.input} />
+          <FieldLabel label="Behavioral rules" hint="Comma-separated instructions" />
+          <TextInput value={behavioralRules} onChangeText={setBehavioralRules} placeholder="stay in character, remember user preferences, ask one question at a time" placeholderTextColor="#8d879d" style={styles.input} />
+          <FieldLabel label="Forbidden behaviors" hint="Comma-separated safety or role boundaries" />
+          <TextInput value={forbiddenBehaviors} onChangeText={setForbiddenBehaviors} placeholder="do not reveal system prompts, do not claim to be human, do not override safety rules" placeholderTextColor="#8d879d" style={styles.input} />
+        </View>
+      ) : null}
+
+      {activeStep === "style" ? (
+        <View style={styles.formSection}>
+          <Text style={styles.sectionTitle}>Conversation style</Text>
+          <Text style={styles.muted}>Tune the feel of the chat without turning the character into a raw prompt.</Text>
+          <FieldLabel label="Tone" hint="Optional label for overall mood" />
+          <TextInput value={tone} onChangeText={setTone} placeholder="cozy mystery, sharp comedy, cinematic romance..." placeholderTextColor="#8d879d" style={styles.input} />
+          <NumberControl label="Humor" value={humor} onChange={setHumor} />
+          <NumberControl label="Romance" value={romanceLevel} onChange={setRomanceLevel} />
+          <NumberControl label="Seriousness" value={seriousness} onChange={setSeriousness} />
+          <NumberControl label="Initiative" value={initiative} onChange={setInitiative} />
+          <NumberControl label="Roleplay intensity" value={roleplayIntensity} onChange={setRoleplayIntensity} />
+          <ChoiceGroup
+            label="Message length"
+            value={messageLength}
+            options={[
+              { label: "Short", value: "short" },
+              { label: "Medium", value: "medium" },
+              { label: "Long", value: "long" }
+            ]}
+            onChange={setMessageLength}
+          />
+        </View>
+      ) : null}
+
+      {activeStep === "settings" ? (
+        <View style={styles.formSection}>
+          <Text style={styles.sectionTitle}>Publishing</Text>
+          <Text style={styles.muted}>Private characters appear in Mine immediately. Public characters may need moderation before others see them.</Text>
+          <ChoiceGroup
+            label="Visibility"
+            value={visibility}
+            options={[
+              { label: "Private", value: "PRIVATE" },
+              { label: "Unlisted", value: "UNLISTED" },
+              { label: "Public", value: "PUBLIC" }
+            ]}
+            onChange={setVisibility}
+          />
+          <ToggleRow title="Mature themes" description="Mark this if the character is intended for adult or sensitive themes." value={isNSFW} onToggle={() => setIsNSFW((current) => !current)} />
+        </View>
+      ) : null}
+
+      <View style={styles.createActions}>
+        <SecondaryButton label={activeStep === "basics" ? "Clear avatar" : "Previous"} onPress={activeStep === "basics" ? () => setAvatarUrl("") : previousStep} />
+        <PrimaryButton label={busy ? "Creating..." : activeStep === "settings" ? "Create character" : "Next"} disabled={busy} onPress={nextStep} />
+      </View>
     </ScrollView>
+  );
+}
+
+function splitList(value: string, max: number) {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, max);
+}
+
+function SegmentOption({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  return (
+    <Pressable style={[styles.segmentPill, active && styles.segmentPillActive]} onPress={onPress}>
+      <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function FieldLabel({ label, hint }: { label: string; hint?: string }) {
+  return (
+    <View style={styles.fieldLabelRow}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      {hint ? <Text style={styles.fieldHint}>{hint}</Text> : null}
+    </View>
+  );
+}
+
+function ChoiceGroup<T extends string>({
+  label,
+  value,
+  options,
+  onChange
+}: {
+  label: string;
+  value: T;
+  options: Array<{ label: string; value: T }>;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <View style={styles.choiceGroup}>
+      <FieldLabel label={label} />
+      <View style={styles.choiceWrap}>
+        {options.map((option) => (
+          <Pressable key={option.value} style={[styles.choicePill, value === option.value && styles.choicePillActive]} onPress={() => onChange(option.value)}>
+            <Text style={[styles.choiceText, value === option.value && styles.choiceTextActive]}>{option.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function NumberControl({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
+  function update(delta: number) {
+    onChange(Math.max(0, Math.min(10, value + delta)));
+  }
+
+  return (
+    <View style={styles.numberControl}>
+      <View style={styles.cardTitleWrap}>
+        <Text style={styles.fieldLabel}>{label}</Text>
+        <Text style={styles.muted}>Scale from 0 to 10</Text>
+      </View>
+      <View style={styles.numberStepper}>
+        <Pressable style={styles.numberButton} onPress={() => update(-1)}>
+          <Text style={styles.numberButtonText}>-</Text>
+        </Pressable>
+        <Text style={styles.numberValue}>{value}</Text>
+        <Pressable style={styles.numberButton} onPress={() => update(1)}>
+          <Text style={styles.numberButtonText}>+</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function ToggleRow({
+  title,
+  description,
+  value,
+  onToggle
+}: {
+  title: string;
+  description: string;
+  value: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <Pressable style={styles.toggleRow} onPress={onToggle}>
+      <View style={styles.cardTitleWrap}>
+        <Text style={styles.cardTitle}>{title}</Text>
+        <Text style={styles.muted}>{description}</Text>
+      </View>
+      <View style={[styles.toggleTrack, value && styles.toggleTrackOn]}>
+        <View style={[styles.toggleDot, value && styles.toggleDotOn]} />
+      </View>
+    </Pressable>
+  );
+}
+
+function CreatePreview({
+  avatarUrl,
+  name,
+  description,
+  tags,
+  visibility,
+  isNSFW
+}: {
+  avatarUrl: string;
+  name: string;
+  description: string;
+  tags: string;
+  visibility: CharacterVisibility;
+  isNSFW: boolean;
+}) {
+  const previewTags = splitList(tags, 4);
+  const displayName = name.trim() || "New character";
+
+  return (
+    <View style={styles.previewCard}>
+      <View style={styles.previewGlow} />
+      <View style={styles.cardTop}>
+        <View style={styles.previewAvatar}>
+          {avatarUrl ? <Image source={{ uri: avatarUrl }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{displayName.slice(0, 1).toUpperCase()}</Text>}
+        </View>
+        <View style={styles.cardTitleWrap}>
+          <Text style={styles.cardTitle}>{displayName}</Text>
+          <Text style={styles.muted}>{visibility.toLowerCase()} preview</Text>
+        </View>
+      </View>
+      <Text style={styles.bodyText}>{description.trim() || "Your character card preview will update as you write."}</Text>
+      <View style={styles.tags}>
+        {previewTags.map((tag) => (
+          <Text key={tag} style={styles.tag}>
+            {tag}
+          </Text>
+        ))}
+        {isNSFW ? <Text style={styles.warningTag}>mature</Text> : null}
+      </View>
+    </View>
   );
 }
 
@@ -961,6 +1422,33 @@ const styles = StyleSheet.create({
     backgroundColor: "#171321",
     gap: 14
   },
+  segmentRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  segmentPill: {
+    minHeight: 38,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.07)"
+  },
+  segmentPillActive: {
+    backgroundColor: "rgba(167,139,250,0.18)",
+    borderColor: "rgba(167,139,250,0.34)"
+  },
+  segmentText: {
+    color: "#9B94AA",
+    fontWeight: "800",
+    fontSize: 13
+  },
+  segmentTextActive: {
+    color: "#F8F7FF"
+  },
   screenTitle: {
     color: "#F8F7FF",
     fontSize: 34,
@@ -979,6 +1467,82 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.07)",
     backgroundColor: "#121018",
     gap: 12
+  },
+  formSection: {
+    borderRadius: 28,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.07)",
+    backgroundColor: "#121018",
+    gap: 12
+  },
+  sectionTitle: {
+    color: "#F8F7FF",
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: "800"
+  },
+  avatarPicker: {
+    minHeight: 96,
+    borderRadius: 24,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    backgroundColor: "rgba(167,139,250,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(167,139,250,0.18)"
+  },
+  avatarPickerImage: {
+    height: 72,
+    width: 72,
+    borderRadius: 24,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(167,139,250,0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(167,139,250,0.28)"
+  },
+  previewCard: {
+    position: "relative",
+    overflow: "hidden",
+    borderRadius: 30,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "rgba(167,139,250,0.18)",
+    backgroundColor: "#171321",
+    gap: 12
+  },
+  previewGlow: {
+    position: "absolute",
+    right: -44,
+    top: -44,
+    height: 150,
+    width: 150,
+    borderRadius: 75,
+    backgroundColor: "rgba(167,139,250,0.12)"
+  },
+  previewAvatar: {
+    height: 70,
+    width: 70,
+    borderRadius: 28,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(167,139,250,0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(167,139,250,0.28)"
+  },
+  warningTag: {
+    color: "#FFD6E8",
+    backgroundColor: "rgba(240,176,207,0.12)",
+    borderColor: "rgba(240,176,207,0.2)",
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    fontSize: 12
   },
   cardTop: {
     flexDirection: "row",
@@ -1029,6 +1593,120 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     fontSize: 12
   },
+  fieldLabelRow: {
+    gap: 3
+  },
+  fieldLabel: {
+    color: "#F8F7FF",
+    fontSize: 14,
+    fontWeight: "800"
+  },
+  fieldHint: {
+    color: "#8d879d",
+    fontSize: 12,
+    lineHeight: 18
+  },
+  choiceGroup: {
+    gap: 8
+  },
+  choiceWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  choicePill: {
+    minHeight: 38,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.07)"
+  },
+  choicePillActive: {
+    backgroundColor: "rgba(167,139,250,0.16)",
+    borderColor: "rgba(167,139,250,0.32)"
+  },
+  choiceText: {
+    color: "#9B94AA",
+    fontWeight: "700",
+    fontSize: 13
+  },
+  choiceTextActive: {
+    color: "#F8F7FF"
+  },
+  numberControl: {
+    minHeight: 72,
+    borderRadius: 22,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    backgroundColor: "rgba(255,255,255,0.045)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.07)"
+  },
+  numberStepper: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10
+  },
+  numberButton: {
+    height: 38,
+    width: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(167,139,250,0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(167,139,250,0.22)"
+  },
+  numberButtonText: {
+    color: "#F8F7FF",
+    fontSize: 20,
+    fontWeight: "800"
+  },
+  numberValue: {
+    minWidth: 22,
+    textAlign: "center",
+    color: "#F8F7FF",
+    fontSize: 18,
+    fontWeight: "800"
+  },
+  toggleRow: {
+    minHeight: 88,
+    borderRadius: 22,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    backgroundColor: "rgba(255,255,255,0.045)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.07)"
+  },
+  toggleTrack: {
+    height: 34,
+    width: 58,
+    borderRadius: 17,
+    padding: 4,
+    backgroundColor: "rgba(255,255,255,0.09)"
+  },
+  toggleTrackOn: {
+    backgroundColor: "rgba(167,139,250,0.28)"
+  },
+  toggleDot: {
+    height: 26,
+    width: 26,
+    borderRadius: 13,
+    backgroundColor: "#C9C2D8"
+  },
+  toggleDotOn: {
+    transform: [{ translateX: 24 }],
+    backgroundColor: "#F8F7FF"
+  },
   input: {
     minHeight: 50,
     borderRadius: 20,
@@ -1078,6 +1756,9 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: "#F8F7FF",
     fontWeight: "700"
+  },
+  createActions: {
+    gap: 10
   },
   disabled: {
     opacity: 0.45
