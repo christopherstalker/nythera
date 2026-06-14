@@ -31,20 +31,20 @@
   }
 
   .dark {
-    --background: 255 18% 4%;
+    --background: 255 20% 3%;
     --foreground: 255 30% 96%;
-    --card: 255 20% 8%;
+    --card: 255 22% 7%;
     --card-foreground: 255 30% 96%;
     --popover: 255 20% 8%;
     --popover-foreground: 255 30% 96%;
-    --primary: 252 100% 73%;
+    --primary: 254 92% 74%;
     --primary-foreground: 0 0% 100%;
     --primary-hover: 252 100% 80%;
     --primary-active: 252 82% 64%;
     --secondary: 338 70% 74%;
     --secondary-foreground: 255 30% 96%;
-    --muted: 252 15% 13%;
-    --muted-foreground: 252 12% 68%;
+    --muted: 254 16% 12%;
+    --muted-foreground: 254 12% 70%;
     --accent: 252 100% 73%;
     --accent-foreground: 0 0% 100%;
     --destructive: 355 83% 67%;
@@ -85,9 +85,9 @@
 
   .dark body {
     background:
-      linear-gradient(180deg, rgba(155, 124, 255, 0.13) 0%, rgba(155, 124, 255, 0) 22rem),
-      linear-gradient(135deg, rgba(240, 168, 200, 0.07) 0%, rgba(240, 168, 200, 0) 28rem),
-      linear-gradient(180deg, #09080d 0%, #0d0b13 48%, #09080d 100%);
+      radial-gradient(circle at 50% -8rem, rgba(157, 129, 255, 0.18), transparent 28rem),
+      radial-gradient(circle at 94% 8rem, rgba(124, 58, 237, 0.1), transparent 18rem),
+      linear-gradient(180deg, #07060b 0%, #0c0a11 46%, #08070c 100%);
   }
 
   a {
@@ -106,11 +106,11 @@
   }
 
   .app-surface {
-    @apply rounded-[30px] border border-white/[0.055] bg-card/[0.74] shadow-card-glow shadow-inset backdrop-blur-xl;
+    @apply rounded-[32px] border border-white/[0.04] bg-card/[0.68] shadow-card-glow shadow-inset backdrop-blur-xl;
   }
 
   .app-surface-muted {
-    @apply rounded-[26px] border border-white/[0.045] bg-white/[0.028] shadow-inset;
+    @apply rounded-[26px] border border-white/[0.035] bg-white/[0.026] shadow-inset;
   }
 
   .app-panel {
@@ -119,12 +119,12 @@
 
   .hero-gradient {
     background:
-      linear-gradient(135deg, rgba(155, 124, 255, 0.18), rgba(240, 168, 200, 0.065) 46%, rgba(255, 255, 255, 0.02) 100%),
-      linear-gradient(180deg, #171321 0%, #110e19 100%);
+      radial-gradient(circle at 50% 0%, rgba(167, 139, 250, 0.22), transparent 36rem),
+      linear-gradient(180deg, rgba(24, 19, 35, 0.92) 0%, rgba(14, 12, 20, 0.96) 100%);
   }
 
   .primary-gradient {
-    background: linear-gradient(135deg, #9677f4 0%, #c4b7ff 58%, #efb0cf 100%);
+    background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 58%, #c4b5fd 100%);
   }
 
   .soft-gradient {

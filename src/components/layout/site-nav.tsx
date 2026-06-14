@@ -86,10 +86,10 @@ export function SiteNav() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-white/[0.045] bg-background/78 backdrop-blur-2xl">
+      <header className="sticky top-0 z-40 border-b border-white/[0.03] bg-background/72 backdrop-blur-2xl">
       <div className="container mx-auto flex h-16 max-w-[1480px] items-center gap-3 px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex shrink-0 items-center gap-2 no-underline">
-          <span className="grid h-9 w-9 place-items-center overflow-hidden rounded-2xl border border-primary/[0.18] bg-primary/[0.075] shadow-inset">
+          <span className="grid h-9 w-9 place-items-center overflow-hidden rounded-full border border-primary/[0.16] bg-primary/[0.08] shadow-inset">
             <img src="/icon.svg" alt="" className="h-full w-full object-cover" />
           </span>
           <span className="hidden text-base font-semibold tracking-tight sm:inline">
@@ -103,7 +103,7 @@ export function SiteNav() {
             <input
               aria-label="Search characters"
               placeholder="Search characters, moods, worlds..."
-              className="focus-ring h-11 w-full rounded-full border border-white/[0.055] bg-white/[0.035] px-11 text-sm text-foreground shadow-inset placeholder:text-muted-foreground transition focus:border-primary/35 focus:bg-white/[0.055]"
+            className="focus-ring h-11 w-full rounded-full border border-white/[0.035] bg-white/[0.032] px-11 text-sm text-foreground shadow-inset placeholder:text-muted-foreground transition focus:border-primary/25 focus:bg-white/[0.055]"
             />
           </label>
         </div>
@@ -117,8 +117,8 @@ export function SiteNav() {
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  "flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium text-muted-foreground no-underline transition duration-200 hover:bg-white/[0.055] hover:text-foreground",
-                  active && "bg-primary/[0.12] text-foreground"
+                  "flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium text-muted-foreground no-underline transition duration-200 hover:bg-white/[0.045] hover:text-foreground",
+                  active && "bg-primary/[0.11] text-foreground shadow-inset"
                 )}
               >
                 <Icon className="h-4 w-4" />
@@ -141,7 +141,7 @@ export function SiteNav() {
               <button
                 type="button"
                 aria-label="Open user menu"
-                className="focus-ring flex h-10 items-center gap-2 rounded-full border border-white/[0.055] bg-white/[0.035] px-2 pr-3 shadow-inset transition hover:border-primary/25 hover:bg-primary/[0.075]"
+                className="focus-ring flex h-10 items-center gap-2 rounded-full border border-white/[0.04] bg-white/[0.032] px-2 pr-3 shadow-inset transition hover:border-primary/20 hover:bg-primary/[0.075]"
                 onClick={() => setOpen((current) => !current)}
               >
                 <span className="grid h-7 w-7 place-items-center overflow-hidden rounded-full border border-primary/30 bg-primary/15 text-xs font-bold uppercase text-foreground">

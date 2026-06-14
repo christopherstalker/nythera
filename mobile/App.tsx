@@ -742,16 +742,14 @@ function ExploreScreen({
 
 function CharacterCard({ character, onStart }: { character: Character; onStart: () => void }) {
   return (
-    <View style={styles.card}>
-      <View style={styles.cardTop}>
-        <Avatar name={character.name} uri={character.avatarUrl} />
-        <View style={styles.cardTitleWrap}>
-          <Text style={styles.cardTitle}>{character.name}</Text>
-          <Text style={styles.muted}>{character.likes} likes</Text>
-        </View>
+    <View style={styles.characterCard}>
+      <View style={styles.characterAvatarWrap}>
+        <Avatar name={character.name} uri={character.avatarUrl} size="lg" />
       </View>
-      <Text style={styles.bodyText}>{character.description}</Text>
-      <View style={styles.tags}>
+      <Text style={styles.cardTitle}>{character.name}</Text>
+      <Text style={styles.muted}>{character.likes} likes</Text>
+      <Text style={[styles.bodyText, styles.centerText]}>{character.description}</Text>
+      <View style={styles.centerTags}>
         {character.tags.slice(0, 4).map((tag) => (
           <Text key={tag} style={styles.tag}>
             {tag}
@@ -1335,9 +1333,9 @@ function BottomTabs({ tab, onChange }: { tab: Tab; onChange: (tab: Tab) => void 
   );
 }
 
-function Avatar({ name, uri }: { name: string; uri?: string | null }) {
+function Avatar({ name, uri, size = "md" }: { name: string; uri?: string | null; size?: "md" | "lg" }) {
   return (
-    <View style={styles.avatar}>
+    <View style={[styles.avatar, size === "lg" && styles.avatarLarge]}>
       {uri ? <Image source={{ uri }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{name.slice(0, 1).toUpperCase()}</Text>}
     </View>
   );
@@ -1398,11 +1396,11 @@ function SecondaryButton({ label, onPress }: { label: string; onPress: () => voi
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: "#0B0B12"
+    backgroundColor: "#07060B"
   },
   shell: {
     flex: 1,
-    backgroundColor: "#0B0B12"
+    backgroundColor: "#07060B"
   },
   auth: {
     flexGrow: 1,
@@ -1412,14 +1410,14 @@ const styles = StyleSheet.create({
   },
   authWrap: {
     flex: 1,
-    backgroundColor: "#0B0B12"
+    backgroundColor: "#07060B"
   },
   authCard: {
-    borderRadius: 26,
-    padding: 14,
+    borderRadius: 30,
+    padding: 16,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.07)",
-    backgroundColor: "#121018",
+    borderColor: "rgba(255,255,255,0.045)",
+    backgroundColor: "#111019",
     gap: 12
   },
   authModeRow: {
@@ -1471,10 +1469,10 @@ const styles = StyleSheet.create({
   logoMark: {
     height: 76,
     width: 76,
-    borderRadius: 26,
-    backgroundColor: "#171321",
+    borderRadius: 38,
+    backgroundColor: "#14111D",
     borderWidth: 1,
-    borderColor: "rgba(167,139,250,0.32)",
+    borderColor: "rgba(167,139,250,0.24)",
     alignItems: "center",
     justifyContent: "center"
   },
@@ -1498,7 +1496,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.06)",
+    borderBottomColor: "rgba(255,255,255,0.035)",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -1543,16 +1541,16 @@ const styles = StyleSheet.create({
     fontSize: 12
   },
   listContent: {
-    padding: 18,
+    padding: 16,
     paddingBottom: 110,
     gap: 14
   },
   heroCard: {
-    borderRadius: 30,
+    borderRadius: 32,
     padding: 22,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.07)",
-    backgroundColor: "#171321",
+    borderColor: "rgba(255,255,255,0.045)",
+    backgroundColor: "#12101A",
     gap: 14
   },
   segmentRow: {
@@ -1594,19 +1592,36 @@ const styles = StyleSheet.create({
     lineHeight: 23
   },
   card: {
-    borderRadius: 26,
+    borderRadius: 30,
     padding: 16,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.07)",
-    backgroundColor: "#121018",
+    borderColor: "rgba(255,255,255,0.045)",
+    backgroundColor: "#111019",
     gap: 12
   },
+  characterCard: {
+    borderRadius: 30,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.045)",
+    backgroundColor: "#111019",
+    gap: 10,
+    alignItems: "center"
+  },
+  characterAvatarWrap: {
+    height: 96,
+    width: 96,
+    borderRadius: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(167,139,250,0.075)"
+  },
   formSection: {
-    borderRadius: 28,
+    borderRadius: 30,
     padding: 16,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.07)",
-    backgroundColor: "#121018",
+    borderColor: "rgba(255,255,255,0.045)",
+    backgroundColor: "#111019",
     gap: 12
   },
   sectionTitle: {
@@ -1702,6 +1717,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(167,139,250,0.25)"
   },
+  avatarLarge: {
+    height: 88,
+    width: 88,
+    borderRadius: 44
+  },
   avatarImage: {
     height: "100%",
     width: "100%"
@@ -1715,6 +1735,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8
+  },
+  centerTags: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 8
+  },
+  centerText: {
+    textAlign: "center"
   },
   tag: {
     color: "#D9D1FF",
@@ -1842,31 +1871,31 @@ const styles = StyleSheet.create({
   },
   input: {
     minHeight: 50,
-    borderRadius: 20,
+    borderRadius: 24,
     paddingHorizontal: 16,
     paddingVertical: 12,
     color: "#F8F7FF",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: "rgba(255,255,255,0.045)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.055)",
     fontSize: 16
   },
   textarea: {
     minHeight: 108,
-    borderRadius: 22,
+    borderRadius: 24,
     paddingHorizontal: 16,
     paddingVertical: 14,
     color: "#F8F7FF",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: "rgba(255,255,255,0.045)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.055)",
     textAlignVertical: "top",
     fontSize: 16
   },
   primaryButton: {
     minHeight: 50,
     borderRadius: 999,
-    backgroundColor: "#A78BFA",
+    backgroundColor: "#9B7CFF",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 18
@@ -1880,11 +1909,11 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "rgba(255,255,255,0.065)",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 16,
-    backgroundColor: "rgba(255,255,255,0.04)"
+    backgroundColor: "rgba(255,255,255,0.035)"
   },
   secondaryButtonText: {
     color: "#F8F7FF",
@@ -1912,9 +1941,9 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     padding: 8,
     flexDirection: "row",
-    backgroundColor: "rgba(18,16,24,0.96)",
+    backgroundColor: "rgba(17,16,25,0.96)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.055)",
     gap: 6
   },
   tab: {
@@ -1925,7 +1954,7 @@ const styles = StyleSheet.create({
     justifyContent: "center"
   },
   activeTab: {
-    backgroundColor: "rgba(167,139,250,0.18)"
+    backgroundColor: "rgba(167,139,250,0.16)"
   },
   tabText: {
     color: "#9B94AA",
