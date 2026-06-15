@@ -1,7 +1,7 @@
 import { RichMessageText } from "@/components/chat/rich-message-text";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, Flag, GitBranch, Pencil, RefreshCcw, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Flag, GitBranch, ImageIcon, Pencil, RefreshCcw, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react";
 
 type MessageBubbleProps = {
   id: string;
@@ -68,41 +68,61 @@ export function MessageBubble({
 
   return (
     <div className={cn("group flex animate-in fade-in slide-in-from-bottom-2 duration-200", isUser ? "justify-end" : "justify-start")}>
-      <div className={cn("max-w-[75%]", isUser ? "items-end" : "items-start")}>
+      <div className={cn(isUser ? "max-w-[min(78vw,620px)] items-end" : "max-w-[min(92vw,720px)] items-start")}>
         <div className={cn("whitespace-pre-wrap break-words", isUser ? "bubble-user max-w-full" : "bubble-char max-w-full")}>
           {content ? <RichMessageText text={content} /> : <TypingIndicator />}
         </div>
         {content ? (
-          <div className={cn("mt-1 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100", isUser ? "justify-end" : "justify-start")}>
+          <div className={cn("mt-3 flex flex-wrap gap-3 text-white transition-opacity", isUser ? "justify-end opacity-70 group-hover:opacity-100 focus-within:opacity-100" : "justify-start opacity-100")}>
             {isUser ? (
               <ActionButton label="Edit" onClick={edit}>
-                <Pencil className="h-3.5 w-3.5" />
+                <Pencil className="h-5 w-5" />
               </ActionButton>
             ) : (
               <ActionButton label="Regenerate" onClick={() => onRegenerate?.(id)}>
-                <RefreshCcw className="h-3.5 w-3.5" />
+                <RefreshCcw className="h-6 w-6" />
               </ActionButton>
             )}
             {hasVariants ? (
-              <span className="flex h-7 items-center gap-1 rounded-md border border-[var(--border-default)] bg-[var(--bg-surface)] px-1 text-xs text-[var(--text-secondary)]">
+              <span className="flex h-8 items-center gap-1 rounded-full bg-black/18 px-1 text-xs font-black text-white/80 backdrop-blur-md">
                 <ActionButton label="Previous attempt" onClick={() => onPreviousVariant?.()} disabled={variantIndex <= 0} compact>
-                  <ChevronLeft className="h-3.5 w-3.5" />
+                  <ChevronLeft className="h-4 w-4" />
                 </ActionButton>
                 <span className="min-w-9 text-center">{variantIndex + 1}/{variantCount}</span>
                 <ActionButton label="Next attempt" onClick={() => onNextVariant?.()} disabled={variantIndex >= variantCount - 1} compact>
-                  <ChevronRight className="h-3.5 w-3.5" />
+                  <ChevronRight className="h-4 w-4" />
                 </ActionButton>
               </span>
             ) : null}
-            <ActionButton label="Branch" onClick={() => onBranch?.(id)}>
-              <GitBranch className="h-3.5 w-3.5" />
-            </ActionButton>
-            <ActionButton label="Report" onClick={report}>
-              <Flag className="h-3.5 w-3.5" />
-            </ActionButton>
-            <ActionButton label="Delete" onClick={() => onDelete?.(id)} destructive>
-              <Trash2 className="h-3.5 w-3.5" />
-            </ActionButton>
+            {!isUser ? (
+              <>
+                <ActionButton label="Continue faster" onClick={() => onRegenerate?.(id)}>
+                  <ChevronRight className="h-6 w-6" />
+                </ActionButton>
+                <ActionButton label="Image" onClick={() => onBranch?.(id)}>
+                  <ImageIcon className="h-6 w-6" />
+                </ActionButton>
+                <ActionButton label="Like" onClick={() => undefined}>
+                  <ThumbsUp className="h-6 w-6" />
+                </ActionButton>
+                <ActionButton label="Dislike" onClick={() => undefined}>
+                  <ThumbsDown className="h-6 w-6" />
+                </ActionButton>
+              </>
+            ) : null}
+            {isUser ? (
+              <>
+                <ActionButton label="Branch" onClick={() => onBranch?.(id)}>
+                  <GitBranch className="h-5 w-5" />
+                </ActionButton>
+                <ActionButton label="Report" onClick={report}>
+                  <Flag className="h-5 w-5" />
+                </ActionButton>
+                <ActionButton label="Delete" onClick={() => onDelete?.(id)} destructive>
+                  <Trash2 className="h-5 w-5" />
+                </ActionButton>
+              </>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -134,9 +154,9 @@ function ActionButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "focus-ring grid place-items-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-35",
-        compact ? "h-5 w-5 border-0 bg-transparent" : "h-7 w-7 border border-[var(--border-default)] bg-[var(--bg-surface)]",
-        destructive && "hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-200"
+        "focus-ring grid place-items-center rounded-full text-white drop-shadow transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-35",
+        compact ? "h-6 w-6" : "h-8 w-8",
+        destructive && "hover:bg-red-500/18 hover:text-red-200"
       )}
     >
       {children}

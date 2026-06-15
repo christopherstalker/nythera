@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-export const DEFAULT_ACCENT_COLOR = "#9b59b6";
+export const DEFAULT_ACCENT_COLOR = "#fff200";
 export const APPEARANCE_STORAGE_KEY = "velora.appearance";
 
 export type StoredAppearance = {
