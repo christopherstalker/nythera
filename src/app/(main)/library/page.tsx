@@ -17,7 +17,7 @@ type LibraryBody = {
   chats: Array<{
     id: string;
     title?: string | null;
-    character: { id: string; name: string; avatarUrl?: string | null };
+    character: { id: string; name: string; description?: string | null; avatarUrl?: string | null };
     messages: Array<{ content: string; role: string }>;
   }>;
 };
@@ -66,7 +66,7 @@ export default function LibraryPage() {
                     <Avatar name={chat.character.name} src={chat.character.avatarUrl} size="sm" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{chat.title || chat.character.name}</p>
-                      <p className="mt-1 truncate text-xs text-[var(--text-secondary)]">{chat.messages[0]?.content || "No messages yet"}</p>
+                      <p className="mt-1 truncate text-xs text-[var(--text-secondary)]">{chat.character.description || "No description yet"}</p>
                     </div>
                     <MessageCircle className="h-4 w-4 text-[var(--accent-purple)]" />
                   </Link>

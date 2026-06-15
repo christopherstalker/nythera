@@ -84,12 +84,21 @@ export async function POST(request: Request, context: Context) {
     let assistantSequence: number;
 
     if (input.regenerate) {
-      const latestAssistant = [...recentMessages].reverse().find((item) => item.role === MessageRole.ASSISTANT);
-      if (latestAssistant) {
-        recentMessages = recentMessages.filter((item) => item.id !== latestAssistant.id);
-        await prisma.message.delete({
-          where: { id: latestAssistant.id }
-        });
+      let latestAssistantIndex = -1;
+      for (let index = recentMessages.length - 1; index >= 0; index -= 1) {
+        if (recentMessages[index].role === MessageRole.ASSISTANT) {
+          latestAssistantIndex = index;
+          break;
+        }
+      }
+
+      if (latestAssistantIndex >= 0) {
+        let firstVariantIndex = latestAssistantIndex;
+        while (firstVariantIndex > 0 && recentMessages[firstVariantIndex - 1].role === MessageRole.ASSISTANT) {
+          firstVariantIndex -= 1;
+        }
+
+        recentMessages = recentMessages.filter((_, index) => index < firstVariantIndex || index > latestAssistantIndex);
       }
 
       const lastSequence = await prisma.message.aggregate({

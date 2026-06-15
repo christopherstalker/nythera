@@ -1,14 +1,17 @@
-<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="512" height="512" rx="140" fill="#0B0B12"/>
-  <circle cx="256" cy="256" r="170" fill="#A78BFA" opacity="0.08"/>
-  <circle cx="256" cy="270" r="78" stroke="#6D28D9" stroke-opacity="0.35" stroke-width="2"/>
-  <path d="M150 170 C190 320, 225 390, 256 410 C287 390, 322 320, 362 170" stroke="url(#grad)" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="256" cy="270" r="14" fill="#A78BFA"/>
-  <circle cx="256" cy="270" r="34" fill="#A78BFA" opacity="0.12"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Velora">
   <defs>
-    <linearGradient id="grad" x1="150" y1="170" x2="362" y2="410">
-      <stop stop-color="#A78BFA"/>
-      <stop offset="1" stop-color="#6D28D9"/>
+    <linearGradient id="velora-bg" x1="60" y1="48" x2="440" y2="468" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1D1D1D"/>
+      <stop offset="1" stop-color="#0A0A0A"/>
+    </linearGradient>
+    <linearGradient id="velora-mark" x1="144" y1="104" x2="376" y2="412" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#C77DFF"/>
+      <stop offset="0.52" stop-color="#9B59B6"/>
+      <stop offset="1" stop-color="#4CC9F0"/>
     </linearGradient>
   </defs>
+  <rect width="512" height="512" rx="128" fill="url(#velora-bg)"/>
+  <path fill="url(#velora-mark)" d="M256 96c70.7 0 128 57.3 128 128 0 101-103.5 179.4-120.6 192a12.4 12.4 0 0 1-14.8 0C231.5 403.4 128 325 128 224c0-70.7 57.3-128 128-128Zm0 56c-39.8 0-72 32.2-72 72 0 51.6 46.4 102.6 72 126.2 25.6-23.6 72-74.6 72-126.2 0-39.8-32.2-72-72-72Z"/>
+  <circle cx="256" cy="224" r="42" fill="#FFFFFF"/>
+  <path fill="#FFFFFF" d="M396 92l14.6 37.4L448 144l-37.4 14.6L396 196l-14.6-37.4L344 144l37.4-14.6L396 92ZM116 314l10.4 27.6L154 352l-27.6 10.4L116 390l-10.4-27.6L78 352l27.6-10.4L116 314Z" opacity=".92"/>
 </svg>

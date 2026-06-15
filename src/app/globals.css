@@ -19,6 +19,7 @@
     --accent-purple: #9b59b6;
     --accent-purple-hover: #8e44ad;
     --accent-purple-soft: rgba(155, 89, 182, 0.15);
+    --accent-rgb: 155 89 182;
 
     /* Borders */
     --border-default: #2e2e2e;
@@ -65,6 +66,17 @@
   }
 
   .dark {
+    --bg-base: #0d0d0d;
+    --bg-surface: #1a1a1a;
+    --bg-elevated: #242424;
+    --bg-input: #2a2a2a;
+    --text-primary: #ffffff;
+    --text-secondary: #9b9b9b;
+    --text-muted: #5c5c5c;
+    --border-default: #2e2e2e;
+    --border-subtle: #1f1f1f;
+    --bubble-char: #1a1a1a;
+    --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.4);
     --background: 0 0% 5%;
     --foreground: 0 0% 100%;
     --card: 0 0% 10%;
@@ -86,6 +98,36 @@
     --ring: 283 39% 53%;
   }
 
+  .light {
+    --bg-base: #f6f7fb;
+    --bg-surface: #ffffff;
+    --bg-elevated: #edf0f6;
+    --bg-input: #f0f2f7;
+    --text-primary: #15171c;
+    --text-secondary: #596172;
+    --text-muted: #7d8494;
+    --border-default: #d9deea;
+    --border-subtle: #e9edf5;
+    --bubble-char: #ffffff;
+    --shadow-card: 0 12px 34px rgba(22, 29, 45, 0.08);
+    --background: 225 33% 97%;
+    --foreground: 225 14% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 225 14% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 225 14% 10%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 29% 93%;
+    --secondary-foreground: 225 14% 10%;
+    --muted: 220 29% 94%;
+    --muted-foreground: 222 10% 40%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 73% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 22% 88%;
+    --input: 220 29% 94%;
+  }
+
   * {
     @apply border-border;
   }
@@ -93,8 +135,15 @@
   html {
     min-height: 100%;
     background: var(--bg-base);
-    color-scheme: dark;
     scroll-behavior: smooth;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  html.light {
+    color-scheme: light;
   }
 
   body {
@@ -124,7 +173,7 @@
   .focus-ring:focus-visible {
     box-shadow:
       0 0 0 2px var(--bg-base),
-      0 0 0 4px rgba(155, 89, 182, 0.6);
+      0 0 0 4px rgb(var(--accent-rgb) / 0.6);
   }
 
   .app-surface {
@@ -160,7 +209,7 @@
     border-radius: 18px 4px 18px 18px;
     background: var(--bubble-user);
     padding: 12px 16px;
-    color: #e9d5ff;
+    color: #ffffff;
     font-size: 15px;
     line-height: 1.55;
   }

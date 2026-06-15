@@ -1,7 +1,7 @@
 import { RichMessageText } from "@/components/chat/rich-message-text";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
 import { cn } from "@/lib/utils";
-import { Flag, GitBranch, Pencil, RefreshCcw, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Flag, GitBranch, Pencil, RefreshCcw, Trash2 } from "lucide-react";
 
 type MessageBubbleProps = {
   id: string;
@@ -12,14 +12,32 @@ type MessageBubbleProps = {
   onDelete?: (messageId: string) => void;
   onRegenerate?: (messageId: string) => void;
   onBranch?: (messageId: string) => void;
+  variantIndex?: number;
+  variantCount?: number;
+  onPreviousVariant?: () => void;
+  onNextVariant?: () => void;
 };
 
-export function MessageBubble({ id, role, content, characterName, onEdit, onDelete, onRegenerate, onBranch }: MessageBubbleProps) {
+export function MessageBubble({
+  id,
+  role,
+  content,
+  characterName,
+  onEdit,
+  onDelete,
+  onRegenerate,
+  onBranch,
+  variantIndex,
+  variantCount,
+  onPreviousVariant,
+  onNextVariant
+}: MessageBubbleProps) {
   if (role === "SYSTEM") {
     return <p className="text-center text-xs italic text-[var(--text-muted)]">{content}</p>;
   }
 
   const isUser = role === "USER";
+  const hasVariants = !isUser && variantCount !== undefined && variantCount > 1 && variantIndex !== undefined;
 
   function edit() {
     const next = window.prompt("Edit message", content);
@@ -65,6 +83,17 @@ export function MessageBubble({ id, role, content, characterName, onEdit, onDele
                 <RefreshCcw className="h-3.5 w-3.5" />
               </ActionButton>
             )}
+            {hasVariants ? (
+              <span className="flex h-7 items-center gap-1 rounded-md border border-[var(--border-default)] bg-[var(--bg-surface)] px-1 text-xs text-[var(--text-secondary)]">
+                <ActionButton label="Previous attempt" onClick={() => onPreviousVariant?.()} disabled={variantIndex <= 0} compact>
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </ActionButton>
+                <span className="min-w-9 text-center">{variantIndex + 1}/{variantCount}</span>
+                <ActionButton label="Next attempt" onClick={() => onNextVariant?.()} disabled={variantIndex >= variantCount - 1} compact>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </ActionButton>
+              </span>
+            ) : null}
             <ActionButton label="Branch" onClick={() => onBranch?.(id)}>
               <GitBranch className="h-3.5 w-3.5" />
             </ActionButton>
@@ -86,11 +115,15 @@ function ActionButton({
   label,
   children,
   destructive,
-  onClick
+  onClick,
+  disabled,
+  compact
 }: {
   label: string;
   children: React.ReactNode;
   destructive?: boolean;
+  disabled?: boolean;
+  compact?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -99,8 +132,10 @@ function ActionButton({
       aria-label={label}
       title={label}
       onClick={onClick}
+      disabled={disabled}
       className={cn(
-        "focus-ring grid h-7 w-7 place-items-center rounded-md border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]",
+        "focus-ring grid place-items-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-35",
+        compact ? "h-5 w-5 border-0 bg-transparent" : "h-7 w-7 border border-[var(--border-default)] bg-[var(--bg-surface)]",
         destructive && "hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-200"
       )}
     >

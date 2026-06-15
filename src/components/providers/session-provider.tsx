@@ -2,6 +2,7 @@
 
 import { ThemeProvider } from "next-themes";
 import { SessionProvider as NextAuthSessionProvider } from "next-auth/react";
+import { AppearanceProvider } from "@/components/providers/appearance-provider";
 import { PwaProvider } from "@/components/providers/pwa-provider";
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
@@ -9,6 +10,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     <NextAuthSessionProvider>
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
         {children}
+        <AppearanceProvider />
         <PwaProvider />
       </ThemeProvider>
     </NextAuthSessionProvider>

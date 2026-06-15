@@ -48,10 +48,7 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
 
       setMessages((current) => {
         if (options?.regenerate) {
-          const withoutTarget = options.replaceAssistantId
-            ? current.filter((message) => message.id !== options.replaceAssistantId)
-            : current.filter((message, index) => !(index === current.length - 1 && message.role === "ASSISTANT"));
-          return [...withoutTarget, assistantMessage];
+          return [...current, assistantMessage];
         }
 
         return [...current, userMessage, assistantMessage];

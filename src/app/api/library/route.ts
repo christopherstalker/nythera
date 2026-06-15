@@ -32,7 +32,7 @@ export async function GET() {
         orderBy: [{ lastActiveAt: "desc" }, { updatedAt: "desc" }],
         take: 20,
         include: {
-          character: { select: { id: true, name: true, avatarUrl: true } },
+          character: { select: { id: true, name: true, description: true, avatarUrl: true } },
           messages: {
             orderBy: [{ createdAt: "desc" }, { sequence: "desc" }, { id: "desc" }],
             take: 1,

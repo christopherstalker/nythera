@@ -15,8 +15,7 @@ import {
   MessageCircle,
   Plus,
   Search,
-  Settings,
-  Sparkles
+  Settings
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { useUiStore } from "@/stores/use-ui-store";
@@ -27,6 +26,7 @@ type RecentChat = {
   title?: string | null;
   character: {
     name: string;
+    description?: string | null;
     avatarUrl?: string | null;
   };
   messages: Array<{ content: string }>;
@@ -114,7 +114,7 @@ export function Sidebar() {
     }
 
     return recentChats.filter((chat) => {
-      const haystack = [chat.title, chat.character.name, chat.messages[0]?.content].filter(Boolean).join(" ").toLowerCase();
+      const haystack = [chat.title, chat.character.name, chat.character.description].filter(Boolean).join(" ").toLowerCase();
       return haystack.includes(normalized);
     });
   }, [query, recentChats]);
@@ -132,7 +132,7 @@ export function Sidebar() {
         <div className="mb-4 flex h-10 items-center gap-3">
           <Link href="/" className="focus-ring flex min-w-0 flex-1 items-center gap-3 rounded-lg no-underline">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--accent-purple)] text-white">
-              <Sparkles className="h-4 w-4" />
+              <img src="/icon.svg" alt="" className="h-full w-full rounded-full object-cover" />
             </span>
             <span className={cn("font-semibold text-[var(--text-primary)]", labelClass)}>Velora</span>
           </Link>
@@ -175,7 +175,7 @@ export function Sidebar() {
                   <Avatar name={chat.character.name} src={chat.character.avatarUrl} size="xs" />
                   <span className={cn("min-w-0 flex-1", labelClass)}>
                     <span className="block truncate text-sm">{chat.character.name}</span>
-                    <span className="block truncate text-xs font-normal text-[var(--text-muted)]">{chat.messages[0]?.content || "No messages yet"}</span>
+                    <span className="block truncate text-xs font-normal text-[var(--text-muted)]">{chat.character.description || "No description yet"}</span>
                   </span>
                 </Link>
               );

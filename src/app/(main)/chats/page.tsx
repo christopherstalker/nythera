@@ -14,6 +14,7 @@ type Chat = {
   updatedAt: string;
   character: {
     name: string;
+    description?: string | null;
     avatarUrl?: string | null;
   };
   messages: Array<{ content: string }>;
@@ -67,7 +68,7 @@ export default function ChatsPage() {
               <Avatar name={chat.character.name} src={chat.character.avatarUrl} size="sm" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{chat.title || chat.character.name}</p>
-                <p className="mt-1 truncate text-[13px] leading-5 text-[var(--text-secondary)]">{chat.messages[0]?.content || "No messages yet"}</p>
+                <p className="mt-1 truncate text-[13px] leading-5 text-[var(--text-secondary)]">{chat.character.description || "No description yet"}</p>
               </div>
             </Link>
           ))}

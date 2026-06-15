@@ -24,8 +24,8 @@ export function ThemeToggle() {
       type="button"
       variant="outline"
       size="icon"
-      title="Toggle black and white theme"
-      aria-label="Toggle black and white theme"
+      title="Toggle theme"
+      aria-label="Toggle theme"
       onClick={toggleTheme}
     >
       {isDark ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}

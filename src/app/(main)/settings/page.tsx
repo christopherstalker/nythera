@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Bell, Brain, Eye, KeyRound, Paintbrush, UserCog, UserRound } from "lucide-react";
+import { AppearanceSettingsClient } from "@/components/settings/appearance-settings-client";
 import { KeySettingsClient } from "@/components/settings/key-settings-client";
 import { MemorySettingsClient } from "@/components/settings/memory-settings-client";
 import { ProfileSettingsClient } from "@/components/settings/profile-settings-client";
@@ -83,14 +84,7 @@ export default function SettingsPage() {
 
           <SettingsCard id="appearance" icon={Paintbrush} title="Appearance">
             <div className="grid gap-4">
-              <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-input)] p-4">
-                <p className="text-sm font-medium text-[var(--text-primary)]">Theme</p>
-                <div className="mt-3 inline-flex rounded-[var(--radius-pill)] bg-[var(--bg-elevated)] p-1">
-                  <button type="button" className="h-9 rounded-[var(--radius-pill)] bg-[var(--accent-purple)] px-4 text-sm font-medium text-white">
-                    Dark
-                  </button>
-                </div>
-              </div>
+              <AppearanceSettingsClient />
               <SwitchRow icon={Eye} label="Compact chat density" enabled={compactMode} onToggle={() => savePreference({ compactMode: !compactMode })} />
             </div>
           </SettingsCard>
