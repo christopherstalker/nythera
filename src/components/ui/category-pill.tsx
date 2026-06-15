@@ -14,10 +14,10 @@ export function CategoryPill({ label, active = false, onClick }: CategoryPillPro
       type="button"
       onClick={onClick}
       className={cn(
-        "focus-ring shrink-0 rounded-lg px-0 py-1.5 text-[17px] font-black transition-colors duration-150 active:scale-95 md:text-[19px]",
+        "focus-ring shrink-0 rounded-[var(--radius-pill)] px-4 py-1.5 text-sm font-medium transition-colors duration-150 active:scale-95",
         active
-          ? "text-white"
-          : "text-[#5f5f5f] hover:text-[#bcbcbc]"
+          ? "bg-[var(--accent-purple)] text-white"
+          : "bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
       )}
     >
       {label}

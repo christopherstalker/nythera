@@ -1,7 +1,7 @@
 "use client";
 
 import { KeyboardEvent, useEffect, useRef } from "react";
-import { ArrowUp, Lightbulb, SmilePlus } from "lucide-react";
+import { ArrowUp } from "lucide-react";
 
 type ChatInputProps = {
   value: string;
@@ -39,19 +39,19 @@ export function ChatInput({ value, onChange, onSubmit, disabled = false, model, 
   }
 
   return (
-    <div className="relative z-20 shrink-0 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2 md:px-8 md:pb-6">
+    <div className="shrink-0 bg-[var(--bg-base)] px-4 pb-[calc(5.75rem+env(safe-area-inset-bottom))] pt-2 md:pb-4">
       {onModelChange || onTemperatureChange ? (
-        <div className="mx-auto mb-2 hidden max-w-[900px] gap-2 opacity-75 sm:grid-cols-[minmax(0,1fr)_220px] md:grid">
+        <div className="mx-auto mb-2 grid max-w-[900px] gap-2 sm:grid-cols-[minmax(0,1fr)_220px]">
           {onModelChange ? (
             <input
               value={model ?? ""}
               onChange={(event) => onModelChange(event.target.value)}
               placeholder="provider:model"
-              className="focus-ring h-9 rounded-full border border-white/10 bg-black/24 px-4 text-xs font-bold text-white placeholder:text-white/35 backdrop-blur-xl"
+              className="focus-ring h-9 rounded-lg border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
             />
           ) : null}
           {onTemperatureChange ? (
-            <label className="flex h-9 items-center gap-2 rounded-full border border-white/10 bg-black/24 px-4 text-xs font-bold text-white/60 backdrop-blur-xl">
+            <label className="flex h-9 items-center gap-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-xs text-[var(--text-secondary)]">
               temp
               <input
                 type="range"
@@ -67,10 +67,7 @@ export function ChatInput({ value, onChange, onSubmit, disabled = false, model, 
           ) : null}
         </div>
       ) : null}
-      <div className="mx-auto flex max-w-[900px] items-end gap-2 rounded-[34px] border border-white/18 bg-white/22 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_18px_55px_rgba(0,0,0,0.26)] backdrop-blur-2xl transition-colors duration-200 focus-within:border-white/30">
-        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-white/60">
-          <Lightbulb className="h-7 w-7 stroke-[2.6]" />
-        </span>
+      <div className="mx-auto flex max-w-[900px] items-end gap-2 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-input)] px-4 py-3 transition-colors duration-200 focus-within:border-[var(--accent-purple)]">
         <textarea
           ref={textareaRef}
           value={value}
@@ -78,21 +75,18 @@ export function ChatInput({ value, onChange, onSubmit, disabled = false, model, 
           onChange={(event) => onChange(event.target.value)}
           onInput={resize}
           onKeyDown={handleKeyDown}
-          placeholder="Message"
-          className="max-h-[160px] min-h-11 flex-1 resize-none overflow-y-auto rounded-full bg-black/20 px-2 py-2 text-[26px] font-black leading-8 text-white outline-none placeholder:text-white/78 md:text-[22px]"
+          placeholder="Message..."
+          className="max-h-[160px] min-h-8 flex-1 resize-none overflow-y-auto bg-transparent text-sm leading-6 text-white outline-none placeholder:text-[var(--text-muted)]"
           disabled={disabled}
         />
-        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-white">
-          <SmilePlus className="h-7 w-7 fill-white text-white stroke-[2.2]" />
-        </span>
         <button
           type="button"
           onClick={onSubmit}
           disabled={disabled || !value.trim()}
           aria-label="Send message"
-          className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#fff200] text-black transition-all duration-100 hover:brightness-110 active:scale-90 disabled:hidden"
+          className="focus-ring flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--accent-purple)] text-white transition-all duration-100 hover:brightness-110 active:scale-90 disabled:opacity-40"
         >
-          <ArrowUp className="h-6 w-6 stroke-[3]" />
+          <ArrowUp className="h-4 w-4" />
         </button>
       </div>
     </div>

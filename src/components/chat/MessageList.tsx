@@ -55,17 +55,17 @@ export function MessageList({ messages, characterName, summary, error, onEdit, o
   }
 
   return (
-    <div ref={scrollRef} onScroll={handleScroll} className="chat-scroll relative z-10 flex-1 overflow-y-auto px-4 pb-3 pt-28 md:px-8 md:pb-6 md:pt-32" aria-live="polite">
-      <div className="mx-auto flex min-h-full max-w-[980px] flex-col justify-end gap-4">
+    <div ref={scrollRef} onScroll={handleScroll} className="chat-scroll flex-1 overflow-y-auto px-4 py-4 md:px-5" aria-live="polite">
+      <div className="mx-auto flex min-h-full max-w-[900px] flex-col gap-4">
         {summary ? (
           <p className="mx-auto max-w-xl rounded-[var(--radius-pill)] bg-[var(--bg-surface)] px-4 py-2 text-center text-xs italic text-[var(--text-muted)]">
             {summary}
           </p>
         ) : null}
         {messages.length === 0 ? (
-          <div className="m-auto max-w-sm rounded-[28px] bg-black/45 p-5 text-center text-white shadow-[0_18px_48px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-            <p className="text-base font-black">Start a chat with {characterName}</p>
-            <p className="mt-2 text-sm font-semibold leading-6 text-white/60">Send a first message or continue from the character greeting.</p>
+          <div className="m-auto max-w-sm text-center">
+            <p className="text-base font-semibold text-[var(--text-primary)]">Start a chat with {characterName}</p>
+            <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">Send a first message or continue from the character greeting.</p>
           </div>
         ) : (
           displayItems.map((item) => {

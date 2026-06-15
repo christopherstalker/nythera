@@ -20,13 +20,13 @@ export function SearchBar({
 }: SearchBarProps) {
   return (
     <label className={cn("relative block w-full", className)}>
-      <Search className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-[#9b9b9b]" />
+      <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
       <input
         aria-label={placeholder}
         value={value}
         onChange={(event) => onChange?.(event.target.value)}
         placeholder={placeholder}
-        className="focus-ring h-16 w-full rounded-[22px] border border-transparent bg-[#151515] px-14 text-[28px] font-black leading-none text-white placeholder:text-[#686868] transition-colors duration-200 focus:border-white/10 focus:bg-[#1a1a1a]"
+        className="focus-ring h-12 w-full rounded-[var(--radius-pill)] border border-[var(--border-default)] bg-[var(--bg-input)] px-11 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] transition-colors duration-200 focus:border-[var(--accent-purple)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-purple)]"
       />
       {showFilterIcon ? (
         <span className="pointer-events-none absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-[var(--bg-elevated)] text-[var(--text-secondary)]">

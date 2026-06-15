@@ -13,28 +13,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/admin");
-  const immersiveChrome = pathname === "/" || pathname.startsWith("/explore") || pathname.startsWith("/chat/");
-  const showSidebar = !immersiveChrome;
-  const showBottomNav = !pathname.startsWith("/chat/");
 
   if (hideChrome) {
     return <main className="min-h-dvh bg-[var(--bg-base)]">{children}</main>;
   }
 
   return (
-    <div className={cn("min-h-dvh", immersiveChrome ? "bg-[#050505]" : "bg-[var(--bg-base)]")}>
-      {showSidebar ? <Sidebar /> : null}
+    <div className="min-h-dvh bg-[var(--bg-base)]">
+      <Sidebar />
       <main
         className={cn(
-          "min-h-dvh transition-[padding] duration-200",
-          immersiveChrome ? "bg-[#050505]" : "bg-[var(--bg-base)]",
-          showSidebar && "md:pl-[var(--sidebar-collapsed)] lg:pl-[var(--sidebar-width)]",
-          showSidebar && sidebarCollapsed && "lg:pl-[var(--sidebar-collapsed)]"
+          "min-h-dvh bg-[var(--bg-base)] transition-[padding] duration-200 md:pl-[var(--sidebar-collapsed)] lg:pl-[var(--sidebar-width)]",
+          sidebarCollapsed && "lg:pl-[var(--sidebar-collapsed)]"
         )}
       >
         {children}
       </main>
-      {showBottomNav ? <BottomNav /> : null}
+      <BottomNav />
     </div>
   );
 }

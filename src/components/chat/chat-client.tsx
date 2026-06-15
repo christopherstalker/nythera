@@ -117,15 +117,7 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
   }
 
   return (
-    <div className="relative flex h-dvh min-h-dvh flex-col overflow-hidden bg-[#050505]">
-      {characterAvatarUrl ? (
-        <div className="absolute inset-0" aria-hidden="true">
-          <img src={characterAvatarUrl} alt="" className="h-full w-full scale-110 object-cover blur-[2px]" />
-          <div className="absolute inset-0 bg-black/34" />
-          <div className="absolute inset-x-0 top-0 h-44 bg-gradient-to-b from-black/55 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 h-72 bg-gradient-to-t from-black/70 via-black/28 to-transparent" />
-        </div>
-      ) : null}
+    <div className="flex h-dvh min-h-dvh flex-col bg-[var(--bg-base)]">
       <TopBar chatId={chatId} characterId={characterId} characterName={characterName} characterAvatarUrl={characterAvatarUrl} />
       <MessageList
         messages={messages}
