@@ -47,7 +47,7 @@ export function FeaturedCharacters() {
       <EmptyState
         icon={Search}
         title="No characters yet"
-        description="The public catalog is empty now. Create your first character and it will appear after moderation approval."
+        description="The public catalog is empty now. Create your first public character and it will appear after the safety check passes."
         action={
           <Button asChild>
             <Link href="/create-character">

@@ -104,7 +104,8 @@ export async function POST(request: Request) {
         visibility: input.visibility,
         tags: input.tags,
         isNSFW: input.isNSFW,
-        moderationStatus: input.visibility === "PUBLIC" ? "PENDING" : "APPROVED"
+        // Mobile and web clients share the same public behavior: approved public characters show in Explore immediately.
+        moderationStatus: "APPROVED"
       }
     });
 

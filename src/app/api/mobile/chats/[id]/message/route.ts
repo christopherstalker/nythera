@@ -13,6 +13,7 @@ import { schedulePostMessageJobs } from "@/lib/memory";
 import { generateChatTitle } from "@/lib/chat-history";
 import { getEffectiveProviderKeys } from "@/lib/user-keys";
 import { formatUserPersonaForPrompt } from "@/lib/user-persona";
+import { createMessageWithNextSequence } from "@/lib/message-sequence";
 
 type Context = {
   params: {
@@ -81,21 +82,12 @@ export async function POST(request: Request, context: Context) {
     const model = input.model ?? chat.model;
     const temperature = input.temperature ?? chat.temperature;
     const providerKeys = await getEffectiveProviderKeys(user.id);
-    const lastSequence = await prisma.message.aggregate({
-      where: { chatId: chat.id },
-      _max: { sequence: true }
-    });
-    const userSequence = (lastSequence._max.sequence ?? chat.messages.length) + 1;
-    const assistantSequence = userSequence + 1;
 
-    const userMessage = await prisma.message.create({
-      data: {
-        chatId: chat.id,
-        sequence: userSequence,
-        role: MessageRole.USER,
-        content: message,
-        clientRequestId: input.requestId
-      }
+    const userMessage = await createMessageWithNextSequence({
+      chatId: chat.id,
+      role: MessageRole.USER,
+      content: message,
+      clientRequestId: input.requestId
     });
 
     const [memories, userPersona] = await Promise.all([
@@ -146,7 +138,8 @@ export async function POST(request: Request, context: Context) {
       temperature,
       userId: user.id,
       chatId: chat.id,
-      providerKeys
+      providerKeys,
+      signal: request.signal
     })) {
       if (chunk.type === "delta") {
         const nextText = assistantText + chunk.text;
@@ -178,16 +171,13 @@ export async function POST(request: Request, context: Context) {
       throw new Error("The model returned an empty response.");
     }
 
-    const assistantMessage = await prisma.message.create({
-      data: {
-        chatId: chat.id,
-        sequence: assistantSequence,
-        role: MessageRole.ASSISTANT,
-        content: assistantText,
-        model: usage.model,
-        tokens: usage.outputTokens,
-        flagged: outputBlocked
-      }
+    const assistantMessage = await createMessageWithNextSequence({
+      chatId: chat.id,
+      role: MessageRole.ASSISTANT,
+      content: assistantText,
+      model: usage.model,
+      tokens: usage.outputTokens,
+      flagged: outputBlocked
     });
 
     const nextTitle =
@@ -203,7 +193,7 @@ export async function POST(request: Request, context: Context) {
     const updated = await prisma.chat.update({
       where: { id: chat.id },
       data: {
-        messageCount: { increment: 2 },
+        messageCount: await prisma.message.count({ where: { chatId: chat.id } }),
         title: nextTitle,
         model,
         temperature,

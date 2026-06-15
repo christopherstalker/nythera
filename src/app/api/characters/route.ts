@@ -6,6 +6,8 @@ import { moderateText } from "@/lib/safety";
 import { getRequestIp, HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
 import { characterCreateSchema } from "@/lib/validation";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
   try {
     const session = await auth();
@@ -110,7 +112,8 @@ export async function POST(request: Request) {
         visibility: input.visibility,
         tags: input.tags,
         isNSFW: input.isNSFW,
-        moderationStatus: input.visibility === "PUBLIC" ? "PENDING" : "APPROVED"
+        // Public characters become discoverable immediately after automated safety moderation passes.
+        moderationStatus: "APPROVED"
       }
     });
 

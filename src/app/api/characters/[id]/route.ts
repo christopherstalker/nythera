@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
+import { moderateText } from "@/lib/safety";
 import { characterUpdateSchema } from "@/lib/validation";
 
 type Context = {
@@ -31,9 +32,12 @@ export async function GET(_request: Request, context: Context) {
       throw new HttpError(404, "Character not found.");
     }
 
-    if (character.visibility !== "PUBLIC") {
+    const isApprovedPublic = character.visibility === "PUBLIC" && character.moderationStatus === "APPROVED";
+    const isApprovedUnlisted = character.visibility === "UNLISTED" && character.moderationStatus === "APPROVED";
+
+    if (!isApprovedPublic) {
       const user = await requireUser();
-      if (character.creatorId !== user.id && user.role !== "ADMIN" && character.visibility !== "UNLISTED") {
+      if (character.creatorId !== user.id && user.role !== "ADMIN" && !isApprovedUnlisted) {
         throw new HttpError(404, "Character not found.");
       }
     }
@@ -78,7 +82,15 @@ export async function PATCH(request: Request, context: Context) {
     const user = await requireUser();
     const character = await prisma.character.findUnique({
       where: { id: context.params.id },
-      select: { creatorId: true }
+      select: {
+        creatorId: true,
+        name: true,
+        description: true,
+        personality: true,
+        scenario: true,
+        greeting: true,
+        persona: true
+      }
     });
 
     if (!character) {
@@ -94,6 +106,25 @@ export async function PATCH(request: Request, context: Context) {
       throw new HttpError(403, "Confirm age-gated access in profile settings before marking characters as NSFW.");
     }
 
+    const moderation = moderateText({
+      text: [
+        input.name ?? character.name,
+        input.description ?? character.description,
+        input.personality ?? character.personality,
+        input.scenario ?? character.scenario,
+        input.greeting ?? character.greeting,
+        JSON.stringify(input.persona ?? character.persona ?? {})
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      userIsMinor: isMinor(user.birthDate),
+      context: "character"
+    });
+
+    if (!moderation.allowed) {
+      throw new HttpError(400, moderation.reason ?? "Character content did not pass moderation.");
+    }
+
     const updated = await prisma.character.update({
       where: { id: context.params.id },
       data: {
@@ -101,7 +132,8 @@ export async function PATCH(request: Request, context: Context) {
         avatarUrl: input.avatarUrl === "" ? null : input.avatarUrl,
         communicationStyle: input.communicationStyle === undefined ? undefined : input.communicationStyle ?? Prisma.JsonNull,
         persona: input.persona === undefined ? undefined : input.persona ?? Prisma.JsonNull,
-        moderationStatus: input.visibility === "PUBLIC" ? "PENDING" : undefined
+        // Edits and visibility changes are re-approved only after the merged character text passes moderation.
+        moderationStatus: "APPROVED"
       }
     });
 
@@ -141,7 +173,7 @@ export async function POST(_request: Request, context: Context) {
       where: { id: context.params.id }
     });
 
-    if (!source || source.visibility !== "PUBLIC" || source.blockedAt) {
+    if (!source || source.visibility !== "PUBLIC" || source.moderationStatus !== "APPROVED" || source.blockedAt) {
       throw new HttpError(404, "Public character not found.");
     }
 
@@ -168,4 +200,13 @@ export async function POST(_request: Request, context: Context) {
   } catch (error) {
     return routeError(error);
   }
+}
+
+function isMinor(birthDate: Date | null) {
+  if (!birthDate) {
+    return false;
+  }
+
+  const ageMs = Date.now() - birthDate.getTime();
+  return ageMs < 18 * 365.25 * 24 * 60 * 60 * 1000;
 }

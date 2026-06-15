@@ -12,10 +12,10 @@ export async function POST(_request: Request, context: Context) {
     const user = await requireUser();
     const character = await prisma.character.findUnique({
       where: { id: context.params.id },
-      select: { id: true, visibility: true }
+      select: { id: true, visibility: true, moderationStatus: true, blockedAt: true }
     });
 
-    if (!character || character.visibility !== "PUBLIC") {
+    if (!character || character.visibility !== "PUBLIC" || character.moderationStatus !== "APPROVED" || character.blockedAt) {
       throw new HttpError(404, "Character not found.");
     }
 

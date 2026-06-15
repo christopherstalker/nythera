@@ -12,6 +12,7 @@ import { schedulePostMessageJobs } from "@/lib/memory";
 import { generateChatTitle } from "@/lib/chat-history";
 import { getEffectiveProviderKeys } from "@/lib/user-keys";
 import { formatUserPersonaForPrompt } from "@/lib/user-persona";
+import { createMessageWithNextSequence } from "@/lib/message-sequence";
 
 type Context = {
   params: {
@@ -81,7 +82,6 @@ export async function POST(request: Request, context: Context) {
 
     const providerKeys = await getEffectiveProviderKeys(user.id);
     let recentMessages = chat.messages.reverse();
-    let assistantSequence: number;
 
     if (input.regenerate) {
       let latestAssistantIndex = -1;
@@ -100,28 +100,12 @@ export async function POST(request: Request, context: Context) {
 
         recentMessages = recentMessages.filter((_, index) => index < firstVariantIndex || index > latestAssistantIndex);
       }
-
-      const lastSequence = await prisma.message.aggregate({
-        where: { chatId: chat.id },
-        _max: { sequence: true }
-      });
-      assistantSequence = (lastSequence._max.sequence ?? recentMessages.length) + 1;
     } else {
-      const lastSequence = await prisma.message.aggregate({
-        where: { chatId: chat.id },
-        _max: { sequence: true }
-      });
-      const userSequence = (lastSequence._max.sequence ?? chat.messages.length) + 1;
-      assistantSequence = userSequence + 1;
-
-      await prisma.message.create({
-        data: {
-          chatId: chat.id,
-          sequence: userSequence,
-          role: MessageRole.USER,
-          content: message,
-          clientRequestId: input.requestId
-        }
+      await createMessageWithNextSequence({
+        chatId: chat.id,
+        role: MessageRole.USER,
+        content: message,
+        clientRequestId: input.requestId
       });
     }
 
@@ -182,7 +166,8 @@ export async function POST(request: Request, context: Context) {
             temperature,
             userId: user.id,
             chatId: chat.id,
-            providerKeys
+            providerKeys,
+            signal: request.signal
           })) {
             if (chunk.type === "delta") {
               const nextText = assistantText + chunk.text;
@@ -218,16 +203,13 @@ export async function POST(request: Request, context: Context) {
             throw new Error("The model returned an empty response.");
           }
 
-          const assistant = await prisma.message.create({
-            data: {
-              chatId: chat.id,
-              sequence: assistantSequence,
-              role: MessageRole.ASSISTANT,
-              content: assistantText,
-              model: usage.model,
-              tokens: usage.outputTokens,
-              flagged: outputBlocked
-            }
+          const assistant = await createMessageWithNextSequence({
+            chatId: chat.id,
+            role: MessageRole.ASSISTANT,
+            content: assistantText,
+            model: usage.model,
+            tokens: usage.outputTokens,
+            flagged: outputBlocked
           });
           assistantPersisted = true;
           const nextTitle =
@@ -287,16 +269,13 @@ export async function POST(request: Request, context: Context) {
           console.error(error);
           const errorMessage = error instanceof Error ? error.message : "The model stream failed.";
           if (assistantText.trim() && !assistantPersisted) {
-            const assistant = await prisma.message.create({
-              data: {
-                chatId: chat.id,
-                sequence: assistantSequence,
-                role: MessageRole.ASSISTANT,
-                content: assistantText,
-                model: usage.model,
-                tokens: usage.outputTokens,
-                flagged: true
-              }
+            const assistant = await createMessageWithNextSequence({
+              chatId: chat.id,
+              role: MessageRole.ASSISTANT,
+              content: assistantText,
+              model: usage.model,
+              tokens: usage.outputTokens,
+              flagged: true
             });
             assistantPersisted = true;
             const nextTitle =
@@ -362,6 +341,7 @@ export async function POST(request: Request, context: Context) {
       headers: {
         "content-type": "text/event-stream; charset=utf-8",
         "cache-control": "no-cache, no-transform",
+        "x-accel-buffering": "no",
         connection: "keep-alive"
       }
     });

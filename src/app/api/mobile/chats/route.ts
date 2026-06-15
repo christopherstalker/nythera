@@ -62,8 +62,8 @@ export async function POST(request: Request) {
     }
 
     const canAccess =
-      character.visibility === "PUBLIC" ||
-      character.visibility === "UNLISTED" ||
+      ((character.visibility === "PUBLIC" || character.visibility === "UNLISTED") &&
+        character.moderationStatus === "APPROVED") ||
       character.creatorId === user.id ||
       user.role === "ADMIN";
 

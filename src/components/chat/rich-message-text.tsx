@@ -14,10 +14,13 @@ const patterns: TokenPattern[] = [
   { start: "__", end: "__", className: "underline decoration-primary/50 underline-offset-4 text-foreground" },
   { start: "~~", end: "~~", className: "text-muted-foreground/75" },
   { start: "*", end: "*", className: "italic text-foreground/95" },
+  { start: "\"", end: "\"", className: "rounded-md bg-white/[0.04] px-1 font-medium text-foreground", keepDelimiters: true },
   { start: "(", end: ")", className: "italic text-muted-foreground/80", keepDelimiters: true }
 ];
 
 export function RichMessageText({ text, className }: { text: string; className?: string }) {
+  // Render-only parser: raw formatted text stays unchanged in storage, memory, and prompt assembly.
+  // React text nodes keep this safe from HTML/script injection while preserving Character.AI-style prose.
   return <span className={cn("whitespace-pre-wrap", className)}>{renderTokens(text)}</span>;
 }
 

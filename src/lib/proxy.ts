@@ -12,6 +12,7 @@ type StreamInput = {
   userId: string;
   chatId: string;
   providerKeys?: ProviderKeys;
+  signal?: AbortSignal;
 };
 
 export async function* streamLlmResponse(input: StreamInput): AsyncGenerator<StreamChunk> {
@@ -21,14 +22,16 @@ export async function* streamLlmResponse(input: StreamInput): AsyncGenerator<Str
   }
 
   try {
+    const { signal, ...payload } = input;
     const response = await fetch(`${env.LLM_PROXY_URL}/v1/chat/stream`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
         authorization: `Bearer ${env.INTERNAL_API_TOKEN}`
       },
-      body: JSON.stringify(input),
-      signal: AbortSignal.timeout(30_000)
+      // Provider keys are passed only in this request payload; no key is cached globally by the proxy layer.
+      body: JSON.stringify(payload),
+      signal
     });
 
     if (!response.ok || !response.body) {
@@ -119,6 +122,10 @@ export async function* streamLlmResponse(input: StreamInput): AsyncGenerator<Str
       yield { type: "done" };
     }
   } catch (error) {
+    if (input.signal?.aborted) {
+      return;
+    }
+
     console.error("External LLM proxy failed, using Vercel gateway.", error);
     yield* streamGatewayResponse(input);
   }

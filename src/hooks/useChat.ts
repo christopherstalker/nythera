@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type ChatMessage = {
   id: string;
@@ -20,20 +20,32 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const inFlightRef = useRef(false);
 
   useEffect(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    inFlightRef.current = false;
     setMessages(initialMessages);
     setError(null);
     setIsStreaming(false);
+
+    return () => {
+      abortRef.current?.abort();
+    };
   }, [chatId, initialMessages]);
 
   const send = useCallback(
     async (content: string, options?: SendOptions) => {
       const trimmedContent = content.trim();
-      if (!trimmedContent || isStreaming) {
+      if (!trimmedContent || inFlightRef.current) {
         return;
       }
 
+      inFlightRef.current = true;
+      const abortController = new AbortController();
+      abortRef.current = abortController;
       const requestId = createRequestId();
       const userMessage: ChatMessage = {
         id: `local-user-${requestId}`,
@@ -60,6 +72,7 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
         const response = await fetch(`/api/chats/${chatId}/stream`, {
           method: "POST",
           headers: { "content-type": "application/json" },
+          signal: abortController.signal,
           body: JSON.stringify({
             message: trimmedContent,
             model: options?.model,
@@ -131,14 +144,22 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
           }
         }
       } catch (caught) {
+        if (caught instanceof DOMException && caught.name === "AbortError") {
+          return;
+        }
+
         const message = caught instanceof Error ? caught.message : "Unexpected chat error.";
         setError(message);
         setMessages((current) => current.filter((item) => item.id !== assistantMessage.id || item.content.length > 0));
       } finally {
+        if (abortRef.current === abortController) {
+          abortRef.current = null;
+        }
+        inFlightRef.current = false;
         setIsStreaming(false);
       }
     },
-    [chatId, isStreaming]
+    [chatId]
   );
 
   const editMessage = useCallback(async (messageId: string, content: string) => {

@@ -158,8 +158,22 @@ app.post("/v1/chat/stream", async (request, response) => {
   response.writeHead(200, {
     "content-type": "text/event-stream; charset=utf-8",
     "cache-control": "no-cache, no-transform",
+    "x-accel-buffering": "no",
     connection: "keep-alive"
   });
+
+  let clientClosed = false;
+  response.on("close", () => {
+    clientClosed = true;
+  });
+  const writeEvent = (payload: unknown) => {
+    if (clientClosed || response.writableEnded) {
+      return false;
+    }
+
+    response.write(`data: ${JSON.stringify(payload)}\n\n`);
+    return true;
+  };
 
   const providerKeys = withServerProviderKeys(parsed.data.providerKeys ?? []);
   const route = routeModel(parsed.data.model, providerKeys);
@@ -168,6 +182,11 @@ app.post("/v1/chat/stream", async (request, response) => {
   let lastError: unknown = null;
 
   for (const attempt of attempts) {
+    if (clientClosed) {
+      logger.info({ route: "chat", status: "client_closed", chatId: parsed.data.chatId, userId });
+      return;
+    }
+
     const attemptLabels = attempts.slice(0, attempts.indexOf(attempt) + 1).map((item) => `${item.providerName}:${item.model}`);
     const streamedBeforeAttempt = streamed.length;
     try {
@@ -178,6 +197,10 @@ app.post("/v1/chat/stream", async (request, response) => {
         temperature: parsed.data.temperature,
         key: attempt.key,
         writeDelta(delta) {
+          if (clientClosed) {
+            throw new Error("Client disconnected.");
+          }
+
           const next = streamed + delta;
           const check = moderateText(next);
           if (!check.allowed) {
@@ -185,12 +208,13 @@ app.post("/v1/chat/stream", async (request, response) => {
           }
 
           streamed = next;
-          response.write(`data: ${JSON.stringify({ type: "delta", text: delta })}\n\n`);
+          if (!writeEvent({ type: "delta", text: delta })) {
+            throw new Error("Client disconnected.");
+          }
         }
       });
 
-      response.write(
-        `data: ${JSON.stringify({
+      writeEvent({
           type: "usage",
           inputTokens: usage.inputTokens,
           outputTokens: usage.outputTokens || estimateTokens(streamed),
@@ -199,10 +223,11 @@ app.post("/v1/chat/stream", async (request, response) => {
           latencyMs: Date.now() - started,
           fallbackTriggered: attempts.indexOf(attempt) > 0,
           attempts: attemptLabels
-        })}\n\n`
-      );
-      response.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
-      response.end();
+        });
+      writeEvent({ type: "done" });
+      if (!clientClosed) {
+        response.end();
+      }
       logger.info({
         route: "chat",
         provider: attempt.providerName,
@@ -215,6 +240,11 @@ app.post("/v1/chat/stream", async (request, response) => {
       });
       return;
     } catch (error) {
+      if (clientClosed) {
+        logger.info({ route: "chat", status: "client_closed", chatId: parsed.data.chatId, userId });
+        return;
+      }
+
       lastError = error;
       logger.warn({
         error: error instanceof Error ? error.message : String(error),
@@ -223,12 +253,10 @@ app.post("/v1/chat/stream", async (request, response) => {
         emittedAny: streamed.length > streamedBeforeAttempt
       });
       if (streamed.length > streamedBeforeAttempt) {
-        response.write(
-          `data: ${JSON.stringify({
-            type: "error",
-            message: "The model stream was interrupted."
-          })}\n\n`
-        );
+        writeEvent({
+          type: "error",
+          message: "The model stream was interrupted."
+        });
         response.end();
         return;
       }
@@ -236,13 +264,13 @@ app.post("/v1/chat/stream", async (request, response) => {
     }
   }
 
-  response.write(
-    `data: ${JSON.stringify({
-      type: "error",
-      message: lastError instanceof Error ? lastError.message : "All model providers failed."
-    })}\n\n`
-  );
-  response.end();
+  writeEvent({
+    type: "error",
+    message: lastError instanceof Error ? lastError.message : "All model providers failed."
+  });
+  if (!clientClosed) {
+    response.end();
+  }
 });
 
 app.listen(port, () => {
