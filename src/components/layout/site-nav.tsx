@@ -38,7 +38,7 @@ export function SiteNav() {
   const isAuthenticated = status === "authenticated";
   const canUseAdmin = isPlatformAdminEmail(session?.user?.email);
   const links = canUseAdmin ? [...baseLinks, adminLink] : baseLinks;
-  const displayName = profilePreview?.username ?? session?.user?.username ?? session?.user?.name ?? session?.user?.email ?? "Aurenya user";
+  const displayName = profilePreview?.username ?? session?.user?.username ?? session?.user?.name ?? session?.user?.email ?? "Nythera user";
   const avatarUrl = profilePreview?.avatarUrl ?? session?.user?.image ?? null;
   const initial = displayName[0] ?? "V";
   const showMobileDock = !(
@@ -77,10 +77,10 @@ export function SiteNav() {
       }
     };
 
-    window.addEventListener("velora:profile-updated", onProfileUpdated);
+    window.addEventListener("nythera:profile-updated", onProfileUpdated);
     return () => {
       cancelled = true;
-      window.removeEventListener("velora:profile-updated", onProfileUpdated);
+      window.removeEventListener("nythera:profile-updated", onProfileUpdated);
     };
   }, [isAuthenticated]);
 
@@ -93,7 +93,7 @@ export function SiteNav() {
             <img src="/icon.svg" alt="" className="h-full w-full object-cover" />
           </span>
           <span className="hidden text-base font-semibold tracking-tight sm:inline">
-            Aurenya<span className="text-primary"> AI</span>
+            Nythera<span className="text-primary"> AI</span>
           </span>
         </Link>
 

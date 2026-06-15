@@ -1,26 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Aurenya">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Nythera">
   <defs>
-    <linearGradient id="aurenya-bg" x1="72" y1="36" x2="438" y2="476" gradientUnits="userSpaceOnUse">
+    <linearGradient id="nythera-bg" x1="72" y1="36" x2="438" y2="476" gradientUnits="userSpaceOnUse">
       <stop stop-color="#20150F"/>
       <stop offset="0.58" stop-color="#111018"/>
       <stop offset="1" stop-color="#07070C"/>
     </linearGradient>
-    <linearGradient id="aurenya-ember" x1="146" y1="88" x2="374" y2="422" gradientUnits="userSpaceOnUse">
+    <linearGradient id="nythera-ember" x1="132" y1="96" x2="386" y2="424" gradientUnits="userSpaceOnUse">
       <stop stop-color="#FFE0A3"/>
-      <stop offset="0.4" stop-color="#FB923C"/>
+      <stop offset="0.42" stop-color="#FB923C"/>
       <stop offset="1" stop-color="#EA580C"/>
     </linearGradient>
-    <radialGradient id="aurenya-glow" cx="0" cy="0" r="1" gradientTransform="matrix(0 188 -188 0 256 260)" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#F97316" stop-opacity="0.5"/>
+    <radialGradient id="nythera-glow" cx="0" cy="0" r="1" gradientTransform="matrix(0 188 -188 0 256 260)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F97316" stop-opacity="0.52"/>
       <stop offset="1" stop-color="#F97316" stop-opacity="0"/>
     </radialGradient>
   </defs>
-  <rect width="512" height="512" rx="128" fill="url(#aurenya-bg)"/>
-  <circle cx="256" cy="260" r="188" fill="url(#aurenya-glow)"/>
-  <path fill="url(#aurenya-ember)" d="M256 86c67 61 116 124 116 202 0 73-52 128-116 128s-116-55-116-128c0-78 49-141 116-202Zm0 86c-43 44-72 84-72 129 0 44 31 77 72 77s72-33 72-77c0-45-29-85-72-129Z"/>
-  <path fill="#FFF7ED" d="M254 168c8-12 26-6 26 9v163h-48V177c0-4 1-7 3-10l19 1Z"/>
-  <path fill="#FFF7ED" d="M160 346 250 154c5-11 17-17 29-13 11 4 17 17 12 28l-90 192c-5 11-18 16-29 11-11-5-16-18-12-26Zm191 15-90-192c-5-11 1-24 12-28 12-4 24 2 29 13l90 192c4 8 1 18-6 24-11 8-28 4-35-9Z"/>
-  <path fill="#111018" fill-opacity=".72" d="M218 294h76c11 0 20 9 20 20s-9 20-20 20h-76c-11 0-20-9-20-20s9-20 20-20Z"/>
-  <circle cx="392" cy="142" r="18" fill="#FED7AA"/>
-  <circle cx="118" cy="360" r="12" fill="#FB923C" opacity=".88"/>
+  <rect width="512" height="512" rx="128" fill="url(#nythera-bg)"/>
+  <circle cx="256" cy="260" r="188" fill="url(#nythera-glow)"/>
+  <path fill="url(#nythera-ember)" d="M256 72c69 58 120 123 120 204 0 80-53 140-120 140s-120-60-120-140c0-81 51-146 120-204Z"/>
+  <path fill="#111018" fill-opacity=".74" d="M184 154c0-18 14-32 32-32 12 0 23 7 28 17l82 160V154c0-18 14-32 32-32s32 14 32 32v210c0 15-10 28-24 31-14 4-29-3-36-16l-82-160v145c0 18-14 32-32 32s-32-14-32-32V154Z"/>
+  <path fill="#FFF7ED" d="M158 154c0-18 14-32 32-32 12 0 23 7 28 17l114 222c8 16 2 35-14 43-16 8-35 2-43-14L222 287v77c0 18-14 32-32 32s-32-14-32-32V154Zm196-32c18 0 32 14 32 32v210c0 18-14 32-32 32s-32-14-32-32V154c0-18 14-32 32-32Z"/>
+  <circle cx="395" cy="137" r="17" fill="#FED7AA"/>
+  <circle cx="120" cy="362" r="12" fill="#FB923C" opacity=".9"/>
 </svg>

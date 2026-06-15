@@ -3,7 +3,9 @@
 import { useEffect } from "react";
 
 export const DEFAULT_ACCENT_COLOR = "#f97316";
-export const APPEARANCE_STORAGE_KEY = "velora.appearance";
+export const APPEARANCE_STORAGE_KEY = "nythera.appearance";
+const LEGACY_APPEARANCE_STORAGE_KEY = "velora.appearance";
+const APPEARANCE_UPDATED_EVENT = "nythera:appearance-updated";
 
 export type StoredAppearance = {
   accentColor?: string;
@@ -16,7 +18,7 @@ export function AppearanceProvider() {
     applyStoredAppearance();
 
     const onStorage = (event: StorageEvent) => {
-      if (event.key === APPEARANCE_STORAGE_KEY) {
+      if (event.key === APPEARANCE_STORAGE_KEY || event.key === LEGACY_APPEARANCE_STORAGE_KEY) {
         applyStoredAppearance();
       }
     };
@@ -27,10 +29,10 @@ export function AppearanceProvider() {
     };
 
     window.addEventListener("storage", onStorage);
-    window.addEventListener("velora:appearance-updated", onAppearanceUpdated);
+    window.addEventListener(APPEARANCE_UPDATED_EVENT, onAppearanceUpdated);
     return () => {
       window.removeEventListener("storage", onStorage);
-      window.removeEventListener("velora:appearance-updated", onAppearanceUpdated);
+      window.removeEventListener(APPEARANCE_UPDATED_EVENT, onAppearanceUpdated);
     };
   }, []);
 
@@ -43,7 +45,7 @@ export function readStoredAppearance(): StoredAppearance {
   }
 
   try {
-    const raw = window.localStorage.getItem(APPEARANCE_STORAGE_KEY);
+    const raw = window.localStorage.getItem(APPEARANCE_STORAGE_KEY) ?? window.localStorage.getItem(LEGACY_APPEARANCE_STORAGE_KEY);
     if (!raw) {
       return {};
     }
@@ -67,7 +69,7 @@ export function saveStoredAppearance(next: StoredAppearance) {
   };
 
   window.localStorage.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(merged));
-  window.dispatchEvent(new CustomEvent<StoredAppearance>("velora:appearance-updated", { detail: merged }));
+  window.dispatchEvent(new CustomEvent<StoredAppearance>(APPEARANCE_UPDATED_EVENT, { detail: merged }));
 }
 
 export function applyAccentColor(hexColor: string) {

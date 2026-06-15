@@ -466,7 +466,7 @@ function withServerProviderKeys(keys: ProviderKeys): ProviderKeys {
   if (serverOpenAIKey && !providers.has("openai")) {
     result.push({
       provider: "openai",
-      displayName: "Aurenya OpenAI",
+      displayName: "Nythera OpenAI",
       apiFormat: "OPENAI",
       apiKey: serverOpenAIKey,
       baseUrl: "https://api.openai.com/v1",
@@ -477,7 +477,7 @@ function withServerProviderKeys(keys: ProviderKeys): ProviderKeys {
   if (serverAnthropicKey && !providers.has("anthropic")) {
     result.push({
       provider: "anthropic",
-      displayName: "Aurenya Anthropic",
+      displayName: "Nythera Anthropic",
       apiFormat: "ANTHROPIC",
       apiKey: serverAnthropicKey,
       defaultModel: "claude-3-5-sonnet-latest"
@@ -487,7 +487,7 @@ function withServerProviderKeys(keys: ProviderKeys): ProviderKeys {
   if (serverGeminiKey && !providers.has("gemini")) {
     result.push({
       provider: "gemini",
-      displayName: "Aurenya Gemini",
+      displayName: "Nythera Gemini",
       apiFormat: "GEMINI",
       apiKey: serverGeminiKey,
       defaultModel: "gemini-2.5-flash"
@@ -618,7 +618,7 @@ async function streamLocal(input: {
   const text = `Local proxy fallback is active. I received: "${final.slice(
     0,
     180
-  )}". Add your own model key in Aurenya settings to use live model streaming.`;
+  )}". Add your own model key in Nythera settings to use live model streaming.`;
 
   for (const part of text.split(/(\s+)/)) {
     await delay(18);

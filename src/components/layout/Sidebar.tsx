@@ -56,7 +56,7 @@ export function Sidebar() {
   const [profilePreview, setProfilePreview] = useState<ProfilePreview | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const isAuthenticated = status === "authenticated";
-  const displayName = profilePreview?.username ?? session?.user?.username ?? session?.user?.name ?? session?.user?.email ?? "Aurenya user";
+  const displayName = profilePreview?.username ?? session?.user?.username ?? session?.user?.name ?? session?.user?.email ?? "Nythera user";
   const avatarUrl = profilePreview?.avatarUrl ?? session?.user?.image ?? null;
 
   useEffect(() => {
@@ -100,10 +100,10 @@ export function Sidebar() {
       }
     };
 
-    window.addEventListener("velora:profile-updated", onProfileUpdated);
+    window.addEventListener("nythera:profile-updated", onProfileUpdated);
     return () => {
       cancelled = true;
-      window.removeEventListener("velora:profile-updated", onProfileUpdated);
+      window.removeEventListener("nythera:profile-updated", onProfileUpdated);
     };
   }, [isAuthenticated]);
 
@@ -134,7 +134,7 @@ export function Sidebar() {
             <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full border border-white/10 bg-gradient-to-br from-[var(--accent-purple)] to-[var(--accent-secondary)] text-white shadow-[var(--shadow-glow)]">
               <img src="/icon.svg" alt="" className="h-full w-full rounded-full object-cover" />
             </span>
-            <span className={cn("font-semibold tracking-tight text-[var(--text-primary)]", labelClass)}>Aurenya</span>
+            <span className={cn("font-semibold tracking-tight text-[var(--text-primary)]", labelClass)}>Nythera</span>
           </Link>
           <button
             type="button"

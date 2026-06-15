@@ -9,7 +9,7 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 };
 
-const DISMISS_KEY = "aurenya:pwa-install-dismissed";
+const DISMISS_KEY = "nythera:pwa-install-dismissed";
 
 export function PwaProvider() {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -19,7 +19,7 @@ export function PwaProvider() {
     if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
       window.addEventListener("load", () => {
         navigator.serviceWorker.register("/sw.js").catch((error) => {
-          console.warn("Aurenya service worker registration failed.", error);
+          console.warn("Nythera service worker registration failed.", error);
         });
       });
     }
@@ -67,10 +67,10 @@ export function PwaProvider() {
           <Smartphone className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-foreground">Install Aurenya</p>
+          <p className="text-sm font-semibold text-foreground">Install Nythera</p>
           <p className="mt-0.5 text-xs leading-5 text-muted-foreground">Add the app to your phone for full-screen chats.</p>
         </div>
-        <Button type="button" size="icon" onClick={install} aria-label="Install Aurenya">
+        <Button type="button" size="icon" onClick={install} aria-label="Install Nythera">
           <Download className="h-4 w-4" />
         </Button>
         <button

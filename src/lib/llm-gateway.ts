@@ -356,7 +356,7 @@ async function* streamLocalDeltas(messages: PromptMessage[], writeDelta: (delta:
   const text = `Local proxy fallback is active. I received: "${final.slice(
     0,
     180
-  )}". Add your own model key in Aurenya settings to use live model streaming.`;
+  )}". Add your own model key in Nythera settings to use live model streaming.`;
 
   for (const part of text.split(/(\s+)/)) {
     await sleep(18);

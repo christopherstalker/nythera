@@ -24,7 +24,8 @@ export async function GET(request: Request) {
       : {
           visibility: Visibility.PUBLIC,
           moderationStatus: "APPROVED",
-          blockedAt: null
+          blockedAt: null,
+          AND: [{ avatarUrl: { not: null } }, { avatarUrl: { not: "" } }]
         };
 
     if (visibility && mine) {
@@ -84,6 +85,10 @@ export async function POST(request: Request) {
     const input = await parseJson(request, characterCreateSchema);
     if (input.isNSFW && !user.ageVerified) {
       throw new HttpError(403, "Confirm age-gated access in profile settings before creating NSFW characters.");
+    }
+
+    if (input.visibility === "PUBLIC" && !input.avatarUrl?.trim()) {
+      throw new HttpError(400, "Add an avatar before publishing a character publicly.");
     }
 
     const moderation = moderateText({

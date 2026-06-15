@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const COUNT_PER_GENRE = 90;
-const OUTPUT_FILE = path.join(process.cwd(), "data", "velora-ai-characters-1080.json");
+const OUTPUT_FILE = path.join(process.cwd(), "data", "nythera-ai-characters-1080.json");
 
 const shared = {
   initiative: [
@@ -355,7 +355,7 @@ function generate() {
       });
 
       characters.push({
-        id: `velora-${slug(config.genre)}-${String(serial).padStart(3, "0")}`,
+        id: `nythera-${slug(config.genre)}-${String(serial).padStart(3, "0")}`,
         name,
         shortDescription: pick(shortDescriptionOpeners, index, 1)({ name, role, desire }),
         personaPrompt: [

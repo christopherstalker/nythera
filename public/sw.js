@@ -1,4 +1,4 @@
-const CACHE_NAME = "aurenya-mobile-v2";
+const CACHE_NAME = "nythera-mobile-v3";
 const CORE_ASSETS = ["/offline.html", "/icon.svg", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/maskable-512.png"];
 
 self.addEventListener("install", (event) => {

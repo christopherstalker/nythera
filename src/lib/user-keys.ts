@@ -137,7 +137,7 @@ export function getServerProviderKeys(): ProviderKeys {
   if (env.OPENAI_API_KEY) {
     keys.push({
       provider: "openai",
-      displayName: "Aurenya OpenAI",
+      displayName: "Nythera OpenAI",
       apiFormat: "OPENAI",
       apiKey: env.OPENAI_API_KEY,
       baseUrl: "https://api.openai.com/v1",
@@ -148,7 +148,7 @@ export function getServerProviderKeys(): ProviderKeys {
   if (env.ANTHROPIC_API_KEY) {
     keys.push({
       provider: "anthropic",
-      displayName: "Aurenya Anthropic",
+      displayName: "Nythera Anthropic",
       apiFormat: "ANTHROPIC",
       apiKey: env.ANTHROPIC_API_KEY,
       defaultModel: "claude-3-5-sonnet-latest"
@@ -158,7 +158,7 @@ export function getServerProviderKeys(): ProviderKeys {
   if (env.GEMINI_API_KEY) {
     keys.push({
       provider: "gemini",
-      displayName: "Aurenya Gemini",
+      displayName: "Nythera Gemini",
       apiFormat: "GEMINI",
       apiKey: env.GEMINI_API_KEY,
       defaultModel: "gemini-2.5-flash"

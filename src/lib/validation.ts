@@ -50,7 +50,7 @@ export const characterPersonaSchema = z.object({
 export const characterCreateSchema = z.object({
   name: z.string().min(2).max(80),
   avatarUrl: imageSourceSchema.optional().or(z.literal("")),
-  description: z.string().min(20).max(5000),
+  description: z.string().min(10).max(5000),
   personality: z.string().min(20).max(5000),
   scenario: z.string().max(5000).optional(),
   greeting: z.string().min(2).max(2000),

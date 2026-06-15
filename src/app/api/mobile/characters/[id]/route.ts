@@ -61,6 +61,8 @@ export async function PATCH(request: Request, context: Context) {
         personality: true,
         scenario: true,
         greeting: true,
+        avatarUrl: true,
+        visibility: true,
         persona: true
       }
     });
@@ -76,6 +78,12 @@ export async function PATCH(request: Request, context: Context) {
     const input = await parseJson(request, characterUpdateSchema);
     if (input.isNSFW && !user.ageVerified) {
       throw new HttpError(403, "Confirm age-gated access in profile settings before marking characters as NSFW.");
+    }
+
+    const nextVisibility = input.visibility ?? character.visibility;
+    const nextAvatarUrl = input.avatarUrl === undefined ? character.avatarUrl : input.avatarUrl;
+    if (nextVisibility === "PUBLIC" && !nextAvatarUrl?.trim()) {
+      throw new HttpError(400, "Add an avatar before publishing a character publicly.");
     }
 
     const moderation = moderateText({

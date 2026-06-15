@@ -19,7 +19,7 @@ const response = await fetch(proxyUrl, {
     messages: [
       {
         role: "system",
-        content: "Reply with one short sentence confirming Aurenya proxy validation. Do not mention secrets."
+        content: "Reply with one short sentence confirming Nythera proxy validation. Do not mention secrets."
       },
       {
         role: "user",

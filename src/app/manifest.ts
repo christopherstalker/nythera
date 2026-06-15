@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Aurenya AI Character Chat",
-    short_name: "Aurenya",
+    name: "Nythera AI Character Chat",
+    short_name: "Nythera",
     description: "AI character chats with persona, memory, and secure model access.",
     id: "/",
     start_url: "/",
@@ -14,6 +14,12 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#0B0B12",
     categories: ["social", "entertainment", "productivity"],
     icons: [
+      {
+        src: "/icon.svg",
+        sizes: "512x512",
+        type: "image/svg+xml",
+        purpose: "any"
+      },
       {
         src: "/icons/icon-192.png",
         sizes: "192x192",

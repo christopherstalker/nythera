@@ -8,7 +8,7 @@ export default function CreateCharacterPage() {
       <PageHeader
         icon={Plus}
         title="Create character"
-        description="Build a persona, greeting, lore, style tuning, and publishing settings."
+        description="Start simple with a name and short description, or switch to custom controls when you need them."
       />
       <CharacterForm mode="create" />
     </PageShell>

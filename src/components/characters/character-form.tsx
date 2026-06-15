@@ -2,7 +2,7 @@
 
 import { ChangeEvent, FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Bot, Globe, ImagePlus, Lock, MessageSquare, Palette, Save, ShieldCheck, Upload, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bot, Globe, ImagePlus, Lock, MessageSquare, Palette, Save, ShieldCheck, SlidersHorizontal, Upload, Wand2, X, type LucideIcon } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,6 +53,8 @@ type CharacterFormProps = {
   initialValue?: CharacterFormInitialValue;
 };
 
+type CreationMode = "simple" | "custom";
+
 const emptyDraft: CharacterFormValue = {
   name: "",
   avatarUrl: "",
@@ -98,16 +100,31 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
+  const [formMode, setFormMode] = useState<CreationMode>(() => (mode === "edit" ? "custom" : "simple"));
 
   const tags = useMemo(() => parseTags(draft.tags), [draft.tags]);
-  const previewName = draft.name.trim() || "Character name";
-  const previewDescription = draft.description.trim() || "Short description";
+  const generatedDraft = useMemo(() => applySimpleGeneratedFields(draft), [draft]);
+  const isSimpleMode = mode === "create" && formMode === "simple";
+  const activeDraft = isSimpleMode ? generatedDraft : draft;
+  const previewTags = isSimpleMode ? parseTags(generatedDraft.tags) : tags;
+  const previewName = activeDraft.name.trim() || "Character name";
+  const previewDescription = activeDraft.description.trim() || "Short description";
   const currentStep = wizardSteps[stepIndex];
   const isFinalStep = stepIndex === wizardSteps.length - 1;
-  const canSubmit = Boolean(draft.name.trim() && draft.description.trim() && draft.greeting.trim() && draft.personality.trim());
+  const canSubmit = isSimpleMode
+    ? Boolean(draft.name.trim().length >= 2 && draft.description.trim().length >= 10)
+    : Boolean(draft.name.trim() && draft.description.trim() && draft.greeting.trim() && draft.personality.trim());
 
   function update<K extends keyof CharacterFormValue>(field: K, value: CharacterFormValue[K]) {
     setDraft((current) => ({ ...current, [field]: value }));
+  }
+
+  function switchFormMode(nextMode: CreationMode) {
+    if (nextMode === "custom") {
+      setDraft((current) => applySimpleGeneratedFields(current));
+    }
+    setFormMode(nextMode);
+    setError(null);
   }
 
   function onAvatarFile(event: ChangeEvent<HTMLInputElement>) {
@@ -141,41 +158,49 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
     event.preventDefault();
     setSaving(true);
     setError(null);
+    const submissionDraft = isSimpleMode ? applySimpleGeneratedFields(draft) : draft;
+    const submissionTags = parseTags(submissionDraft.tags);
+
+    if (submissionDraft.visibility === "PUBLIC" && !submissionDraft.avatarUrl.trim()) {
+      setSaving(false);
+      setError("Add an avatar before publishing publicly, or save the character as private.");
+      return;
+    }
 
     const payload = {
-      name: draft.name.trim(),
-      avatarUrl: draft.avatarUrl,
-      description: draft.description.trim(),
-      personality: draft.personality.trim(),
-      scenario: draft.scenario.trim(),
-      greeting: draft.greeting.trim(),
-      visibility: draft.visibility,
-      isNSFW: draft.isNSFW,
-      tags: tags.length > 0 ? tags : ["roleplay"],
+      name: submissionDraft.name.trim(),
+      avatarUrl: submissionDraft.avatarUrl,
+      description: submissionDraft.description.trim(),
+      personality: submissionDraft.personality.trim(),
+      scenario: submissionDraft.scenario.trim(),
+      greeting: submissionDraft.greeting.trim(),
+      visibility: submissionDraft.visibility,
+      isNSFW: submissionDraft.isNSFW,
+      tags: submissionTags.length > 0 ? submissionTags : ["roleplay"],
       persona: {
-        name: draft.name.trim(),
-        role: draft.personaRole.trim() || draft.description.trim(),
-        archetype: draft.archetype.trim() || draft.personaRole.trim() || draft.description.trim(),
-        personalityTraits: parseLines(draft.personaTraits || draft.personality).slice(0, 16),
-        speakingStyle: draft.speakingStyle.trim() || "Natural, consistent, and in character.",
-        emotionalTone: draft.emotionalTone.trim() || "attentive",
-        relationshipStyle: draft.relationshipStyle,
-        relationshipDynamics: draft.relationshipStyle,
-        initiativeLevel: draft.initiativeLevel,
-        verbosityLevel: draft.verbosityLevel,
-        motivation: draft.motivation.trim() || "Create a memorable character chat with strong continuity.",
-        boundaries: parseLines(draft.boundaries),
-        behavioralRules: parseLines(draft.behavioralRules),
-        forbiddenBehaviors: parseLines(draft.forbiddenBehaviors)
+        name: submissionDraft.name.trim(),
+        role: submissionDraft.personaRole.trim() || submissionDraft.description.trim(),
+        archetype: submissionDraft.archetype.trim() || submissionDraft.personaRole.trim() || submissionDraft.description.trim(),
+        personalityTraits: parseLines(submissionDraft.personaTraits || submissionDraft.personality).slice(0, 16),
+        speakingStyle: submissionDraft.speakingStyle.trim() || "Natural, consistent, and in character.",
+        emotionalTone: submissionDraft.emotionalTone.trim() || "attentive",
+        relationshipStyle: submissionDraft.relationshipStyle,
+        relationshipDynamics: submissionDraft.relationshipStyle,
+        initiativeLevel: submissionDraft.initiativeLevel,
+        verbosityLevel: submissionDraft.verbosityLevel,
+        motivation: submissionDraft.motivation.trim() || "Create a memorable character chat with strong continuity.",
+        boundaries: parseLines(submissionDraft.boundaries),
+        behavioralRules: parseLines(submissionDraft.behavioralRules),
+        forbiddenBehaviors: parseLines(submissionDraft.forbiddenBehaviors)
       },
       communicationStyle: {
-        tone: draft.tone.trim() || "natural",
-        humor: draft.humor,
-        romanceLevel: draft.romanceLevel,
-        seriousness: draft.seriousness,
-        initiative: draft.initiative,
-        messageLength: draft.messageLength,
-        roleplayIntensity: draft.roleplayIntensity
+        tone: submissionDraft.tone.trim() || "natural",
+        humor: submissionDraft.humor,
+        romanceLevel: submissionDraft.romanceLevel,
+        seriousness: submissionDraft.seriousness,
+        initiative: submissionDraft.initiative,
+        messageLength: submissionDraft.messageLength,
+        roleplayIntensity: submissionDraft.roleplayIntensity
       }
     };
 
@@ -208,7 +233,62 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,680px)_minmax(300px,1fr)] lg:items-start">
       <form onSubmit={onSubmit} className="grid min-w-0 gap-5">
-        {/* Major UI refactor: fields and submit payload stay unchanged, but the long form is now a focused wizard. */}
+        {/* Major UX refactor: Simple mode submits generated persona fields; Custom mode preserves full manual control. */}
+        {mode === "create" ? (
+          <div className="glass-panel grid grid-cols-2 gap-2 p-2">
+            <ModeButton label="Simple" icon={Wand2} active={isSimpleMode} onClick={() => switchFormMode("simple")} />
+            <ModeButton label="Custom" icon={SlidersHorizontal} active={!isSimpleMode} onClick={() => switchFormMode("custom")} />
+          </div>
+        ) : null}
+
+        {isSimpleMode ? (
+          <Panel title="Simple mode" icon={Wand2} description="Name the character and describe the idea. Nythera will generate the voice, scene, and greeting.">
+            <Field label="Character name">
+              <Input value={draft.name} onChange={(event) => update("name", event.target.value)} placeholder="Raven" required />
+            </Field>
+            <Field label="Short description">
+              <Textarea
+                value={draft.description}
+                onChange={(event) => update("description", event.target.value)}
+                placeholder="A guarded childhood friend who hides tenderness behind dry sarcasm."
+                required
+              />
+            </Field>
+            <div className="grid gap-4 sm:grid-cols-[220px_minmax(0,1fr)]">
+              <Field label="Avatar">
+                <label className="focus-ring flex min-h-[180px] cursor-pointer flex-col items-center justify-center rounded-[var(--radius-lg)] border border-dashed border-[var(--border-default)] bg-[var(--bg-input)] p-5 text-center backdrop-blur-xl transition hover:border-[var(--accent-purple)] hover:bg-white/[0.045]">
+                  <span className="grid h-24 w-24 place-items-center overflow-hidden rounded-full border border-white/10 bg-[var(--bg-elevated)] text-[var(--accent-purple)] shadow-[var(--shadow-glow)]">
+                    {draft.avatarUrl ? <img src={draft.avatarUrl} alt="" className="h-full w-full object-cover" /> : <Upload className="h-7 w-7" />}
+                  </span>
+                  <span className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]">
+                    <ImagePlus className="h-4 w-4" />
+                    Upload avatar
+                  </span>
+                  <input type="file" accept="image/*" className="sr-only" onChange={onAvatarFile} />
+                </label>
+                {draft.avatarUrl ? (
+                  <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => update("avatarUrl", "")}>
+                    <X className="h-4 w-4" />
+                    Clear avatar
+                  </Button>
+                ) : null}
+              </Field>
+              <div className="grid content-start gap-4">
+                <Field label="Visibility">
+                  <div className="grid grid-cols-2 gap-2 rounded-[var(--radius-pill)] border border-[var(--border-default)] bg-[var(--bg-input)] p-1">
+                    <VisibilityButton icon={Lock} label="Private" selected={draft.visibility === "PRIVATE"} onClick={() => update("visibility", "PRIVATE")} />
+                    <VisibilityButton icon={Globe} label="Public" selected={draft.visibility === "PUBLIC"} onClick={() => update("visibility", "PUBLIC")} />
+                  </div>
+                </Field>
+                <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4 text-sm leading-6 text-[var(--text-secondary)] shadow-[var(--glass-highlight)] backdrop-blur-xl">
+                  <p className="font-medium text-[var(--text-primary)]">Generated preview</p>
+                  <p className="mt-2 line-clamp-3">{generatedDraft.greeting}</p>
+                </div>
+              </div>
+            </div>
+          </Panel>
+        ) : (
+          <>
         <div className="glass-panel overflow-hidden p-3">
           <div className="scrollbar-none flex gap-2 overflow-x-auto pb-1 lg:grid lg:grid-cols-5">
             {wizardSteps.map((step, index) => {
@@ -359,37 +439,52 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
             ) : null}
           </div>
         </Panel>
+          </>
+        )}
 
         {error ? <p className="rounded-[var(--radius-md)] border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</p> : null}
 
-        <div className="glass-panel flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
-          <Button type="button" variant="outline" onClick={() => setStepIndex((current) => Math.max(0, current - 1))} disabled={stepIndex === 0}>
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Button>
-          <div className="flex items-center gap-2">
-            <span className="hidden text-sm text-[var(--text-muted)] sm:inline">{stepIndex + 1} / {wizardSteps.length}</span>
-            {isFinalStep ? (
-              <Button type="submit" size="lg" disabled={saving || !canSubmit}>
-                <Save className="h-4 w-4" />
-                {saving ? "Saving..." : mode === "edit" ? "Save character" : "Create character"}
-              </Button>
-            ) : (
-              <Button type="button" size="lg" onClick={() => setStepIndex((current) => Math.min(wizardSteps.length - 1, current + 1))}>
-                Next
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            )}
+        {isSimpleMode ? (
+          <div className="glass-panel flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <Button type="button" variant="outline" onClick={() => switchFormMode("custom")}>
+              <SlidersHorizontal className="h-4 w-4" />
+              Customize
+            </Button>
+            <Button type="submit" size="lg" disabled={saving || !canSubmit}>
+              <Save className="h-4 w-4" />
+              {saving ? "Saving..." : "Create character"}
+            </Button>
           </div>
-        </div>
+        ) : (
+          <div className="glass-panel flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <Button type="button" variant="outline" onClick={() => setStepIndex((current) => Math.max(0, current - 1))} disabled={stepIndex === 0}>
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Button>
+            <div className="flex items-center gap-2">
+              <span className="hidden text-sm text-[var(--text-muted)] sm:inline">{stepIndex + 1} / {wizardSteps.length}</span>
+              {isFinalStep ? (
+                <Button type="submit" size="lg" disabled={saving || !canSubmit}>
+                  <Save className="h-4 w-4" />
+                  {saving ? "Saving..." : mode === "edit" ? "Save character" : "Create character"}
+                </Button>
+              ) : (
+                <Button type="button" size="lg" onClick={() => setStepIndex((current) => Math.min(wizardSteps.length - 1, current + 1))}>
+                  Next
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
       </form>
 
       <aside className="lg:sticky lg:top-6">
         <div className="glass-panel mx-auto w-full max-w-[390px] p-4">
           <div className="relative h-[300px] overflow-hidden rounded-[24px] border border-[var(--border-default)] bg-[var(--bg-elevated)]">
             <div className="relative h-[68%]">
-              {draft.avatarUrl ? (
-                <img src={draft.avatarUrl} alt="" className="h-full w-full object-cover" />
+              {activeDraft.avatarUrl ? (
+                <img src={activeDraft.avatarUrl} alt="" className="h-full w-full object-cover" />
               ) : (
                 <div className="grid h-full w-full place-items-center bg-[linear-gradient(145deg,rgb(var(--accent-rgb)_/_0.24),rgb(20_20_35))]">
                   <Avatar name={previewName} size="xl" className="h-28 w-28 bg-[var(--accent-purple-soft)]" />
@@ -407,11 +502,11 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
             <p className="text-sm font-semibold text-[var(--text-primary)]">{previewName}</p>
             <p className="mt-1 line-clamp-3 text-xs leading-5 text-[var(--text-secondary)]">{previewDescription}</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              {(tags.length ? tags : ["roleplay"]).slice(0, 4).map((tag) => <Badge key={tag}>{tag}</Badge>)}
+              {(previewTags.length ? previewTags : ["roleplay"]).slice(0, 4).map((tag) => <Badge key={tag}>{tag}</Badge>)}
             </div>
           </div>
           <div className="mt-3 bubble-char max-w-full">
-            {draft.greeting.trim() || "Your greeting appears here."}
+            {activeDraft.greeting.trim() || "Your greeting appears here."}
           </div>
         </div>
       </aside>
@@ -454,6 +549,97 @@ function normalizeInitialValue(value?: CharacterFormProps["initialValue"]): Char
   };
 }
 
+function applySimpleGeneratedFields(draft: CharacterFormValue): CharacterFormValue {
+  const name = draft.name.trim() || "This character";
+  const description = draft.description.trim();
+  const tone = inferSimpleTone(description);
+  const relationshipStyle = inferRelationshipStyle(description);
+  const traits = [
+    "emotionally responsive",
+    "scene-aware",
+    "consistent in character",
+    tone === "dry" ? "quietly sarcastic" : tone === "dark" ? "intense" : "attentive"
+  ];
+
+  return {
+    ...draft,
+    tags: draft.tags.trim() ? draft.tags : "roleplay, original",
+    personality:
+      draft.personality.trim() ||
+      `${name} is a user-created roleplay persona shaped by this core idea: ${description}. Speak with a ${tone} tone, keep replies immersive and emotionally grounded, and make each response feel specific to the user's last message. Stay in character, preserve continuity, respect boundaries, and never force the user's actions or feelings. Take light initiative by adding scene details, small choices, and relationship nuance when the conversation slows.`,
+    scenario:
+      draft.scenario.trim() ||
+      `The chat opens in a flexible scene built around ${name}'s central premise: ${description}. Treat the user's first message as the starting point and adapt the setting naturally while keeping the character's mood, relationship dynamic, and motivation consistent.`,
+    greeting:
+      draft.greeting.trim() ||
+      `${name} pauses as the space between you settles into something charged and quiet. Their expression shifts, guarded but unmistakably focused, as if your arrival has interrupted a thought they were not ready to share. "You came," they say, voice carrying the weight of the scene without giving everything away. For a moment, the world feels smaller, narrowed to what you will say next and what ${name} is willing to reveal. The conversation is yours to begin, but they are already watching for the truth behind it.`,
+    personaRole: draft.personaRole.trim() || description,
+    archetype: draft.archetype.trim() || "user-created persona",
+    personaTraits: draft.personaTraits.trim() || traits.join("\n"),
+    speakingStyle: draft.speakingStyle.trim() || `Immersive, natural, emotionally precise, and ${tone}.`,
+    emotionalTone: tone,
+    relationshipStyle,
+    initiativeLevel: draft.initiativeLevel || "medium",
+    verbosityLevel: draft.verbosityLevel || "balanced",
+    motivation: draft.motivation.trim() || "Create an engaging roleplay scene with believable continuity and emotional stakes.",
+    tone,
+    initiative: Math.max(draft.initiative, 6),
+    roleplayIntensity: Math.max(draft.roleplayIntensity, 6)
+  };
+}
+
+function inferSimpleTone(text: string) {
+  const normalized = text.toLowerCase();
+  if (/\b(horror|dark|haunted|villain|danger|obsessive|revenge)\b/.test(normalized)) {
+    return "dark";
+  }
+  if (/\b(sarcastic|dry|rival|snarky|teasing)\b/.test(normalized)) {
+    return "dry";
+  }
+  if (/\b(soft|gentle|comfort|sweet|warm|kind)\b/.test(normalized)) {
+    return "warm";
+  }
+  if (/\b(energetic|chaotic|funny|bright|excited)\b/.test(normalized)) {
+    return "energetic";
+  }
+  return "cinematic";
+}
+
+function inferRelationshipStyle(text: string): CharacterFormValue["relationshipStyle"] {
+  const normalized = text.toLowerCase();
+  if (/\b(romance|romantic|lover|crush|dating)\b/.test(normalized)) {
+    return "romantic";
+  }
+  if (/\b(mentor|coach|teacher|guide)\b/.test(normalized)) {
+    return "mentor";
+  }
+  if (/\b(rival|enemy|competition)\b/.test(normalized)) {
+    return "rival";
+  }
+  if (/\b(villain|antagonist)\b/.test(normalized)) {
+    return "antagonist";
+  }
+  return "friend";
+}
+
+function ModeButton({ label, icon: Icon, active, onClick }: { label: string; icon: LucideIcon; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "focus-ring flex h-12 items-center justify-center gap-2 rounded-[var(--radius-pill)] text-sm font-semibold transition-colors duration-150 active:scale-95",
+        active
+          ? "bg-gradient-to-br from-[var(--accent-purple)] to-[var(--accent-secondary)] text-white shadow-[var(--shadow-glow)]"
+          : "text-[var(--text-secondary)] hover:bg-white/[0.055] hover:text-[var(--text-primary)]"
+      )}
+    >
+      <Icon className="h-4 w-4" />
+      {label}
+    </button>
+  );
+}
+
 function Panel({
   title,
   description,
@@ -462,7 +648,7 @@ function Panel({
 }: {
   title: string;
   description?: string;
-  icon?: typeof Bot;
+  icon?: LucideIcon;
   children: React.ReactNode;
 }) {
   return (
@@ -526,7 +712,7 @@ function Slider({ label, value, onChange }: { label: string; value: number; onCh
   );
 }
 
-function VisibilityButton({ icon: Icon, label, selected, onClick }: { icon: typeof Lock; label: string; selected: boolean; onClick: () => void }) {
+function VisibilityButton({ icon: Icon, label, selected, onClick }: { icon: LucideIcon; label: string; selected: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
