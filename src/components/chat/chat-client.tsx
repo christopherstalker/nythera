@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { MessageList } from "@/components/chat/MessageList";
+import { ChatQuickPanel } from "@/components/chat/chat-quick-panel";
 import { TopBar } from "@/components/layout/TopBar";
 import { useChat, type ChatMessage } from "@/hooks/useChat";
 import { useUiStore } from "@/stores/use-ui-store";
@@ -32,6 +33,7 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
   const [activeRouteModel, setActiveRouteModel] = useState<string | null>(null);
   const [manualModelOverride, setManualModelOverride] = useState(false);
   const [temperature, setTemperature] = useState(initialTemperature ?? 0.8);
+  const [quickPanelOpen, setQuickPanelOpen] = useState(false);
   const { messages, send, editMessage, deleteMessage, branchFromMessage, isStreaming, error } = useChat(chatId, initialMessages);
   const setActiveChatId = useUiStore((state) => state.setActiveChatId);
   const usesAutoModel = !manualModelOverride && APP_DEFAULT_MODELS.has(model.trim().toLowerCase());
@@ -47,6 +49,10 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
     setActiveChatId(chatId);
     return () => setActiveChatId(null);
   }, [chatId, setActiveChatId]);
+
+  useEffect(() => {
+    setQuickPanelOpen(window.matchMedia("(min-width: 1280px)").matches);
+  }, [chatId]);
 
   useEffect(() => {
     if (!APP_DEFAULT_MODELS.has(model.trim().toLowerCase())) {
@@ -125,29 +131,53 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
           className="pointer-events-none absolute inset-0 -z-20 h-full w-full scale-110 object-cover opacity-20 blur-3xl"
         />
       ) : null}
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgb(11_11_18_/_0.78),rgb(11_11_18_/_0.92)_34%,rgb(11_11_18))]" />
+      <div className="pointer-events-none absolute inset-0 -z-10" style={{ background: "var(--chat-overlay)" }} />
       <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-52 bg-gradient-to-b from-primary/[0.11] to-transparent" />
-      <TopBar chatId={chatId} characterId={characterId} characterName={characterName} characterAvatarUrl={characterAvatarUrl} />
-      <MessageList
-        messages={messages}
+      <TopBar
+        chatId={chatId}
+        characterId={characterId}
         characterName={characterName}
-        summary={summary}
-        error={error}
-        onEdit={editMessage}
-        onDelete={deleteMessage}
-        onRegenerate={regenerate}
-        onBranch={branch}
+        characterAvatarUrl={characterAvatarUrl}
+        onOpenQuickPanel={() => setQuickPanelOpen(true)}
       />
-      <ChatInput
-        value={draft}
-        onChange={setDraft}
-        onSubmit={submitMessage}
-        disabled={isStreaming}
-        model={visibleModel}
-        temperature={temperature}
-        onModelChange={handleModelChange}
-        onTemperatureChange={setTemperature}
-      />
+      {quickPanelOpen ? (
+        <button
+          type="button"
+          aria-label="Close quick panel overlay"
+          onClick={() => setQuickPanelOpen(false)}
+          className="fixed inset-0 z-30 bg-black/35 backdrop-blur-[2px] xl:hidden"
+        />
+      ) : null}
+      <div className="relative z-10 flex min-h-0 flex-1 gap-3 px-0 pb-0 md:px-3 md:pb-3">
+        <section className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <MessageList
+            messages={messages}
+            characterName={characterName}
+            summary={summary}
+            error={error}
+            onEdit={editMessage}
+            onDelete={deleteMessage}
+            onRegenerate={regenerate}
+            onBranch={branch}
+          />
+          <ChatInput
+            value={draft}
+            onChange={setDraft}
+            onSubmit={submitMessage}
+            disabled={isStreaming}
+            model={visibleModel}
+            temperature={temperature}
+            onModelChange={handleModelChange}
+            onTemperatureChange={setTemperature}
+          />
+        </section>
+        <ChatQuickPanel
+          chatId={chatId}
+          characterId={characterId}
+          open={quickPanelOpen}
+          onClose={() => setQuickPanelOpen(false)}
+        />
+      </div>
     </div>
   );
 }

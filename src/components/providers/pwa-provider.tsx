@@ -58,8 +58,11 @@ export function PwaProvider() {
   }
 
   return (
-    <div className="fixed inset-x-3 bottom-[calc(5.9rem+env(safe-area-inset-bottom))] z-[60] mx-auto max-w-md rounded-[28px] border border-white/[0.07] bg-card/95 p-3 shadow-card-glow backdrop-blur-2xl lg:hidden">
-      <div className="flex items-center gap-3">
+    <div
+      className="fixed bottom-[calc(5.9rem+env(safe-area-inset-bottom))] left-3 z-[60] max-w-md rounded-[28px] border border-white/[0.07] bg-card/95 p-3 shadow-card-glow backdrop-blur-2xl lg:hidden"
+      style={{ width: "min(366px, calc(100vw - 24px))" }}
+    >
+      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 sm:gap-3">
         <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-primary/20 bg-primary/10 text-primary shadow-inset">
           <Smartphone className="h-5 w-5" />
         </div>
@@ -67,9 +70,8 @@ export function PwaProvider() {
           <p className="text-sm font-semibold text-foreground">Install Velora</p>
           <p className="mt-0.5 text-xs leading-5 text-muted-foreground">Add the app to your phone for full-screen chats.</p>
         </div>
-        <Button type="button" size="sm" onClick={install}>
+        <Button type="button" size="icon" onClick={install} aria-label="Install Velora">
           <Download className="h-4 w-4" />
-          Install
         </Button>
         <button
           type="button"

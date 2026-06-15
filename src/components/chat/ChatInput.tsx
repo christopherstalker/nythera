@@ -39,9 +39,9 @@ export function ChatInput({ value, onChange, onSubmit, disabled = false, model, 
   }
 
   return (
-    <div className="relative z-20 shrink-0 bg-gradient-to-t from-[var(--bg-base)] via-[var(--bg-base)] to-transparent px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-4 md:pb-5">
+    <div className="relative z-20 shrink-0 bg-gradient-to-t from-[var(--bg-base)] via-[var(--bg-base)] to-transparent px-3 pb-[calc(0.9rem+env(safe-area-inset-bottom))] pt-3 sm:px-4 md:pb-5">
       {onModelChange || onTemperatureChange ? (
-        <div className="mx-auto mb-2 grid max-w-[920px] gap-2 sm:grid-cols-[minmax(0,1fr)_220px]">
+        <div className="mx-auto mb-2 hidden max-w-[920px] gap-2 sm:grid sm:grid-cols-[minmax(0,1fr)_220px]">
           {onModelChange ? (
             <input
               value={model ?? ""}
@@ -67,7 +67,7 @@ export function ChatInput({ value, onChange, onSubmit, disabled = false, model, 
           ) : null}
         </div>
       ) : null}
-      <div className="mx-auto flex max-w-[920px] items-end gap-2 rounded-[26px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 shadow-[var(--shadow-card)] backdrop-blur-2xl transition-colors duration-200 focus-within:border-[var(--accent-purple)]">
+      <div className="mx-auto flex max-w-[920px] items-end gap-2 rounded-[24px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2.5 shadow-[var(--shadow-card)] backdrop-blur-2xl transition-colors duration-200 focus-within:border-[var(--accent-purple)] sm:rounded-[26px] sm:px-4 sm:py-3">
         <textarea
           ref={textareaRef}
           value={value}
@@ -76,7 +76,7 @@ export function ChatInput({ value, onChange, onSubmit, disabled = false, model, 
           onInput={resize}
           onKeyDown={handleKeyDown}
           placeholder="Message..."
-          className="max-h-[160px] min-h-8 flex-1 resize-none overflow-y-auto bg-transparent text-sm leading-6 text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+          className="max-h-[132px] min-h-8 flex-1 resize-none overflow-y-auto bg-transparent text-base leading-6 text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] sm:max-h-[160px] sm:text-sm"
           disabled={disabled}
         />
         <button

@@ -48,6 +48,9 @@
     --shadow-soft: 0 14px 45px rgb(0 0 0 / 0.28);
     --shadow-glow: 0 0 42px rgb(var(--accent-rgb) / 0.18);
     --glass-highlight: inset 0 1px 0 rgb(255 255 255 / 0.08);
+    --app-body-gradient: linear-gradient(145deg, rgb(8 8 14) 0%, var(--bg-base) 42%, rgb(14 16 27) 100%);
+    --app-shell-gradient: linear-gradient(150deg, rgb(11 11 18), rgb(13 14 25) 48%, rgb(9 11 19));
+    --chat-overlay: linear-gradient(180deg, rgb(11 11 18 / 0.78), rgb(11 11 18 / 0.92) 34%, rgb(11 11 18));
 
     --background: 240 24% 6%;
     --foreground: 240 100% 96%;
@@ -85,6 +88,9 @@
     --shadow-card: 0 24px 80px rgb(0 0 0 / 0.38);
     --shadow-soft: 0 14px 45px rgb(0 0 0 / 0.28);
     --shadow-glow: 0 0 42px rgb(var(--accent-rgb) / 0.18);
+    --app-body-gradient: linear-gradient(145deg, rgb(8 8 14) 0%, var(--bg-base) 42%, rgb(14 16 27) 100%);
+    --app-shell-gradient: linear-gradient(150deg, rgb(11 11 18), rgb(13 14 25) 48%, rgb(9 11 19));
+    --chat-overlay: linear-gradient(180deg, rgb(11 11 18 / 0.78), rgb(11 11 18 / 0.92) 34%, rgb(11 11 18));
     --background: 240 24% 6%;
     --foreground: 240 100% 96%;
     --card: 240 27% 13%;
@@ -120,6 +126,9 @@
     --shadow-card: 0 18px 60px rgb(39 42 82 / 0.12);
     --shadow-soft: 0 12px 36px rgb(39 42 82 / 0.1);
     --shadow-glow: 0 0 34px rgb(var(--accent-rgb) / 0.16);
+    --app-body-gradient: linear-gradient(145deg, #f7f8ff 0%, var(--bg-base) 46%, #edf1ff 100%);
+    --app-shell-gradient: linear-gradient(150deg, #f7f8ff, #eef2ff 48%, #f9faff);
+    --chat-overlay: linear-gradient(180deg, rgb(245 246 255 / 0.74), rgb(245 246 255 / 0.9) 34%, rgb(245 246 255));
     --background: 225 33% 97%;
     --foreground: 225 14% 10%;
     --card: 0 0% 100%;
@@ -159,8 +168,7 @@
   body {
     @apply min-h-screen bg-background text-foreground antialiased;
     min-height: 100dvh;
-    background:
-      linear-gradient(145deg, rgb(8 8 14) 0%, var(--bg-base) 42%, rgb(14 16 27) 100%);
+    background: var(--app-body-gradient);
     color: var(--text-primary);
     -webkit-tap-highlight-color: transparent;
     text-rendering: optimizeLegibility;

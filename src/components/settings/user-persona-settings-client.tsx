@@ -1,12 +1,15 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { Save, Trash2 } from "lucide-react";
+import { Plus, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 type PersonaDraft = {
+  profileId?: string;
+  label: string;
   displayName: string;
   avatarUrl: string;
   summary: string;
@@ -18,7 +21,12 @@ type PersonaDraft = {
   visibility: "PRIVATE" | "PUBLIC" | "UNLISTED";
 };
 
+type PersonaProfile = PersonaDraft & {
+  id: string;
+};
+
 const emptyDraft: PersonaDraft = {
+  label: "",
   displayName: "",
   avatarUrl: "",
   summary: "",
@@ -32,30 +40,33 @@ const emptyDraft: PersonaDraft = {
 
 export function UserPersonaSettingsClient() {
   const [draft, setDraft] = useState<PersonaDraft>(emptyDraft);
+  const [profiles, setProfiles] = useState<PersonaProfile[]>([]);
+  const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch("/api/user-persona", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((body) => {
-        if (!body?.persona) {
-          return;
-        }
-        setDraft({
-          displayName: body.persona.displayName ?? "",
-          avatarUrl: body.persona.avatarUrl ?? "",
-          summary: body.persona.summary ?? "",
-          background: body.persona.background ?? "",
-          traits: (body.persona.traits ?? []).join("\n"),
-          likes: (body.persona.likes ?? []).join("\n"),
-          dislikes: (body.persona.dislikes ?? []).join("\n"),
-          boundaries: (body.persona.boundaries ?? []).join("\n"),
-          visibility: body.persona.visibility ?? "PRIVATE"
-        });
-      })
+    fetchPersona()
       .catch(() => setStatus("Sign in to manage your persona."));
   }, []);
+
+  async function fetchPersona() {
+    const response = await fetch("/api/user-persona", { cache: "no-store" });
+    if (!response.ok) {
+      return;
+    }
+
+    const body = await response.json();
+    const nextProfiles = Array.isArray(body.profiles) ? body.profiles.map(profileFromApi) : [];
+    setProfiles(nextProfiles);
+    setActiveProfileId(body.activeProfileId ?? nextProfiles[0]?.id ?? null);
+
+    if (body.activeProfile) {
+      setDraft(profileToDraft(body.activeProfile));
+    } else if (body.persona) {
+      setDraft(profileToDraft({ ...body.persona, id: "default", label: body.persona.displayName }));
+    }
+  }
 
   function update<K extends keyof PersonaDraft>(field: K, value: PersonaDraft[K]) {
     setDraft((current) => ({ ...current, [field]: value }));
@@ -71,6 +82,8 @@ export function UserPersonaSettingsClient() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         displayName: draft.displayName,
+        profileId: draft.profileId,
+        label: draft.label || draft.displayName,
         avatarUrl: draft.avatarUrl,
         summary: draft.summary,
         background: draft.background,
@@ -90,17 +103,64 @@ export function UserPersonaSettingsClient() {
     }
 
     setStatus("Persona saved.");
+    const body = await response.json().catch(() => null);
+    if (body?.activeProfile) {
+      setDraft(profileToDraft(body.activeProfile));
+      setActiveProfileId(body.activeProfileId ?? body.activeProfile.id);
+      setProfiles(Array.isArray(body.profiles) ? body.profiles.map(profileFromApi) : []);
+    }
+  }
+
+  async function switchProfile(profile: PersonaProfile) {
+    setDraft(profileToDraft(profile));
+    setActiveProfileId(profile.id);
+
+    await fetch("/api/user-persona", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ activeProfileId: profile.id })
+    });
+  }
+
+  function newPersona() {
+    setDraft({ ...emptyDraft, label: "New persona" });
+    setActiveProfileId(null);
+    setStatus(null);
   }
 
   async function remove() {
     await fetch("/api/user-persona", { method: "DELETE" });
     setDraft(emptyDraft);
+    setProfiles([]);
+    setActiveProfileId(null);
     setStatus("Persona deleted.");
   }
 
   return (
     <form onSubmit={save} className="grid gap-4">
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {profiles.map((profile) => (
+          <button
+            key={profile.id}
+            type="button"
+            onClick={() => void switchProfile(profile)}
+            className={cn(
+              "focus-ring h-10 shrink-0 rounded-[var(--radius-pill)] border px-4 text-sm font-medium transition-colors",
+              activeProfileId === profile.id
+                ? "border-transparent bg-gradient-to-br from-[var(--accent-purple)] to-[var(--accent-secondary)] text-white"
+                : "border-[var(--border-default)] bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            )}
+          >
+            {profile.label || profile.displayName}
+          </button>
+        ))}
+        <Button type="button" variant="outline" onClick={newPersona}>
+          <Plus className="h-4 w-4" />
+          New persona
+        </Button>
+      </div>
       <div className="grid gap-4 lg:grid-cols-2">
+        <Input value={draft.label} onChange={(event) => update("label", event.target.value)} placeholder="Profile label, e.g. Main RP" />
         <Input value={draft.displayName} onChange={(event) => update("displayName", event.target.value)} placeholder="Persona name" required />
         <Input value={draft.avatarUrl} onChange={(event) => update("avatarUrl", event.target.value)} placeholder="Avatar URL or data URL" />
       </div>
@@ -125,6 +185,27 @@ export function UserPersonaSettingsClient() {
       {status ? <p className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 text-sm text-[var(--text-secondary)] shadow-[var(--glass-highlight)]">{status}</p> : null}
     </form>
   );
+}
+
+function profileFromApi(profile: Record<string, unknown>): PersonaProfile {
+  return {
+    id: String(profile.id ?? "default"),
+    profileId: String(profile.id ?? "default"),
+    label: String(profile.label ?? profile.displayName ?? "Persona"),
+    displayName: String(profile.displayName ?? ""),
+    avatarUrl: String(profile.avatarUrl ?? ""),
+    summary: String(profile.summary ?? ""),
+    background: String(profile.background ?? ""),
+    traits: Array.isArray(profile.traits) ? profile.traits.join("\n") : "",
+    likes: Array.isArray(profile.likes) ? profile.likes.join("\n") : "",
+    dislikes: Array.isArray(profile.dislikes) ? profile.dislikes.join("\n") : "",
+    boundaries: Array.isArray(profile.boundaries) ? profile.boundaries.join("\n") : "",
+    visibility: profile.visibility === "PUBLIC" || profile.visibility === "UNLISTED" ? profile.visibility : "PRIVATE"
+  };
+}
+
+function profileToDraft(profile: Record<string, unknown>): PersonaDraft {
+  return profileFromApi(profile);
 }
 
 function parseLines(value: string) {

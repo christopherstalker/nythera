@@ -13,6 +13,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/admin");
+  const isChatRoute = pathname.startsWith("/chat/");
 
   if (hideChrome) {
     return <main className="min-h-dvh bg-[var(--bg-base)]">{children}</main>;
@@ -20,7 +21,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="relative isolate min-h-dvh overflow-hidden bg-[var(--bg-base)]">
-      <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 bg-[linear-gradient(150deg,rgb(11_11_18),rgb(13_14_25)_48%,rgb(9_11_19))]" />
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10" style={{ background: "var(--app-shell-gradient)" }} />
       <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-80 bg-gradient-to-b from-primary/[0.08] to-transparent" />
       <Sidebar />
       <main
@@ -31,7 +32,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         {children}
       </main>
-      <BottomNav />
+      {isChatRoute ? null : <BottomNav />}
     </div>
   );
 }

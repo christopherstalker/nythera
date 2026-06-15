@@ -120,9 +120,9 @@ export function ProfileSettingsClient() {
           </div>
         </div>
       </div>
-      <label className="flex min-h-12 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] px-4 text-sm text-[var(--text-secondary)] shadow-[var(--glass-highlight)] backdrop-blur-xl">
+      <label className="flex min-h-12 min-w-0 items-start gap-2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] px-4 py-3 text-sm leading-5 text-[var(--text-secondary)] shadow-[var(--glass-highlight)] backdrop-blur-xl sm:items-center sm:py-0">
         <input name="ageVerified" type="checkbox" defaultChecked={profile?.ageVerified ?? false} className="accent-[var(--accent-purple)]" />
-        I confirm I can access age-gated content settings
+        <span className="min-w-0">I confirm I can access age-gated content settings</span>
       </label>
       <Textarea name="bio" defaultValue={profile?.bio ?? ""} placeholder="Bio" className="lg:col-span-2" />
       <Button type="submit" className="w-fit">Save profile</Button>

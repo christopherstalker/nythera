@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 export function PageShell({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("mx-auto w-full max-w-[1240px] px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-5 md:px-7 md:py-8 lg:px-10", className)}>
+    <div className={cn("mx-auto w-full max-w-full overflow-x-hidden px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-5 md:px-7 md:py-8 lg:px-10 xl:max-w-[1240px]", className)}>
       {children}
     </div>
   );

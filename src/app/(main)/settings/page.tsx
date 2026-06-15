@@ -58,9 +58,9 @@ export default function SettingsPage() {
 
   return (
     <PageShell>
-      <div className="grid gap-6 lg:grid-cols-[210px_minmax(0,1fr)]">
-        <aside className="lg:sticky lg:top-6 lg:self-start">
-          <nav className="glass-panel scrollbar-none flex gap-2 overflow-x-auto p-2 lg:grid" aria-label="Settings sections">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[210px_minmax(0,1fr)]">
+        <aside className="min-w-0 lg:sticky lg:top-6 lg:self-start">
+          <nav className="glass-panel scrollbar-none flex w-full max-w-full gap-2 overflow-x-auto p-2 lg:grid" aria-label="Settings sections">
             {sections.map((section) => {
               const Icon = section.icon;
               return (
@@ -77,7 +77,7 @@ export default function SettingsPage() {
           </nav>
         </aside>
 
-        <div className="grid gap-5">
+        <div className="grid min-w-0 gap-5">
           <SettingsCard id="account" icon={UserCog} title="Account">
             <ProfileSettingsClient />
           </SettingsCard>
@@ -125,7 +125,7 @@ function SettingsCard({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="glass-panel p-6">
+    <section id={id} className="glass-panel min-w-0 p-5 sm:p-6">
       <div className="mb-5 flex items-center gap-3">
         <span className="grid h-11 w-11 place-items-center rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--accent-purple-soft)] text-[var(--accent-purple)] shadow-[var(--glass-highlight)]">
           <Icon className="h-5 w-5" />

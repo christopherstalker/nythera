@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { json, parseJson, requireUser, routeError, HttpError } from "@/lib/api";
+import { HttpError, json, parseJson, routeError } from "@/lib/api";
+import { requireMobileUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { userPersonaSchema } from "@/lib/validation";
 import {
@@ -20,15 +21,11 @@ const userPersonaSwitchSchema = z.object({
   activeProfileId: z.string().trim().min(1).max(80)
 });
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const user = await requireUser();
-    const persona = await prisma.userPersona.findUnique({
-      where: { userId: user.id }
-    });
-
-    const normalized = normalizePersonaProfiles(persona);
-    return json({ persona, ...normalized });
+    const user = await requireMobileUser(request);
+    const persona = await prisma.userPersona.findUnique({ where: { userId: user.id } });
+    return json({ persona, ...normalizePersonaProfiles(persona) });
   } catch (error) {
     return routeError(error);
   }
@@ -36,7 +33,7 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
-    const user = await requireUser();
+    const user = await requireMobileUser(request);
     const input = await parseJson(request, userPersonaUpsertSchema);
     const existing = await prisma.userPersona.findUnique({ where: { userId: user.id } });
     const normalized = normalizePersonaProfiles(existing);
@@ -54,7 +51,7 @@ export async function PUT(request: Request) {
       boundaries: input.boundaries,
       visibility: input.visibility
     };
-    const profiles = mergeProfile(normalized.profiles, nextProfile);
+    const profiles = [nextProfile, ...normalized.profiles.filter((profile) => profile.id !== nextProfile.id)];
 
     const persona = await prisma.userPersona.upsert({
       where: { userId: user.id },
@@ -77,7 +74,7 @@ export async function PUT(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const user = await requireUser();
+    const user = await requireMobileUser(request);
     const input = await parseJson(request, userPersonaSwitchSchema);
     const persona = await prisma.userPersona.findUnique({ where: { userId: user.id } });
     const normalized = normalizePersonaProfiles(persona);
@@ -87,7 +84,6 @@ export async function PATCH(request: Request) {
       throw new HttpError(404, "Persona profile not found.");
     }
 
-    // The active profile is copied to the canonical persona columns so prompt assembly and the proxy read it directly.
     const updated = await prisma.userPersona.update({
       where: { userId: user.id },
       data: {
@@ -100,22 +96,6 @@ export async function PATCH(request: Request) {
   } catch (error) {
     return routeError(error);
   }
-}
-
-export async function DELETE() {
-  try {
-    const user = await requireUser();
-    await prisma.userPersona.deleteMany({ where: { userId: user.id } });
-    return json({ ok: true, profiles: [] });
-  } catch (error) {
-    return routeError(error);
-  }
-}
-
-function mergeProfile(profiles: UserPersonaProfile[], nextProfile: UserPersonaProfile) {
-  const next = profiles.filter((profile) => profile.id !== nextProfile.id);
-  next.unshift(nextProfile);
-  return next;
 }
 
 function profileToData(profile: UserPersonaProfile) {
