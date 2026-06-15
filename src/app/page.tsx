@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { MessageCircle, Plus, Search, Sparkles } from "lucide-react";
 import { CharacterRow } from "@/components/characters/CharacterRow";
 import type { CharacterSummary } from "@/components/characters/CharacterCard";
@@ -25,6 +26,7 @@ type RecentChat = {
 
 export default function HomePage() {
   const router = useRouter();
+  const { status } = useSession();
   const [characters, setCharacters] = useState<CharacterSummary[]>([]);
   const [recentChats, setRecentChats] = useState<RecentChat[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,7 +37,7 @@ export default function HomePage() {
       setLoading(true);
       const [charactersResponse, chatsResponse] = await Promise.allSettled([
         fetch("/api/characters?take=36", { signal: controller.signal }),
-        fetch("/api/chats", { cache: "no-store", signal: controller.signal })
+        status === "authenticated" ? fetch("/api/chats", { cache: "no-store", signal: controller.signal }) : Promise.resolve(null)
       ]);
 
       if (charactersResponse.status === "fulfilled" && charactersResponse.value.ok) {
@@ -45,7 +47,7 @@ export default function HomePage() {
         setCharacters([]);
       }
 
-      if (chatsResponse.status === "fulfilled" && chatsResponse.value.ok) {
+      if (chatsResponse.status === "fulfilled" && chatsResponse.value?.ok) {
         const body = await chatsResponse.value.json().catch(() => null);
         setRecentChats(Array.isArray(body?.chats) ? body.chats.slice(0, 8) : []);
       } else {
@@ -64,7 +66,7 @@ export default function HomePage() {
     });
 
     return () => controller.abort();
-  }, []);
+  }, [status]);
 
   const featured = characters[0];
   const rows = useMemo(() => {

@@ -67,7 +67,7 @@ export function ChatInput({ value, onChange, onSubmit, disabled = false, model, 
           ) : null}
         </div>
       ) : null}
-      <div className="mx-auto flex max-w-[920px] items-end gap-2 rounded-[24px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2.5 shadow-[var(--shadow-card)] backdrop-blur-2xl transition-colors duration-200 focus-within:border-[var(--accent-purple)] sm:rounded-[26px] sm:px-4 sm:py-3">
+      <div className="composer-glass mx-auto flex max-w-[920px] items-end gap-2 rounded-[24px] border border-[var(--border-default)] px-3 py-2.5 backdrop-blur-2xl transition-colors duration-200 focus-within:border-[var(--accent-purple)] sm:rounded-[26px] sm:px-4 sm:py-3">
         <textarea
           ref={textareaRef}
           value={value}
@@ -84,7 +84,7 @@ export function ChatInput({ value, onChange, onSubmit, disabled = false, model, 
           onClick={onSubmit}
           disabled={disabled || !value.trim()}
           aria-label="Send message"
-          className="focus-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-gradient-to-br from-[var(--accent-purple)] to-[var(--accent-secondary)] text-white shadow-[var(--shadow-glow)] transition-all duration-100 hover:brightness-110 active:scale-90 disabled:opacity-40"
+          className="focus-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-gradient-to-br from-[var(--brand-secondary)] via-[var(--accent-purple)] to-[var(--accent-secondary)] text-white shadow-[var(--shadow-glow)] transition-all duration-100 hover:brightness-110 active:scale-90 disabled:opacity-40"
         >
           <ArrowUp className="h-4 w-4" />
         </button>

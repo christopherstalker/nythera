@@ -35,7 +35,7 @@ export function CharacterCard({ character, className }: CharacterCardProps) {
       type="button"
       onClick={openProfile}
       className={cn(
-        "group glass-card glass-card-hover relative flex h-[282px] w-full min-w-[176px] shrink-0 overflow-hidden text-left active:scale-[0.98]",
+        "group glass-card glass-card-hover relative flex h-[292px] w-full min-w-[176px] shrink-0 overflow-hidden text-left active:scale-[0.98] sm:h-[310px]",
         className
       )}
       aria-label={`Open ${character.name}`}
@@ -45,16 +45,16 @@ export function CharacterCard({ character, className }: CharacterCardProps) {
           <img
             src={character.avatarUrl}
             alt=""
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
-          <div className="grid h-full w-full place-items-center bg-[linear-gradient(145deg,rgb(var(--accent-rgb)_/_0.24),rgb(20_20_35))] text-6xl font-semibold text-[var(--accent-purple)]">
+          <div className="grid h-full w-full place-items-center bg-[linear-gradient(145deg,rgb(var(--accent-rgb)_/_0.22),rgb(20_20_35))] text-6xl font-semibold text-[var(--accent-purple)]">
             {character.name.slice(0, 1).toUpperCase()}
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/0 via-black/8 to-[#0b0b12]/80" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/0 via-black/10 to-[#0b0b12]/84" />
       </div>
-      <div className="absolute inset-x-0 bottom-0 min-h-[112px] bg-[linear-gradient(180deg,rgb(11_11_18_/_0.22),rgb(11_11_18_/_0.94)_34%,rgb(11_11_18_/_0.98))] px-4 pb-4 pt-5">
+      <div className="absolute inset-x-0 bottom-0 min-h-[120px] bg-[linear-gradient(180deg,rgb(11_11_18_/_0.2),rgb(11_11_18_/_0.92)_34%,rgb(11_11_18_/_0.98))] px-4 pb-4 pt-6">
         <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
             <h3 className="truncate text-base font-semibold leading-6 tracking-tight text-white">{character.name}</h3>

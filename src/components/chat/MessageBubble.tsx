@@ -67,13 +67,13 @@ export function MessageBubble({
   }
 
   return (
-    <div className={cn("group flex animate-in fade-in slide-in-from-bottom-2 duration-200", isUser ? "justify-end" : "justify-start")}>
+    <div className={cn("group flex message-enter", isUser ? "justify-end" : "justify-start")}>
       <div className={cn("max-w-[92%] sm:max-w-[78%]", isUser ? "items-end" : "items-start")}>
         <div className={cn("whitespace-pre-wrap break-words", isUser ? "bubble-user max-w-full" : "bubble-char max-w-full")}>
           {content ? <RichMessageText text={content} /> : <TypingIndicator />}
         </div>
         {content ? (
-          <div className={cn("mt-1 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100", isUser ? "justify-end" : "justify-start")}>
+          <div className={cn("mt-1 flex gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100", isUser ? "justify-end" : "justify-start")}>
             {isUser ? (
               <ActionButton label="Edit" onClick={edit}>
                 <Pencil className="h-3.5 w-3.5" />

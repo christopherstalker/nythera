@@ -55,6 +55,14 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
   }, [chatId]);
 
   useEffect(() => {
+    // Streaming state subtly raises brand glow without changing chat/proxy behavior.
+    window.dispatchEvent(new CustomEvent("nythera:brand-state", { detail: { glowIntensity: isStreaming ? 0.84 : 0.56 } }));
+    return () => {
+      window.dispatchEvent(new CustomEvent("nythera:brand-state", { detail: { glowIntensity: 0.56 } }));
+    };
+  }, [isStreaming]);
+
+  useEffect(() => {
     if (!APP_DEFAULT_MODELS.has(model.trim().toLowerCase())) {
       setActiveRouteModel(null);
       return;
@@ -128,7 +136,7 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
         <img
           src={characterAvatarUrl}
           alt=""
-          className="pointer-events-none absolute inset-0 -z-20 h-full w-full scale-110 object-cover opacity-20 blur-3xl"
+          className="pointer-events-none absolute inset-0 -z-20 h-full w-full scale-110 object-cover opacity-24 blur-3xl"
         />
       ) : null}
       <div className="pointer-events-none absolute inset-0 -z-10" style={{ background: "var(--chat-overlay)" }} />

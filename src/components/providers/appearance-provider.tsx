@@ -2,16 +2,17 @@
 
 import { useEffect } from "react";
 
-export const DEFAULT_ACCENT_COLOR = "#f97316";
+export const DEFAULT_ACCENT_COLOR = "#FF7A18";
 export const APPEARANCE_STORAGE_KEY = "nythera.appearance";
 const LEGACY_APPEARANCE_STORAGE_KEY = "velora.appearance";
 const APPEARANCE_UPDATED_EVENT = "nythera:appearance-updated";
+const BRAND_STATE_EVENT = "nythera:brand-state";
 
 export type StoredAppearance = {
   accentColor?: string;
 };
 
-export const ACCENT_PRESETS = ["#f97316", "#a78bfa", "#2dd4bf", "#ef476f", "#38bdf8", "#f472b6", "#64748b"];
+export const ACCENT_PRESETS = ["#FF7A18", "#FFB347", "#A78BFA", "#2DD4BF", "#EF476F", "#38BDF8", "#F472B6", "#64748B"];
 
 export function AppearanceProvider() {
   useEffect(() => {
@@ -28,11 +29,19 @@ export function AppearanceProvider() {
       applyAccentColor(detail?.accentColor || readStoredAppearance().accentColor || DEFAULT_ACCENT_COLOR);
     };
 
+    const onBrandState = (event: Event) => {
+      const detail = (event as CustomEvent<{ glowIntensity?: number }>).detail;
+      const accentColor = readStoredAppearance().accentColor || DEFAULT_ACCENT_COLOR;
+      updateDynamicFavicon(accentColor, detail?.glowIntensity ?? 0.56);
+    };
+
     window.addEventListener("storage", onStorage);
     window.addEventListener(APPEARANCE_UPDATED_EVENT, onAppearanceUpdated);
+    window.addEventListener(BRAND_STATE_EVENT, onBrandState);
     return () => {
       window.removeEventListener("storage", onStorage);
       window.removeEventListener(APPEARANCE_UPDATED_EVENT, onAppearanceUpdated);
+      window.removeEventListener(BRAND_STATE_EVENT, onBrandState);
     };
   }, []);
 
@@ -80,16 +89,26 @@ export function applyAccentColor(hexColor: string) {
   const rgb = hexToRgb(hexColor);
   const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
   const hover = mixWith(rgb, 0, 0, 0, 0.14);
+  const secondary = mixWith(rgb, 255, 179, 71, 0.42);
+  const deep = mixWith(rgb, 0, 0, 0, 0.28);
   const root = document.documentElement;
 
+  root.style.setProperty("--brand-primary", hexColor);
+  root.style.setProperty("--brand-primary-hover", rgbToHex(hover));
+  root.style.setProperty("--brand-secondary", rgbToHex(secondary));
+  root.style.setProperty("--brand-secondary-deep", rgbToHex(deep));
+  root.style.setProperty("--brand-glow", `rgb(${rgb.r} ${rgb.g} ${rgb.b} / 0.15)`);
+  root.style.setProperty("--brand-glow-strong", `rgb(${rgb.r} ${rgb.g} ${rgb.b} / 0.28)`);
   root.style.setProperty("--accent-purple", hexColor);
   root.style.setProperty("--accent-purple-hover", rgbToHex(hover));
   root.style.setProperty("--accent-purple-soft", `rgb(${rgb.r} ${rgb.g} ${rgb.b} / 0.16)`);
+  root.style.setProperty("--accent-secondary", rgbToHex(deep));
   root.style.setProperty("--accent-rgb", `${rgb.r} ${rgb.g} ${rgb.b}`);
   root.style.setProperty("--bubble-user", `rgb(${rgb.r} ${rgb.g} ${rgb.b} / 0.24)`);
   root.style.setProperty("--primary", `${Math.round(hsl.h)} ${Math.round(hsl.s)}% ${Math.round(hsl.l)}%`);
   root.style.setProperty("--accent", `${Math.round(hsl.h)} ${Math.round(hsl.s)}% ${Math.round(hsl.l)}%`);
   root.style.setProperty("--ring", `${Math.round(hsl.h)} ${Math.round(hsl.s)}% ${Math.round(hsl.l)}%`);
+  updateDynamicFavicon(hexColor);
 }
 
 function applyStoredAppearance() {
@@ -150,4 +169,38 @@ function rgbToHsl(r: number, g: number, b: number) {
     s: saturation * 100,
     l: lightness * 100
   };
+}
+
+function updateDynamicFavicon(hexColor: string, glowIntensity = 0.56) {
+  if (typeof document === "undefined" || !isHexColor(hexColor)) {
+    return;
+  }
+
+  // Runtime branding keeps the SVG favicon aligned with the selected theme accent and chat glow state.
+  const rgb = hexToRgb(hexColor);
+  const secondary = mixWith(rgb, 255, 179, 71, 0.45);
+  const glow = Math.max(0.14, Math.min(glowIntensity, 0.9));
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="b" x1="10" y1="8" x2="54" y2="58"><stop stop-color="#18151E"/><stop offset=".58" stop-color="#0B0B12"/><stop offset="1" stop-color="#050509"/></linearGradient><linearGradient id="e" x1="14" y1="12" x2="50" y2="54"><stop stop-color="${rgbToHex(secondary)}"/><stop offset=".5" stop-color="${hexColor}"/><stop offset="1" stop-color="${rgbToHex(mixWith(rgb, 0, 0, 0, 0.26))}"/></linearGradient><filter id="g" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="4" result="blur"/><feColorMatrix in="blur" type="matrix" values="1 0 0 0 ${rgb.r / 255} 0 1 0 0 ${rgb.g / 255} 0 0 1 0 ${rgb.b / 255} 0 0 0 ${glow} 0"/></filter></defs><rect width="64" height="64" rx="18" fill="url(#b)"/><path d="M16 49V15h9l15 22V15h8v34h-9L24 27v22z" fill="url(#e)" filter="url(#g)" opacity=".62"/><path d="M16 49V15h9l15 22V15h8v34h-9L24 27v22z" fill="url(#e)"/><path d="M25 15h-9v34h8V27l15 22h9v-8L25 15z" fill="#FFF7ED" opacity=".16"/></svg>`;
+  const href = `data:image/svg+xml,${encodeURIComponent(svg)}`;
+  const link = getOrCreateIconLink();
+  link.href = href;
+  link.type = "image/svg+xml";
+
+  const themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  if (themeColor) {
+    themeColor.content = document.documentElement.classList.contains("light") ? "#f5f6ff" : "#0B0B12";
+  }
+}
+
+function getOrCreateIconLink() {
+  const existing = document.querySelector<HTMLLinkElement>('link[rel="icon"][data-nythera-dynamic="true"]');
+  if (existing) {
+    return existing;
+  }
+
+  const link = document.createElement("link");
+  link.rel = "icon";
+  link.setAttribute("data-nythera-dynamic", "true");
+  document.head.appendChild(link);
+  return link;
 }

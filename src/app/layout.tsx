@@ -11,7 +11,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "Nythera",
-  description: "Free character chats with memory and bring-your-own model keys.",
+  description: "A cinematic AI character universe with persona, memory, and secure model access.",
   applicationName: "Nythera",
   manifest: "/manifest.webmanifest",
   appleWebApp: {

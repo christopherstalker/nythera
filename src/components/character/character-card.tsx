@@ -72,7 +72,7 @@ export function CharacterCard({ character }: CharacterCardProps) {
       <div className="mt-5 grid gap-3">
         <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1">
-            <Heart className="h-3.5 w-3.5 fill-[#d8b4fe] text-[#d8b4fe]" />
+            <Heart className="h-3.5 w-3.5 fill-[var(--brand-secondary)] text-[var(--brand-secondary)]" />
             {character.likes}
           </span>
           <span className="inline-flex items-center gap-1">

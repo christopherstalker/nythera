@@ -60,8 +60,10 @@ const config: Config = {
       boxShadow: {
         soft: "0 22px 70px rgba(0, 0, 0, 0.38)",
         "card-glow": "0 18px 60px rgba(7, 5, 14, 0.42)",
-        "violet-hover": "0 18px 55px rgba(139, 124, 255, 0.16)",
-        "violet-strong": "0 0 44px rgba(155, 124, 255, 0.28)",
+        "violet-hover": "0 18px 55px rgba(255, 122, 24, 0.16)",
+        "violet-strong": "0 0 44px rgba(255, 122, 24, 0.26)",
+        "brand-hover": "0 18px 55px rgba(255, 122, 24, 0.16)",
+        "brand-strong": "0 0 44px rgba(255, 122, 24, 0.26)",
         inset: "inset 0 1px 0 rgba(255, 255, 255, 0.05)"
       }
     }

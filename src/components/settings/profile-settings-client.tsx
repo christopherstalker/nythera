@@ -100,7 +100,7 @@ export function ProfileSettingsClient() {
       <Input name="username" defaultValue={profile?.username ?? ""} placeholder="Username" />
       <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4 shadow-[var(--glass-highlight)] backdrop-blur-xl lg:col-span-2">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <Avatar name={profile?.email ?? "V"} src={avatarValue} size="lg" />
+          <Avatar name={profile?.email ?? "N"} src={avatarValue} size="lg" />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-[var(--text-primary)]">Profile avatar</p>
             <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">PNG, JPG, WebP, GIF, or SVG up to 1.5MB.</p>

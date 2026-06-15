@@ -1,25 +1,37 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Nythera">
   <defs>
-    <linearGradient id="nythera-bg" x1="72" y1="36" x2="438" y2="476" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#20150F"/>
-      <stop offset="0.58" stop-color="#111018"/>
-      <stop offset="1" stop-color="#07070C"/>
+    <linearGradient id="nythera-bg" x1="72" y1="38" x2="436" y2="474" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1A151D"/>
+      <stop offset="0.55" stop-color="#0B0B12"/>
+      <stop offset="1" stop-color="#050507"/>
     </linearGradient>
-    <linearGradient id="nythera-ember" x1="132" y1="96" x2="386" y2="424" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FFE0A3"/>
-      <stop offset="0.42" stop-color="#FB923C"/>
-      <stop offset="1" stop-color="#EA580C"/>
+    <linearGradient id="nythera-edge" x1="118" y1="92" x2="394" y2="420" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFCF7A"/>
+      <stop offset="0.42" stop-color="#FF7A18"/>
+      <stop offset="1" stop-color="#B43C07"/>
     </linearGradient>
-    <radialGradient id="nythera-glow" cx="0" cy="0" r="1" gradientTransform="matrix(0 188 -188 0 256 260)" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#F97316" stop-opacity="0.52"/>
-      <stop offset="1" stop-color="#F97316" stop-opacity="0"/>
+    <linearGradient id="nythera-core" x1="180" y1="110" x2="344" y2="404" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF7ED"/>
+      <stop offset="0.46" stop-color="#FFB347"/>
+      <stop offset="1" stop-color="#FF7A18"/>
+    </linearGradient>
+    <radialGradient id="nythera-glow" cx="0" cy="0" r="1" gradientTransform="matrix(0 205 -205 0 258 260)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF7A18" stop-opacity="0.58"/>
+      <stop offset="0.58" stop-color="#FF7A18" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#FF7A18" stop-opacity="0"/>
     </radialGradient>
+    <filter id="nythera-soft" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
   </defs>
-  <rect width="512" height="512" rx="128" fill="url(#nythera-bg)"/>
-  <circle cx="256" cy="260" r="188" fill="url(#nythera-glow)"/>
-  <path fill="url(#nythera-ember)" d="M256 72c69 58 120 123 120 204 0 80-53 140-120 140s-120-60-120-140c0-81 51-146 120-204Z"/>
-  <path fill="#111018" fill-opacity=".74" d="M184 154c0-18 14-32 32-32 12 0 23 7 28 17l82 160V154c0-18 14-32 32-32s32 14 32 32v210c0 15-10 28-24 31-14 4-29-3-36-16l-82-160v145c0 18-14 32-32 32s-32-14-32-32V154Z"/>
-  <path fill="#FFF7ED" d="M158 154c0-18 14-32 32-32 12 0 23 7 28 17l114 222c8 16 2 35-14 43-16 8-35 2-43-14L222 287v77c0 18-14 32-32 32s-32-14-32-32V154Zm196-32c18 0 32 14 32 32v210c0 18-14 32-32 32s-32-14-32-32V154c0-18 14-32 32-32Z"/>
-  <circle cx="395" cy="137" r="17" fill="#FED7AA"/>
-  <circle cx="120" cy="362" r="12" fill="#FB923C" opacity=".9"/>
+  <rect width="512" height="512" rx="132" fill="url(#nythera-bg)"/>
+  <path fill="url(#nythera-glow)" d="M256 60c104 0 188 84 188 188s-84 188-188 188S68 352 68 248 152 60 256 60Z"/>
+  <path fill="#FF7A18" filter="url(#nythera-soft)" opacity=".38" d="M132 388V118h82l156 222V118h62v276h-82L194 172v216h-62Z"/>
+  <path fill="#07070B" opacity=".62" d="M128 394V116h84l158 224V116h66v280h-86L194 174v220h-66Z"/>
+  <path fill="url(#nythera-edge)" d="M112 396V116h86l164 228V116h74v280h-86L186 168v228h-74Z"/>
+  <path fill="#0B0B12" d="M154 354V158h22l164 228h76V158h-28v196h-22L202 126h-76v228h28Z" opacity=".92"/>
+  <path fill="url(#nythera-core)" d="M126 126h76l164 228h22V126h28v260h-76L176 158h-22v228h-28V126Z"/>
+  <path fill="#FFF7ED" opacity=".22" d="M154 158h22l164 228h76v-20h-58L194 138h-40v20Z"/>
+  <circle cx="364" cy="148" r="11" fill="#FFF7ED" opacity=".78"/>
+  <circle cx="154" cy="364" r="8" fill="#FFB347" opacity=".9"/>
 </svg>

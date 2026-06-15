@@ -1,8 +1,8 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Brain, Check, MessageSquare, Plus, UserRound, X } from "lucide-react";
+import { BookOpen, Brain, Check, ImagePlus, MessageSquare, Plus, Upload, UserRound, X } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,7 @@ type PersonaDraft = {
   profileId?: string;
   label: string;
   displayName: string;
+  avatarUrl: string;
   summary: string;
   background: string;
   traits: string;
@@ -70,6 +71,7 @@ const tabs = [
 const emptyDraft: PersonaDraft = {
   label: "",
   displayName: "",
+  avatarUrl: "",
   summary: "",
   background: "",
   traits: "",
@@ -152,6 +154,31 @@ export function ChatQuickPanel({ chatId, characterId, open, onClose }: ChatQuick
     setDraft((current) => ({ ...current, [field]: value }));
   }
 
+  function onAvatarFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setPersonaStatus("Choose an image file.");
+      return;
+    }
+
+    if (file.size > 1_500_000) {
+      setPersonaStatus("Persona photo must be smaller than 1.5MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      updateDraft("avatarUrl", String(reader.result ?? ""));
+      setPersonaStatus(null);
+    };
+    reader.onerror = () => setPersonaStatus("Could not read persona photo.");
+    reader.readAsDataURL(file);
+  }
+
   async function switchPersona(profile: PersonaProfile) {
     setActiveProfileId(profile.id);
     setDraft(profileToDraft(profile));
@@ -179,7 +206,7 @@ export function ChatQuickPanel({ chatId, characterId, open, onClose }: ChatQuick
         profileId: draft.profileId,
         label: draft.label || draft.displayName,
         displayName: draft.displayName,
-        avatarUrl: "",
+        avatarUrl: draft.avatarUrl,
         summary: draft.summary,
         background: draft.background,
         traits: parseLines(draft.traits),
@@ -309,6 +336,25 @@ export function ChatQuickPanel({ chatId, characterId, open, onClose }: ChatQuick
             <form onSubmit={savePersona} className="grid gap-2">
               <Input value={draft.label} onChange={(event) => updateDraft("label", event.target.value)} placeholder="Profile label" />
               <Input value={draft.displayName} onChange={(event) => updateDraft("displayName", event.target.value)} placeholder="Your roleplay name" required />
+              <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-2">
+                <label className="focus-ring grid h-[72px] cursor-pointer place-items-center overflow-hidden rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-input)] text-[var(--accent-purple)] shadow-[var(--glass-highlight)] backdrop-blur-xl transition hover:border-[var(--accent-purple)] hover:bg-white/[0.045]">
+                  {draft.avatarUrl ? <img src={draft.avatarUrl} alt="" className="h-full w-full object-cover" /> : <Upload className="h-5 w-5" />}
+                  <input type="file" accept="image/*" className="sr-only" onChange={onAvatarFile} />
+                </label>
+                <div className="grid content-center gap-2">
+                  <Input value={draft.avatarUrl} onChange={(event) => updateDraft("avatarUrl", event.target.value)} placeholder="Avatar URL or upload" />
+                  {draft.avatarUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => updateDraft("avatarUrl", "")}
+                      className="focus-ring inline-flex h-8 items-center justify-center gap-1 rounded-full border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-xs text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
+                    >
+                      <ImagePlus className="h-3.5 w-3.5" />
+                      Clear photo
+                    </button>
+                  ) : null}
+                </div>
+              </div>
               <Textarea value={draft.summary} onChange={(event) => updateDraft("summary", event.target.value)} placeholder="Who you are in this chat." required className="min-h-20" />
               <Textarea value={draft.background} onChange={(event) => updateDraft("background", event.target.value)} placeholder="Background or current situation." className="min-h-20" />
               <Textarea value={draft.traits} onChange={(event) => updateDraft("traits", event.target.value)} placeholder="Traits, one per line" className="min-h-16" />
@@ -335,7 +381,7 @@ export function ChatQuickPanel({ chatId, characterId, open, onClose }: ChatQuick
               {memories.map((memory) => (
                 <div key={memory.id} className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-input)] p-3 shadow-[var(--glass-highlight)]">
                   <p className="text-sm leading-5 text-[var(--text-primary)]">{memory.content}</p>
-                  <p className="mt-2 text-xs text-[var(--text-muted)]">{memory.category}{memory.pinned ? " · pinned" : ""}</p>
+                  <p className="mt-2 text-xs text-[var(--text-muted)]">{memory.category}{memory.pinned ? " - pinned" : ""}</p>
                 </div>
               ))}
               {memories.length === 0 ? <StatusText>No memories for this character yet.</StatusText> : null}
@@ -392,6 +438,7 @@ function profileToDraft(profile: Record<string, unknown>): PersonaDraft {
     profileId: parsed.id,
     label: parsed.label,
     displayName: parsed.displayName,
+    avatarUrl: parsed.avatarUrl ?? "",
     summary: parsed.summary,
     background: parsed.background ?? "",
     traits: parsed.traits.join("\n"),
