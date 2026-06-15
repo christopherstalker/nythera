@@ -122,7 +122,7 @@ export function UserPersonaSettingsClient() {
           Delete persona
         </Button>
       </div>
-      {status ? <p className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 text-sm text-[var(--text-secondary)]">{status}</p> : null}
+      {status ? <p className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 text-sm text-[var(--text-secondary)] shadow-[var(--glass-highlight)]">{status}</p> : null}
     </form>
   );
 }

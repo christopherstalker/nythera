@@ -8,7 +8,7 @@ import type { CharacterSummary } from "@/components/characters/CharacterCard";
 import { Button } from "@/components/ui/button";
 import { CategoryPill } from "@/components/ui/category-pill";
 import { EmptyState } from "@/components/ui/empty-state";
-import { PageShell } from "@/components/ui/page";
+import { PageHeader, PageShell, Surface } from "@/components/ui/page";
 import { SearchBar } from "@/components/ui/search-bar";
 
 const categories = ["For You", "Trending", "Top Rated", "New", "Romance", "Fantasy", "Anime", "Coach", "Friend", "Roleplay", "Lore"];
@@ -48,7 +48,22 @@ export default function ExplorePage() {
 
   return (
     <PageShell className="space-y-6">
-      <SearchBar value={query} onChange={setQuery} placeholder="Search characters..." />
+      <Surface className="relative isolate overflow-hidden p-5 sm:p-6">
+        <div className="pointer-events-none absolute inset-0 -z-10 hero-gradient opacity-60" />
+        <PageHeader
+          title="Explore"
+          description="Find user-created personas by mood, role, genre, or conversation hook."
+          actions={
+            <Button asChild variant="secondary">
+              <Link href="/create-character">
+                <Plus className="h-4 w-4" />
+                Create
+              </Link>
+            </Button>
+          }
+        />
+        <SearchBar className="mt-5" value={query} onChange={setQuery} placeholder="Search characters..." showFilterIcon />
+      </Surface>
 
       <div className="scrollbar-none overflow-x-auto">
         <div className="flex w-max gap-2 pb-1">

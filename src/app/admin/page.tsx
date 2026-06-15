@@ -111,7 +111,7 @@ export default function AdminPage() {
                   </thead>
                   <tbody>
                     {reports.map((report) => (
-                      <tr key={report.id} className="border-t border-white/[0.025] bg-white/[0.012] transition hover:bg-white/[0.028]">
+                      <tr key={report.id} className="border-t border-white/[0.05] bg-white/[0.018] transition hover:bg-white/[0.045]">
                         <td className="px-5 py-4 font-medium text-foreground">{report.reason}</td>
                         <td className="max-w-[360px] px-5 py-4 text-muted-foreground">
                           <p className="truncate">{report.character?.name ?? report.message?.content ?? report.details ?? "No report target details"}</p>
@@ -168,5 +168,5 @@ function Status({ status }: { status: string }) {
           ? "border-destructive/30 bg-destructive/10 text-destructive"
           : "border-primary/20 bg-primary/[0.075] text-foreground";
 
-  return <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${className}`}>{status}</span>;
+  return <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium shadow-[var(--glass-highlight)] ${className}`}>{status}</span>;
 }

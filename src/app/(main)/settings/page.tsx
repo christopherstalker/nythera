@@ -60,14 +60,14 @@ export default function SettingsPage() {
     <PageShell>
       <div className="grid gap-6 lg:grid-cols-[210px_minmax(0,1fr)]">
         <aside className="lg:sticky lg:top-6 lg:self-start">
-          <nav className="scrollbar-none flex gap-2 overflow-x-auto lg:grid" aria-label="Settings sections">
+          <nav className="glass-panel scrollbar-none flex gap-2 overflow-x-auto p-2 lg:grid" aria-label="Settings sections">
             {sections.map((section) => {
               const Icon = section.icon;
               return (
                 <a
                   key={section.id}
                   href={`#${section.id}`}
-                  className="focus-ring flex h-10 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-medium text-[var(--text-secondary)] no-underline transition-colors duration-150 hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+                  className="focus-ring flex h-10 shrink-0 items-center gap-2 rounded-2xl px-3 text-sm font-medium text-[var(--text-secondary)] no-underline transition-colors duration-150 hover:bg-white/[0.055] hover:text-[var(--text-primary)]"
                 >
                   <Icon className="h-4 w-4" />
                   {section.label}
@@ -125,12 +125,12 @@ function SettingsCard({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-card)]">
+    <section id={id} className="glass-panel p-6">
       <div className="mb-5 flex items-center gap-3">
-        <span className="grid h-10 w-10 place-items-center rounded-lg bg-[var(--accent-purple-soft)] text-[var(--accent-purple)]">
+        <span className="grid h-11 w-11 place-items-center rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--accent-purple-soft)] text-[var(--accent-purple)] shadow-[var(--glass-highlight)]">
           <Icon className="h-5 w-5" />
         </span>
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">{title}</h2>
+        <h2 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">{title}</h2>
       </div>
       {children}
     </section>
@@ -149,7 +149,7 @@ function SwitchRow({
   onToggle: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-input)] p-4">
+    <div className="flex items-center justify-between gap-4 rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4 shadow-[var(--glass-highlight)] backdrop-blur-xl">
       <div className="flex min-w-0 items-center gap-3">
         <Icon className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
         <p className="text-sm font-medium text-[var(--text-primary)]">{label}</p>
@@ -161,7 +161,7 @@ function SwitchRow({
         onClick={onToggle}
         className={cn(
           "focus-ring relative h-7 w-12 shrink-0 rounded-[var(--radius-pill)] transition-colors duration-150 active:scale-95",
-          enabled ? "bg-[var(--accent-purple)]" : "bg-[var(--bg-elevated)]"
+          enabled ? "bg-gradient-to-r from-[var(--accent-purple)] to-[var(--accent-secondary)]" : "bg-[var(--bg-elevated)]"
         )}
       >
         <span className={cn("absolute top-1 h-5 w-5 rounded-full bg-white transition-[left] duration-150", enabled ? "left-6" : "left-1")} />

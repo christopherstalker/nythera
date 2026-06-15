@@ -356,23 +356,23 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
           </aside>
         </div>
       </Surface>
-      {status ? <p className="mt-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 text-sm text-[var(--text-secondary)]">{status}</p> : null}
+      {status ? <p className="mt-4 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 text-sm text-[var(--text-secondary)] shadow-[var(--glass-highlight)] backdrop-blur-xl">{status}</p> : null}
       {reportOpen ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4">
-          <div className="w-full max-w-md rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 shadow-[var(--shadow-card)]">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="glass-panel w-full max-w-md p-5">
             <div className="flex items-center justify-between gap-4">
               <h2 className="text-lg font-semibold">Report character</h2>
-              <button type="button" onClick={() => setReportOpen(false)} className="focus-ring grid h-8 w-8 place-items-center rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]">
+              <button type="button" onClick={() => setReportOpen(false)} className="focus-ring grid h-9 w-9 place-items-center rounded-2xl text-[var(--text-secondary)] hover:bg-white/[0.055]">
                 <X className="h-4 w-4" />
               </button>
             </div>
             <label className="mt-4 block">
               <span className="text-sm font-medium text-[var(--text-primary)]">Reason</span>
-              <input value={reportReason} onChange={(event) => setReportReason(event.target.value)} className="focus-ring mt-2 h-11 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-sm" />
+              <input value={reportReason} onChange={(event) => setReportReason(event.target.value)} className="focus-ring glass-input mt-2 h-11 w-full rounded-[var(--radius-md)] px-3 text-sm focus:border-[var(--accent-purple)]" />
             </label>
             <label className="mt-4 block">
               <span className="text-sm font-medium text-[var(--text-primary)]">Details</span>
-              <textarea value={reportDetails} onChange={(event) => setReportDetails(event.target.value)} className="focus-ring mt-2 min-h-28 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-input)] px-3 py-2 text-sm" />
+              <textarea value={reportDetails} onChange={(event) => setReportDetails(event.target.value)} className="focus-ring glass-input mt-2 min-h-28 w-full rounded-[var(--radius-md)] px-3 py-2 text-sm focus:border-[var(--accent-purple)]" />
             </label>
             <div className="mt-5 flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setReportOpen(false)}>Cancel</Button>
@@ -426,7 +426,7 @@ function RatingPanel({
         value={review}
         onChange={(event) => onReviewChange(event.target.value)}
         placeholder="Optional review..."
-        className="focus-ring mt-4 min-h-24 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[var(--text-primary)]"
+        className="focus-ring glass-input mt-4 min-h-24 w-full rounded-[var(--radius-md)] px-3 py-2 text-sm focus:border-[var(--accent-purple)]"
       />
       <Button type="button" className="mt-3" onClick={onSubmit}>
         Save rating
@@ -445,7 +445,7 @@ function ReviewsPanel({ reviews }: { reviews: Array<{ value: number; review?: st
       <h2 className="text-lg font-semibold leading-6">Recent reviews</h2>
       <div className="mt-4 grid gap-3">
         {reviews.map((review, index) => (
-          <div key={index} className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-input)] p-3">
+          <div key={index} className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] p-3 shadow-[var(--glass-highlight)]">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-medium text-[var(--text-primary)]">@{review.user?.username ?? "user"}</p>
               <p className="text-xs text-[#f2c572]">{review.value}/5</p>

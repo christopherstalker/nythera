@@ -19,7 +19,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Mobile primary navigation"
-      className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--border-default)] bg-[var(--bg-surface)] px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 md:hidden"
+      className="fixed inset-x-3 bottom-3 z-50 rounded-[24px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 pb-[calc(0.45rem+env(safe-area-inset-bottom))] pt-2 shadow-[var(--shadow-card)] backdrop-blur-2xl md:hidden"
     >
       <div className="grid grid-cols-5 gap-1">
         {links.map((link) => {
@@ -30,8 +30,8 @@ export function BottomNav() {
               key={link.href}
               href={link.href}
               className={cn(
-                "focus-ring flex h-12 flex-col items-center justify-center gap-1 rounded-lg text-[11px] font-medium text-[var(--text-secondary)] no-underline transition-colors duration-150 active:scale-95",
-                active ? "bg-[var(--accent-purple-soft)] text-[var(--accent-purple)]" : "hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+                "focus-ring flex h-12 flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-medium text-[var(--text-secondary)] no-underline transition-all duration-150 active:scale-95",
+                active ? "bg-[var(--accent-purple-soft)] text-[var(--text-primary)] shadow-[var(--glass-highlight)]" : "hover:bg-white/[0.055] hover:text-[var(--text-primary)]"
               )}
             >
               <Icon className="h-5 w-5" />

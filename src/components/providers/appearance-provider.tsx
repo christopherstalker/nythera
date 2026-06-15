@@ -2,14 +2,14 @@
 
 import { useEffect } from "react";
 
-export const DEFAULT_ACCENT_COLOR = "#9b59b6";
+export const DEFAULT_ACCENT_COLOR = "#a78bfa";
 export const APPEARANCE_STORAGE_KEY = "velora.appearance";
 
 export type StoredAppearance = {
   accentColor?: string;
 };
 
-export const ACCENT_PRESETS = ["#9b59b6", "#ef476f", "#118ab2", "#06d6a0", "#f59e0b", "#64748b"];
+export const ACCENT_PRESETS = ["#a78bfa", "#2dd4bf", "#ef476f", "#38bdf8", "#f59e0b", "#f472b6", "#64748b"];
 
 export function AppearanceProvider() {
   useEffect(() => {
@@ -82,9 +82,9 @@ export function applyAccentColor(hexColor: string) {
 
   root.style.setProperty("--accent-purple", hexColor);
   root.style.setProperty("--accent-purple-hover", rgbToHex(hover));
-  root.style.setProperty("--accent-purple-soft", `rgb(${rgb.r} ${rgb.g} ${rgb.b} / 0.18)`);
+  root.style.setProperty("--accent-purple-soft", `rgb(${rgb.r} ${rgb.g} ${rgb.b} / 0.16)`);
   root.style.setProperty("--accent-rgb", `${rgb.r} ${rgb.g} ${rgb.b}`);
-  root.style.setProperty("--bubble-user", `rgb(${rgb.r} ${rgb.g} ${rgb.b} / 0.28)`);
+  root.style.setProperty("--bubble-user", `rgb(${rgb.r} ${rgb.g} ${rgb.b} / 0.24)`);
   root.style.setProperty("--primary", `${Math.round(hsl.h)} ${Math.round(hsl.s)}% ${Math.round(hsl.l)}%`);
   root.style.setProperty("--accent", `${Math.round(hsl.h)} ${Math.round(hsl.s)}% ${Math.round(hsl.l)}%`);
   root.style.setProperty("--ring", `${Math.round(hsl.h)} ${Math.round(hsl.s)}% ${Math.round(hsl.l)}%`);

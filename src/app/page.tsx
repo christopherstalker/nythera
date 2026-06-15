@@ -65,7 +65,7 @@ export default function HomePage() {
   if (loading) {
     return (
       <PageShell className="space-y-8">
-        <section className="flex min-h-[280px] w-full flex-col items-center justify-center rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-6 py-7 text-center shadow-[var(--shadow-card)]">
+        <section className="app-surface flex min-h-[330px] w-full flex-col items-center justify-center px-6 py-8 text-center">
           <div className="skeleton h-24 w-24 rounded-full" />
           <div className="skeleton mt-5 h-7 w-48 max-w-full" />
           <div className="skeleton mt-3 h-4 w-full max-w-xl" />
@@ -102,16 +102,28 @@ export default function HomePage() {
 
   return (
     <PageShell className="space-y-8">
-      <section className="flex min-h-[280px] w-full flex-col items-center justify-center rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-6 py-7 text-center shadow-[var(--shadow-card)]">
-        <Avatar name={featured.name} src={featured.avatarUrl} size="xl" className="h-24 w-24 border border-[var(--border-default)]" />
-        <h1 className="mt-4 max-w-2xl truncate text-2xl font-semibold text-[var(--text-primary)]">{featured.name}</h1>
-        <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
-          {featured.description || "Start a new character chat and settle into the first scene."}
-        </p>
-        <Button type="button" onClick={startFeaturedChat} className="mt-5">
-          <MessageCircle className="h-4 w-4" />
-          Start Chat
-        </Button>
+      <section className="app-surface relative isolate min-h-[330px] overflow-hidden px-6 py-8 sm:px-8 lg:px-10">
+        {featured.avatarUrl ? (
+          <img
+            src={featured.avatarUrl}
+            alt=""
+            className="pointer-events-none absolute inset-0 -z-20 h-full w-full object-cover opacity-20 blur-2xl scale-110"
+          />
+        ) : null}
+        <div className="pointer-events-none absolute inset-0 -z-10 hero-gradient opacity-90" />
+        <div className="flex min-h-[270px] flex-col items-center justify-center text-center">
+          <Avatar name={featured.name} src={featured.avatarUrl} size="xl" className="h-28 w-28 border border-white/15 shadow-[var(--shadow-glow)]" />
+          <h1 className="mt-5 max-w-3xl truncate text-3xl font-semibold leading-tight tracking-tight text-[var(--text-primary)] sm:text-5xl">
+            {featured.name}
+          </h1>
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--text-secondary)] sm:text-base">
+            {featured.description || "Start a new character chat and settle into the first scene."}
+          </p>
+          <Button type="button" onClick={startFeaturedChat} className="mt-6">
+            <MessageCircle className="h-4 w-4" />
+            Start Chat
+          </Button>
+        </div>
       </section>
 
       <CharacterRow title="Featured For You" characters={rows.featured} loading={loading} />

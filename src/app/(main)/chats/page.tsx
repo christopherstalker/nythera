@@ -63,7 +63,7 @@ export default function ChatsPage() {
             <Link
               key={chat.id}
               href={`/chat/${chat.id}`}
-              className="flex items-center gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 no-underline shadow-[var(--shadow-card)] transition-colors duration-150 hover:bg-[var(--bg-elevated)] active:scale-[0.99]"
+              className="glass-card glass-card-hover flex items-center gap-3 p-4 no-underline active:scale-[0.99]"
             >
               <Avatar name={chat.character.name} src={chat.character.avatarUrl} size="sm" />
               <div className="min-w-0 flex-1">

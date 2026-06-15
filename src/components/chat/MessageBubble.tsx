@@ -68,7 +68,7 @@ export function MessageBubble({
 
   return (
     <div className={cn("group flex animate-in fade-in slide-in-from-bottom-2 duration-200", isUser ? "justify-end" : "justify-start")}>
-      <div className={cn("max-w-[75%]", isUser ? "items-end" : "items-start")}>
+      <div className={cn("max-w-[92%] sm:max-w-[78%]", isUser ? "items-end" : "items-start")}>
         <div className={cn("whitespace-pre-wrap break-words", isUser ? "bubble-user max-w-full" : "bubble-char max-w-full")}>
           {content ? <RichMessageText text={content} /> : <TypingIndicator />}
         </div>
@@ -84,7 +84,7 @@ export function MessageBubble({
               </ActionButton>
             )}
             {hasVariants ? (
-              <span className="flex h-7 items-center gap-1 rounded-md border border-[var(--border-default)] bg-[var(--bg-surface)] px-1 text-xs text-[var(--text-secondary)]">
+              <span className="flex h-8 items-center gap-1 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-1.5 text-xs text-[var(--text-secondary)] shadow-[var(--glass-highlight)] backdrop-blur-xl">
                 <ActionButton label="Previous attempt" onClick={() => onPreviousVariant?.()} disabled={variantIndex <= 0} compact>
                   <ChevronLeft className="h-3.5 w-3.5" />
                 </ActionButton>
@@ -134,8 +134,8 @@ function ActionButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "focus-ring grid place-items-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-35",
-        compact ? "h-5 w-5 border-0 bg-transparent" : "h-7 w-7 border border-[var(--border-default)] bg-[var(--bg-surface)]",
+        "focus-ring grid place-items-center rounded-full text-[var(--text-secondary)] transition-colors hover:bg-white/[0.06] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-35",
+        compact ? "h-5 w-5 border-0 bg-transparent" : "h-8 w-8 border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--glass-highlight)] backdrop-blur-xl",
         destructive && "hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-200"
       )}
     >

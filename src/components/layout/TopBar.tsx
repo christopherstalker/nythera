@@ -35,47 +35,47 @@ export function TopBar({ chatId, characterId, characterName, characterAvatarUrl 
   }
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-[var(--border-default)] bg-[var(--bg-base)] px-4">
+    <header className="relative z-20 mx-3 mt-3 flex h-16 shrink-0 items-center gap-3 rounded-[24px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 shadow-[var(--shadow-soft)] backdrop-blur-2xl sm:mx-4 sm:px-4">
       <button
         type="button"
         aria-label="Go back"
         onClick={() => router.back()}
-        className="focus-ring grid h-9 w-9 shrink-0 place-items-center rounded-lg text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)] active:scale-95"
+        className="focus-ring grid h-10 w-10 shrink-0 place-items-center rounded-2xl text-[var(--text-secondary)] transition-colors hover:bg-white/[0.055] hover:text-[var(--text-primary)] active:scale-95"
       >
         <ChevronLeft className="h-6 w-6" />
       </button>
       <Avatar name={characterName} src={characterAvatarUrl} size="sm" />
       <div className="min-w-0 flex-1">
-        <h1 className="truncate text-base font-semibold text-[var(--text-primary)]">{characterName}</h1>
+        <h1 className="truncate text-base font-semibold tracking-tight text-[var(--text-primary)]">{characterName}</h1>
       </div>
       <div className="relative">
         <button
           type="button"
           aria-label="Open chat menu"
           onClick={() => setOpen((current) => !current)}
-          className="focus-ring grid h-9 w-9 place-items-center rounded-lg text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)] active:scale-95"
+          className="focus-ring grid h-10 w-10 place-items-center rounded-2xl text-[var(--text-secondary)] transition-colors hover:bg-white/[0.055] hover:text-[var(--text-primary)] active:scale-95"
         >
           <MoreVertical className="h-5 w-5" />
         </button>
         {open ? (
-          <div className="absolute right-0 top-11 z-20 w-44 overflow-hidden rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] p-1 shadow-[var(--shadow-card)]">
-            <button type="button" onClick={shareChat} className="flex h-9 w-full items-center gap-2 rounded-md px-3 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]">
+          <div className="absolute right-0 top-12 z-20 w-48 overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-1.5 shadow-[var(--shadow-card)] backdrop-blur-xl">
+            <button type="button" onClick={shareChat} className="flex h-10 w-full items-center gap-2 rounded-xl px-3 text-sm text-[var(--text-secondary)] hover:bg-white/[0.055] hover:text-[var(--text-primary)]">
               <Share2 className="h-4 w-4" />
               Share
             </button>
-            <button type="button" onClick={shareChat} className="flex h-9 w-full items-center gap-2 rounded-md px-3 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]">
+            <button type="button" onClick={shareChat} className="flex h-10 w-full items-center gap-2 rounded-xl px-3 text-sm text-[var(--text-secondary)] hover:bg-white/[0.055] hover:text-[var(--text-primary)]">
               <Copy className="h-4 w-4" />
               Copy link
             </button>
             <Link
               href={characterId ? `/character/${characterId}` : "/explore"}
-              className="flex h-9 items-center gap-2 rounded-md px-3 text-sm text-[var(--text-secondary)] no-underline hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
+              className="flex h-10 items-center gap-2 rounded-xl px-3 text-sm text-[var(--text-secondary)] no-underline hover:bg-white/[0.055] hover:text-[var(--text-primary)]"
               onClick={() => setOpen(false)}
             >
               <Edit3 className="h-4 w-4" />
               Character
             </Link>
-            <button type="button" onClick={deleteChat} className="flex h-9 w-full items-center gap-2 rounded-md px-3 text-sm text-red-300 hover:bg-red-500/10">
+            <button type="button" onClick={deleteChat} className="flex h-10 w-full items-center gap-2 rounded-xl px-3 text-sm text-red-300 hover:bg-red-500/10">
               <Trash2 className="h-4 w-4" />
               Delete chat
             </button>

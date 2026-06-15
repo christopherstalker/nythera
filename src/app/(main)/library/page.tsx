@@ -62,7 +62,7 @@ export default function LibraryPage() {
             {library.chats.length ? (
               <div className="grid gap-3">
                 {library.chats.map((chat) => (
-                  <Link key={chat.id} href={`/chat/${chat.id}`} className="flex items-center gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 no-underline transition hover:bg-[var(--bg-elevated)]">
+                  <Link key={chat.id} href={`/chat/${chat.id}`} className="glass-card glass-card-hover flex items-center gap-3 p-4 no-underline">
                     <Avatar name={chat.character.name} src={chat.character.avatarUrl} size="sm" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{chat.title || chat.character.name}</p>
@@ -96,7 +96,7 @@ function Section({ title, empty, children }: { title: string; empty: string; chi
   const hasChildren = Boolean(children);
   return (
     <section className="space-y-3">
-      <h2 className="text-lg font-semibold text-[var(--text-primary)]">{title}</h2>
+      <h2 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">{title}</h2>
       {hasChildren ? children : <Surface className="p-6 text-sm text-[var(--text-secondary)]">{empty}</Surface>}
     </section>
   );

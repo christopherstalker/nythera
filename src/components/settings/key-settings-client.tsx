@@ -191,7 +191,7 @@ export function KeySettingsClient() {
           <form
             key={provider.provider}
             onSubmit={(event) => saveProvider(event, provider.provider)}
-            className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4"
+            className="glass-card p-4"
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -249,13 +249,13 @@ export function KeySettingsClient() {
       })}
 
       {keys.filter((key) => !providers.some((provider) => provider.provider === key.provider)).length > 0 ? (
-        <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
+        <div className="glass-card p-4">
           <h3 className="text-sm font-semibold text-[var(--text-primary)]">Saved custom providers</h3>
           <div className="mt-3 grid gap-2">
             {keys
               .filter((key) => !providers.some((provider) => provider.provider === key.provider))
               .map((key) => (
-                <div key={key.provider} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-input)] p-3">
+                <div key={key.provider} className="flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] p-3 shadow-[var(--glass-highlight)]">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-[var(--text-primary)]">{key.displayName}</p>
                     <p className="mt-1 truncate text-xs text-[var(--text-muted)]">{key.provider} · {key.defaultModel || "no default model"} · ending in {key.last4}</p>
@@ -270,7 +270,7 @@ export function KeySettingsClient() {
         </div>
       ) : null}
 
-      <form onSubmit={saveCustom} className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
+      <form onSubmit={saveCustom} className="glass-card p-4">
         <h3 className="text-sm font-semibold text-[var(--text-primary)]">Custom provider</h3>
         <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">Use OpenAI-compatible providers such as OpenRouter, Groq, DeepSeek, Together, or Mistral.</p>
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -279,7 +279,7 @@ export function KeySettingsClient() {
           <select
             value={custom.apiFormat}
             onChange={(event) => setCustom((current) => ({ ...current, apiFormat: event.target.value as ApiFormat }))}
-            className="focus-ring h-12 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] px-4 text-sm text-[var(--text-primary)]"
+            className="focus-ring glass-input h-12 rounded-[var(--radius-md)] px-4 text-sm focus:border-[var(--accent-purple)]"
           >
             <option value="OPENAI_COMPATIBLE">OpenAI-compatible</option>
             <option value="OPENAI">OpenAI native</option>
@@ -296,7 +296,7 @@ export function KeySettingsClient() {
         </Button>
       </form>
 
-      {status ? <p className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 text-sm text-[var(--text-secondary)]">{status}</p> : null}
+      {status ? <p className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 text-sm text-[var(--text-secondary)] shadow-[var(--glass-highlight)]">{status}</p> : null}
     </div>
   );
 }

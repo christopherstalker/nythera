@@ -23,7 +23,7 @@ export function Avatar({ name, src, size = "md", className, imageClassName }: Av
   return (
     <span
       className={cn(
-        "grid shrink-0 place-items-center overflow-hidden rounded-full bg-[var(--bg-elevated)] text-[var(--accent-purple)]",
+        "grid shrink-0 place-items-center overflow-hidden rounded-full border border-white/10 bg-[var(--bg-elevated)] text-[var(--accent-purple)] shadow-[var(--glass-highlight)]",
         sizes[size],
         className
       )}

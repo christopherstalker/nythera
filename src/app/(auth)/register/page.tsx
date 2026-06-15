@@ -39,11 +39,12 @@ export default function RegisterPage() {
 
   return (
     <PageShell className="flex min-h-[calc(100dvh-68px)] items-center justify-center pb-5 sm:pb-6">
-      <Surface className="w-full max-w-md p-7 sm:p-8">
-        <div className="grid h-12 w-12 place-items-center overflow-hidden rounded-full bg-primary/10 shadow-inset">
+      <Surface className="relative isolate w-full max-w-md overflow-hidden p-7 sm:p-8">
+        <div className="pointer-events-none absolute inset-0 -z-10 hero-gradient opacity-55" />
+        <div className="grid h-12 w-12 place-items-center overflow-hidden rounded-full border border-white/10 bg-primary/10 shadow-[var(--shadow-glow)]">
           <img src="/icon.svg" alt="" className="h-full w-full object-cover" />
         </div>
-        <h1 className="mt-7 text-2xl font-semibold tracking-tight">Create your Velora account</h1>
+        <h1 className="mt-7 text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Create your Velora account</h1>
         <p className="mt-3 text-sm leading-7 text-muted-foreground">
           Save characters, resume chats, and add provider keys when you want live models.
         </p>

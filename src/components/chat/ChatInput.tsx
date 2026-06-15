@@ -39,19 +39,19 @@ export function ChatInput({ value, onChange, onSubmit, disabled = false, model, 
   }
 
   return (
-    <div className="shrink-0 bg-[var(--bg-base)] px-4 pb-[calc(5.75rem+env(safe-area-inset-bottom))] pt-2 md:pb-4">
+    <div className="relative z-20 shrink-0 bg-gradient-to-t from-[var(--bg-base)] via-[var(--bg-base)] to-transparent px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-4 md:pb-5">
       {onModelChange || onTemperatureChange ? (
-        <div className="mx-auto mb-2 grid max-w-[900px] gap-2 sm:grid-cols-[minmax(0,1fr)_220px]">
+        <div className="mx-auto mb-2 grid max-w-[920px] gap-2 sm:grid-cols-[minmax(0,1fr)_220px]">
           {onModelChange ? (
             <input
               value={model ?? ""}
               onChange={(event) => onModelChange(event.target.value)}
               placeholder="provider:model"
-              className="focus-ring h-9 rounded-lg border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+              className="focus-ring glass-input h-10 rounded-[var(--radius-md)] px-3 text-xs focus:border-[var(--accent-purple)]"
             />
           ) : null}
           {onTemperatureChange ? (
-            <label className="flex h-9 items-center gap-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-xs text-[var(--text-secondary)]">
+            <label className="glass-input flex h-10 items-center gap-2 rounded-[var(--radius-md)] px-3 text-xs text-[var(--text-secondary)]">
               temp
               <input
                 type="range"
@@ -67,7 +67,7 @@ export function ChatInput({ value, onChange, onSubmit, disabled = false, model, 
           ) : null}
         </div>
       ) : null}
-      <div className="mx-auto flex max-w-[900px] items-end gap-2 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-input)] px-4 py-3 transition-colors duration-200 focus-within:border-[var(--accent-purple)]">
+      <div className="mx-auto flex max-w-[920px] items-end gap-2 rounded-[26px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 shadow-[var(--shadow-card)] backdrop-blur-2xl transition-colors duration-200 focus-within:border-[var(--accent-purple)]">
         <textarea
           ref={textareaRef}
           value={value}
@@ -76,7 +76,7 @@ export function ChatInput({ value, onChange, onSubmit, disabled = false, model, 
           onInput={resize}
           onKeyDown={handleKeyDown}
           placeholder="Message..."
-          className="max-h-[160px] min-h-8 flex-1 resize-none overflow-y-auto bg-transparent text-sm leading-6 text-white outline-none placeholder:text-[var(--text-muted)]"
+          className="max-h-[160px] min-h-8 flex-1 resize-none overflow-y-auto bg-transparent text-sm leading-6 text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
           disabled={disabled}
         />
         <button
@@ -84,7 +84,7 @@ export function ChatInput({ value, onChange, onSubmit, disabled = false, model, 
           onClick={onSubmit}
           disabled={disabled || !value.trim()}
           aria-label="Send message"
-          className="focus-ring flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--accent-purple)] text-white transition-all duration-100 hover:brightness-110 active:scale-90 disabled:opacity-40"
+          className="focus-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-gradient-to-br from-[var(--accent-purple)] to-[var(--accent-secondary)] text-white shadow-[var(--shadow-glow)] transition-all duration-100 hover:brightness-110 active:scale-90 disabled:opacity-40"
         >
           <ArrowUp className="h-4 w-4" />
         </button>

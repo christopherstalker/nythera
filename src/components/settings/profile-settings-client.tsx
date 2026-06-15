@@ -98,14 +98,14 @@ export function ProfileSettingsClient() {
     <form key={profile?.email ?? "loading-profile"} onSubmit={onSubmit} className="grid gap-4 lg:grid-cols-2">
       <Input name="email" value={profile?.email ?? ""} disabled placeholder="Email" />
       <Input name="username" defaultValue={profile?.username ?? ""} placeholder="Username" />
-      <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-input)] p-4 lg:col-span-2">
+      <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4 shadow-[var(--glass-highlight)] backdrop-blur-xl lg:col-span-2">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <Avatar name={profile?.email ?? "V"} src={avatarValue} size="lg" />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-[var(--text-primary)]">Profile avatar</p>
             <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">PNG, JPG, WebP, GIF, or SVG up to 1.5MB.</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <label className="focus-ring inline-flex h-10 cursor-pointer items-center gap-2 rounded-[var(--radius-pill)] bg-[var(--bg-elevated)] px-4 text-sm font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--accent-purple-soft)]">
+              <label className="focus-ring inline-flex h-10 cursor-pointer items-center gap-2 rounded-[var(--radius-pill)] border border-[var(--border-default)] bg-[var(--bg-elevated)] px-4 text-sm font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--accent-purple-soft)]">
                 <ImagePlus className="h-4 w-4" />
                 Choose file
                 <input type="file" accept="image/*" className="sr-only" onChange={onAvatarFile} />
@@ -120,13 +120,13 @@ export function ProfileSettingsClient() {
           </div>
         </div>
       </div>
-      <label className="flex min-h-12 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] px-4 text-sm text-[var(--text-secondary)]">
+      <label className="flex min-h-12 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] px-4 text-sm text-[var(--text-secondary)] shadow-[var(--glass-highlight)] backdrop-blur-xl">
         <input name="ageVerified" type="checkbox" defaultChecked={profile?.ageVerified ?? false} className="accent-[var(--accent-purple)]" />
         I confirm I can access age-gated content settings
       </label>
       <Textarea name="bio" defaultValue={profile?.bio ?? ""} placeholder="Bio" className="lg:col-span-2" />
       <Button type="submit" className="w-fit">Save profile</Button>
-      {status ? <p className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 text-sm text-[var(--text-secondary)] lg:col-span-2">{status}</p> : null}
+      {status ? <p className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 text-sm text-[var(--text-secondary)] shadow-[var(--glass-highlight)] lg:col-span-2">{status}</p> : null}
     </form>
   );
 }

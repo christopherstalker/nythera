@@ -124,23 +124,23 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-40 hidden border-r border-[var(--border-default)] bg-[var(--bg-surface)] transition-[width] duration-200 md:flex md:w-[var(--sidebar-collapsed)] lg:w-[var(--sidebar-width)]",
+        "fixed inset-y-0 left-0 z-40 hidden border-r border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-soft)] backdrop-blur-2xl transition-[width] duration-200 md:flex md:w-[var(--sidebar-collapsed)] lg:w-[var(--sidebar-width)]",
         collapsed && "lg:w-[var(--sidebar-collapsed)]"
       )}
     >
       <div className="flex min-w-0 flex-1 flex-col px-3 py-4">
-        <div className="mb-4 flex h-10 items-center gap-3">
-          <Link href="/" className="focus-ring flex min-w-0 flex-1 items-center gap-3 rounded-lg no-underline">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--accent-purple)] text-white">
+        <div className="mb-5 flex h-11 items-center gap-3">
+          <Link href="/" className="focus-ring flex min-w-0 flex-1 items-center gap-3 rounded-2xl no-underline">
+            <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full border border-white/10 bg-gradient-to-br from-[var(--accent-purple)] to-[var(--accent-secondary)] text-white shadow-[var(--shadow-glow)]">
               <img src="/icon.svg" alt="" className="h-full w-full rounded-full object-cover" />
             </span>
-            <span className={cn("font-semibold text-[var(--text-primary)]", labelClass)}>Velora</span>
+            <span className={cn("font-semibold tracking-tight text-[var(--text-primary)]", labelClass)}>Velora</span>
           </Link>
           <button
             type="button"
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             onClick={toggleSidebar}
-            className="focus-ring hidden h-8 w-8 shrink-0 place-items-center rounded-lg text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)] lg:grid"
+            className="focus-ring hidden h-9 w-9 shrink-0 place-items-center rounded-2xl border border-[var(--border-default)] bg-white/[0.025] text-[var(--text-secondary)] transition-colors hover:bg-white/[0.06] hover:text-[var(--text-primary)] lg:grid"
           >
             {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </button>
@@ -153,12 +153,12 @@ export function Sidebar() {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search chats"
-              className="focus-ring h-10 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-input)] pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent-purple)]"
+              className="focus-ring glass-input h-10 w-full rounded-2xl pl-9 pr-3 text-sm focus:border-[var(--accent-purple)]"
             />
           </label>
         </div>
 
-        <div className="mb-4 border-t border-[var(--border-default)] pt-4">
+        <div className="mb-4 border-t border-[var(--border-subtle)] pt-4">
           <p className={cn("mb-2 px-3 text-xs font-medium uppercase tracking-wide text-[var(--text-muted)] md:hidden lg:block", collapsed && "lg:hidden")}>
             Recent
           </p>
@@ -189,7 +189,7 @@ export function Sidebar() {
           </div>
         </div>
 
-        <nav className="mt-auto border-t border-[var(--border-default)] pt-4" aria-label="Primary navigation">
+        <nav className="mt-auto border-t border-[var(--border-subtle)] pt-4" aria-label="Primary navigation">
           <div className="grid gap-1">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -204,13 +204,13 @@ export function Sidebar() {
           </div>
         </nav>
 
-        <div className="relative mt-4 border-t border-[var(--border-default)] pt-3">
+        <div className="relative mt-4 border-t border-[var(--border-subtle)] pt-3">
           {isAuthenticated ? (
             <>
               <button
                 type="button"
                 onClick={() => setAccountOpen((current) => !current)}
-                className="focus-ring flex h-12 w-full items-center gap-3 rounded-lg px-2 text-left text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+                className="focus-ring flex h-12 w-full items-center gap-3 rounded-2xl px-2 text-left text-[var(--text-secondary)] transition-colors hover:bg-white/[0.05] hover:text-[var(--text-primary)]"
               >
                 <Avatar name={displayName} src={avatarUrl} size="xs" />
                 <span className={cn("min-w-0 flex-1", labelClass)}>
@@ -220,7 +220,7 @@ export function Sidebar() {
                 <ChevronDown className={cn("h-4 w-4", labelClass)} />
               </button>
               {accountOpen ? (
-                <div className={cn("absolute bottom-14 left-2 right-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] p-1 shadow-[var(--shadow-card)] md:hidden lg:block", collapsed && "lg:hidden")}>
+                <div className={cn("absolute bottom-14 left-2 right-2 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-1 shadow-[var(--shadow-card)] backdrop-blur-xl md:hidden lg:block", collapsed && "lg:hidden")}>
                   <Link href="/settings" className="nav-item" onClick={() => setAccountOpen(false)}>
                     <Settings className="h-4 w-4" />
                     Settings

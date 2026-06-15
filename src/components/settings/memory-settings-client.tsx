@@ -87,7 +87,7 @@ export function MemorySettingsClient() {
 
       <div className="grid gap-2">
         {memories.map((memory) => (
-          <div key={memory.id} className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-input)] p-4">
+          <div key={memory.id} className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4 shadow-[var(--glass-highlight)] backdrop-blur-xl">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="whitespace-pre-wrap text-sm leading-6 text-[var(--text-primary)]">{memory.content}</p>
@@ -107,10 +107,10 @@ export function MemorySettingsClient() {
             </div>
           </div>
         ))}
-        {memories.length === 0 ? <p className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-input)] p-4 text-sm text-[var(--text-secondary)]">No memories saved yet.</p> : null}
+        {memories.length === 0 ? <p className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4 text-sm text-[var(--text-secondary)] shadow-[var(--glass-highlight)]">No memories saved yet.</p> : null}
       </div>
 
-      {status ? <p className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 text-sm text-[var(--text-secondary)]">{status}</p> : null}
+      {status ? <p className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 text-sm text-[var(--text-secondary)] shadow-[var(--glass-highlight)]">{status}</p> : null}
     </div>
   );
 }

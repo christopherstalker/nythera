@@ -34,15 +34,15 @@ export function AppearanceSettingsClient() {
 
   return (
     <div className="grid gap-4">
-      <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-input)] p-4">
+      <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4 shadow-[var(--glass-highlight)] backdrop-blur-xl">
         <p className="text-sm font-medium text-[var(--text-primary)]">Theme</p>
-        <div className="mt-3 inline-flex rounded-[var(--radius-pill)] bg-[var(--bg-elevated)] p-1">
+        <div className="mt-3 inline-flex rounded-[var(--radius-pill)] border border-[var(--border-default)] bg-[var(--bg-elevated)] p-1">
           <ThemeButton active={activeTheme === "dark"} label="Dark" icon={Moon} onClick={() => setTheme("dark")} />
           <ThemeButton active={activeTheme === "light"} label="Light" icon={Sun} onClick={() => setTheme("light")} />
         </div>
       </div>
 
-      <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-input)] p-4">
+      <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4 shadow-[var(--glass-highlight)] backdrop-blur-xl">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="min-w-0">
             <p className="text-sm font-medium text-[var(--text-primary)]">Accent color</p>
@@ -99,7 +99,7 @@ function ThemeButton({
       className={cn(
         "focus-ring inline-flex h-9 items-center gap-2 rounded-[var(--radius-pill)] px-4 text-sm font-medium transition-colors",
         active
-          ? "bg-[var(--accent-purple)] text-white"
+          ? "bg-gradient-to-br from-[var(--accent-purple)] to-[var(--accent-secondary)] text-white"
           : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
       )}
     >
