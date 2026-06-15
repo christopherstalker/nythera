@@ -16,19 +16,19 @@
     --text-muted: #6f7088;
 
     /* Accents */
-    --accent-purple: #a78bfa;
-    --accent-purple-hover: #8b5cf6;
-    --accent-purple-soft: rgb(167 139 250 / 0.16);
-    --accent-secondary: #6d28d9;
+    --accent-purple: #f97316;
+    --accent-purple-hover: #ea580c;
+    --accent-purple-soft: rgb(249 115 22 / 0.16);
+    --accent-secondary: #c2410c;
     --accent-teal: #2dd4bf;
-    --accent-rgb: 167 139 250;
+    --accent-rgb: 249 115 22;
 
     /* Borders */
     --border-default: rgb(255 255 255 / 0.08);
     --border-subtle: rgb(255 255 255 / 0.045);
 
     /* Chat bubbles */
-    --bubble-user: rgb(167 139 250 / 0.26);
+    --bubble-user: rgb(249 115 22 / 0.26);
     --bubble-char: rgb(14 14 24 / 0.72);
 
     /* Sidebar */
@@ -58,19 +58,19 @@
     --card-foreground: 240 100% 96%;
     --popover: 240 27% 13%;
     --popover-foreground: 240 100% 96%;
-    --primary: 255 92% 76%;
+    --primary: 24 95% 53%;
     --primary-foreground: 240 24% 6%;
     --secondary: 240 24% 16%;
     --secondary-foreground: 240 100% 96%;
     --muted: 240 19% 17%;
     --muted-foreground: 240 10% 67%;
-    --accent: 255 92% 76%;
+    --accent: 24 95% 53%;
     --accent-foreground: 240 24% 6%;
     --destructive: 0 73% 58%;
     --destructive-foreground: 0 0% 100%;
     --border: 240 22% 22%;
     --input: 240 24% 16%;
-    --ring: 255 92% 76%;
+    --ring: 24 95% 53%;
     --radius: 18px;
   }
 
@@ -97,19 +97,19 @@
     --card-foreground: 240 100% 96%;
     --popover: 240 27% 13%;
     --popover-foreground: 240 100% 96%;
-    --primary: 255 92% 76%;
+    --primary: 24 95% 53%;
     --primary-foreground: 240 24% 6%;
     --secondary: 240 24% 16%;
     --secondary-foreground: 240 100% 96%;
     --muted: 240 19% 17%;
     --muted-foreground: 240 10% 67%;
-    --accent: 255 92% 76%;
+    --accent: 24 95% 53%;
     --accent-foreground: 240 24% 6%;
     --destructive: 0 73% 58%;
     --destructive-foreground: 0 0% 100%;
     --border: 240 22% 22%;
     --input: 240 24% 16%;
-    --ring: 255 92% 76%;
+    --ring: 24 95% 53%;
   }
 
   .light {

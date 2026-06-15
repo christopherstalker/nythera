@@ -47,7 +47,7 @@ export default function AdminPage() {
       <PageHeader
         icon={ShieldAlert}
         title="Moderation"
-        description="Review reports, scan safety state, and keep public characters aligned with Velora policy."
+        description="Review reports, scan safety state, and keep public characters aligned with Aurenya policy."
       />
 
       <div className="grid gap-7 lg:grid-cols-[280px_minmax(0,1fr)]">

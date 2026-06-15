@@ -44,7 +44,7 @@ export default function RegisterPage() {
         <div className="grid h-12 w-12 place-items-center overflow-hidden rounded-full border border-white/10 bg-primary/10 shadow-[var(--shadow-glow)]">
           <img src="/icon.svg" alt="" className="h-full w-full object-cover" />
         </div>
-        <h1 className="mt-7 text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Create your Velora account</h1>
+        <h1 className="mt-7 text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Create your Aurenya account</h1>
         <p className="mt-3 text-sm leading-7 text-muted-foreground">
           Save characters, resume chats, and add provider keys when you want live models.
         </p>

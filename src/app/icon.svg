@@ -1,17 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Velora">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Aurenya">
   <defs>
-    <linearGradient id="velora-bg" x1="60" y1="48" x2="440" y2="468" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#1D1D1D"/>
-      <stop offset="1" stop-color="#0A0A0A"/>
+    <linearGradient id="aurenya-bg" x1="72" y1="36" x2="438" y2="476" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#20150F"/>
+      <stop offset="0.58" stop-color="#111018"/>
+      <stop offset="1" stop-color="#07070C"/>
     </linearGradient>
-    <linearGradient id="velora-mark" x1="144" y1="104" x2="376" y2="412" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#C77DFF"/>
-      <stop offset="0.52" stop-color="#9B59B6"/>
-      <stop offset="1" stop-color="#4CC9F0"/>
+    <linearGradient id="aurenya-ember" x1="146" y1="88" x2="374" y2="422" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFE0A3"/>
+      <stop offset="0.4" stop-color="#FB923C"/>
+      <stop offset="1" stop-color="#EA580C"/>
     </linearGradient>
+    <radialGradient id="aurenya-glow" cx="0" cy="0" r="1" gradientTransform="matrix(0 188 -188 0 256 260)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F97316" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#F97316" stop-opacity="0"/>
+    </radialGradient>
   </defs>
-  <rect width="512" height="512" rx="128" fill="url(#velora-bg)"/>
-  <path fill="url(#velora-mark)" d="M256 96c70.7 0 128 57.3 128 128 0 101-103.5 179.4-120.6 192a12.4 12.4 0 0 1-14.8 0C231.5 403.4 128 325 128 224c0-70.7 57.3-128 128-128Zm0 56c-39.8 0-72 32.2-72 72 0 51.6 46.4 102.6 72 126.2 25.6-23.6 72-74.6 72-126.2 0-39.8-32.2-72-72-72Z"/>
-  <circle cx="256" cy="224" r="42" fill="#FFFFFF"/>
-  <path fill="#FFFFFF" d="M396 92l14.6 37.4L448 144l-37.4 14.6L396 196l-14.6-37.4L344 144l37.4-14.6L396 92ZM116 314l10.4 27.6L154 352l-27.6 10.4L116 390l-10.4-27.6L78 352l27.6-10.4L116 314Z" opacity=".92"/>
+  <rect width="512" height="512" rx="128" fill="url(#aurenya-bg)"/>
+  <circle cx="256" cy="260" r="188" fill="url(#aurenya-glow)"/>
+  <path fill="url(#aurenya-ember)" d="M256 86c67 61 116 124 116 202 0 73-52 128-116 128s-116-55-116-128c0-78 49-141 116-202Zm0 86c-43 44-72 84-72 129 0 44 31 77 72 77s72-33 72-77c0-45-29-85-72-129Z"/>
+  <path fill="#FFF7ED" d="M254 168c8-12 26-6 26 9v163h-48V177c0-4 1-7 3-10l19 1Z"/>
+  <path fill="#FFF7ED" d="M160 346 250 154c5-11 17-17 29-13 11 4 17 17 12 28l-90 192c-5 11-18 16-29 11-11-5-16-18-12-26Zm191 15-90-192c-5-11 1-24 12-28 12-4 24 2 29 13l90 192c4 8 1 18-6 24-11 8-28 4-35-9Z"/>
+  <path fill="#111018" fill-opacity=".72" d="M218 294h76c11 0 20 9 20 20s-9 20-20 20h-76c-11 0-20-9-20-20s9-20 20-20Z"/>
+  <circle cx="392" cy="142" r="18" fill="#FED7AA"/>
+  <circle cx="118" cy="360" r="12" fill="#FB923C" opacity=".88"/>
 </svg>

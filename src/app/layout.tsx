@@ -10,13 +10,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Velora",
+  title: "Aurenya",
   description: "Free character chats with memory and bring-your-own model keys.",
-  applicationName: "Velora",
+  applicationName: "Aurenya",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "Velora",
+    title: "Aurenya",
     statusBarStyle: "black-translucent"
   },
   formatDetection: {

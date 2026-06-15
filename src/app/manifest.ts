@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Velora AI Character Chat",
-    short_name: "Velora",
+    name: "Aurenya AI Character Chat",
+    short_name: "Aurenya",
     description: "AI character chats with persona, memory, and secure model access.",
     id: "/",
     start_url: "/",

@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import { Plus, Save, Trash2 } from "lucide-react";
+import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { ImagePlus, Plus, Save, Trash2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -70,6 +70,31 @@ export function UserPersonaSettingsClient() {
 
   function update<K extends keyof PersonaDraft>(field: K, value: PersonaDraft[K]) {
     setDraft((current) => ({ ...current, [field]: value }));
+  }
+
+  function onAvatarFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setStatus("Choose an image file.");
+      return;
+    }
+
+    if (file.size > 1_500_000) {
+      setStatus("Persona photo must be smaller than 1.5MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      update("avatarUrl", String(reader.result ?? ""));
+      setStatus(null);
+    };
+    reader.onerror = () => setStatus("Could not read persona photo.");
+    reader.readAsDataURL(file);
   }
 
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -162,7 +187,30 @@ export function UserPersonaSettingsClient() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Input value={draft.label} onChange={(event) => update("label", event.target.value)} placeholder="Profile label, e.g. Main RP" />
         <Input value={draft.displayName} onChange={(event) => update("displayName", event.target.value)} placeholder="Persona name" required />
-        <Input value={draft.avatarUrl} onChange={(event) => update("avatarUrl", event.target.value)} placeholder="Avatar URL or data URL" />
+      </div>
+      <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+        <label className="focus-ring flex min-h-[210px] cursor-pointer flex-col items-center justify-center rounded-[var(--radius-lg)] border border-dashed border-[var(--border-default)] bg-[var(--bg-input)] p-5 text-center shadow-[var(--glass-highlight)] backdrop-blur-xl transition hover:border-[var(--accent-purple)] hover:bg-white/[0.045]">
+          <span className="grid h-28 w-28 place-items-center overflow-hidden rounded-full border border-white/10 bg-[var(--bg-elevated)] text-[var(--accent-purple)] shadow-[var(--shadow-glow)]">
+            {draft.avatarUrl ? <img src={draft.avatarUrl} alt="" className="h-full w-full object-cover" /> : <Upload className="h-8 w-8" />}
+          </span>
+          <span className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]">
+            <ImagePlus className="h-4 w-4" />
+            Upload photo
+          </span>
+          <input type="file" accept="image/*" className="sr-only" onChange={onAvatarFile} />
+        </label>
+        <div className="grid content-start gap-3">
+          <Input value={draft.avatarUrl} onChange={(event) => update("avatarUrl", event.target.value)} placeholder="Avatar URL or uploaded data URL" />
+          <p className="text-sm leading-6 text-[var(--text-secondary)]">
+            Upload a photo or paste an image URL. This avatar is included in persona switching and chat quick access.
+          </p>
+          {draft.avatarUrl ? (
+            <Button type="button" variant="outline" onClick={() => update("avatarUrl", "")}>
+              <X className="h-4 w-4" />
+              Clear photo
+            </Button>
+          ) : null}
+        </div>
       </div>
       <Textarea value={draft.summary} onChange={(event) => update("summary", event.target.value)} placeholder="Who you are in roleplay scenes." required />
       <Textarea value={draft.background} onChange={(event) => update("background", event.target.value)} placeholder="Optional background, history, or ongoing context." />

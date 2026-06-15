@@ -82,7 +82,7 @@ export default function ExplorePage() {
           description={
             hasActiveFilters
               ? "Try another character name, mood, or category."
-              : "The public catalog is empty right now. Create a character to start building Velora."
+              : "The public catalog is empty right now. Create a character to start building Aurenya."
           }
           action={
             hasActiveFilters ? null : (

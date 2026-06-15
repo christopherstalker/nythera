@@ -2,14 +2,14 @@
 
 import { useEffect } from "react";
 
-export const DEFAULT_ACCENT_COLOR = "#a78bfa";
+export const DEFAULT_ACCENT_COLOR = "#f97316";
 export const APPEARANCE_STORAGE_KEY = "velora.appearance";
 
 export type StoredAppearance = {
   accentColor?: string;
 };
 
-export const ACCENT_PRESETS = ["#a78bfa", "#2dd4bf", "#ef476f", "#38bdf8", "#f59e0b", "#f472b6", "#64748b"];
+export const ACCENT_PRESETS = ["#f97316", "#a78bfa", "#2dd4bf", "#ef476f", "#38bdf8", "#f472b6", "#64748b"];
 
 export function AppearanceProvider() {
   useEffect(() => {

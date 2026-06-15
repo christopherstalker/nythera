@@ -37,14 +37,17 @@ export function moderateText(input: {
     flags.push("minor_romantic_content");
   }
 
-  const injection = detectPromptInjection(input.text);
+  // Character/persona forms contain boundary text like "do not reveal prompts" by design.
+  // Treat prompt-injection detection as a chat-message hardening signal, not as a character creation blocker.
+  const injection = input.context === "message" ? detectPromptInjection(input.text) : { detected: false, flags: [] };
   if (injection.detected) {
     flags.push("prompt_injection_attempt");
     flags.push(...injection.flags);
   }
 
   const selfHarm = flags.includes("self_harm");
-  if (flags.some((flag) => flag !== "prompt_injection_attempt")) {
+  const blockingFlags = flags.filter((flag) => !flag.startsWith("prompt_injection"));
+  if (blockingFlags.length > 0) {
     return {
       allowed: false,
       flags,
