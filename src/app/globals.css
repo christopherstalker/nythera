@@ -41,7 +41,23 @@
     --sidebar-width: 260px;
     --sidebar-collapsed: 64px;
 
-    /* Radius */
+    /* Responsive layout scale */
+    --page-padding-x: clamp(1rem, 2.8vw, 2.5rem);
+    --page-padding-y: clamp(1rem, 2vw, 2rem);
+    --page-max-width: 72rem;
+    --content-max-width: 57.5rem;
+    --chat-max-width: min(920px, calc(100vw - 2rem));
+    --card-min-width: clamp(9.75rem, 42vw, 12.5rem);
+    --card-height: clamp(16.5rem, 38vw, 18.75rem);
+    --grid-gap: clamp(0.75rem, 1.8vw, 1.25rem);
+    --bottom-nav-offset: calc(5.75rem + env(safe-area-inset-bottom));
+    --touch-target: 44px;
+
+    /* Fluid typography */
+    --text-display: clamp(1.85rem, 3.6vw + 0.75rem, 3.25rem);
+    --text-title: clamp(1.25rem, 1.6vw + 0.75rem, 2rem);
+    --text-subtitle: clamp(0.875rem, 0.35vw + 0.78rem, 1.05rem);
+    --text-body: clamp(0.875rem, 0.2vw + 0.82rem, 1rem);
     --radius-sm: 10px;
     --radius-md: 16px;
     --radius-lg: 22px;
@@ -182,6 +198,44 @@
     min-height: 100%;
     background: var(--bg-base);
     scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  @media (min-width: 768px) {
+    :root {
+      --card-min-width: 11rem;
+      --chat-max-width: min(920px, calc(100vw - var(--sidebar-collapsed) - 2.5rem));
+    }
+  }
+
+  @media (min-width: 1024px) {
+    :root {
+      --page-max-width: 80rem;
+      --card-min-width: 11.5rem;
+      --chat-max-width: min(920px, calc(100vw - var(--sidebar-width) - 3rem));
+    }
+  }
+
+  @media (min-width: 1280px) {
+    :root {
+      --page-max-width: 88rem;
+    }
+  }
+
+  @media (min-width: 1536px) {
+    :root {
+      --page-max-width: 96rem;
+      --chat-max-width: 980px;
+      --card-min-width: 12.5rem;
+    }
+  }
+
+  @media (min-width: 1920px) {
+    :root {
+      --page-max-width: 104rem;
+      --chat-max-width: 1040px;
+    }
   }
 
   html.dark {
@@ -239,6 +293,57 @@
 
   .nythera-auth-whisper-text {
     animation: nythera-auth-whisper-in 0.7s ease-out both;
+  }
+
+  .nythera-character-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(var(--card-min-width), 1fr));
+    gap: var(--grid-gap);
+  }
+
+  .nythera-row-card {
+    width: var(--card-min-width);
+    flex: 0 0 var(--card-min-width);
+  }
+
+  .nythera-page-shell {
+    width: 100%;
+    max-width: var(--page-max-width);
+    margin-inline: auto;
+    padding-inline: var(--page-padding-x);
+    padding-top: var(--page-padding-y);
+    padding-bottom: var(--bottom-nav-offset);
+  }
+
+  @media (min-width: 768px) {
+    .nythera-page-shell {
+      padding-bottom: calc(var(--page-padding-y) + 0.5rem);
+    }
+  }
+
+  .nythera-page-shell-chat {
+    padding-bottom: 0;
+  }
+
+  .nythera-chat-column {
+    width: 100%;
+    max-width: var(--chat-max-width);
+    margin-inline: auto;
+  }
+
+  .text-display {
+    font-size: var(--text-display);
+    line-height: 1.12;
+  }
+
+  .text-title {
+    font-size: var(--text-title);
+    line-height: 1.25;
+  }
+
+  .text-subtitle {
+    font-size: var(--text-subtitle);
+    line-height: 1.65;
   }
 
   .focus-ring {
@@ -315,7 +420,7 @@
   }
 
   .bubble-char {
-    max-width: min(78%, 760px);
+    max-width: min(88%, var(--chat-max-width));
     border: 1px solid rgb(255 122 24 / 0.12);
     border-radius: 8px var(--radius-bubble) var(--radius-bubble) var(--radius-bubble);
     background:
@@ -331,7 +436,7 @@
   }
 
   .bubble-user {
-    max-width: min(78%, 720px);
+    max-width: min(88%, calc(var(--chat-max-width) - 2rem));
     align-self: flex-end;
     border: 1px solid var(--border-default);
     border-radius: var(--radius-bubble) 8px var(--radius-bubble) var(--radius-bubble);

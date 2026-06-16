@@ -139,7 +139,7 @@ export default function HomePage() {
                 <Sparkles className="h-3.5 w-3.5 text-[var(--accent-purple)]" />
                 Continue your story
               </div>
-              <h1 className="mt-5 text-4xl font-semibold leading-tight tracking-tight text-[var(--text-primary)] sm:text-6xl">
+              <h1 className="text-display mt-5 font-semibold tracking-tight text-[var(--text-primary)]">
                 {recentHero.character.name}
               </h1>
               <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--text-secondary)]">
@@ -203,7 +203,7 @@ export default function HomePage() {
         <div className="pointer-events-none absolute inset-0 -z-10 hero-gradient opacity-90" />
         <div className="flex min-h-[270px] flex-col items-start justify-end text-left">
           <p className="text-xs font-medium uppercase tracking-[0.22em] text-[var(--text-muted)]">Featured character</p>
-          <h1 className="mt-3 max-w-3xl text-3xl font-semibold leading-tight tracking-tight text-[var(--text-primary)] sm:text-5xl">
+          <h1 className="text-display mt-3 max-w-3xl font-semibold tracking-tight text-[var(--text-primary)]">
             {featured.name}
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--text-secondary)] sm:text-base">
@@ -225,7 +225,7 @@ export default function HomePage() {
 
 function RecentChatCard({ chat, featured = false }: { chat: RecentChat; featured?: boolean }) {
   return (
-    <Link href={`/chat/${chat.id}`} className="group glass-card glass-card-hover relative flex h-[282px] w-[190px] shrink-0 overflow-hidden no-underline active:scale-[0.98]">
+    <Link href={`/chat/${chat.id}`} className="nythera-row-card group glass-card glass-card-hover relative flex h-[var(--card-height)] shrink-0 overflow-hidden no-underline active:scale-[0.98]">
       <div className="absolute inset-x-0 top-0 h-[64%] overflow-hidden">
         {chat.character.avatarUrl ? (
           <img src={chat.character.avatarUrl} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />

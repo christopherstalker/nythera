@@ -36,7 +36,7 @@ export function TopBar({ chatId, characterId, characterName, characterAvatarUrl,
   }
 
   return (
-    <header className="relative z-20 mx-3 mt-3 flex h-16 shrink-0 items-center gap-3 rounded-[24px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 shadow-[var(--shadow-soft)] backdrop-blur-2xl sm:mx-4 sm:px-4">
+    <header className="relative z-20 mx-auto flex h-[var(--touch-target)] max-w-[calc(100vw-1.5rem)] shrink-0 items-center gap-2 rounded-[24px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 shadow-[var(--shadow-soft)] backdrop-blur-2xl sm:mx-3 sm:h-16 sm:max-w-none sm:gap-3 sm:px-3 md:mx-4 md:px-4 lg:max-w-[calc(100%-0.5rem)]">
       <div aria-hidden="true" className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-[rgb(var(--accent-rgb)_/_0.45)] to-transparent" />
       <button
         type="button"

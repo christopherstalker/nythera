@@ -21,6 +21,15 @@ const config: Config = {
       }
     },
     extend: {
+      screens: {
+        xs: "390px",
+        "3xl": "1920px"
+      },
+      maxWidth: {
+        page: "var(--page-max-width)",
+        chat: "var(--chat-max-width)",
+        content: "var(--content-max-width)"
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

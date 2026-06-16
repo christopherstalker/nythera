@@ -82,7 +82,7 @@ export function OAuthButtons({ intent }: OAuthButtonsProps) {
 
   return (
     <div className="mt-6 space-y-5">
-      <div className={cn("grid gap-3", providers.length > 1 && "sm:grid-cols-2")}>
+      <div className={cn("grid gap-3", providers.length > 2 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1")}>
         {providers.map((provider) => {
           const label = intent === "register" ? provider.registerLabel : provider.label;
           const isLoading = loadingProvider === provider.id;

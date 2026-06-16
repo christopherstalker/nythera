@@ -26,7 +26,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <main
         className={cn(
-          "min-h-dvh transition-[padding] duration-200 md:pl-[var(--sidebar-collapsed)] lg:pl-[var(--sidebar-width)]",
+          "min-h-dvh transition-[padding] duration-200 max-md:pb-[env(safe-area-inset-bottom)] md:pl-[var(--sidebar-collapsed)] lg:pl-[var(--sidebar-width)]",
           sidebarCollapsed && "lg:pl-[var(--sidebar-collapsed)]"
         )}
       >

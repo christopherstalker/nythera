@@ -55,8 +55,8 @@ export function MessageList({ messages, characterName, summary, error, onEdit, o
   }
 
   return (
-    <div ref={scrollRef} onScroll={handleScroll} className="chat-scroll relative z-10 flex-1 overflow-y-auto px-4 py-5 md:px-6" aria-live="polite">
-      <div className="mx-auto flex min-h-full max-w-[920px] flex-col gap-4">
+    <div ref={scrollRef} onScroll={handleScroll} className="chat-scroll relative z-10 flex-1 overflow-y-auto px-3 py-4 sm:px-4 sm:py-5 md:px-6" aria-live="polite">
+      <div className="nythera-chat-column flex min-h-full flex-col gap-3 sm:gap-4">
         {summary ? (
           <div className="mx-auto mb-2 max-w-2xl rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-center shadow-[var(--glass-highlight)] backdrop-blur-xl">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--accent-purple)]">Memory context</p>

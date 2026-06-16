@@ -41,7 +41,7 @@ export function ChatInput({ value, onChange, onSubmit, disabled = false, model, 
   return (
     <div className="relative z-20 shrink-0 bg-gradient-to-t from-[var(--bg-base)] via-[var(--bg-base)] to-transparent px-3 pb-[calc(0.9rem+env(safe-area-inset-bottom))] pt-3 sm:px-4 md:pb-5">
       {onModelChange || onTemperatureChange ? (
-        <div className="mx-auto mb-2 hidden max-w-[920px] gap-2 sm:grid sm:grid-cols-[minmax(0,1fr)_220px]">
+        <div className="mx-auto mb-2 hidden max-w-[var(--chat-max-width)] gap-2 sm:grid sm:grid-cols-[minmax(0,1fr)_220px]">
           {onModelChange ? (
             <input
               value={model ?? ""}
@@ -67,7 +67,7 @@ export function ChatInput({ value, onChange, onSubmit, disabled = false, model, 
           ) : null}
         </div>
       ) : null}
-      <div className="composer-glass mx-auto flex max-w-[920px] items-end gap-2 rounded-[24px] border border-[var(--border-default)] px-3 py-2.5 backdrop-blur-2xl transition-colors duration-200 focus-within:border-[var(--accent-purple)] sm:rounded-[26px] sm:px-4 sm:py-3">
+      <div className="composer-glass nythera-chat-column flex items-end gap-2 rounded-[24px] border border-[var(--border-default)] px-3 py-2.5 backdrop-blur-2xl transition-colors duration-200 focus-within:border-[var(--accent-purple)] sm:rounded-[26px] sm:px-4 sm:py-3">
         <textarea
           ref={textareaRef}
           value={value}

@@ -33,7 +33,7 @@ export function CharacterCard({ character, className }: CharacterCardProps) {
       type="button"
       onClick={openProfile}
       className={cn(
-        "group glass-card glass-card-hover relative flex h-[280px] w-full min-w-[176px] shrink-0 overflow-hidden text-left active:scale-[0.98] sm:h-[300px]",
+        "group glass-card glass-card-hover relative flex h-[var(--card-height)] w-full min-w-0 shrink-0 overflow-hidden text-left active:scale-[0.98]",
         className
       )}
       aria-label={`Open ${character.name}`}
