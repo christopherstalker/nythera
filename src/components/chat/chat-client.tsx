@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { ChatInput } from "@/components/chat/ChatInput";
+import { ChatComposerSheet } from "@/components/chat/chat-composer-sheet";
 import { MessageList } from "@/components/chat/MessageList";
 import { ChatQuickPanel } from "@/components/chat/chat-quick-panel";
 import { TopBar } from "@/components/layout/TopBar";
 import { useChat, type ChatMessage } from "@/hooks/useChat";
+import { useChatQuickPanel } from "@/hooks/use-chat-quick-panel";
 import { useUiStore } from "@/stores/use-ui-store";
 
 type ChatClientProps = {
@@ -34,6 +36,8 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
   const [manualModelOverride, setManualModelOverride] = useState(false);
   const [temperature, setTemperature] = useState(initialTemperature ?? 0.8);
   const [quickPanelOpen, setQuickPanelOpen] = useState(false);
+  const [composerSheetOpen, setComposerSheetOpen] = useState(false);
+  const quickPanel = useChatQuickPanel({ chatId, characterId, enabled: true });
   const { messages, send, editMessage, deleteMessage, branchFromMessage, isStreaming, error } = useChat(chatId, initialMessages);
   const setActiveChatId = useUiStore((state) => state.setActiveChatId);
   const usesAutoModel = !manualModelOverride && APP_DEFAULT_MODELS.has(model.trim().toLowerCase());
@@ -148,6 +152,7 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
           characterName={characterName}
           characterAvatarUrl={characterAvatarUrl}
           onOpenQuickPanel={() => setQuickPanelOpen(true)}
+          showQuickPanelButton
         />
       </div>
       {quickPanelOpen ? (
@@ -179,15 +184,24 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
             temperature={temperature}
             onModelChange={handleModelChange}
             onTemperatureChange={setTemperature}
+            personaName={quickPanel.activePersona?.displayName}
+            personaAvatarUrl={quickPanel.activePersona?.avatarUrl}
+            onOpenComposer={() => setComposerSheetOpen(true)}
           />
         </section>
         <ChatQuickPanel
           chatId={chatId}
-          characterId={characterId}
           open={quickPanelOpen}
           onClose={() => setQuickPanelOpen(false)}
+          panel={quickPanel}
         />
       </div>
+      <ChatComposerSheet
+        open={composerSheetOpen}
+        onClose={() => setComposerSheetOpen(false)}
+        chatId={chatId}
+        panel={quickPanel}
+      />
     </div>
   );
 }

@@ -1,10 +1,11 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { ImagePlus, Plus, Save, SlidersHorizontal, Trash2, Upload, Wand2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { compressImageFile } from "@/lib/image-upload";
 import { cn } from "@/lib/utils";
 
 type PersonaDraft = {
@@ -48,6 +49,8 @@ export function UserPersonaSettingsClient() {
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const isSimpleMode = formMode === "simple";
   const canSaveSimple = Boolean(draft.displayName.trim().length >= 2 && freeform.trim().length >= 10);
   const canSaveAdvanced = Boolean(draft.displayName.trim() && draft.summary.trim());
@@ -97,29 +100,25 @@ export function UserPersonaSettingsClient() {
     setStatus(null);
   }
 
-  function onAvatarFile(event: ChangeEvent<HTMLInputElement>) {
+  async function onAvatarFile(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
+    event.target.value = "";
+
     if (!file) {
       return;
     }
 
-    if (!file.type.startsWith("image/")) {
-      setStatus("Choose an image file.");
-      return;
-    }
+    setAvatarUploading(true);
+    setStatus(null);
 
-    if (file.size > 1_500_000) {
-      setStatus("Persona photo must be smaller than 1.5MB.");
-      return;
+    try {
+      const dataUrl = await compressImageFile(file);
+      update("avatarUrl", dataUrl);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not read persona photo.");
+    } finally {
+      setAvatarUploading(false);
     }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      update("avatarUrl", String(reader.result ?? ""));
-      setStatus(null);
-    };
-    reader.onerror = () => setStatus("Could not read persona photo.");
-    reader.readAsDataURL(file);
   }
 
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -211,6 +210,7 @@ export function UserPersonaSettingsClient() {
 
   return (
     <form onSubmit={save} className="grid gap-4">
+      <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/*" className="hidden" onChange={onAvatarFile} />
       <div className="flex gap-2 overflow-x-auto pb-1">
         {profiles.map((profile) => (
           <button
@@ -256,16 +256,20 @@ export function UserPersonaSettingsClient() {
           <details className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4">
             <summary className="cursor-pointer text-sm font-medium text-[var(--text-primary)]">Optional photo</summary>
             <div className="mt-4 grid gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
-              <label className="focus-ring flex min-h-[140px] cursor-pointer flex-col items-center justify-center rounded-[var(--radius-lg)] border border-dashed border-[var(--border-default)] bg-[var(--bg-elevated)] p-4 text-center transition hover:border-[var(--accent-purple)]">
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={avatarUploading}
+                className="focus-ring flex min-h-[140px] flex-col items-center justify-center rounded-[var(--radius-lg)] border border-dashed border-[var(--border-default)] bg-[var(--bg-elevated)] p-4 text-center transition hover:border-[var(--accent-purple)] disabled:opacity-60"
+              >
                 <span className="grid h-20 w-20 place-items-center overflow-hidden rounded-full border border-white/10 bg-[var(--bg-surface)] text-[var(--accent-purple)]">
                   {draft.avatarUrl ? <img src={draft.avatarUrl} alt="" className="h-full w-full object-cover" /> : <Upload className="h-6 w-6" />}
                 </span>
                 <span className="mt-3 inline-flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)]">
                   <ImagePlus className="h-3.5 w-3.5" />
-                  Upload
+                  {avatarUploading ? "Processing..." : "Upload"}
                 </span>
-                <input type="file" accept="image/*" className="sr-only" onChange={onAvatarFile} />
-              </label>
+              </button>
               <div className="grid content-start gap-2">
                 <Input value={draft.avatarUrl} onChange={(event) => update("avatarUrl", event.target.value)} placeholder="Avatar URL (optional)" />
                 {draft.avatarUrl ? (
@@ -285,16 +289,20 @@ export function UserPersonaSettingsClient() {
             <Input value={draft.displayName} onChange={(event) => update("displayName", event.target.value)} placeholder="Persona name" required />
           </div>
           <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-            <label className="focus-ring flex min-h-[210px] cursor-pointer flex-col items-center justify-center rounded-[var(--radius-lg)] border border-dashed border-[var(--border-default)] bg-[var(--bg-input)] p-5 text-center shadow-[var(--glass-highlight)] backdrop-blur-xl transition hover:border-[var(--accent-purple)] hover:bg-white/[0.045]">
+            <button
+              type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={avatarUploading}
+              className="focus-ring flex min-h-[210px] flex-col items-center justify-center rounded-[var(--radius-lg)] border border-dashed border-[var(--border-default)] bg-[var(--bg-input)] p-5 text-center shadow-[var(--glass-highlight)] backdrop-blur-xl transition hover:border-[var(--accent-purple)] hover:bg-white/[0.045] disabled:opacity-60"
+            >
               <span className="grid h-28 w-28 place-items-center overflow-hidden rounded-full border border-white/10 bg-[var(--bg-elevated)] text-[var(--accent-purple)] shadow-[var(--shadow-glow)]">
                 {draft.avatarUrl ? <img src={draft.avatarUrl} alt="" className="h-full w-full object-cover" /> : <Upload className="h-8 w-8" />}
               </span>
               <span className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]">
                 <ImagePlus className="h-4 w-4" />
-                Upload photo
+                {avatarUploading ? "Processing..." : "Upload photo"}
               </span>
-              <input type="file" accept="image/*" className="sr-only" onChange={onAvatarFile} />
-            </label>
+            </button>
             <div className="grid content-start gap-3">
               <Input value={draft.avatarUrl} onChange={(event) => update("avatarUrl", event.target.value)} placeholder="Avatar URL or uploaded data URL" />
               <p className="text-sm leading-6 text-[var(--text-secondary)]">
@@ -320,7 +328,7 @@ export function UserPersonaSettingsClient() {
       )}
 
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={saving || (isSimpleMode ? !canSaveSimple : !canSaveAdvanced)}>
+        <Button type="submit" disabled={saving || avatarUploading || (isSimpleMode ? !canSaveSimple : !canSaveAdvanced)}>
           <Save className="h-4 w-4" />
           {saving ? "Saving..." : "Save persona"}
         </Button>

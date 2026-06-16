@@ -12,9 +12,10 @@ type TopBarProps = {
   characterName: string;
   characterAvatarUrl?: string | null;
   onOpenQuickPanel?: () => void;
+  showQuickPanelButton?: boolean;
 };
 
-export function TopBar({ chatId, characterId, characterName, characterAvatarUrl, onOpenQuickPanel }: TopBarProps) {
+export function TopBar({ chatId, characterId, characterName, characterAvatarUrl, onOpenQuickPanel, showQuickPanelButton = true }: TopBarProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
@@ -50,14 +51,16 @@ export function TopBar({ chatId, characterId, characterName, characterAvatarUrl,
       <div className="min-w-0 flex-1">
         <h1 className="truncate text-base font-semibold tracking-tight text-[var(--text-primary)]">{characterName}</h1>
       </div>
-      <button
-        type="button"
-        aria-label="Open quick panel"
-        onClick={onOpenQuickPanel}
-        className="focus-ring grid h-10 w-10 place-items-center rounded-2xl text-[var(--text-secondary)] transition-colors hover:bg-white/[0.055] hover:text-[var(--text-primary)] active:scale-95"
-      >
-        <PanelRightOpen className="h-5 w-5" />
-      </button>
+      {showQuickPanelButton ? (
+        <button
+          type="button"
+          aria-label="Open quick panel"
+          onClick={onOpenQuickPanel}
+          className="focus-ring hidden h-10 w-10 place-items-center rounded-2xl text-[var(--text-secondary)] transition-colors hover:bg-white/[0.055] hover:text-[var(--text-primary)] active:scale-95 md:grid"
+        >
+          <PanelRightOpen className="h-5 w-5" />
+        </button>
+      ) : null}
       <div className="relative">
         <button
           type="button"
