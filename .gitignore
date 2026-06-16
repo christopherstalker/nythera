@@ -12,4 +12,3 @@ proxy-service/dist
 
 .vercel
 public/downloads/*.exe
-public/downloads/*.dmg

@@ -21,7 +21,6 @@
     "desktop:install": "npm install --prefix desktop",
     "desktop:dev": "npm run start --prefix desktop",
     "desktop:build:win": "npm run build:win --prefix desktop",
-    "desktop:build:mac": "npm run build:mac --prefix desktop",
     "desktop:publish:win": "npm run desktop:build:win && vercel --prod --yes"
   },
   "prisma": {

@@ -1,13 +1,12 @@
 {
   "name": "nythera-desktop",
   "version": "1.0.0",
-  "description": "Nythera desktop client for Windows and macOS",
+  "description": "Nythera desktop client for Windows",
   "main": "electron/main.cjs",
   "private": true,
   "scripts": {
     "start": "electron .",
     "build:win": "electron-builder --win nsis --publish never && node scripts/copy-artifacts.cjs win",
-    "build:mac": "electron-builder --mac dmg --publish never && node scripts/copy-artifacts.cjs mac",
     "build:dir": "electron-builder --dir"
   },
   "build": {
@@ -37,14 +36,6 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Nythera"
-    },
-    "mac": {
-      "target": ["dmg"],
-      "category": "public.app-category.entertainment",
-      "artifactName": "Nythera-${version}.${ext}"
-    },
-    "dmg": {
-      "title": "Nythera"
     }
   },
   "devDependencies": {

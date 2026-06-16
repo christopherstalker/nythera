@@ -21,15 +21,3 @@ if (target === "win") {
   fs.copyFileSync(path.join(desktopDist, setup), path.join(rootPublic, "Nythera-Setup.exe"));
   console.log("Copied", setup, "to public/downloads/Nythera-Setup.exe");
 }
-
-if (target === "mac") {
-  const dmg = fs.readdirSync(desktopDist).find((file) => file.endsWith(".dmg"));
-
-  if (!dmg) {
-    console.error("macOS dmg not found in desktop/dist");
-    process.exit(1);
-  }
-
-  fs.copyFileSync(path.join(desktopDist, dmg), path.join(rootPublic, "Nythera.dmg"));
-  console.log("Copied", dmg, "to public/downloads/Nythera.dmg");
-}
