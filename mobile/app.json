@@ -4,7 +4,7 @@
     "slug": "nythera-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/velora-icon.png",
+    "icon": "./assets/nythera-icon.png",
     "scheme": "nythera",
     "userInterfaceStyle": "automatic",
     "android": {
@@ -12,17 +12,17 @@
       "versionCode": 8,
       "permissions": ["INTERNET"],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/velora-adaptive-icon.png",
+        "foregroundImage": "./assets/nythera-adaptive-icon.png",
         "backgroundColor": "#0B0B12"
       },
       "predictiveBackGestureEnabled": true
     },
     "web": {
-      "favicon": "./assets/velora-icon.png"
+      "favicon": "./assets/nythera-icon.png"
     },
     "plugins": [],
     "extra": {
-      "siteUrl": "https://nythera.vercel.app"
+      "siteUrl": "https://nythera-christopherstalkers-projects.vercel.app"
     }
   }
 }
