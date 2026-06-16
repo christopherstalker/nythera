@@ -90,7 +90,7 @@ export function SiteNav() {
       <div className="container mx-auto flex h-[68px] max-w-[1360px] items-center gap-3 px-4 py-2 sm:px-6 lg:px-8">
         <Link href="/" className="flex shrink-0 items-center gap-2 no-underline">
           <span className="brand-mark-shell h-9 w-9">
-            <img src="/icon.svg" alt="" className="h-full w-full object-cover" />
+            <img src="/nythera-showcase/nythera-logo-mark.png" alt="" className="h-full w-full object-contain drop-shadow-[0_0_16px_rgba(255,122,24,0.55)]" />
           </span>
           <span className="hidden text-base font-semibold tracking-tight sm:inline">
             Nythera<span className="text-primary"> AI</span>

@@ -11,6 +11,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const sidebarCollapsed = useUiStore((state) => state.sidebarCollapsed);
   const hideChrome =
     pathname === "/" ||
+    pathname === "/explore" ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/admin");
