@@ -19,6 +19,12 @@ export default function manifest(): MetadataRoute.Manifest {
         sizes: "512x512",
         type: "image/svg+xml",
         purpose: "any"
+      },
+      {
+        src: "/og-image.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any"
       }
     ],
     shortcuts: [

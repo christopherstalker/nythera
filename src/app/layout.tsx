@@ -9,7 +9,10 @@ const inter = Inter({
   variable: "--font-inter"
 });
 
+const siteUrl = process.env.NEXTAUTH_URL ?? "https://velora-ai-character-platform.vercel.app";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: "Nythera",
   description: "A cinematic AI character universe with persona, memory, and secure model access.",
   applicationName: "Nythera",
@@ -25,6 +28,28 @@ export const metadata: Metadata = {
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
     apple: [{ url: "/icon.svg", type: "image/svg+xml" }]
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: siteUrl,
+    siteName: "Nythera",
+    title: "Nythera",
+    description: "AI roleplay platform with persona, memory, and secure model access.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 1200,
+        alt: "Nythera — AI Roleplay Platform"
+      }
+    ]
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Nythera",
+    description: "AI roleplay platform with persona, memory, and secure model access.",
+    images: ["/og-image.png"]
   }
 };
 
