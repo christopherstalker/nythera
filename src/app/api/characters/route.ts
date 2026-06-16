@@ -32,7 +32,9 @@ export async function GET(request: Request) {
             { personality: { not: "" } },
             { scenario: { not: null } },
             { scenario: { not: "" } },
-            { persona: { not: Prisma.JsonNull } }
+            { persona: { not: Prisma.JsonNull } },
+            { avatarUrl: { not: null } },
+            { avatarUrl: { not: "" } }
           ]
         };
 

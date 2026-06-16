@@ -22,7 +22,7 @@
     },
     "plugins": [],
     "extra": {
-      "siteUrl": "https://nythera-ai-character-platform.vercel.app"
+      "siteUrl": "https://nythera.vercel.app"
     }
   }
 }

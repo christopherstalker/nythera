@@ -4,7 +4,7 @@ import { useEffect } from "react";
 
 export const DEFAULT_ACCENT_COLOR = "#FF7A18";
 export const APPEARANCE_STORAGE_KEY = "nythera.appearance";
-const LEGACY_APPEARANCE_STORAGE_KEY = "velora.appearance";
+const LEGACY_APPEARANCE_STORAGE_KEY = "nythera.appearance";
 const APPEARANCE_UPDATED_EVENT = "nythera:appearance-updated";
 const BRAND_STATE_EVENT = "nythera:brand-state";
 

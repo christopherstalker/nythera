@@ -16,7 +16,8 @@
     "proxy:dev": "tsx proxy-service/src/server.ts",
     "proxy:start": "node dist/proxy-service/server.js",
     "jobs:dev": "tsx src/jobs/worker.ts",
-    "check": "npm run typecheck && npm run lint"
+    "check": "npm run typecheck && npm run lint",
+    "characters:import": "tsx scripts/import-characters-to-db.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

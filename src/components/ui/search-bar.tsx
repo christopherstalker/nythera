@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 type SearchBarProps = {
   value?: string;
   onChange?: (value: string) => void;
+  onSubmit?: (value: string) => void;
   placeholder?: string;
   className?: string;
   showFilterIcon?: boolean;
@@ -14,6 +15,7 @@ type SearchBarProps = {
 export function SearchBar({
   value,
   onChange,
+  onSubmit,
   placeholder = "Search characters...",
   className,
   showFilterIcon = false
@@ -25,6 +27,11 @@ export function SearchBar({
         aria-label={placeholder}
         value={value}
         onChange={(event) => onChange?.(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            onSubmit?.(value ?? event.currentTarget.value);
+          }
+        }}
         placeholder={placeholder}
         className="focus-ring glass-input h-12 w-full rounded-[var(--radius-pill)] px-12 text-sm focus:border-[var(--accent-purple)]"
       />

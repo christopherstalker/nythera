@@ -25,7 +25,7 @@ npm run prisma:migrate
 npm run dev
 ```
 
-The app works without platform-wide AI keys. Users add their own provider keys in Settings. On Vercel, leave `LLM_PROXY_URL` empty to use the built-in server-side gateway. For local or non-Vercel deployments, you can still run the optional Express proxy with `npm run proxy:dev` and set `LLM_PROXY_URL`.
+The app works without platform-wide AI keys. Users add their own provider keys in Settings. Production: https://nythera.vercel.app
 
 ## Universal providers
 

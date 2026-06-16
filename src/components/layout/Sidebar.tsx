@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import {
   ChevronDown,
@@ -47,6 +47,7 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { data: session, status } = useSession();
   const collapsed = useUiStore((state) => state.sidebarCollapsed);
   const toggleSidebar = useUiStore((state) => state.toggleSidebar);
@@ -121,6 +122,17 @@ export function Sidebar() {
 
   const labelClass = cn("min-w-0 truncate md:hidden lg:block", collapsed && "lg:hidden");
 
+  function onSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== "Enter") {
+      return;
+    }
+
+    const trimmed = query.trim();
+    if (trimmed) {
+      router.push(`/explore?q=${encodeURIComponent(trimmed)}`);
+    }
+  }
+
   return (
     <aside
       className={cn(
@@ -165,7 +177,8 @@ export function Sidebar() {
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search chats"
+                onKeyDown={onSearchKeyDown}
+                placeholder="Search chats or characters"
                 className="focus-ring glass-input h-10 w-full rounded-2xl pl-9 pr-3 text-sm focus:border-[var(--accent-purple)]"
               />
             </label>

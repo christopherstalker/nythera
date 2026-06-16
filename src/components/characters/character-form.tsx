@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { generateSimpleCharacterDraft } from "@/lib/simple-character-generation";
 import { cn } from "@/lib/utils";
 
 type CharacterFormValue = {
@@ -158,8 +159,47 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
     event.preventDefault();
     setSaving(true);
     setError(null);
-    const submissionDraft = isSimpleMode ? applySimpleGeneratedFields(draft) : draft;
-    const submissionTags = parseTags(submissionDraft.tags);
+
+    let submissionDraft = isSimpleMode ? applySimpleGeneratedFields(draft) : draft;
+    let generatedPersona: Record<string, unknown> | null = null;
+    let generatedStyle: Record<string, unknown> | null = null;
+    let generatedTags: string[] | null = null;
+
+    if (isSimpleMode) {
+      const generateResponse = await fetch("/api/characters/generate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: draft.name.trim(),
+          description: draft.description.trim()
+        })
+      });
+
+      if (generateResponse.status === 401) {
+        setSaving(false);
+        router.push("/login");
+        return;
+      }
+
+      if (generateResponse.ok) {
+        const body = await generateResponse.json().catch(() => null);
+        const generated = body?.generated;
+        if (generated) {
+          submissionDraft = {
+            ...submissionDraft,
+            personality: generated.personality ?? submissionDraft.personality,
+            scenario: generated.scenario ?? submissionDraft.scenario,
+            greeting: generated.greeting ?? submissionDraft.greeting,
+            tags: Array.isArray(generated.tags) ? generated.tags.join(", ") : submissionDraft.tags
+          };
+          generatedPersona = generated.persona ?? null;
+          generatedStyle = generated.communicationStyle ?? null;
+          generatedTags = Array.isArray(generated.tags) ? generated.tags : null;
+        }
+      }
+    }
+
+    const submissionTags = generatedTags ?? parseTags(submissionDraft.tags);
 
     if (!isSimpleMode && submissionDraft.visibility === "PUBLIC" && !submissionDraft.avatarUrl.trim()) {
       setSaving(false);
@@ -177,7 +217,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
       visibility: isSimpleMode ? "PRIVATE" : submissionDraft.visibility,
       isNSFW: submissionDraft.isNSFW,
       tags: submissionTags.length > 0 ? submissionTags : ["roleplay"],
-      persona: {
+      persona: generatedPersona ?? {
         name: submissionDraft.name.trim(),
         role: submissionDraft.personaRole.trim() || submissionDraft.description.trim(),
         archetype: submissionDraft.archetype.trim() || submissionDraft.personaRole.trim() || submissionDraft.description.trim(),
@@ -193,7 +233,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
         behavioralRules: parseLines(submissionDraft.behavioralRules),
         forbiddenBehaviors: parseLines(submissionDraft.forbiddenBehaviors)
       },
-      communicationStyle: {
+      communicationStyle: generatedStyle ?? {
         tone: submissionDraft.tone.trim() || "natural",
         humor: submissionDraft.humor,
         romanceLevel: submissionDraft.romanceLevel,
@@ -529,76 +569,17 @@ function normalizeInitialValue(value?: CharacterFormProps["initialValue"]): Char
 }
 
 function applySimpleGeneratedFields(draft: CharacterFormValue): CharacterFormValue {
-  const name = draft.name.trim() || "This character";
-  const description = draft.description.trim();
-  const tone = inferSimpleTone(description);
-  const relationshipStyle = inferRelationshipStyle(description);
-  const traits = [
-    "emotionally responsive",
-    "scene-aware",
-    "consistent in character",
-    tone === "dry" ? "quietly sarcastic" : tone === "dark" ? "intense" : "attentive"
-  ];
+  const generated = generateSimpleCharacterDraft({
+    name: draft.name,
+    description: draft.description
+  });
 
   return {
     ...draft,
-    tags: draft.tags.trim() ? draft.tags : "roleplay, original",
-    personality:
-      draft.personality.trim() ||
-      `${name} is a user-created roleplay persona shaped by this core idea: ${description}. Speak with a ${tone} tone, keep replies immersive and emotionally grounded, and make each response feel specific to the user's last message. Stay in character, preserve continuity, respect boundaries, and never force the user's actions or feelings. Take light initiative by adding scene details, small choices, and relationship nuance when the conversation slows.`,
-    scenario:
-      draft.scenario.trim() ||
-      `The chat opens in a flexible scene built around ${name}'s central premise: ${description}. Treat the user's first message as the starting point and adapt the setting naturally while keeping the character's mood, relationship dynamic, and motivation consistent.`,
-    greeting:
-      draft.greeting.trim() ||
-      `${name} pauses as the space between you settles into something charged and quiet. Their expression shifts, guarded but unmistakably focused, as if your arrival has interrupted a thought they were not ready to share. "You came," they say, voice carrying the weight of the scene without giving everything away. For a moment, the world feels smaller, narrowed to what you will say next and what ${name} is willing to reveal. The conversation is yours to begin, but they are already watching for the truth behind it.`,
-    personaRole: draft.personaRole.trim() || description,
-    archetype: draft.archetype.trim() || "user-created persona",
-    personaTraits: draft.personaTraits.trim() || traits.join("\n"),
-    speakingStyle: draft.speakingStyle.trim() || `Immersive, natural, emotionally precise, and ${tone}.`,
-    emotionalTone: tone,
-    relationshipStyle,
-    initiativeLevel: draft.initiativeLevel || "medium",
-    verbosityLevel: draft.verbosityLevel || "balanced",
-    motivation: draft.motivation.trim() || "Create an engaging roleplay scene with believable continuity and emotional stakes.",
-    tone,
-    initiative: Math.max(draft.initiative, 6),
-    roleplayIntensity: Math.max(draft.roleplayIntensity, 6)
+    ...generated,
+    boundaries: draft.boundaries.trim() || generated.boundaries,
+    behavioralRules: draft.behavioralRules.trim() || generated.behavioralRules
   };
-}
-
-function inferSimpleTone(text: string) {
-  const normalized = text.toLowerCase();
-  if (/\b(horror|dark|haunted|villain|danger|obsessive|revenge)\b/.test(normalized)) {
-    return "dark";
-  }
-  if (/\b(sarcastic|dry|rival|snarky|teasing)\b/.test(normalized)) {
-    return "dry";
-  }
-  if (/\b(soft|gentle|comfort|sweet|warm|kind)\b/.test(normalized)) {
-    return "warm";
-  }
-  if (/\b(energetic|chaotic|funny|bright|excited)\b/.test(normalized)) {
-    return "energetic";
-  }
-  return "cinematic";
-}
-
-function inferRelationshipStyle(text: string): CharacterFormValue["relationshipStyle"] {
-  const normalized = text.toLowerCase();
-  if (/\b(romance|romantic|lover|crush|dating)\b/.test(normalized)) {
-    return "romantic";
-  }
-  if (/\b(mentor|coach|teacher|guide)\b/.test(normalized)) {
-    return "mentor";
-  }
-  if (/\b(rival|enemy|competition)\b/.test(normalized)) {
-    return "rival";
-  }
-  if (/\b(villain|antagonist)\b/.test(normalized)) {
-    return "antagonist";
-  }
-  return "friend";
 }
 
 function ModeButton({ label, icon: Icon, active, onClick }: { label: string; icon: LucideIcon; active: boolean; onClick: () => void }) {

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Copy, Edit3, Flag, Heart, MessageCircle, Share2, Sparkles, Star, User, X } from "lucide-react";
+import { Copy, Edit3, Flag, Globe, Heart, Lock, MessageCircle, Share2, Sparkles, Star, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CharacterAvatar } from "@/components/character/character-avatar";
@@ -51,6 +51,7 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
   const [reviewText, setReviewText] = useState("");
   const [reviews, setReviews] = useState<Array<{ value: number; review?: string | null; user?: { username?: string | null } | null }>>([]);
   const [status, setStatus] = useState<string | null>(null);
+  const [visibilitySaving, setVisibilitySaving] = useState(false);
 
   useEffect(() => {
     fetch(`/api/characters/${params.id}`)
@@ -81,6 +82,42 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
       .filter(([, value]) => value !== null && value !== undefined && value !== "")
       .slice(0, 7);
   }, [character]);
+
+  async function updateVisibility(nextVisibility: "PRIVATE" | "PUBLIC" | "UNLISTED") {
+    if (!character) {
+      return;
+    }
+
+    if (nextVisibility === "PUBLIC" && !character.avatarUrl?.trim()) {
+      setStatus("Add an avatar before publishing publicly.");
+      return;
+    }
+
+    setVisibilitySaving(true);
+    setStatus(null);
+    const response = await fetch(`/api/characters/${character.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ visibility: nextVisibility })
+    });
+    setVisibilitySaving(false);
+
+    if (response.status === 401) {
+      router.push("/login");
+      return;
+    }
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      setStatus(body?.error ?? "Could not update visibility.");
+      return;
+    }
+
+    const body = await response.json();
+    setCharacter(body.character);
+    setStatus(nextVisibility === "PUBLIC" ? "Character is now public in Explore." : "Character is now private.");
+    window.dispatchEvent(new CustomEvent("nythera:characters-updated"));
+  }
 
   async function startChat() {
     if (!character) {
@@ -252,12 +289,36 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
 
             <div className="flex flex-wrap gap-2">
               {viewer.canEdit ? (
-                <Button asChild variant="outline" size="lg">
-                  <Link href={`/character/${character.id}/edit`}>
-                    <Edit3 className="h-4 w-4" />
-                    Edit
-                  </Link>
-                </Button>
+                <>
+                  <Button asChild variant="outline" size="lg">
+                    <Link href={`/character/${character.id}/edit`}>
+                      <Edit3 className="h-4 w-4" />
+                      Edit
+                    </Link>
+                  </Button>
+                  <div className="flex items-center gap-1 rounded-full border border-white/[0.06] bg-white/[0.03] p-1">
+                    <Button
+                      type="button"
+                      variant={character.visibility === "PRIVATE" ? "primary" : "outline"}
+                      size="sm"
+                      disabled={visibilitySaving}
+                      onClick={() => void updateVisibility("PRIVATE")}
+                    >
+                      <Lock className="h-4 w-4" />
+                      Private
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={character.visibility === "PUBLIC" ? "primary" : "outline"}
+                      size="sm"
+                      disabled={visibilitySaving}
+                      onClick={() => void updateVisibility("PUBLIC")}
+                    >
+                      <Globe className="h-4 w-4" />
+                      Public
+                    </Button>
+                  </div>
+                </>
               ) : null}
               <Button onClick={startChat} size="lg" className="px-7">
                 <MessageCircle className="h-4 w-4" />

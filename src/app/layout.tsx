@@ -9,7 +9,7 @@ const inter = Inter({
   variable: "--font-inter"
 });
 
-const siteUrl = process.env.NEXTAUTH_URL ?? "https://velora-ai-character-platform.vercel.app";
+const siteUrl = process.env.NEXTAUTH_URL ?? "https://nythera.vercel.app";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
