@@ -132,7 +132,7 @@ export function Sidebar() {
         <div className="mb-5 flex h-11 items-center gap-3">
           <Link href="/" className="focus-ring flex min-w-0 flex-1 items-center gap-3 rounded-2xl no-underline">
             <span className="brand-mark-shell h-10 w-10">
-              <img src="/nythera-showcase/nythera-logo-mark.png" alt="" className="h-full w-full object-contain drop-shadow-[0_0_18px_rgba(255,122,24,0.55)]" />
+              <img src="/icon.svg" alt="" className="h-full w-full rounded-full object-cover" />
             </span>
             <span className={cn("font-semibold tracking-tight text-[var(--text-primary)]", labelClass)}>Nythera</span>
           </Link>

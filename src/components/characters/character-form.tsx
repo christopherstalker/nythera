@@ -244,7 +244,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
         {isSimpleMode ? (
           <Panel title="Simple mode" icon={Wand2} description="Name the character and describe the idea. Nythera will generate the voice, scene, and greeting.">
             <Field label="Character name">
-              <Input value={draft.name} onChange={(event) => update("name", event.target.value)} placeholder="Raven" required />
+              <Input value={draft.name} onChange={(event) => update("name", event.target.value)} placeholder="Character name" required />
             </Field>
             <Field label="Short description">
               <Textarea
