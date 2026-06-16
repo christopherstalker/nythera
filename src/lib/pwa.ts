@@ -3,8 +3,10 @@ export type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 };
 
-export const PWA_DISMISS_KEY = "nythera:pwa-install-dismissed";
+export const PWA_MOBILE_DISMISS_KEY = "nythera:pwa-mobile-install-dismissed";
 export const PWA_SW_URL = "/sw.js";
+
+export const NYTHERA_SITE_URL = "https://nythera-christopherstalkers-projects.vercel.app";
 
 export function isStandaloneDisplay() {
   if (typeof window === "undefined") {
@@ -18,7 +20,7 @@ export function isStandaloneDisplay() {
   );
 }
 
-export function isDesktopInstallTarget() {
+export function isDesktopDevice() {
   if (typeof window === "undefined") {
     return false;
   }
@@ -31,5 +33,24 @@ export function isMobileDevice() {
     return false;
   }
 
-  return window.matchMedia("(max-width: 767px), (pointer: coarse)").matches;
+  return !isDesktopDevice();
+}
+
+export function isIosDevice() {
+  if (typeof navigator === "undefined") {
+    return false;
+  }
+
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+}
+
+export function isAndroidDevice() {
+  if (typeof navigator === "undefined") {
+    return false;
+  }
+
+  return /Android/i.test(navigator.userAgent);
 }

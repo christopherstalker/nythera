@@ -1,25 +1,30 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { DesktopInstallPrompt } from "@/components/pwa/desktop-install-prompt";
-import { DesktopUpdatePrompt } from "@/components/pwa/desktop-update-prompt";
+import { MobileInstallPrompt } from "@/components/pwa/mobile-install-prompt";
+import { PwaUpdatePrompt } from "@/components/pwa/pwa-update-prompt";
 import {
   type BeforeInstallPromptEvent,
-  PWA_DISMISS_KEY,
+  PWA_MOBILE_DISMISS_KEY,
   PWA_SW_URL,
-  isDesktopInstallTarget,
+  isIosDevice,
+  isMobileDevice,
   isStandaloneDisplay
 } from "@/lib/pwa";
 
 type PwaContextValue = {
-  canInstall: boolean;
-  showPrompt: boolean;
+  mobile: boolean;
+  ios: boolean;
   standalone: boolean;
-  desktop: boolean;
+  canInstallMobile: boolean;
+  showMobilePrompt: boolean;
+  hasNativeInstallPrompt: boolean;
   updateReady: boolean;
-  install: () => Promise<boolean>;
-  dismissPrompt: () => void;
-  resetDismiss: () => void;
+  installMobile: () => Promise<boolean>;
+  dismissMobilePrompt: () => void;
+  openIosGuide: () => void;
+  iosGuideOpen: boolean;
+  closeIosGuide: () => void;
   applyUpdate: () => void;
 };
 
@@ -29,17 +34,16 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(true);
   const [standalone, setStandalone] = useState(false);
-  const [desktop, setDesktop] = useState(false);
+  const [mobile, setMobile] = useState(false);
+  const [ios, setIos] = useState(false);
+  const [iosGuideOpen, setIosGuideOpen] = useState(false);
   const [updateReady, setUpdateReady] = useState(false);
 
   useEffect(() => {
-    setDismissed(localStorage.getItem(PWA_DISMISS_KEY) === "true");
+    setDismissed(localStorage.getItem(PWA_MOBILE_DISMISS_KEY) === "true");
     setStandalone(isStandaloneDisplay());
-    setDesktop(isDesktopInstallTarget());
-
-    const media = window.matchMedia("(min-width: 768px) and (pointer: fine)");
-    const onMediaChange = () => setDesktop(media.matches);
-    media.addEventListener("change", onMediaChange);
+    setMobile(isMobileDevice());
+    setIos(isIosDevice());
 
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
@@ -47,13 +51,15 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
     };
 
     const onDisplayModeChange = () => setStandalone(isStandaloneDisplay());
+    const onResize = () => setMobile(isMobileDevice());
 
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+    window.addEventListener("resize", onResize);
     window.matchMedia("(display-mode: standalone)").addEventListener("change", onDisplayModeChange);
 
     return () => {
-      media.removeEventListener("change", onMediaChange);
       window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+      window.removeEventListener("resize", onResize);
       window.matchMedia("(display-mode: standalone)").removeEventListener("change", onDisplayModeChange);
     };
   }, []);
@@ -87,15 +93,12 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
         console.warn("Nythera service worker registration failed.", error);
       });
 
-    const onControllerChange = () => {
-      setUpdateReady(false);
-    };
-
+    const onControllerChange = () => setUpdateReady(false);
     navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
     return () => navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
   }, []);
 
-  const install = useCallback(async () => {
+  const installMobile = useCallback(async () => {
     if (!installPrompt) {
       return false;
     }
@@ -106,21 +109,25 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
     if (choice?.outcome === "accepted") {
       setInstallPrompt(null);
       setDismissed(true);
-      localStorage.setItem(PWA_DISMISS_KEY, "true");
+      localStorage.setItem(PWA_MOBILE_DISMISS_KEY, "true");
       return true;
     }
 
     return false;
   }, [installPrompt]);
 
-  const dismissPrompt = useCallback(() => {
-    localStorage.setItem(PWA_DISMISS_KEY, "true");
+  const dismissMobilePrompt = useCallback(() => {
+    localStorage.setItem(PWA_MOBILE_DISMISS_KEY, "true");
     setDismissed(true);
+    setIosGuideOpen(false);
   }, []);
 
-  const resetDismiss = useCallback(() => {
-    localStorage.removeItem(PWA_DISMISS_KEY);
-    setDismissed(false);
+  const openIosGuide = useCallback(() => {
+    setIosGuideOpen(true);
+  }, []);
+
+  const closeIosGuide = useCallback(() => {
+    setIosGuideOpen(false);
   }, []);
 
   const applyUpdate = useCallback(() => {
@@ -130,29 +137,48 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
     window.location.reload();
   }, []);
 
-  const canInstall = Boolean(installPrompt) && desktop && !standalone;
-  const showPrompt = canInstall && !dismissed;
+  const hasNativeInstallPrompt = Boolean(installPrompt);
+  const canInstallMobile = mobile && !standalone && (hasNativeInstallPrompt || ios);
+  const showMobilePrompt = canInstallMobile && !dismissed;
 
   const value = useMemo(
     () => ({
-      canInstall,
-      showPrompt,
+      mobile,
+      ios,
       standalone,
-      desktop,
+      canInstallMobile,
+      showMobilePrompt,
+      hasNativeInstallPrompt,
       updateReady,
-      install,
-      dismissPrompt,
-      resetDismiss,
+      installMobile,
+      dismissMobilePrompt,
+      openIosGuide,
+      iosGuideOpen,
+      closeIosGuide,
       applyUpdate
     }),
-    [applyUpdate, canInstall, desktop, dismissPrompt, install, resetDismiss, showPrompt, standalone, updateReady]
+    [
+      applyUpdate,
+      canInstallMobile,
+      closeIosGuide,
+      dismissMobilePrompt,
+      hasNativeInstallPrompt,
+      installMobile,
+      ios,
+      iosGuideOpen,
+      mobile,
+      openIosGuide,
+      showMobilePrompt,
+      standalone,
+      updateReady
+    ]
   );
 
   return (
     <PwaContext.Provider value={value}>
       {children}
-      <DesktopInstallPrompt />
-      <DesktopUpdatePrompt />
+      <MobileInstallPrompt />
+      <PwaUpdatePrompt />
     </PwaContext.Provider>
   );
 }

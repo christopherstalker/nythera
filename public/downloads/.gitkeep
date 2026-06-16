@@ -1,0 +1,3 @@
+# Placeholder — run `npm run desktop:build:win` from the repo root to generate Nythera-Setup.exe
+
+Desktop installers are built with Electron and copied here for direct download from /download.

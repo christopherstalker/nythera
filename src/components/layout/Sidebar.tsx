@@ -18,7 +18,7 @@ import {
   Settings
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
-import { DesktopInstallButton } from "@/components/pwa/desktop-install-button";
+import { DesktopAppLink } from "@/components/pwa/desktop-app-link";
 import { useUiStore } from "@/stores/use-ui-store";
 import { cn } from "@/lib/utils";
 
@@ -215,7 +215,7 @@ export function Sidebar() {
         </div>
 
         <div className="relative mt-4 shrink-0 border-t border-[var(--border-subtle)] pt-3">
-          <DesktopInstallButton collapsed={collapsed} className="mb-2" />
+          <DesktopAppLink collapsed={collapsed} className="mb-2" />
           {isAuthenticated ? (
             <>
               <button

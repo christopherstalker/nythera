@@ -17,7 +17,12 @@
     "proxy:start": "node dist/proxy-service/server.js",
     "jobs:dev": "tsx src/jobs/worker.ts",
     "check": "npm run typecheck && npm run lint",
-    "characters:import": "tsx scripts/import-characters-to-db.ts"
+    "characters:import": "tsx scripts/import-characters-to-db.ts",
+    "desktop:install": "npm install --prefix desktop",
+    "desktop:dev": "npm run start --prefix desktop",
+    "desktop:build:win": "npm run build:win --prefix desktop",
+    "desktop:build:mac": "npm run build:mac --prefix desktop",
+    "desktop:publish:win": "npm run desktop:build:win && vercel --prod --yes"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
