@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import type { OAuthProviderId } from "@/lib/oauth-providers";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type OAuthButtonsProps = {
@@ -82,26 +81,35 @@ export function OAuthButtons({ intent }: OAuthButtonsProps) {
 
   return (
     <div className="mt-6 space-y-5">
-      <div className={cn("grid gap-3", providers.length > 2 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1")}>
+      <div className="flex items-stretch gap-2">
         {providers.map((provider) => {
           const label = intent === "register" ? provider.registerLabel : provider.label;
           const isLoading = loadingProvider === provider.id;
 
           return (
-            <Button
+            <button
               key={provider.id}
               type="button"
-              variant="outline"
-              className={cn("h-12 w-full text-foreground", provider.className)}
+              aria-label={isLoading ? `Opening ${provider.shortLabel}` : label}
+              title={label}
               onClick={() => handleSignIn(provider.id)}
               disabled={loadingProvider !== null}
+              className={cn(
+                "focus-ring flex h-12 min-w-0 flex-1 items-center justify-center rounded-2xl border text-foreground transition-all duration-150 active:scale-[0.98] disabled:opacity-50",
+                provider.className,
+                isLoading && "ring-1 ring-primary/40"
+              )}
             >
-              <ProviderIcon id={provider.id} />
-              {isLoading ? `Opening ${provider.shortLabel}...` : label}
-            </Button>
+              {isLoading ? (
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/25 border-t-white" />
+              ) : (
+                <ProviderIcon id={provider.id} />
+              )}
+            </button>
           );
         })}
       </div>
+      <p className="text-center text-[11px] text-[var(--text-muted)]">{providers.map((p) => p.shortLabel).join(" · ")}</p>
       <div className="flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
         <span className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-white/20" />
         <span>or inscribe by email</span>
