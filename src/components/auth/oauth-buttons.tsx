@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 
 type OAuthButtonsProps = {
   intent: "login" | "register";
+  callbackUrl?: string;
 };
 
 type ProviderConfig = {
@@ -44,7 +45,7 @@ function ProviderIcon({ id }: { id: OAuthProviderId }) {
   );
 }
 
-export function OAuthButtons({ intent }: OAuthButtonsProps) {
+export function OAuthButtons({ intent, callbackUrl = "/explore" }: OAuthButtonsProps) {
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
   const [loadingProvider, setLoadingProvider] = useState<OAuthProviderId | null>(null);
 
@@ -71,7 +72,7 @@ export function OAuthButtons({ intent }: OAuthButtonsProps) {
 
   async function handleSignIn(provider: OAuthProviderId) {
     setLoadingProvider(provider);
-    await signIn(provider, { callbackUrl: "/explore" });
+    await signIn(provider, { callbackUrl: callbackUrl.startsWith("/") ? callbackUrl : "/explore" });
     setLoadingProvider(null);
   }
 

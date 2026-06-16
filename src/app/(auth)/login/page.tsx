@@ -1,7 +1,8 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, Suspense, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Mail } from "lucide-react";
 import { AuthExperience } from "@/components/auth/auth-experience";
@@ -10,6 +11,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageContent />
+    </Suspense>
+  );
+}
+
+function LoginPageContent() {
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") ?? "/explore";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +39,7 @@ export default function LoginPage() {
       return;
     }
 
-    window.location.href = "/explore";
+    window.location.href = callbackUrl.startsWith("/") ? callbackUrl : "/explore";
   }
 
   return (
@@ -47,7 +58,7 @@ export default function LoginPage() {
       <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
         Your characters, memories, and worlds are waiting on the other side.
       </p>
-      <OAuthButtons intent="login" />
+      <OAuthButtons intent="login" callbackUrl={callbackUrl} />
       <form onSubmit={onSubmit} className="mt-6 space-y-4">
         <Input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" type="email" autoComplete="email" required />
         <Input

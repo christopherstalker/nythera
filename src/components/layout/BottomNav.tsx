@@ -2,19 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookMarked, Compass, Home, Plus, Settings } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { BookMarked, Compass, Home, LogIn, Plus, Settings } from "lucide-react";
+import { loginUrl } from "@/lib/auth-routes";
 import { cn } from "@/lib/utils";
 
 const links = [
-  { href: "/", label: "Home", icon: Home },
-  { href: "/explore", label: "Explore", icon: Compass },
-  { href: "/library", label: "Library", icon: BookMarked },
-  { href: "/create-character", label: "Create", icon: Plus },
-  { href: "/settings", label: "Settings", icon: Settings }
+  { href: "/", label: "Home", icon: Home, auth: "any" as const },
+  { href: "/explore", label: "Explore", icon: Compass, auth: "any" as const },
+  { href: "/library", label: "Library", icon: BookMarked, auth: "required" as const },
+  { href: "/create-character", label: "Create", icon: Plus, auth: "required" as const },
+  { href: "/settings", label: "Settings", icon: Settings, auth: "required" as const }
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
+  const { status } = useSession();
+  const isAuthenticated = status === "authenticated";
 
   return (
     <nav
@@ -26,17 +30,21 @@ export function BottomNav() {
           {links.map((link) => {
             const Icon = link.icon;
             const active = link.href === "/" ? pathname === "/" : pathname === link.href || pathname.startsWith(`${link.href}/`);
+            const href = !isAuthenticated && link.auth === "required" ? loginUrl(link.href) : link.href;
+            const label = !isAuthenticated && link.href === "/settings" ? "Sign in" : link.label;
+            const LinkIcon = !isAuthenticated && link.href === "/settings" ? LogIn : Icon;
+
             return (
               <Link
                 key={link.href}
-                href={link.href}
+                href={href}
                 className={cn(
                   "focus-ring flex min-h-[var(--touch-target)] min-w-0 flex-col items-center justify-center gap-0.5 rounded-2xl px-1 text-[11px] font-medium text-[var(--text-secondary)] no-underline transition-all duration-150 active:scale-95",
                   active ? "bg-[var(--accent-purple-soft)] text-[var(--text-primary)] shadow-[var(--shadow-glow-soft)]" : "hover:bg-white/[0.055] hover:text-[var(--text-primary)]"
                 )}
               >
-                <Icon className="h-5 w-5 shrink-0" />
-                <span className="max-w-full truncate">{link.label}</span>
+                <LinkIcon className="h-5 w-5 shrink-0" />
+                <span className="max-w-full truncate">{label}</span>
               </Link>
             );
           })}
