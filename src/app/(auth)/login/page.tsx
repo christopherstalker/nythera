@@ -4,10 +4,10 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { Mail } from "lucide-react";
+import { AuthExperience } from "@/components/auth/auth-experience";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PageShell, Surface, SurfaceMuted } from "@/components/ui/page";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -32,37 +32,38 @@ export default function LoginPage() {
   }
 
   return (
-    <PageShell className="flex min-h-[calc(100dvh-68px)] items-center justify-center pb-5 sm:pb-6">
-      <Surface className="relative isolate w-full max-w-md overflow-hidden p-7 sm:p-8">
-        <div className="pointer-events-none absolute inset-0 -z-10 hero-gradient opacity-55" />
-        <h1 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Sign in to Nythera</h1>
-        <p className="mt-3 text-sm leading-7 text-muted-foreground">
-          Continue your characters, memories, chats, and model key settings.
-        </p>
-        <OAuthButtons intent="login" />
-        <form onSubmit={onSubmit} className="mt-7 space-y-4">
-          <Input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" type="email" autoComplete="email" required />
-          <Input
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="Password"
-            type="password"
-            autoComplete="current-password"
-            required
-          />
-          {error ? <p className="rounded-2xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
-          <Button className="w-full" type="submit">
-            <Mail className="h-4 w-4" />
-            Sign in
-          </Button>
-        </form>
-        <SurfaceMuted className="mt-6 p-4 text-sm text-muted-foreground">
+    <AuthExperience
+      mode="login"
+      footer={
+        <>
           Need an account?{" "}
-          <Link href="/register" className="font-semibold text-primary">
-            Create one
+          <Link href="/register" className="font-semibold text-primary no-underline hover:underline">
+            Begin your chronicle
           </Link>
-        </SurfaceMuted>
-      </Surface>
-    </PageShell>
+        </>
+      }
+    >
+      <h2 className="text-xl font-semibold tracking-tight text-[var(--text-primary)]">Sign in to Nythera</h2>
+      <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
+        Your characters, memories, and worlds are waiting on the other side.
+      </p>
+      <OAuthButtons intent="login" />
+      <form onSubmit={onSubmit} className="mt-6 space-y-4">
+        <Input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" type="email" autoComplete="email" required />
+        <Input
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          placeholder="Password"
+          type="password"
+          autoComplete="current-password"
+          required
+        />
+        {error ? <p className="rounded-2xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
+        <Button className="w-full" type="submit" size="lg">
+          <Mail className="h-4 w-4" />
+          Enter the story
+        </Button>
+      </form>
+    </AuthExperience>
   );
 }

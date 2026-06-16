@@ -3,8 +3,11 @@ import type { NextAuthConfig } from "next-auth";
 import type { Role } from "@prisma/client";
 import Apple from "next-auth/providers/apple";
 import Credentials from "next-auth/providers/credentials";
+import Discord from "next-auth/providers/discord";
 import Google from "next-auth/providers/google";
+import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import Nodemailer from "next-auth/providers/nodemailer";
+import Twitter from "next-auth/providers/twitter";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
@@ -24,11 +27,48 @@ function safeSessionImageUrl(value: string | null | undefined) {
   return value;
 }
 
+async function generateUniqueUsername(seed: string) {
+  const base =
+    seed
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, "")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 18) || "traveler";
+
+  let candidate = base;
+  let suffix = 0;
+
+  while (await prisma.user.findUnique({ where: { username: candidate }, select: { id: true } })) {
+    suffix += 1;
+    candidate = `${base}${suffix}`.slice(0, 20);
+  }
+
+  return candidate;
+}
+
 const providers = [
   env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
     ? Google({
         clientId: env.GOOGLE_CLIENT_ID,
         clientSecret: env.GOOGLE_CLIENT_SECRET
+      })
+    : null,
+  env.DISCORD_CLIENT_ID && env.DISCORD_CLIENT_SECRET
+    ? Discord({
+        clientId: env.DISCORD_CLIENT_ID,
+        clientSecret: env.DISCORD_CLIENT_SECRET
+      })
+    : null,
+  env.TWITTER_CLIENT_ID && env.TWITTER_CLIENT_SECRET
+    ? Twitter({
+        clientId: env.TWITTER_CLIENT_ID,
+        clientSecret: env.TWITTER_CLIENT_SECRET
+      })
+    : null,
+  env.MICROSOFT_CLIENT_ID && env.MICROSOFT_CLIENT_SECRET
+    ? MicrosoftEntraID({
+        clientId: env.MICROSOFT_CLIENT_ID,
+        clientSecret: env.MICROSOFT_CLIENT_SECRET
       })
     : null,
   env.APPLE_CLIENT_ID && env.APPLE_CLIENT_SECRET
@@ -95,6 +135,33 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     newUser: "/settings"
   },
   providers,
+  events: {
+    async createUser({ user }) {
+      if (!user.id) {
+        return;
+      }
+
+      const existing = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { username: true, name: true, email: true }
+      });
+
+      if (!existing || existing.username) {
+        return;
+      }
+
+      const seed = existing.name?.trim() || existing.email?.split("@")[0] || `traveler_${user.id.slice(-6)}`;
+      const username = await generateUniqueUsername(seed);
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          username,
+          name: existing.name ?? username
+        }
+      });
+    }
+  },
   callbacks: {
     async jwt({ token, user }) {
       if (user?.id) {
