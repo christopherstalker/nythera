@@ -6,7 +6,7 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 import { moderateText, sanitizeUserText } from "@/lib/safety";
 import { detectPromptInjection } from "@/lib/prompt-security";
 import { streamMessageSchema } from "@/lib/validation";
-import { assembleCharacterPrompt } from "@/lib/prompts";
+import { assembleNytheraPrompt } from "@/lib/prompt-assembly";
 import { streamLlmResponse } from "@/lib/proxy";
 import { searchMemories } from "@/lib/vector";
 import { schedulePostMessageJobs } from "@/lib/memory";
@@ -105,7 +105,7 @@ export async function POST(request: Request, context: Context) {
       })
     ]);
 
-    const prompt = assembleCharacterPrompt({
+    const prompt = assembleNytheraPrompt({
       character: chat.character,
       memories,
       userPersona: formatUserPersonaForPrompt(userPersona),

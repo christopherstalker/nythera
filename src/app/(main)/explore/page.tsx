@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader, PageShell, Surface } from "@/components/ui/page";
 import { SearchBar } from "@/components/ui/search-bar";
 
-const categories = ["For You", "Trending", "Top Rated", "New", "Romance", "Fantasy", "Anime", "Coach", "Friend", "Roleplay", "Lore"];
+const categories = ["For You", "Trending", "New", "Romance", "Fantasy", "Sci-Fi", "Slice of Life", "Mentor", "Villain", "Roleplay"];
 
 export default function ExplorePage() {
   const [characters, setCharacters] = useState<CharacterSummary[]>([]);
@@ -29,12 +29,10 @@ export default function ExplorePage() {
     }
     if (activeCategory === "Trending") {
       params.set("sort", "trending");
-    } else if (activeCategory === "Top Rated") {
-      params.set("sort", "top-rated");
     } else if (activeCategory === "New") {
       params.set("sort", "new");
     } else if (activeCategory !== "For You") {
-      params.set("tag", activeCategory.toLowerCase());
+      params.set("tag", activeCategory.toLowerCase().replace(/\s+/g, "-"));
     }
 
     fetch(`/api/characters?${params.toString()}`, { signal: controller.signal })

@@ -25,7 +25,15 @@ export async function GET(request: Request) {
           visibility: Visibility.PUBLIC,
           moderationStatus: "APPROVED",
           blockedAt: null,
-          AND: [{ avatarUrl: { not: null } }, { avatarUrl: { not: "" } }]
+          AND: [
+            { name: { not: "" } },
+            { description: { not: "" } },
+            { greeting: { not: "" } },
+            { personality: { not: "" } },
+            { scenario: { not: null } },
+            { scenario: { not: "" } },
+            { persona: { not: Prisma.JsonNull } }
+          ]
         };
 
     if (visibility && mine) {
@@ -87,8 +95,16 @@ export async function POST(request: Request) {
       throw new HttpError(403, "Confirm age-gated access in profile settings before creating NSFW characters.");
     }
 
-    if (input.visibility === "PUBLIC" && !input.avatarUrl?.trim()) {
-      throw new HttpError(400, "Add an avatar before publishing a character publicly.");
+    if (input.visibility === "PUBLIC") {
+      if (!input.avatarUrl?.trim()) {
+        throw new HttpError(400, "Add an avatar before publishing a character publicly.");
+      }
+      if (!input.scenario?.trim()) {
+        throw new HttpError(400, "Add a scenario before publishing a character publicly.");
+      }
+      if (!input.persona || Object.keys(input.persona).length === 0) {
+        throw new HttpError(400, "Add persona details before publishing a character publicly.");
+      }
     }
 
     const moderation = moderateText({

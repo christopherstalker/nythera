@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "Velora",
-    "slug": "velora-mobile",
+    "name": "Nythera",
+    "slug": "nythera-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/velora-icon.png",
-    "scheme": "velora",
+    "scheme": "nythera",
     "userInterfaceStyle": "automatic",
     "android": {
-      "package": "ai.velora.app",
+      "package": "ai.nythera.app",
       "versionCode": 8,
       "permissions": ["INTERNET"],
       "adaptiveIcon": {
@@ -22,7 +22,7 @@
     },
     "plugins": [],
     "extra": {
-      "siteUrl": "https://velora-ai-character-platform.vercel.app"
+      "siteUrl": "https://nythera-ai-character-platform.vercel.app"
     }
   }
 }

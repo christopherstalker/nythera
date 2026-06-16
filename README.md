@@ -1,6 +1,6 @@
-# Velora
+# Nythera
 
-Production-oriented starter for a free Character.AI-style platform with bring-your-own model keys:
+Production-oriented starter for an AI character platform with bring-your-own model keys:
 
 - Next.js 14 App Router, TypeScript, Tailwind CSS
 - Auth.js/NextAuth v5 with OAuth, email magic link, and credentials support
@@ -41,4 +41,4 @@ In chat settings, use either a saved key's default model or explicit `provider:m
 
 ## Safety boundary
 
-The browser never calls provider APIs directly and never receives saved keys back. Users add provider keys inside Velora; keys are encrypted in PostgreSQL, decrypted only by the Next.js backend, and passed to the internal proxy for a single request.
+The browser never calls provider APIs directly and never receives saved keys back. Users add provider keys inside Nythera; keys are encrypted in PostgreSQL, decrypted only by the Next.js backend, and passed to the internal proxy for a single request.

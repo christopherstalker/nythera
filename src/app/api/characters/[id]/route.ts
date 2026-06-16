@@ -110,8 +110,18 @@ export async function PATCH(request: Request, context: Context) {
 
     const nextVisibility = input.visibility ?? character.visibility;
     const nextAvatarUrl = input.avatarUrl === undefined ? character.avatarUrl : input.avatarUrl;
-    if (nextVisibility === "PUBLIC" && !nextAvatarUrl?.trim()) {
-      throw new HttpError(400, "Add an avatar before publishing a character publicly.");
+    if (nextVisibility === "PUBLIC") {
+      if (!nextAvatarUrl?.trim()) {
+        throw new HttpError(400, "Add an avatar before publishing a character publicly.");
+      }
+      const nextScenario = input.scenario === undefined ? character.scenario : input.scenario;
+      if (!nextScenario?.trim()) {
+        throw new HttpError(400, "Add a scenario before publishing a character publicly.");
+      }
+      const nextPersona = input.persona === undefined ? character.persona : input.persona;
+      if (!nextPersona || (typeof nextPersona === "object" && Object.keys(nextPersona as Record<string, unknown>).length === 0)) {
+        throw new HttpError(400, "Add persona details before publishing a character publicly.");
+      }
     }
 
     const moderation = moderateText({

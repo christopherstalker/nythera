@@ -161,7 +161,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
     const submissionDraft = isSimpleMode ? applySimpleGeneratedFields(draft) : draft;
     const submissionTags = parseTags(submissionDraft.tags);
 
-    if (submissionDraft.visibility === "PUBLIC" && !submissionDraft.avatarUrl.trim()) {
+    if (!isSimpleMode && submissionDraft.visibility === "PUBLIC" && !submissionDraft.avatarUrl.trim()) {
       setSaving(false);
       setError("Add an avatar before publishing publicly, or save the character as private.");
       return;
@@ -169,12 +169,12 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
 
     const payload = {
       name: submissionDraft.name.trim(),
-      avatarUrl: submissionDraft.avatarUrl,
+      avatarUrl: isSimpleMode ? "" : submissionDraft.avatarUrl,
       description: submissionDraft.description.trim(),
       personality: submissionDraft.personality.trim(),
       scenario: submissionDraft.scenario.trim(),
       greeting: submissionDraft.greeting.trim(),
-      visibility: submissionDraft.visibility,
+      visibility: isSimpleMode ? "PRIVATE" : submissionDraft.visibility,
       isNSFW: submissionDraft.isNSFW,
       tags: submissionTags.length > 0 ? submissionTags : ["roleplay"],
       persona: {
@@ -242,7 +242,11 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
         ) : null}
 
         {isSimpleMode ? (
-          <Panel title="Simple mode" icon={Wand2} description="Name the character and describe the idea. Nythera will generate the voice, scene, and greeting.">
+          <Panel
+            title="Simple mode"
+            icon={Wand2}
+            description="Name the character and describe the idea. Nythera generates the voice, scene, and greeting instantly."
+          >
             <Field label="Character name">
               <Input value={draft.name} onChange={(event) => update("name", event.target.value)} placeholder="Character name" required />
             </Field>
@@ -254,37 +258,12 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
                 required
               />
             </Field>
-            <div className="grid gap-4 sm:grid-cols-[220px_minmax(0,1fr)]">
-              <Field label="Avatar">
-                <label className="focus-ring flex min-h-[180px] cursor-pointer flex-col items-center justify-center rounded-[var(--radius-lg)] border border-dashed border-[var(--border-default)] bg-[var(--bg-input)] p-5 text-center backdrop-blur-xl transition hover:border-[var(--accent-purple)] hover:bg-white/[0.045]">
-                  <span className="grid h-24 w-24 place-items-center overflow-hidden rounded-full border border-white/10 bg-[var(--bg-elevated)] text-[var(--accent-purple)] shadow-[var(--shadow-glow)]">
-                    {draft.avatarUrl ? <img src={draft.avatarUrl} alt="" className="h-full w-full object-cover" /> : <Upload className="h-7 w-7" />}
-                  </span>
-                  <span className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]">
-                    <ImagePlus className="h-4 w-4" />
-                    Upload avatar
-                  </span>
-                  <input type="file" accept="image/*" className="sr-only" onChange={onAvatarFile} />
-                </label>
-                {draft.avatarUrl ? (
-                  <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => update("avatarUrl", "")}>
-                    <X className="h-4 w-4" />
-                    Clear avatar
-                  </Button>
-                ) : null}
-              </Field>
-              <div className="grid content-start gap-4">
-                <Field label="Visibility">
-                  <div className="grid grid-cols-2 gap-2 rounded-[var(--radius-pill)] border border-[var(--border-default)] bg-[var(--bg-input)] p-1">
-                    <VisibilityButton icon={Lock} label="Private" selected={draft.visibility === "PRIVATE"} onClick={() => update("visibility", "PRIVATE")} />
-                    <VisibilityButton icon={Globe} label="Public" selected={draft.visibility === "PUBLIC"} onClick={() => update("visibility", "PUBLIC")} />
-                  </div>
-                </Field>
-                <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4 text-sm leading-6 text-[var(--text-secondary)] shadow-[var(--glass-highlight)] backdrop-blur-xl">
-                  <p className="font-medium text-[var(--text-primary)]">Generated preview</p>
-                  <p className="mt-2 line-clamp-3">{generatedDraft.greeting}</p>
-                </div>
-              </div>
+            <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4 text-sm leading-6 text-[var(--text-secondary)] shadow-[var(--glass-highlight)] backdrop-blur-xl">
+              <p className="font-medium text-[var(--text-primary)]">Generated preview</p>
+              <p className="mt-2 line-clamp-4">{generatedDraft.greeting}</p>
+              <p className="mt-3 text-xs text-[var(--text-muted)]">
+                You can add an avatar, tags, and publishing settings after creating.
+              </p>
             </div>
           </Panel>
         ) : (
@@ -452,7 +431,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
             </Button>
             <Button type="submit" size="lg" disabled={saving || !canSubmit}>
               <Save className="h-4 w-4" />
-              {saving ? "Saving..." : "Create character"}
+              {saving ? "Creating..." : "Create character"}
             </Button>
           </div>
         ) : (

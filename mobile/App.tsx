@@ -6,7 +6,7 @@ import { WebView } from "react-native-webview";
 const SITE_URL =
   process.env.EXPO_PUBLIC_SITE_URL ??
   process.env.EXPO_PUBLIC_API_URL ??
-  "https://velora-ai-character-platform.vercel.app";
+  "https://nythera-ai-character-platform.vercel.app";
 
 export default function App() {
   const webViewRef = useRef<WebView>(null);
@@ -56,8 +56,8 @@ export default function App() {
           onLoadProgress={(event) => setLoadingProgress(event.nativeEvent.progress)}
           onLoadEnd={() => setLoadingProgress(1)}
           onNavigationStateChange={(navigation) => setCanGoBack(navigation.canGoBack)}
-          onError={(event) => setLoadError(event.nativeEvent.description || "Velora could not load.")}
-          onHttpError={(event) => setLoadError(`Velora returned HTTP ${event.nativeEvent.statusCode}.`)}
+          onError={(event) => setLoadError(event.nativeEvent.description || "Nythera could not load.")}
+          onHttpError={(event) => setLoadError(`Nythera returned HTTP ${event.nativeEvent.statusCode}.`)}
           renderLoading={() => (
             <View style={styles.loading}>
               <ActivityIndicator color="#9b59b6" />
