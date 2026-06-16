@@ -88,13 +88,8 @@ export function SiteNav() {
     <>
       <header className="sticky top-0 z-40 bg-background/68 backdrop-blur-2xl">
       <div className="container mx-auto flex h-[68px] max-w-[1360px] items-center gap-3 px-4 py-2 sm:px-6 lg:px-8">
-        <Link href="/" className="flex shrink-0 items-center gap-2 no-underline">
-          <span className="brand-mark-shell h-9 w-9">
-            <img src="/icon.svg" alt="" className="h-full w-full object-cover" />
-          </span>
-          <span className="hidden text-base font-semibold tracking-tight sm:inline">
-            Nythera<span className="text-primary"> AI</span>
-          </span>
+        <Link href="/" className="flex shrink-0 items-center no-underline">
+          <span className="hidden text-sm font-semibold tracking-[0.18em] text-foreground sm:inline">NYTHERA</span>
         </Link>
 
         <div className="mx-auto hidden w-full max-w-[30rem] items-center md:flex">

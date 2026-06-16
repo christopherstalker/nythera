@@ -130,11 +130,8 @@ export function Sidebar() {
     >
       <div className="flex min-w-0 flex-1 flex-col px-3 py-4">
         <div className="mb-5 flex h-11 items-center gap-3">
-          <Link href="/" className="focus-ring flex min-w-0 flex-1 items-center gap-3 rounded-2xl no-underline">
-            <span className="brand-mark-shell h-10 w-10">
-              <img src="/icon.svg" alt="" className="h-full w-full rounded-full object-cover" />
-            </span>
-            <span className={cn("font-semibold tracking-tight text-[var(--text-primary)]", labelClass)}>Nythera</span>
+          <Link href="/" className={cn("focus-ring flex min-w-0 flex-1 items-center rounded-2xl px-2 no-underline", labelClass)}>
+            <span className="font-semibold tracking-[0.18em] text-[var(--text-primary)]">NYTHERA</span>
           </Link>
           <button
             type="button"

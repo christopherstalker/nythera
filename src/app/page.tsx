@@ -7,7 +7,6 @@ import { useSession } from "next-auth/react";
 import { MessageCircle, Plus, Search, Sparkles } from "lucide-react";
 import { CharacterRow } from "@/components/characters/CharacterRow";
 import type { CharacterSummary } from "@/components/characters/CharacterCard";
-import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page";
@@ -202,9 +201,9 @@ export default function HomePage() {
           <img src={featured.avatarUrl} alt="" className="pointer-events-none absolute inset-0 -z-20 h-full w-full scale-110 object-cover opacity-20 blur-2xl" />
         ) : null}
         <div className="pointer-events-none absolute inset-0 -z-10 hero-gradient opacity-90" />
-        <div className="flex min-h-[270px] flex-col items-center justify-center text-center">
-          <Avatar name={featured.name} src={featured.avatarUrl} size="xl" className="h-28 w-28 border border-white/15 shadow-[var(--shadow-glow)]" />
-          <h1 className="mt-5 max-w-3xl truncate text-3xl font-semibold leading-tight tracking-tight text-[var(--text-primary)] sm:text-5xl">
+        <div className="flex min-h-[270px] flex-col items-start justify-end text-left">
+          <p className="text-xs font-medium uppercase tracking-[0.22em] text-[var(--text-muted)]">Featured character</p>
+          <h1 className="mt-3 max-w-3xl text-3xl font-semibold leading-tight tracking-tight text-[var(--text-primary)] sm:text-5xl">
             {featured.name}
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--text-secondary)] sm:text-base">
