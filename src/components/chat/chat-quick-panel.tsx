@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { BookOpen, Brain, MessageSquare, UserRound, X } from "lucide-react";
-import { HistoryTabContent, MemoryTabContent, PanelAvatarInput, PersonaTabContent } from "@/components/chat/chat-panel-tabs";
+import { HistoryTabContent, MemoryTabContent, PersonaTabContent } from "@/components/chat/chat-panel-tabs";
 import { useChatQuickPanel } from "@/hooks/use-chat-quick-panel";
 import { cn } from "@/lib/utils";
 
@@ -29,7 +29,6 @@ export function ChatQuickPanel({ chatId, open, onClose, panel }: ChatQuickPanelP
 
   return (
     <aside className="quick-panel fixed inset-x-3 bottom-3 top-20 z-40 flex flex-col overflow-hidden rounded-[28px] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-card)] backdrop-blur-2xl md:bottom-4 md:left-auto md:right-4 md:top-24 md:w-[360px] xl:static xl:h-full xl:w-[340px] xl:shrink-0">
-      <PanelAvatarInput panel={panel} />
       <header className="flex h-14 shrink-0 items-center gap-3 border-b border-[var(--border-subtle)] px-3">
         <div className="grid h-9 w-9 place-items-center rounded-2xl bg-[var(--accent-purple-soft)] text-[var(--accent-purple)]">
           <BookOpen className="h-4 w-4" />

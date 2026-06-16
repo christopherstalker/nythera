@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Check, ImagePlus, Plus, Upload } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { ImageFilePicker } from "@/components/ui/image-file-picker";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useChatQuickPanel } from "@/hooks/use-chat-quick-panel";
@@ -46,14 +47,14 @@ export function PersonaTabContent({ panel, compact = false }: { panel: PanelStat
         {!compact ? <Input value={panel.draft.label} onChange={(event) => panel.updateDraft("label", event.target.value)} placeholder="Profile label" /> : null}
         <Input value={panel.draft.displayName} onChange={(event) => panel.updateDraft("displayName", event.target.value)} placeholder="Your roleplay name" required />
         <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-2">
-          <button
-            type="button"
-            onClick={panel.openAvatarPicker}
-            disabled={panel.avatarUploading}
-            className="focus-ring grid h-[72px] place-items-center overflow-hidden rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-input)] text-[var(--accent-purple)] transition hover:border-[var(--accent-purple)] hover:bg-white/[0.045] disabled:opacity-60"
+          <ImageFilePicker
+            onPick={panel.pickAvatar}
+            onError={panel.setAvatarPickError}
+            onUploadingChange={panel.setAvatarUploadingState}
+            className="focus-ring grid h-[72px] place-items-center overflow-hidden rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-input)] text-[var(--accent-purple)] transition hover:border-[var(--accent-purple)] hover:bg-white/[0.045]"
           >
             {panel.draft.avatarUrl ? <img src={panel.draft.avatarUrl} alt="" className="h-full w-full object-cover" /> : <Upload className="h-5 w-5" />}
-          </button>
+          </ImageFilePicker>
           <div className="grid content-center gap-2">
             <p className="text-xs leading-5 text-[var(--text-secondary)]">
               {panel.avatarUploading ? "Processing photo..." : "Tap the square to upload a photo from your gallery."}
@@ -144,17 +145,5 @@ export function PanelStatusText({ children }: { children: React.ReactNode }) {
     <p className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-input)] p-3 text-sm leading-5 text-[var(--text-secondary)] shadow-[var(--glass-highlight)]">
       {children}
     </p>
-  );
-}
-
-export function PanelAvatarInput({ panel }: { panel: PanelState }) {
-  return (
-    <input
-      ref={panel.avatarInputRef}
-      type="file"
-      accept="image/jpeg,image/png,image/webp,image/*"
-      className="hidden"
-      onChange={panel.onAvatarFile}
-    />
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
-import { compressImageFile } from "@/lib/image-upload";
+import { FormEvent, useEffect, useState } from "react";
 
 export type PersonaProfile = {
   id: string;
@@ -68,7 +67,6 @@ type UseChatQuickPanelOptions = {
 };
 
 export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseChatQuickPanelOptions) {
-  const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const [profiles, setProfiles] = useState<PersonaProfile[]>([]);
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
   const [activePersona, setActivePersona] = useState<PersonaProfile | null>(null);
@@ -147,29 +145,17 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     setDraft((current) => ({ ...current, [field]: value }));
   }
 
-  function openAvatarPicker() {
-    avatarInputRef.current?.click();
+  function pickAvatar(dataUrl: string) {
+    updateDraft("avatarUrl", dataUrl);
+    setPersonaStatus(null);
   }
 
-  async function onAvatarFile(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
+  function setAvatarPickError(message: string) {
+    setPersonaStatus(message);
+  }
 
-    if (!file) {
-      return;
-    }
-
-    setAvatarUploading(true);
-    setPersonaStatus(null);
-
-    try {
-      const dataUrl = await compressImageFile(file);
-      updateDraft("avatarUrl", dataUrl);
-    } catch (error) {
-      setPersonaStatus(error instanceof Error ? error.message : "Could not read persona photo.");
-    } finally {
-      setAvatarUploading(false);
-    }
+  function setAvatarUploadingState(uploading: boolean) {
+    setAvatarUploading(uploading);
   }
 
   async function switchPersona(profile: PersonaProfile) {
@@ -265,7 +251,6 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
   }
 
   return {
-    avatarInputRef,
     profiles,
     activeProfileId,
     activePersona,
@@ -278,8 +263,9 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     avatarUploading,
     setMemoryDraft,
     updateDraft,
-    openAvatarPicker,
-    onAvatarFile,
+    pickAvatar,
+    setAvatarPickError,
+    setAvatarUploadingState,
     switchPersona,
     savePersona,
     addMemory,

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Brain, ChevronLeft, History, UserRound } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
-import { HistoryTabContent, MemoryTabContent, PanelAvatarInput, PersonaTabContent } from "@/components/chat/chat-panel-tabs";
+import { HistoryTabContent, MemoryTabContent, PersonaTabContent } from "@/components/chat/chat-panel-tabs";
 import type { useChatQuickPanel } from "@/hooks/use-chat-quick-panel";
 
 export type ComposerSheetView = "menu" | "memory" | "history" | "persona";
@@ -42,7 +42,6 @@ export function ChatComposerSheet({ open, onClose, chatId, panel, initialView = 
     <>
       <button type="button" aria-label="Close chat tools" onClick={onClose} className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] md:hidden" />
       <section className="fixed inset-x-0 bottom-0 z-50 flex max-h-[min(88dvh,720px)] flex-col overflow-hidden rounded-t-[28px] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-card)] backdrop-blur-2xl md:hidden">
-        <PanelAvatarInput panel={panel} />
         <div className="flex shrink-0 flex-col items-center border-b border-[var(--border-subtle)] px-4 pb-3 pt-2">
           <div className="mb-3 h-1 w-10 rounded-full bg-white/15" />
           <div className="flex w-full items-center gap-2">

@@ -31,16 +31,61 @@ function loadImage(url: string) {
   });
 }
 
-export async function compressImageFile(file: File): Promise<string> {
-  if (!isImageFile(file)) {
-    throw new Error("Choose an image file.");
+type DecodedImage = {
+  width: number;
+  height: number;
+  draw: (context: CanvasRenderingContext2D, width: number, height: number) => void;
+  cleanup: () => void;
+};
+
+async function decodeImageFile(file: File): Promise<DecodedImage> {
+  if (typeof createImageBitmap !== "undefined") {
+    try {
+      const bitmap = await createImageBitmap(file);
+      return {
+        width: bitmap.width,
+        height: bitmap.height,
+        draw: (context, width, height) => {
+          context.drawImage(bitmap, 0, 0, width, height);
+        },
+        cleanup: () => {
+          bitmap.close();
+        }
+      };
+    } catch {
+      // Fall back to object URL decoding below.
+    }
   }
 
   const objectUrl = URL.createObjectURL(file);
 
   try {
     const image = await loadImage(objectUrl);
-    const { width, height } = fitSize(image.naturalWidth, image.naturalHeight, MAX_DIMENSION);
+    return {
+      width: image.naturalWidth,
+      height: image.naturalHeight,
+      draw: (context, width, height) => {
+        context.drawImage(image, 0, 0, width, height);
+      },
+      cleanup: () => {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  } catch (error) {
+    URL.revokeObjectURL(objectUrl);
+    throw error;
+  }
+}
+
+export async function compressImageFile(file: File): Promise<string> {
+  if (!isImageFile(file)) {
+    throw new Error("Choose an image file.");
+  }
+
+  const decoded = await decodeImageFile(file);
+
+  try {
+    const { width, height } = fitSize(decoded.width, decoded.height, MAX_DIMENSION);
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
@@ -50,7 +95,7 @@ export async function compressImageFile(file: File): Promise<string> {
       throw new Error("Could not process image.");
     }
 
-    context.drawImage(image, 0, 0, width, height);
+    decoded.draw(context, width, height);
 
     let quality = 0.88;
     let dataUrl = canvas.toDataURL("image/jpeg", quality);
@@ -66,6 +111,6 @@ export async function compressImageFile(file: File): Promise<string> {
 
     return dataUrl;
   } finally {
-    URL.revokeObjectURL(objectUrl);
+    decoded.cleanup();
   }
 }
