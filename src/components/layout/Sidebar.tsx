@@ -143,23 +143,37 @@ export function Sidebar() {
           </button>
         </div>
 
-        <div className={cn("mb-4 md:hidden lg:block", collapsed && "lg:hidden")}>
-          <label className="relative block">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search chats"
-              className="focus-ring glass-input h-10 w-full rounded-2xl pl-9 pr-3 text-sm focus:border-[var(--accent-purple)]"
-            />
-          </label>
-        </div>
+        <nav className="mb-4" aria-label="Primary navigation">
+          <div className="grid gap-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const active = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(`${item.href}/`);
+              return (
+                <Link key={item.href} href={item.href} className={cn("nav-item", active && "nav-item-active")} title={item.label}>
+                  <Icon className="h-5 w-5 shrink-0" />
+                  <span className={labelClass}>{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
 
-        <div className="mb-4 border-t border-[var(--border-subtle)] pt-4">
+        <div className="flex min-h-0 flex-1 flex-col border-t border-[var(--border-subtle)] pt-4">
+          <div className={cn("mb-3 md:hidden lg:block", collapsed && "lg:hidden")}>
+            <label className="relative block">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search chats"
+                className="focus-ring glass-input h-10 w-full rounded-2xl pl-9 pr-3 text-sm focus:border-[var(--accent-purple)]"
+              />
+            </label>
+          </div>
           <p className={cn("mb-2 px-3 text-xs font-medium uppercase tracking-wide text-[var(--text-muted)] md:hidden lg:block", collapsed && "lg:hidden")}>
             Recent
           </p>
-          <div className="grid gap-1">
+          <div className="grid min-h-0 flex-1 gap-1 overflow-y-auto chat-scroll">
             {filteredChats.slice(0, collapsed ? 6 : 8).map((chat) => {
               const active = activeChatId === chat.id || pathname === `/chat/${chat.id}`;
               return (
@@ -186,22 +200,7 @@ export function Sidebar() {
           </div>
         </div>
 
-        <nav className="mt-auto border-t border-[var(--border-subtle)] pt-4" aria-label="Primary navigation">
-          <div className="grid gap-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const active = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(`${item.href}/`);
-              return (
-                <Link key={item.href} href={item.href} className={cn("nav-item", active && "nav-item-active")} title={item.label}>
-                  <Icon className="h-5 w-5 shrink-0" />
-                  <span className={labelClass}>{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
-
-        <div className="relative mt-4 border-t border-[var(--border-subtle)] pt-3">
+        <div className="relative mt-4 shrink-0 border-t border-[var(--border-subtle)] pt-3">
           {isAuthenticated ? (
             <>
               <button
@@ -210,9 +209,8 @@ export function Sidebar() {
                 className="focus-ring flex h-12 w-full items-center gap-3 rounded-2xl px-2 text-left text-[var(--text-secondary)] transition-colors hover:bg-white/[0.05] hover:text-[var(--text-primary)]"
               >
                 <Avatar name={displayName} src={avatarUrl} size="xs" />
-                <span className={cn("min-w-0 flex-1", labelClass)}>
-                  <span className="block truncate text-sm font-medium text-[var(--text-primary)]">{displayName}</span>
-                  <span className="block truncate text-xs text-[var(--text-muted)]">{session?.user?.email}</span>
+                <span className={cn("min-w-0 flex-1 truncate text-sm font-medium text-[var(--text-primary)]", labelClass)}>
+                  {displayName}
                 </span>
                 <ChevronDown className={cn("h-4 w-4", labelClass)} />
               </button>

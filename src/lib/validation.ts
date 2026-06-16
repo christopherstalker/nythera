@@ -113,7 +113,7 @@ const listFromTextSchema = z
 export const userPersonaSchema = z.object({
   displayName: z.string().trim().min(2).max(80),
   avatarUrl: imageSourceSchema.optional().or(z.literal("")).nullable(),
-  summary: z.string().trim().min(10).max(2000),
+  summary: z.string().trim().min(10).max(8000),
   background: z.string().trim().max(3000).optional().or(z.literal("")).nullable(),
   traits: listFromTextSchema,
   likes: listFromTextSchema,
