@@ -2,28 +2,44 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Nythera AI Character Chat",
+    name: "Nythera",
     short_name: "Nythera",
-    description: "AI character chats with persona, memory, and secure model access.",
-    id: "/",
-    start_url: "/",
+    description: "AI character roleplay with persona, memory, and secure model access.",
+    id: "/?source=pwa",
+    start_url: "/?source=pwa",
     scope: "/",
     display: "standalone",
-    orientation: "portrait",
+    display_override: ["window-controls-overlay", "standalone", "browser"],
+    orientation: "any",
     background_color: "#0B0B12",
     theme_color: "#0B0B12",
-    categories: ["social", "entertainment"],
+    lang: "en",
+    dir: "ltr",
+    categories: ["social", "entertainment", "games"],
+    prefer_related_applications: false,
     icons: [
       {
-        src: "/icon.svg",
-        sizes: "512x512",
-        type: "image/svg+xml",
+        src: "/icons/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
         purpose: "any"
       },
       {
-        src: "/og-image.png",
+        src: "/icons/icon-512.png",
         sizes: "512x512",
         type: "image/png",
+        purpose: "any"
+      },
+      {
+        src: "/icons/maskable-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable"
+      },
+      {
+        src: "/icon.svg",
+        sizes: "any",
+        type: "image/svg+xml",
         purpose: "any"
       }
     ],
@@ -31,20 +47,20 @@ export default function manifest(): MetadataRoute.Manifest {
       {
         name: "Explore characters",
         short_name: "Explore",
-        url: "/explore",
-        icons: [{ src: "/icon.svg", sizes: "512x512" }]
+        url: "/explore?source=shortcut",
+        icons: [{ src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }]
       },
       {
         name: "Continue chats",
         short_name: "Chats",
-        url: "/chats",
-        icons: [{ src: "/icon.svg", sizes: "512x512" }]
+        url: "/chats?source=shortcut",
+        icons: [{ src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }]
       },
       {
         name: "Create character",
         short_name: "Create",
-        url: "/create-character",
-        icons: [{ src: "/icon.svg", sizes: "512x512" }]
+        url: "/create-character?source=shortcut",
+        icons: [{ src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }]
       }
     ]
   };

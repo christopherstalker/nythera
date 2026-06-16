@@ -1,91 +1,166 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Download, Smartphone, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { DesktopInstallPrompt } from "@/components/pwa/desktop-install-prompt";
+import { DesktopUpdatePrompt } from "@/components/pwa/desktop-update-prompt";
+import {
+  type BeforeInstallPromptEvent,
+  PWA_DISMISS_KEY,
+  PWA_SW_URL,
+  isDesktopInstallTarget,
+  isStandaloneDisplay
+} from "@/lib/pwa";
 
-type BeforeInstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
+type PwaContextValue = {
+  canInstall: boolean;
+  showPrompt: boolean;
+  standalone: boolean;
+  desktop: boolean;
+  updateReady: boolean;
+  install: () => Promise<boolean>;
+  dismissPrompt: () => void;
+  resetDismiss: () => void;
+  applyUpdate: () => void;
 };
 
-const DISMISS_KEY = "nythera:pwa-install-dismissed";
+const PwaContext = createContext<PwaContextValue | null>(null);
 
-export function PwaProvider() {
+export function PwaProvider({ children }: { children: React.ReactNode }) {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [visible, setVisible] = useState(false);
+  const [dismissed, setDismissed] = useState(true);
+  const [standalone, setStandalone] = useState(false);
+  const [desktop, setDesktop] = useState(false);
+  const [updateReady, setUpdateReady] = useState(false);
 
   useEffect(() => {
-    if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker.register("/sw.js").catch((error) => {
-          console.warn("Nythera service worker registration failed.", error);
-        });
-      });
-    }
+    setDismissed(localStorage.getItem(PWA_DISMISS_KEY) === "true");
+    setStandalone(isStandaloneDisplay());
+    setDesktop(isDesktopInstallTarget());
+
+    const media = window.matchMedia("(min-width: 768px) and (pointer: fine)");
+    const onMediaChange = () => setDesktop(media.matches);
+    media.addEventListener("change", onMediaChange);
 
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
-      const dismissed = localStorage.getItem(DISMISS_KEY) === "true";
       setInstallPrompt(event as BeforeInstallPromptEvent);
-      setVisible(!dismissed && !isStandalone());
     };
 
+    const onDisplayModeChange = () => setStandalone(isStandaloneDisplay());
+
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
-    return () => window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+    window.matchMedia("(display-mode: standalone)").addEventListener("change", onDisplayModeChange);
+
+    return () => {
+      media.removeEventListener("change", onMediaChange);
+      window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+      window.matchMedia("(display-mode: standalone)").removeEventListener("change", onDisplayModeChange);
+    };
   }, []);
 
-  async function install() {
-    if (!installPrompt) {
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "production" || !("serviceWorker" in navigator)) {
       return;
+    }
+
+    navigator.serviceWorker
+      .register(PWA_SW_URL)
+      .then((registration) => {
+        if (registration.waiting && navigator.serviceWorker.controller) {
+          setUpdateReady(true);
+        }
+
+        registration.addEventListener("updatefound", () => {
+          const installing = registration.installing;
+          if (!installing) {
+            return;
+          }
+
+          installing.addEventListener("statechange", () => {
+            if (installing.state === "installed" && navigator.serviceWorker.controller) {
+              setUpdateReady(true);
+            }
+          });
+        });
+      })
+      .catch((error) => {
+        console.warn("Nythera service worker registration failed.", error);
+      });
+
+    const onControllerChange = () => {
+      setUpdateReady(false);
+    };
+
+    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+    return () => navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+  }, []);
+
+  const install = useCallback(async () => {
+    if (!installPrompt) {
+      return false;
     }
 
     await installPrompt.prompt();
     const choice = await installPrompt.userChoice.catch(() => null);
+
     if (choice?.outcome === "accepted") {
-      setVisible(false);
       setInstallPrompt(null);
+      setDismissed(true);
+      localStorage.setItem(PWA_DISMISS_KEY, "true");
+      return true;
     }
-  }
 
-  function dismiss() {
-    localStorage.setItem(DISMISS_KEY, "true");
-    setVisible(false);
-  }
+    return false;
+  }, [installPrompt]);
 
-  if (!visible) {
-    return null;
-  }
+  const dismissPrompt = useCallback(() => {
+    localStorage.setItem(PWA_DISMISS_KEY, "true");
+    setDismissed(true);
+  }, []);
+
+  const resetDismiss = useCallback(() => {
+    localStorage.removeItem(PWA_DISMISS_KEY);
+    setDismissed(false);
+  }, []);
+
+  const applyUpdate = useCallback(() => {
+    navigator.serviceWorker.getRegistration().then((registration) => {
+      registration?.waiting?.postMessage({ type: "SKIP_WAITING" });
+    });
+    window.location.reload();
+  }, []);
+
+  const canInstall = Boolean(installPrompt) && desktop && !standalone;
+  const showPrompt = canInstall && !dismissed;
+
+  const value = useMemo(
+    () => ({
+      canInstall,
+      showPrompt,
+      standalone,
+      desktop,
+      updateReady,
+      install,
+      dismissPrompt,
+      resetDismiss,
+      applyUpdate
+    }),
+    [applyUpdate, canInstall, desktop, dismissPrompt, install, resetDismiss, showPrompt, standalone, updateReady]
+  );
 
   return (
-    <div
-      className="fixed bottom-[calc(5.9rem+env(safe-area-inset-bottom))] left-3 z-[60] max-w-md rounded-[28px] border border-white/[0.07] bg-card/95 p-3 shadow-card-glow backdrop-blur-2xl lg:hidden"
-      style={{ width: "min(366px, calc(100vw - 24px))" }}
-    >
-      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 sm:gap-3">
-        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-primary/20 bg-primary/10 text-primary shadow-inset">
-          <Smartphone className="h-5 w-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-foreground">Install Nythera</p>
-          <p className="mt-0.5 text-xs leading-5 text-muted-foreground">Add the app to your phone for full-screen chats.</p>
-        </div>
-        <Button type="button" size="icon" onClick={install} aria-label="Install Nythera">
-          <Download className="h-4 w-4" />
-        </Button>
-        <button
-          type="button"
-          aria-label="Dismiss install prompt"
-          className="focus-ring grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-white/[0.055] hover:text-foreground"
-          onClick={dismiss}
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-    </div>
+    <PwaContext.Provider value={value}>
+      {children}
+      <DesktopInstallPrompt />
+      <DesktopUpdatePrompt />
+    </PwaContext.Provider>
   );
 }
 
-function isStandalone() {
-  return window.matchMedia("(display-mode: standalone)").matches || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+export function usePwa() {
+  const context = useContext(PwaContext);
+  if (!context) {
+    throw new Error("usePwa must be used within PwaProvider.");
+  }
+  return context;
 }

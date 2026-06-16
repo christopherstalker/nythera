@@ -256,6 +256,12 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
+  @media (display-mode: standalone) {
+    html {
+      background: var(--bg-base);
+    }
+  }
+
   a {
     @apply underline-offset-4;
   }

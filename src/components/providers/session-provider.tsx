@@ -9,9 +9,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   return (
     <NextAuthSessionProvider>
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
-        {children}
-        <AppearanceProvider />
-        <PwaProvider />
+        <PwaProvider>
+          {children}
+          <AppearanceProvider />
+        </PwaProvider>
       </ThemeProvider>
     </NextAuthSessionProvider>
   );
