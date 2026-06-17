@@ -1,7 +1,7 @@
 import { RichMessageText } from "@/components/chat/rich-message-text";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, Flag, GitBranch, Pencil, RefreshCcw, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsRight, Flag, GitBranch, Pencil, RefreshCcw, Trash2 } from "lucide-react";
 
 type MessageBubbleProps = {
   id: string;
@@ -11,6 +11,7 @@ type MessageBubbleProps = {
   onEdit?: (messageId: string, content: string) => void;
   onDelete?: (messageId: string) => void;
   onRegenerate?: (messageId: string) => void;
+  onContinue?: () => void;
   onBranch?: (messageId: string) => void;
   variantIndex?: number;
   variantCount?: number;
@@ -26,6 +27,7 @@ export function MessageBubble({
   onEdit,
   onDelete,
   onRegenerate,
+  onContinue,
   onBranch,
   variantIndex,
   variantCount,
@@ -79,9 +81,14 @@ export function MessageBubble({
                 <Pencil className="h-3.5 w-3.5" />
               </ActionButton>
             ) : (
-              <ActionButton label="Regenerate" onClick={() => onRegenerate?.(id)}>
-                <RefreshCcw className="h-3.5 w-3.5" />
-              </ActionButton>
+              <>
+                <ActionButton label="Continue" onClick={() => onContinue?.()}>
+                  <ChevronsRight className="h-3.5 w-3.5" />
+                </ActionButton>
+                <ActionButton label="Regenerate" onClick={() => onRegenerate?.(id)}>
+                  <RefreshCcw className="h-3.5 w-3.5" />
+                </ActionButton>
+              </>
             )}
             {hasVariants ? (
               <span className="flex h-8 items-center gap-1 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-1.5 text-xs text-[var(--text-secondary)] shadow-[var(--glass-highlight)] backdrop-blur-xl">

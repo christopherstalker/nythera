@@ -13,6 +13,7 @@ type SendOptions = {
   model?: string;
   temperature?: number;
   regenerate?: boolean;
+  continueChat?: boolean;
   replaceAssistantId?: string;
 };
 
@@ -39,7 +40,8 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
   const send = useCallback(
     async (content: string, options?: SendOptions) => {
       const trimmedContent = content.trim();
-      if (!trimmedContent || inFlightRef.current) {
+      const isContinuation = options?.continueChat === true;
+      if ((!trimmedContent && !isContinuation) || inFlightRef.current) {
         return;
       }
 
@@ -59,7 +61,7 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
       };
 
       setMessages((current) => {
-        if (options?.regenerate) {
+        if (options?.regenerate || isContinuation) {
           return [...current, assistantMessage];
         }
 
@@ -78,7 +80,8 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
             model: options?.model,
             temperature: options?.temperature,
             requestId,
-            regenerate: options?.regenerate
+            regenerate: options?.regenerate,
+            continueChat: isContinuation
           })
         });
 

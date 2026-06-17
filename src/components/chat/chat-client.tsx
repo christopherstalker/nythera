@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ChatComposerSheet } from "@/components/chat/chat-composer-sheet";
 import { MessageList } from "@/components/chat/MessageList";
@@ -9,6 +9,7 @@ import { TopBar } from "@/components/layout/TopBar";
 import { useChat, type ChatMessage } from "@/hooks/useChat";
 import { useChatQuickPanel } from "@/hooks/use-chat-quick-panel";
 import { useUiStore } from "@/stores/use-ui-store";
+import { PanelRightOpen } from "lucide-react";
 
 type ChatClientProps = {
   chatId: string;
@@ -34,9 +35,11 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
   const [model, setModel] = useState(initialModel || "gpt-4o-mini");
   const [activeRouteModel, setActiveRouteModel] = useState<string | null>(null);
   const [manualModelOverride, setManualModelOverride] = useState(false);
-  const [temperature, setTemperature] = useState(initialTemperature ?? 0.8);
+  const [temperature, setTemperature] = useState(initialTemperature ?? 0.7);
+  const [apiSaveStatus, setApiSaveStatus] = useState<string | null>(null);
   const [quickPanelOpen, setQuickPanelOpen] = useState(false);
   const [composerSheetOpen, setComposerSheetOpen] = useState(false);
+  const persistedApiRef = useRef({ model: initialModel || "gpt-4o-mini", temperature: initialTemperature ?? 0.7 });
   const quickPanel = useChatQuickPanel({ chatId, characterId, enabled: true });
   const { messages, send, editMessage, deleteMessage, branchFromMessage, isStreaming, error } = useChat(chatId, initialMessages);
   const setActiveChatId = useUiStore((state) => state.setActiveChatId);
@@ -45,9 +48,12 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
 
   useEffect(() => {
     setModel(initialModel || "gpt-4o-mini");
+    setTemperature(initialTemperature ?? 0.7);
     setManualModelOverride(false);
     setActiveRouteModel(null);
-  }, [chatId, initialModel]);
+    setApiSaveStatus(null);
+    persistedApiRef.current = { model: initialModel || "gpt-4o-mini", temperature: initialTemperature ?? 0.7 };
+  }, [chatId, initialModel, initialTemperature]);
 
   useEffect(() => {
     setActiveChatId(chatId);
@@ -57,6 +63,43 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
   useEffect(() => {
     setQuickPanelOpen(window.matchMedia("(min-width: 1280px)").matches);
   }, [chatId]);
+
+  useEffect(() => {
+    const nextModel = model.trim() || "gpt-4o-mini";
+    const nextTemperature = Number.isFinite(temperature) ? temperature : 0.7;
+    const persisted = persistedApiRef.current;
+    if (persisted.model === nextModel && persisted.temperature === nextTemperature) {
+      return;
+    }
+
+    setApiSaveStatus("Saving API settings...");
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => {
+      fetch(`/api/chats/${chatId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ model: nextModel, temperature: nextTemperature }),
+        signal: controller.signal
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Could not save API settings.");
+          }
+          persistedApiRef.current = { model: nextModel, temperature: nextTemperature };
+          setApiSaveStatus("API settings saved.");
+        })
+        .catch((error) => {
+          if (!(error instanceof DOMException && error.name === "AbortError")) {
+            setApiSaveStatus("Could not save API settings.");
+          }
+        });
+    }, 500);
+
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [chatId, model, temperature]);
 
   useEffect(() => {
     // Streaming state subtly raises brand glow without changing chat/proxy behavior.
@@ -108,6 +151,14 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
     void send(content, { model, temperature });
   }
 
+  function continueChat() {
+    if (isStreaming) {
+      return;
+    }
+
+    void send("", { model, temperature, continueChat: true });
+  }
+
   function regenerate(assistantMessageId: string) {
     const index = messages.findIndex((message) => message.id === assistantMessageId);
     const previousUser = messages
@@ -131,6 +182,27 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
     const branchId = await branchFromMessage(messageId);
     if (branchId) {
       window.location.href = `/chat/${branchId}`;
+    }
+  }
+
+  async function startNewChat() {
+    if (!characterId) {
+      return;
+    }
+
+    const response = await fetch("/api/chats", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ characterId, model, temperature })
+    });
+
+    if (!response.ok) {
+      return;
+    }
+
+    const body = await response.json();
+    if (body.chat?.id) {
+      window.location.href = `/chat/${body.chat.id}`;
     }
   }
 
@@ -173,6 +245,7 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
             onEdit={editMessage}
             onDelete={deleteMessage}
             onRegenerate={regenerate}
+            onContinue={continueChat}
             onBranch={branch}
           />
           <ChatInput
@@ -184,16 +257,29 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
             temperature={temperature}
             onModelChange={handleModelChange}
             onTemperatureChange={setTemperature}
+            apiStatus={apiSaveStatus}
             personaName={quickPanel.activePersona?.displayName}
             personaAvatarUrl={quickPanel.activePersona?.avatarUrl}
             onOpenComposer={() => setComposerSheetOpen(true)}
           />
         </section>
+        {!quickPanelOpen ? (
+          <button
+            type="button"
+            aria-label="Open quick panel"
+            title="Open quick panel"
+            onClick={() => setQuickPanelOpen(true)}
+            className="focus-ring fixed right-3 top-24 z-30 hidden h-11 w-11 place-items-center rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] shadow-[var(--shadow-card)] backdrop-blur-xl transition hover:border-[rgb(var(--accent-rgb)_/_0.45)] hover:text-[var(--text-primary)] md:grid xl:right-4"
+          >
+            <PanelRightOpen className="h-4 w-4" />
+          </button>
+        ) : null}
         <ChatQuickPanel
           chatId={chatId}
           open={quickPanelOpen}
           onClose={() => setQuickPanelOpen(false)}
           panel={quickPanel}
+          onNewChat={startNewChat}
         />
       </div>
       <ChatComposerSheet
@@ -201,6 +287,7 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
         onClose={() => setComposerSheetOpen(false)}
         chatId={chatId}
         panel={quickPanel}
+        onNewChat={startNewChat}
       />
     </div>
   );

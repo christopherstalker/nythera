@@ -35,7 +35,10 @@ export async function POST(request: Request, context: Context) {
     });
 
     const input = await parseJson(request, streamMessageSchema);
-    const message = sanitizeUserText(input.message);
+    const continueChat = input.continueChat === true;
+    const continuationPrompt =
+      "Continue the roleplay naturally from the latest message. Do not speak as the user, do not invent a user reply, and keep the scene moving in the character's voice.";
+    const message = continueChat ? continuationPrompt : sanitizeUserText(input.message);
     const injectionAssessment = detectPromptInjection(message);
     const moderation = moderateText({
       text: message,
@@ -81,7 +84,8 @@ export async function POST(request: Request, context: Context) {
     const temperature = input.temperature ?? chat.temperature;
 
     const providerKeys = await getEffectiveProviderKeys(user.id);
-    let recentMessages = chat.messages.reverse();
+    const latestHistoryContent = chat.messages[0]?.content ?? message;
+    let recentMessages = [...chat.messages].reverse();
 
     if (input.regenerate) {
       let latestAssistantIndex = -1;
@@ -100,7 +104,7 @@ export async function POST(request: Request, context: Context) {
 
         recentMessages = recentMessages.filter((_, index) => index < firstVariantIndex || index > latestAssistantIndex);
       }
-    } else {
+    } else if (!continueChat) {
       await createMessageWithNextSequence({
         chatId: chat.id,
         role: MessageRole.USER,
@@ -216,7 +220,7 @@ export async function POST(request: Request, context: Context) {
             chat.title && chat.title !== chat.character.name
               ? chat.title
               : await generateChatTitle({
-                  userMessage: message,
+                  userMessage: continueChat ? latestHistoryContent : message,
                   assistantMessage: assistantText,
                   model: usage.model || model,
                   providerKeys
@@ -251,7 +255,7 @@ export async function POST(request: Request, context: Context) {
             }
           });
 
-          if (user.memoryEnabled) {
+          if (user.memoryEnabled && !continueChat) {
             await schedulePostMessageJobs({
               chatId: chat.id,
               userId: user.id,
@@ -282,7 +286,7 @@ export async function POST(request: Request, context: Context) {
               chat.title && chat.title !== chat.character.name
                 ? chat.title
                 : await generateChatTitle({
-                    userMessage: message,
+                    userMessage: continueChat ? latestHistoryContent : message,
                     assistantMessage: assistantText,
                     model: usage.model || model,
                     providerKeys
@@ -306,7 +310,7 @@ export async function POST(request: Request, context: Context) {
               where: { id: chat.id },
               data: {
                 messageCount: actualMessageCount,
-                title: chat.title && chat.title !== chat.character.name ? chat.title : message.slice(0, 54),
+                title: chat.title && chat.title !== chat.character.name ? chat.title : latestHistoryContent.slice(0, 54),
                 model,
                 temperature,
                 lastActiveAt: new Date(),

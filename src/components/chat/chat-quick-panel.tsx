@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BookOpen, Brain, MessageSquare, UserRound, X } from "lucide-react";
+import { BookOpen, Brain, MessageSquare, PanelRightClose, UserRound } from "lucide-react";
 import { HistoryTabContent, MemoryTabContent, PersonaTabContent } from "@/components/chat/chat-panel-tabs";
 import { useChatQuickPanel } from "@/hooks/use-chat-quick-panel";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ type ChatQuickPanelProps = {
   open: boolean;
   onClose: () => void;
   panel: ReturnType<typeof useChatQuickPanel>;
+  onNewChat?: () => void;
 };
 
 const tabs = [
@@ -19,7 +20,7 @@ const tabs = [
   { id: "history", label: "Chats", icon: MessageSquare }
 ] as const;
 
-export function ChatQuickPanel({ chatId, open, onClose, panel }: ChatQuickPanelProps) {
+export function ChatQuickPanel({ chatId, open, onClose, panel, onNewChat }: ChatQuickPanelProps) {
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]["id"]>("persona");
   const panelTitle = useMemo(() => tabs.find((tab) => tab.id === activeTab)?.label ?? "Quick panel", [activeTab]);
 
@@ -37,8 +38,8 @@ export function ChatQuickPanel({ chatId, open, onClose, panel }: ChatQuickPanelP
           <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{panelTitle}</p>
           <p className="truncate text-xs text-[var(--text-muted)]">Persona, memory, recent chats</p>
         </div>
-        <button type="button" aria-label="Close quick panel" onClick={onClose} className="focus-ring grid h-9 w-9 place-items-center rounded-2xl text-[var(--text-secondary)] hover:bg-white/[0.055] xl:hidden">
-          <X className="h-4 w-4" />
+        <button type="button" aria-label="Hide quick panel" title="Hide quick panel" onClick={onClose} className="focus-ring grid h-9 w-9 place-items-center rounded-2xl text-[var(--text-secondary)] hover:bg-white/[0.055]">
+          <PanelRightClose className="h-4 w-4" />
         </button>
       </header>
 
@@ -66,7 +67,7 @@ export function ChatQuickPanel({ chatId, open, onClose, panel }: ChatQuickPanelP
       <div className="chat-scroll min-h-0 flex-1 overflow-y-auto p-3">
         {activeTab === "persona" ? <PersonaTabContent panel={panel} /> : null}
         {activeTab === "memory" ? <MemoryTabContent panel={panel} /> : null}
-        {activeTab === "history" ? <HistoryTabContent panel={panel} chatId={chatId} /> : null}
+        {activeTab === "history" ? <HistoryTabContent panel={panel} chatId={chatId} onNewChat={onNewChat} /> : null}
       </div>
     </aside>
   );

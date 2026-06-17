@@ -77,13 +77,19 @@ export const chatUpdateSchema = z.object({
   model: z.string().max(160).optional()
 });
 
-export const streamMessageSchema = z.object({
-  message: z.string().min(1).max(4000),
-  temperature: z.coerce.number().min(0).max(2).optional(),
-  model: z.string().max(160).optional(),
-  requestId: z.string().min(8).max(120).optional(),
-  regenerate: z.boolean().optional()
-});
+export const streamMessageSchema = z
+  .object({
+    message: z.string().max(4000).optional().default(""),
+    temperature: z.coerce.number().min(0).max(2).optional(),
+    model: z.string().max(160).optional(),
+    requestId: z.string().min(8).max(120).optional(),
+    regenerate: z.boolean().optional(),
+    continueChat: z.boolean().optional()
+  })
+  .refine((input) => input.continueChat || input.message.trim().length > 0, {
+    message: "Message is required.",
+    path: ["message"]
+  });
 
 export const registerSchema = z.object({
   email: z.string().email(),

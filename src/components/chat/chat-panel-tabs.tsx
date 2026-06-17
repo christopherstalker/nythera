@@ -115,9 +115,29 @@ export function MemoryTabContent({ panel }: { panel: PanelState }) {
   );
 }
 
-export function HistoryTabContent({ panel, chatId, onNavigate }: { panel: PanelState; chatId: string; onNavigate?: () => void }) {
+export function HistoryTabContent({
+  panel,
+  chatId,
+  onNavigate,
+  onNewChat
+}: {
+  panel: PanelState;
+  chatId: string;
+  onNavigate?: () => void;
+  onNewChat?: () => void;
+}) {
   return (
     <div className="grid gap-2">
+      {onNewChat ? (
+        <button
+          type="button"
+          onClick={onNewChat}
+          className="focus-ring flex h-11 items-center justify-center gap-2 rounded-2xl border border-[rgb(var(--accent-rgb)_/_0.45)] bg-[var(--accent-purple-soft)] px-3 text-sm font-semibold text-[var(--text-primary)] shadow-[var(--glass-highlight)] transition hover:bg-white/[0.06]"
+        >
+          <Plus className="h-4 w-4" />
+          Start new chat
+        </button>
+      ) : null}
       {panel.chats.map((chat) => (
         <Link
           key={chat.id}

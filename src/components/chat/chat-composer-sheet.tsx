@@ -16,6 +16,7 @@ type ChatComposerSheetProps = {
   chatId: string;
   panel: PanelState;
   initialView?: ComposerSheetView;
+  onNewChat?: () => void;
 };
 
 const titles: Record<ComposerSheetView, string> = {
@@ -25,7 +26,7 @@ const titles: Record<ComposerSheetView, string> = {
   persona: "Persona"
 };
 
-export function ChatComposerSheet({ open, onClose, chatId, panel, initialView = "menu" }: ChatComposerSheetProps) {
+export function ChatComposerSheet({ open, onClose, chatId, panel, initialView = "menu", onNewChat }: ChatComposerSheetProps) {
   const [view, setView] = useState<ComposerSheetView>(initialView);
 
   useEffect(() => {
@@ -79,7 +80,7 @@ export function ChatComposerSheet({ open, onClose, chatId, panel, initialView = 
             </div>
           ) : null}
           {view === "memory" ? <MemoryTabContent panel={panel} /> : null}
-          {view === "history" ? <HistoryTabContent panel={panel} chatId={chatId} onNavigate={onClose} /> : null}
+          {view === "history" ? <HistoryTabContent panel={panel} chatId={chatId} onNavigate={onClose} onNewChat={onNewChat} /> : null}
           {view === "persona" ? <PersonaTabContent panel={panel} compact /> : null}
         </div>
       </section>
