@@ -11,7 +11,7 @@ export function MobileInstallPrompt() {
     hasNativeInstallPrompt,
     ios,
     iosGuideOpen,
-    installMobile,
+    installApp,
     dismissMobilePrompt,
     openIosGuide,
     closeIosGuide
@@ -50,7 +50,7 @@ export function MobileInstallPrompt() {
 
             <div className="relative mt-4 grid gap-2">
               {hasNativeInstallPrompt ? (
-                <Button type="button" className="h-12 w-full text-base" onClick={() => void installMobile()}>
+                <Button type="button" className="h-12 w-full text-base" onClick={() => void installApp()}>
                   <Download className="h-5 w-5" />
                   Install app
                 </Button>

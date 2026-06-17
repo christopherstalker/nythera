@@ -16,10 +16,12 @@ type PwaContextValue = {
   mobile: boolean;
   ios: boolean;
   standalone: boolean;
+  canInstall: boolean;
   canInstallMobile: boolean;
   showMobilePrompt: boolean;
   hasNativeInstallPrompt: boolean;
   updateReady: boolean;
+  installApp: () => Promise<boolean>;
   installMobile: () => Promise<boolean>;
   dismissMobilePrompt: () => void;
   openIosGuide: () => void;
@@ -98,7 +100,7 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
     return () => navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
   }, []);
 
-  const installMobile = useCallback(async () => {
+  const installApp = useCallback(async () => {
     if (!installPrompt) {
       return false;
     }
@@ -115,6 +117,8 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
 
     return false;
   }, [installPrompt]);
+
+  const installMobile = installApp;
 
   const dismissMobilePrompt = useCallback(() => {
     localStorage.setItem(PWA_MOBILE_DISMISS_KEY, "true");
@@ -138,7 +142,8 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const hasNativeInstallPrompt = Boolean(installPrompt);
-  const canInstallMobile = mobile && !standalone && (hasNativeInstallPrompt || ios);
+  const canInstall = !standalone && (hasNativeInstallPrompt || ios);
+  const canInstallMobile = mobile && canInstall;
   const showMobilePrompt = canInstallMobile && !dismissed;
 
   const value = useMemo(
@@ -146,10 +151,12 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
       mobile,
       ios,
       standalone,
+      canInstall,
       canInstallMobile,
       showMobilePrompt,
       hasNativeInstallPrompt,
       updateReady,
+      installApp,
       installMobile,
       dismissMobilePrompt,
       openIosGuide,
@@ -159,10 +166,12 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       applyUpdate,
+      canInstall,
       canInstallMobile,
       closeIosGuide,
       dismissMobilePrompt,
       hasNativeInstallPrompt,
+      installApp,
       installMobile,
       ios,
       iosGuideOpen,
