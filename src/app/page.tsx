@@ -10,6 +10,7 @@ import type { CharacterSummary } from "@/components/characters/CharacterCard";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page";
+import { cn } from "@/lib/utils";
 
 type RecentChat = {
   id: string;
@@ -23,11 +24,20 @@ type RecentChat = {
   messages: Array<{ content: string; role?: string }>;
 };
 
+const feedTabs = [
+  { id: "featured", label: "Featured For You" },
+  { id: "trending", label: "Trending" },
+  { id: "fresh", label: "New" }
+] as const;
+
+type FeedTabId = (typeof feedTabs)[number]["id"];
+
 export default function HomePage() {
   const router = useRouter();
   const { status } = useSession();
   const [characters, setCharacters] = useState<CharacterSummary[]>([]);
   const [recentChats, setRecentChats] = useState<RecentChat[]>([]);
+  const [activeFeed, setActiveFeed] = useState<FeedTabId>("featured");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -79,6 +89,8 @@ export default function HomePage() {
   }, [characters]);
 
   const recentHero = recentChats[0];
+  const activeFeedTab = feedTabs.find((tab) => tab.id === activeFeed) ?? feedTabs[0];
+  const activeCharacters = rows[activeFeed];
 
   async function startFeaturedChat() {
     if (!featured) {
@@ -216,9 +228,28 @@ export default function HomePage() {
         </div>
       </section>
 
-      <CharacterRow title="Featured For You" characters={rows.featured} />
-      <CharacterRow title="Trending" characters={rows.trending} />
-      <CharacterRow title="New" characters={rows.fresh} />
+      <section className="space-y-4">
+        <div className="scrollbar-none overflow-x-auto">
+          <div className="inline-flex min-w-max gap-2 rounded-[var(--radius-pill)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-1 shadow-[var(--glass-highlight)] backdrop-blur-xl">
+            {feedTabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveFeed(tab.id)}
+                className={cn(
+                  "focus-ring h-10 rounded-[var(--radius-pill)] px-4 text-sm font-semibold transition-colors",
+                  activeFeed === tab.id
+                    ? "bg-[var(--accent-purple-soft)] text-[var(--text-primary)]"
+                    : "text-[var(--text-secondary)] hover:bg-white/[0.045] hover:text-[var(--text-primary)]"
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <CharacterRow title={activeFeedTab.label} characters={activeCharacters} />
+      </section>
     </PageShell>
   );
 }

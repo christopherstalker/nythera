@@ -27,6 +27,7 @@ type RecentChat = {
   id: string;
   title?: string | null;
   character: {
+    id?: string | null;
     name: string;
     description?: string | null;
     avatarUrl?: string | null;
@@ -110,17 +111,28 @@ export function Sidebar() {
     };
   }, [isAuthenticated]);
 
+  const groupedRecentChats = useMemo(() => {
+    const byCharacter = new Map<string, RecentChat>();
+    for (const chat of recentChats) {
+      const key = chat.character.id ?? chat.id;
+      if (!byCharacter.has(key)) {
+        byCharacter.set(key, chat);
+      }
+    }
+    return Array.from(byCharacter.values());
+  }, [recentChats]);
+
   const filteredChats = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) {
-      return recentChats;
+      return groupedRecentChats;
     }
 
-    return recentChats.filter((chat) => {
+    return groupedRecentChats.filter((chat) => {
       const haystack = [chat.title, chat.character.name, chat.character.description].filter(Boolean).join(" ").toLowerCase();
       return haystack.includes(normalized);
     });
-  }, [query, recentChats]);
+  }, [query, groupedRecentChats]);
 
   const labelClass = cn("min-w-0 truncate md:hidden lg:block", collapsed && "lg:hidden");
 

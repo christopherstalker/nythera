@@ -25,10 +25,20 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`/api/chats/${params.id}`)
+    const controller = new AbortController();
+    setChat(null);
+    setError(null);
+
+    fetch(`/api/chats/${params.id}`, { signal: controller.signal })
       .then((response) => (response.ok ? response.json() : Promise.reject(response)))
       .then((body) => setChat(body.chat))
-      .catch(() => setError("Chat not found or you are not signed in."));
+      .catch((caught) => {
+        if (!(caught instanceof DOMException && caught.name === "AbortError")) {
+          setError("Chat not found or you are not signed in.");
+        }
+      });
+
+    return () => controller.abort();
   }, [params.id]);
 
   if (error) {
@@ -59,6 +69,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
 
   return (
     <ChatClient
+      key={chat.id}
       chatId={chat.id}
       characterId={chat.character.id}
       characterName={chat.character.name}
