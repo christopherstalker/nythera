@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "build:win": "electron-builder --win nsis --publish never && node scripts/copy-artifacts.cjs win",
+    "build:win": "electron-builder --win nsis portable --x64 --publish never && node scripts/copy-artifacts.cjs win",
     "build:dir": "electron-builder --dir"
   },
   "build": {
@@ -31,11 +31,15 @@
       "artifactName": "Nythera-Setup-${version}.${ext}"
     },
     "nsis": {
+      "artifactName": "Nythera-Setup-${version}.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Nythera"
+    },
+    "portable": {
+      "artifactName": "Nythera-Portable-${version}.${ext}"
     }
   },
   "devDependencies": {

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
 import { moderateText } from "@/lib/safety";
 import { characterUpdateSchema } from "@/lib/validation";
+import { normalizeCharacterTags } from "@/lib/character-tags";
 
 type Context = {
   params: {
@@ -147,6 +148,7 @@ export async function PATCH(request: Request, context: Context) {
       where: { id: context.params.id },
       data: {
         ...input,
+        tags: input.tags === undefined ? undefined : normalizeCharacterTags(input.tags),
         avatarUrl: input.avatarUrl === "" ? null : input.avatarUrl,
         communicationStyle: input.communicationStyle === undefined ? undefined : input.communicationStyle ?? Prisma.JsonNull,
         persona: input.persona === undefined ? undefined : input.persona ?? Prisma.JsonNull,

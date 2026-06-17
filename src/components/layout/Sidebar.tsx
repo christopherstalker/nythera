@@ -18,6 +18,7 @@ import {
   Settings
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
+import { PersonaSwitcher } from "@/components/persona/persona-switcher";
 import { DesktopAppLink } from "@/components/pwa/desktop-app-link";
 import { useUiStore } from "@/stores/use-ui-store";
 import { cn } from "@/lib/utils";
@@ -170,6 +171,8 @@ export function Sidebar() {
             })}
           </div>
         </nav>
+
+        {isAuthenticated ? <PersonaSwitcher collapsed={collapsed} /> : null}
 
         <div className="flex min-h-0 flex-1 flex-col border-t border-[var(--border-subtle)] pt-4">
           <div className={cn("mb-3 md:hidden lg:block", collapsed && "lg:hidden")}>

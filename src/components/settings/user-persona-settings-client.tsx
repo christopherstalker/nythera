@@ -1,7 +1,8 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { ImagePlus, Plus, Save, SlidersHorizontal, Trash2, Upload, Wand2, X } from "lucide-react";
+import { Check, ImagePlus, Plus, Save, SlidersHorizontal, Trash2, Upload, Wand2, X } from "lucide-react";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ImageFilePicker } from "@/components/ui/image-file-picker";
 import { Input } from "@/components/ui/input";
@@ -145,7 +146,7 @@ export function UserPersonaSettingsClient() {
       ? {
           displayName: draft.displayName.trim(),
           profileId: draft.profileId,
-          label: draft.displayName.trim(),
+          label: draft.label.trim() || draft.displayName.trim(),
           avatarUrl: draft.avatarUrl,
           summary: freeform.trim(),
           background: "",
@@ -190,6 +191,7 @@ export function UserPersonaSettingsClient() {
       setFreeform(buildFreeformFromDraft(nextDraft));
       setActiveProfileId(body.activeProfileId ?? body.activeProfile.id);
       setProfiles(Array.isArray(body.profiles) ? body.profiles.map(profileFromApi) : []);
+      window.dispatchEvent(new CustomEvent("nythera:persona-updated"));
     }
   }
 
@@ -199,11 +201,16 @@ export function UserPersonaSettingsClient() {
     setFreeform(buildFreeformFromDraft(nextDraft));
     setActiveProfileId(profile.id);
 
-    await fetch("/api/user-persona", {
+    const response = await fetch("/api/user-persona", {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ activeProfileId: profile.id })
     });
+
+    setStatus(response.ok ? `${profile.label || profile.displayName} is active.` : "Could not switch persona.");
+    if (response.ok) {
+      window.dispatchEvent(new CustomEvent("nythera:persona-updated"));
+    }
   }
 
   function newPersona() {
@@ -214,37 +221,70 @@ export function UserPersonaSettingsClient() {
     setStatus(null);
   }
 
-  async function remove() {
-    await fetch("/api/user-persona", { method: "DELETE" });
-    setDraft(emptyDraft);
-    setFreeform("");
-    setProfiles([]);
-    setActiveProfileId(null);
+  async function removeActivePersona() {
+    if (!activeProfileId) {
+      return;
+    }
+
+    const response = await fetch("/api/user-persona", {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ profileId: activeProfileId })
+    });
+    const body = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      setStatus(body?.error ?? "Could not delete persona.");
+      return;
+    }
+
+    const nextProfiles = Array.isArray(body?.profiles) ? body.profiles.map(profileFromApi) : [];
+    setProfiles(nextProfiles);
+    setActiveProfileId(body?.activeProfileId ?? nextProfiles[0]?.id ?? null);
+    if (body?.activeProfile) {
+      const nextDraft = profileToDraft(body.activeProfile);
+      setDraft(nextDraft);
+      setFreeform(buildFreeformFromDraft(nextDraft));
+    } else {
+      setDraft(emptyDraft);
+      setFreeform("");
+    }
     setStatus("Persona deleted.");
+    window.dispatchEvent(new CustomEvent("nythera:persona-updated"));
   }
 
   return (
     <form onSubmit={save} className="grid gap-4">
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {profiles.map((profile) => (
-          <button
-            key={profile.id}
-            type="button"
-            onClick={() => void switchProfile(profile)}
-            className={cn(
-              "focus-ring h-10 shrink-0 rounded-[var(--radius-pill)] border px-4 text-sm font-medium transition-colors",
-              activeProfileId === profile.id
-                ? "border-transparent bg-gradient-to-br from-[var(--accent-purple)] to-[var(--accent-secondary)] text-white"
-                : "border-[var(--border-default)] bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            )}
-          >
-            {profile.label || profile.displayName}
-          </button>
-        ))}
-        <Button type="button" variant="outline" onClick={newPersona}>
-          <Plus className="h-4 w-4" />
-          New persona
-        </Button>
+      <div className="grid gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-[var(--text-primary)]">Personas</p>
+            <p className="mt-1 text-xs text-[var(--text-secondary)]">{profiles.length ? `${profiles.length} saved profile${profiles.length === 1 ? "" : "s"}` : "Create a persona to sync it across chat, desktop, and mobile."}</p>
+          </div>
+          <Button type="button" variant="outline" onClick={newPersona}>
+            <Plus className="h-4 w-4" />
+            New
+          </Button>
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {profiles.map((profile) => (
+            <button
+              key={profile.id}
+              type="button"
+              onClick={() => void switchProfile(profile)}
+              className={cn(
+                "focus-ring flex h-12 shrink-0 items-center gap-2 rounded-2xl border px-3 text-left text-sm font-medium transition-colors",
+                activeProfileId === profile.id
+                  ? "border-transparent bg-gradient-to-br from-[var(--accent-purple)] to-[var(--accent-secondary)] text-white"
+                  : "border-[var(--border-default)] bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              )}
+            >
+              <Avatar name={profile.displayName} src={profile.avatarUrl} size="xs" />
+              <span className="max-w-36 truncate">{profile.label || profile.displayName}</span>
+              {activeProfileId === profile.id ? <Check className="h-4 w-4" /> : null}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="glass-panel grid grid-cols-2 gap-2 p-2">
@@ -255,6 +295,11 @@ export function UserPersonaSettingsClient() {
       {isSimpleMode ? (
         <div className="grid gap-4">
           <Input
+            value={draft.label}
+            onChange={(event) => update("label", event.target.value)}
+            placeholder="Profile label, e.g. Main RP"
+          />
+          <Input
             value={draft.displayName}
             onChange={(event) => update("displayName", event.target.value)}
             placeholder="Display name"
@@ -263,7 +308,7 @@ export function UserPersonaSettingsClient() {
           <Textarea
             value={freeform}
             onChange={(event) => setFreeform(event.target.value)}
-            placeholder={"Describe yourself however you want — personality, appearance, backstory, preferences, boundaries...\n\nExample:\nI'm Alex, 24, quiet but sharp. I speak in short sentences and hate being rushed. I grew up near the coast and still miss the sea. I don't do horror or gore."}
+            placeholder={"Describe yourself however you want - personality, appearance, backstory, preferences, boundaries...\n\nExample:\nI'm Alex, 24, quiet but sharp. I speak in short sentences and hate being rushed. I grew up near the coast and still miss the sea. I don't do horror or gore."}
             className="min-h-[280px] leading-7"
             required
           />
@@ -331,9 +376,9 @@ export function UserPersonaSettingsClient() {
             Advanced editor
           </Button>
         ) : null}
-        <Button type="button" variant="outline" onClick={remove}>
+        <Button type="button" variant="outline" onClick={removeActivePersona} disabled={!activeProfileId}>
           <Trash2 className="h-4 w-4" />
-          Delete persona
+          Delete this persona
         </Button>
       </div>
       {status ? <p className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 text-sm text-[var(--text-secondary)] shadow-[var(--glass-highlight)]">{status}</p> : null}

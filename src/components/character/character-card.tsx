@@ -6,6 +6,7 @@ import { Heart, MessageCircle, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CharacterAvatar } from "@/components/character/character-avatar";
+import { displayTagLabel } from "@/lib/character-tags";
 import { truncate } from "@/lib/utils";
 
 type CharacterCardProps = {
@@ -63,7 +64,7 @@ export function CharacterCard({ character }: CharacterCardProps) {
 
           <div className="mt-5 flex flex-wrap justify-center gap-2">
             {character.tags.slice(0, 3).map((tag) => (
-              <Badge key={tag}>{tag}</Badge>
+              <Badge key={tag}>{displayTagLabel(tag)}</Badge>
             ))}
           </div>
         </div>

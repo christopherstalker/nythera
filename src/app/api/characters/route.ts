@@ -5,6 +5,7 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 import { moderateText } from "@/lib/safety";
 import { getRequestIp, HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
 import { characterCreateSchema } from "@/lib/validation";
+import { DISCOVERY_TAGS, expandTagQuery, normalizeCharacterTags } from "@/lib/character-tags";
 
 export const dynamic = "force-dynamic";
 
@@ -14,9 +15,14 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const mine = searchParams.get("mine") === "true";
     const search = searchParams.get("q")?.trim();
-    const tag = searchParams.get("tag")?.trim();
+    const tags = [
+      ...searchParams.getAll("tag"),
+      ...(searchParams.get("tags")?.split(",") ?? [])
+    ].map((tag) => tag.trim()).filter(Boolean);
     const visibility = searchParams.get("visibility") as Visibility | null;
     const sort = searchParams.get("sort") ?? "trending";
+    const nsfw = searchParams.get("nsfw") ?? "safe";
+    const minRating = Number(searchParams.get("ratingMin") ?? 0);
     const take = Math.min(Number(searchParams.get("take") ?? 24), 50);
 
     const where: Prisma.CharacterWhereInput = mine
@@ -32,9 +38,7 @@ export async function GET(request: Request) {
             { personality: { not: "" } },
             { scenario: { not: null } },
             { scenario: { not: "" } },
-            { persona: { not: Prisma.JsonNull } },
-            { avatarUrl: { not: null } },
-            { avatarUrl: { not: "" } }
+            { persona: { not: Prisma.JsonNull } }
           ]
         };
 
@@ -46,12 +50,25 @@ export async function GET(request: Request) {
       where.OR = [
         { name: { contains: search, mode: "insensitive" } },
         { description: { contains: search, mode: "insensitive" } },
-        { personality: { contains: search, mode: "insensitive" } }
+        { personality: { contains: search, mode: "insensitive" } },
+        { tags: { hasSome: expandTagQuery(search) } }
       ];
     }
 
-    if (tag) {
-      where.tags = { has: tag };
+    if (tags.length > 0) {
+      where.tags = { hasSome: tags.flatMap(expandTagQuery) };
+    }
+
+    if (!mine) {
+      if (nsfw === "only") {
+        where.isNSFW = true;
+      } else if (nsfw !== "include") {
+        where.isNSFW = false;
+      }
+    }
+
+    if (Number.isFinite(minRating) && minRating > 0) {
+      where.ratingAverage = { gte: Math.min(Math.max(minRating, 1), 5) };
     }
 
     const orderBy =
@@ -77,7 +94,7 @@ export async function GET(request: Request) {
       }
     });
 
-    return json({ characters });
+    return json({ characters, tags: DISCOVERY_TAGS });
   } catch (error) {
     return routeError(error);
   }
@@ -93,6 +110,7 @@ export async function POST(request: Request) {
     });
 
     const input = await parseJson(request, characterCreateSchema);
+    const tags = normalizeCharacterTags(input.tags);
     if (input.isNSFW && !user.ageVerified) {
       throw new HttpError(403, "Confirm age-gated access in profile settings before creating NSFW characters.");
     }
@@ -133,7 +151,7 @@ export async function POST(request: Request) {
         communicationStyle: input.communicationStyle ?? Prisma.JsonNull,
         persona: input.persona ?? Prisma.JsonNull,
         visibility: input.visibility,
-        tags: input.tags,
+        tags,
         isNSFW: input.isNSFW,
         // Public characters become discoverable immediately after automated safety moderation passes.
         moderationStatus: "APPROVED"

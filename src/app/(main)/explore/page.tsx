@@ -12,8 +12,20 @@ import { CategoryPill } from "@/components/ui/category-pill";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader, PageShell, Surface } from "@/components/ui/page";
 import { SearchBar } from "@/components/ui/search-bar";
+import { DISCOVERY_TAGS, displayTagLabel } from "@/lib/character-tags";
+import { cn } from "@/lib/utils";
 
-const categories = ["For You", "Trending", "New", "Romance", "Fantasy", "Sci-Fi", "Slice of Life", "Mentor", "Villain", "Roleplay"];
+const quickTags = DISCOVERY_TAGS.slice(0, 18);
+const sortOptions = [
+  { id: "trending", label: "Trending" },
+  { id: "top-rated", label: "Top rated" },
+  { id: "new", label: "New" }
+] as const;
+const nsfwOptions = [
+  { id: "safe", label: "Safe" },
+  { id: "include", label: "Include 18+" },
+  { id: "only", label: "Only 18+" }
+] as const;
 
 async function fetchCharacters(params: URLSearchParams, signal?: AbortSignal) {
   const response = await fetch(`/api/characters?${params.toString()}`, { signal });
@@ -46,9 +58,12 @@ function ExplorePageContent() {
   const [trending, setTrending] = useState<CharacterSummary[]>([]);
   const [recommended, setRecommended] = useState<CharacterSummary[]>([]);
   const [query, setQuery] = useState(initialQuery);
-  const [activeCategory, setActiveCategory] = useState("For You");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [sort, setSort] = useState<(typeof sortOptions)[number]["id"]>("trending");
+  const [ratingMin, setRatingMin] = useState(0);
+  const [nsfwMode, setNsfwMode] = useState<(typeof nsfwOptions)[number]["id"]>("safe");
   const [loading, setLoading] = useState(true);
-  const hasActiveFilters = query.trim().length > 0 || activeCategory !== "For You";
+  const hasActiveFilters = query.trim().length > 0 || selectedTags.length > 0 || sort !== "trending" || ratingMin > 0 || nsfwMode !== "safe";
   const showFeedSections = !hasActiveFilters;
   const isCatalogEmpty = !loading && characters.length === 0 && trending.length === 0 && recommended.length === 0;
 
@@ -59,24 +74,13 @@ function ExplorePageContent() {
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
-    const params = new URLSearchParams({ take: "50" });
-    if (query.trim()) {
-      params.set("q", query.trim());
-    }
-    if (activeCategory === "Trending") {
-      params.set("sort", "trending");
-    } else if (activeCategory === "New") {
-      params.set("sort", "new");
-    } else if (activeCategory !== "For You") {
-      params.set("tag", activeCategory.toLowerCase().replace(/\s+/g, "-"));
-    }
-
+    const params = buildCharacterParams({ query, selectedTags, sort, ratingMin, nsfwMode, take: "50" });
     const tasks = [fetchCharacters(params, controller.signal).then(setCharacters)];
 
     if (showFeedSections) {
       tasks.push(
-        fetchCharacters(new URLSearchParams({ take: "12", sort: "trending" }), controller.signal).then(setTrending),
-        fetchCharacters(new URLSearchParams({ take: "12", sort: "new" }), controller.signal).then(setRecommended)
+        fetchCharacters(new URLSearchParams({ take: "12", sort: "trending", nsfw: "safe" }), controller.signal).then(setTrending),
+        fetchCharacters(new URLSearchParams({ take: "12", sort: "new", nsfw: "safe" }), controller.signal).then(setRecommended)
       );
     } else {
       setTrending([]);
@@ -98,29 +102,38 @@ function ExplorePageContent() {
       });
 
     return () => controller.abort();
-  }, [activeCategory, query, showFeedSections]);
+  }, [nsfwMode, query, ratingMin, selectedTags, showFeedSections, sort]);
 
   useEffect(() => {
     const refresh = () => {
-      const params = new URLSearchParams({ take: "50" });
-      if (query.trim()) {
-        params.set("q", query.trim());
-      }
-      void fetchCharacters(params).then(setCharacters);
+      void fetchCharacters(buildCharacterParams({ query, selectedTags, sort, ratingMin, nsfwMode, take: "50" })).then(setCharacters);
       if (showFeedSections) {
-        void fetchCharacters(new URLSearchParams({ take: "12", sort: "trending" })).then(setTrending);
-        void fetchCharacters(new URLSearchParams({ take: "12", sort: "new" })).then(setRecommended);
+        void fetchCharacters(new URLSearchParams({ take: "12", sort: "trending", nsfw: "safe" })).then(setTrending);
+        void fetchCharacters(new URLSearchParams({ take: "12", sort: "new", nsfw: "safe" })).then(setRecommended);
       }
     };
 
     window.addEventListener("nythera:characters-updated", refresh);
     return () => window.removeEventListener("nythera:characters-updated", refresh);
-  }, [query, showFeedSections]);
+  }, [nsfwMode, query, ratingMin, selectedTags, showFeedSections, sort]);
 
   function submitSearch(nextQuery: string) {
     const trimmed = nextQuery.trim();
     setQuery(trimmed);
     router.replace(trimmed ? `/explore?q=${encodeURIComponent(trimmed)}` : "/explore");
+  }
+
+  function toggleTag(tag: string) {
+    setSelectedTags((current) => (current.includes(tag) ? current.filter((item) => item !== tag) : [...current, tag].slice(0, 8)));
+  }
+
+  function resetFilters() {
+    setSelectedTags([]);
+    setSort("trending");
+    setRatingMin(0);
+    setNsfwMode("safe");
+    setQuery("");
+    router.replace("/explore");
   }
 
   return (
@@ -129,7 +142,7 @@ function ExplorePageContent() {
         <div className="pointer-events-none absolute inset-0 -z-10 hero-gradient opacity-60" />
         <PageHeader
           title="Explore"
-          description="Discover real user-created personas — no placeholders, only chat-ready characters."
+          description="Discover chat-ready characters with synced tags, ratings, and safer discovery filters."
           actions={
             <Button asChild variant="secondary">
               <Link href="/create-character">
@@ -144,18 +157,69 @@ function ExplorePageContent() {
           value={query}
           onChange={setQuery}
           onSubmit={submitSearch}
-          placeholder="Search characters..."
+          placeholder="Search characters, tags, moods..."
           showFilterIcon
         />
       </Surface>
 
       <div className="scrollbar-none overflow-x-auto">
         <div className="flex w-max gap-2 pb-1">
-          {categories.map((category) => (
-            <CategoryPill key={category} label={category} active={category === activeCategory} onClick={() => setActiveCategory(category)} />
+          {quickTags.slice(0, 10).map((tag) => (
+            <CategoryPill key={tag.slug} label={tag.label} active={selectedTags.includes(tag.slug)} onClick={() => toggleTag(tag.slug)} />
           ))}
         </div>
       </div>
+
+      <Surface className="grid gap-4 p-4 sm:p-5">
+        <div className="grid gap-3 xl:grid-cols-[1fr_auto] xl:items-start">
+          <div className="grid gap-3">
+            <FilterGroup label="Sort">
+              {sortOptions.map((option) => (
+                <FilterButton key={option.id} active={sort === option.id} onClick={() => setSort(option.id)}>
+                  {option.label}
+                </FilterButton>
+              ))}
+            </FilterGroup>
+            <FilterGroup label="Minimum rating">
+              {[0, 3, 4, 4.5].map((value) => (
+                <FilterButton key={value} active={ratingMin === value} onClick={() => setRatingMin(value)}>
+                  {value === 0 ? "Any" : `${value}+`}
+                </FilterButton>
+              ))}
+            </FilterGroup>
+            <FilterGroup label="Age filter">
+              {nsfwOptions.map((option) => (
+                <FilterButton key={option.id} active={nsfwMode === option.id} onClick={() => setNsfwMode(option.id)}>
+                  {option.label}
+                </FilterButton>
+              ))}
+            </FilterGroup>
+          </div>
+          {hasActiveFilters ? (
+            <Button type="button" variant="outline" onClick={resetFilters}>
+              Reset filters
+            </Button>
+          ) : null}
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {quickTags.map((tag) => (
+            <button
+              key={tag.slug}
+              type="button"
+              onClick={() => toggleTag(tag.slug)}
+              className={cn(
+                "focus-ring rounded-[var(--radius-pill)] border px-3 py-1.5 text-xs font-medium transition active:scale-95",
+                selectedTags.includes(tag.slug)
+                  ? "border-transparent bg-[var(--accent-purple-soft)] text-[var(--text-primary)] shadow-[var(--glass-highlight)]"
+                  : "border-[var(--border-default)] bg-[var(--bg-input)] text-[var(--text-secondary)] hover:border-[rgb(var(--accent-rgb)_/_0.35)] hover:text-[var(--text-primary)]"
+              )}
+            >
+              {displayTagLabel(tag.slug)}
+            </button>
+          ))}
+        </div>
+      </Surface>
 
       {showFeedSections ? (
         <div className="space-y-8">
@@ -171,7 +235,7 @@ function ExplorePageContent() {
         <EmptyState
           icon={Search}
           title={hasActiveFilters ? "No characters found" : "No public characters yet"}
-          description={hasActiveFilters ? "Try another character name, mood, or category." : "The public catalog is empty right now. Create a character to start building Nythera."}
+          description={hasActiveFilters ? "Try another character name, mood, rating, or tag." : "The public catalog is empty right now. Create a character to start building Nythera."}
           action={
             hasActiveFilters ? null : (
               <Button asChild>
@@ -185,5 +249,57 @@ function ExplorePageContent() {
         />
       ) : null}
     </PageShell>
+  );
+}
+
+function buildCharacterParams({
+  query,
+  selectedTags,
+  sort,
+  ratingMin,
+  nsfwMode,
+  take
+}: {
+  query: string;
+  selectedTags: string[];
+  sort: string;
+  ratingMin: number;
+  nsfwMode: string;
+  take: string;
+}) {
+  const params = new URLSearchParams({ take, sort, nsfw: nsfwMode });
+  if (query.trim()) {
+    params.set("q", query.trim());
+  }
+  selectedTags.forEach((tag) => params.append("tag", tag));
+  if (ratingMin > 0) {
+    params.set("ratingMin", String(ratingMin));
+  }
+  return params;
+}
+
+function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="w-28 shrink-0 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">{label}</span>
+      <div className="flex flex-wrap gap-2">{children}</div>
+    </div>
+  );
+}
+
+function FilterButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "focus-ring h-9 rounded-[var(--radius-pill)] border px-3 text-xs font-semibold transition active:scale-95",
+        active
+          ? "border-transparent bg-gradient-to-br from-[var(--accent-purple)] to-[var(--accent-secondary)] text-white shadow-[var(--shadow-glow-soft)]"
+          : "border-[var(--border-default)] bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+      )}
+    >
+      {children}
+    </button>
   );
 }

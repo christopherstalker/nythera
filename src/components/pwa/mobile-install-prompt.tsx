@@ -43,7 +43,7 @@ export function MobileInstallPrompt() {
               <div className="min-w-0 flex-1">
                 <p className="text-base font-semibold text-[var(--text-primary)]">Install Nythera on your phone</p>
                 <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">
-                  Full-screen chats, faster launch, and automatic updates — like a real app.
+                  Full-screen chats, faster launch, and automatic updates - like a real app.
                 </p>
               </div>
             </div>

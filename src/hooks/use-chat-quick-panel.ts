@@ -171,6 +171,9 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     });
 
     setPersonaStatus(response.ok ? "Active persona updated." : "Could not switch persona.");
+    if (response.ok) {
+      window.dispatchEvent(new CustomEvent("nythera:persona-updated"));
+    }
   }
 
   async function savePersona(event: FormEvent<HTMLFormElement>) {
@@ -212,6 +215,7 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     if (body.activeProfile) {
       setDraft(profileToDraft(body.activeProfile));
     }
+    window.dispatchEvent(new CustomEvent("nythera:persona-updated"));
   }
 
   async function addMemory(event: FormEvent<HTMLFormElement>) {

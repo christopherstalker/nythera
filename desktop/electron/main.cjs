@@ -8,8 +8,8 @@ function createWindow() {
   const window = new BrowserWindow({
     width: 1320,
     height: 860,
-    minWidth: 960,
-    minHeight: 640,
+    minWidth: 390,
+    minHeight: 620,
     show: false,
     title: "Nythera",
     backgroundColor: "#0B0B12",
@@ -29,6 +29,13 @@ function createWindow() {
       shell.openExternal(url);
     }
     return { action: "deny" };
+  });
+
+  window.webContents.on("will-navigate", (event, url) => {
+    if (!url.startsWith(SITE_URL)) {
+      event.preventDefault();
+      shell.openExternal(url);
+    }
   });
 
   window.loadURL(SITE_URL);

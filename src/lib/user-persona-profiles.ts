@@ -35,11 +35,12 @@ export function normalizePersonaProfiles(persona?: PersonaLike | null) {
 
   const metadata = parsePersonaMetadata(persona.metadata);
   const canonical = personaToProfile(persona);
-  const profiles = mergeProfiles([canonical, ...(metadata.profiles ?? [])]);
+  const metadataProfiles = mergeProfiles(metadata.profiles ?? []);
+  const profiles = metadataProfiles.length ? metadataProfiles : [canonical];
   const activeProfileId = profiles.some((profile) => profile.id === metadata.activeProfileId)
-    ? metadata.activeProfileId ?? canonical.id
-    : canonical.id;
-  const activeProfile = profiles.find((profile) => profile.id === activeProfileId) ?? canonical;
+    ? metadata.activeProfileId ?? profiles[0]?.id ?? null
+    : profiles[0]?.id ?? null;
+  const activeProfile = profiles.find((profile) => profile.id === activeProfileId) ?? profiles[0] ?? null;
 
   return { profiles, activeProfileId, activeProfile };
 }
@@ -117,7 +118,7 @@ function parseProfile(value: unknown): UserPersonaProfile | null {
   };
 }
 
-function mergeProfiles(profiles: UserPersonaProfile[]) {
+export function mergeProfiles(profiles: UserPersonaProfile[]) {
   const byId = new Map<string, UserPersonaProfile>();
   for (const profile of profiles) {
     byId.set(profile.id, {

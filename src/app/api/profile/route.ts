@@ -17,7 +17,12 @@ const profileSchema = z.object({
   ageVerified: z.boolean().optional(),
   memoryEnabled: z.boolean().optional(),
   compactMode: z.boolean().optional(),
-  notificationsEnabled: z.boolean().optional()
+  notificationsEnabled: z.boolean().optional(),
+  preferredTheme: z.enum(["dark", "light", "system"]).optional(),
+  accentColor: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .optional()
 });
 
 export async function GET() {
@@ -35,7 +40,9 @@ export async function GET() {
         ageVerified: true,
         memoryEnabled: true,
         compactMode: true,
-        notificationsEnabled: true
+        notificationsEnabled: true,
+        preferredTheme: true,
+        accentColor: true
       }
     });
 
@@ -58,7 +65,9 @@ export async function PATCH(request: Request) {
         ageVerified: input.ageVerified,
         memoryEnabled: input.memoryEnabled,
         compactMode: input.compactMode,
-        notificationsEnabled: input.notificationsEnabled
+        notificationsEnabled: input.notificationsEnabled,
+        preferredTheme: input.preferredTheme,
+        accentColor: input.accentColor
       },
       select: {
         id: true,
@@ -70,7 +79,9 @@ export async function PATCH(request: Request) {
         ageVerified: true,
         memoryEnabled: true,
         compactMode: true,
-        notificationsEnabled: true
+        notificationsEnabled: true,
+        preferredTheme: true,
+        accentColor: true
       }
     });
 

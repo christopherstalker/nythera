@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { DISCOVERY_TAGS, displayTagLabel, normalizeCharacterTags } from "@/lib/character-tags";
 import { generateSimpleCharacterDraft } from "@/lib/simple-character-generation";
 import { cn } from "@/lib/utils";
 
@@ -351,7 +352,19 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
                 <Field label="Tags">
                   <Input value={draft.tags} onChange={(event) => update("tags", event.target.value)} placeholder="fantasy, guide, lore" />
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {tags.map((tag) => <Badge key={tag}>{tag}</Badge>)}
+                    {tags.map((tag) => <Badge key={tag}>{displayTagLabel(tag)}</Badge>)}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {DISCOVERY_TAGS.slice(0, 12).map((tag) => (
+                      <button
+                        key={tag.slug}
+                        type="button"
+                        onClick={() => update("tags", appendTag(draft.tags, tag.slug))}
+                        className="focus-ring rounded-[var(--radius-pill)] border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-1 text-xs text-[var(--text-secondary)] transition hover:border-[rgb(var(--accent-rgb)_/_0.35)] hover:text-[var(--text-primary)]"
+                      >
+                        {tag.label}
+                      </button>
+                    ))}
                   </div>
                 </Field>
                 <Field label="Avatar">
@@ -521,7 +534,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
             <p className="text-sm font-semibold text-[var(--text-primary)]">{previewName}</p>
             <p className="mt-1 line-clamp-3 text-xs leading-5 text-[var(--text-secondary)]">{previewDescription}</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              {(previewTags.length ? previewTags : ["roleplay"]).slice(0, 4).map((tag) => <Badge key={tag}>{tag}</Badge>)}
+              {(previewTags.length ? previewTags : ["roleplay"]).slice(0, 4).map((tag) => <Badge key={tag}>{displayTagLabel(tag)}</Badge>)}
             </div>
           </div>
           <div className="mt-3 bubble-char max-w-full">
@@ -689,11 +702,11 @@ function VisibilityButton({ icon: Icon, label, selected, onClick }: { icon: Luci
 }
 
 function parseTags(value: string) {
-  return value
-    .split(/[,\s]+/)
-    .map((tag) => tag.trim().toLowerCase().replace(/^#/, ""))
-    .filter((tag) => tag.length > 1)
-    .slice(0, 12);
+  return normalizeCharacterTags(value.split(/[,;\n]+/));
+}
+
+function appendTag(value: string, tag: string) {
+  return normalizeCharacterTags([...parseTags(value), tag]).join(", ");
 }
 
 function parseLines(value: string) {

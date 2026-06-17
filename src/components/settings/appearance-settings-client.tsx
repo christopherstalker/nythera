@@ -30,6 +30,11 @@ export function AppearanceSettingsClient() {
     saveStoredAppearance({ accentColor: nextColor });
   }
 
+  function updateTheme(nextTheme: "dark" | "light") {
+    setTheme(nextTheme);
+    saveStoredAppearance({ theme: nextTheme });
+  }
+
   const activeTheme = mounted ? resolvedTheme : "dark";
 
   return (
@@ -37,8 +42,8 @@ export function AppearanceSettingsClient() {
       <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4 shadow-[var(--glass-highlight)] backdrop-blur-xl">
         <p className="text-sm font-medium text-[var(--text-primary)]">Theme</p>
         <div className="mt-3 inline-flex rounded-[var(--radius-pill)] border border-[var(--border-default)] bg-[var(--bg-elevated)] p-1">
-          <ThemeButton active={activeTheme === "dark"} label="Dark" icon={Moon} onClick={() => setTheme("dark")} />
-          <ThemeButton active={activeTheme === "light"} label="Light" icon={Sun} onClick={() => setTheme("light")} />
+          <ThemeButton active={activeTheme === "dark"} label="Dark" icon={Moon} onClick={() => updateTheme("dark")} />
+          <ThemeButton active={activeTheme === "light"} label="Light" icon={Sun} onClick={() => updateTheme("light")} />
         </div>
       </div>
 

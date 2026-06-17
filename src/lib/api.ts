@@ -34,6 +34,8 @@ export async function requireUser() {
       memoryEnabled: true,
       compactMode: true,
       notificationsEnabled: true,
+      preferredTheme: true,
+      accentColor: true,
       bannedAt: true
     }
   });

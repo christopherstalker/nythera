@@ -21,6 +21,10 @@ const userPersonaSwitchSchema = z.object({
   activeProfileId: z.string().trim().min(1).max(80)
 });
 
+const userPersonaDeleteSchema = z.object({
+  profileId: z.string().trim().min(1).max(80).optional()
+});
+
 export async function GET(request: Request) {
   try {
     const user = await requireMobileUser(request);
@@ -37,7 +41,7 @@ export async function PUT(request: Request) {
     const input = await parseJson(request, userPersonaUpsertSchema);
     const existing = await prisma.userPersona.findUnique({ where: { userId: user.id } });
     const normalized = normalizePersonaProfiles(existing);
-    const profileId = input.profileId ?? normalized.activeProfileId ?? createPersonaProfileId();
+    const profileId = input.profileId ?? createPersonaProfileId();
     const nextProfile: UserPersonaProfile = {
       id: profileId,
       label: input.label || input.displayName,
@@ -93,6 +97,46 @@ export async function PATCH(request: Request) {
     });
 
     return json({ persona: updated, ...normalizePersonaProfiles(updated) });
+  } catch (error) {
+    return routeError(error);
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const user = await requireMobileUser(request);
+    const input = userPersonaDeleteSchema.parse((await request.json().catch(() => ({}))) ?? {});
+
+    if (!input.profileId) {
+      await prisma.userPersona.deleteMany({ where: { userId: user.id } });
+      return json({ ok: true, profiles: [] });
+    }
+
+    const persona = await prisma.userPersona.findUnique({ where: { userId: user.id } });
+    const normalized = normalizePersonaProfiles(persona);
+    const profiles = normalized.profiles.filter((profile) => profile.id !== input.profileId);
+
+    if (!persona || profiles.length === normalized.profiles.length) {
+      throw new HttpError(404, "Persona profile not found.");
+    }
+
+    if (profiles.length === 0) {
+      await prisma.userPersona.delete({ where: { userId: user.id } });
+      return json({ ok: true, profiles: [] });
+    }
+
+    const nextActive = normalized.activeProfileId === input.profileId
+      ? profiles[0]
+      : profiles.find((profile) => profile.id === normalized.activeProfileId) ?? profiles[0];
+    const updated = await prisma.userPersona.update({
+      where: { userId: user.id },
+      data: {
+        ...profileToData(nextActive),
+        metadata: buildPersonaMetadata(profiles, nextActive.id)
+      }
+    });
+
+    return json({ ok: true, persona: updated, ...normalizePersonaProfiles(updated) });
   } catch (error) {
     return routeError(error);
   }

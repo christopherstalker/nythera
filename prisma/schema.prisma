@@ -25,6 +25,8 @@ model User {
   memoryEnabled Boolean   @default(true)
   compactMode   Boolean   @default(false)
   notificationsEnabled Boolean @default(false)
+  preferredTheme String    @default("dark")
+  accentColor    String    @default("#FF7A18")
   bannedAt      DateTime?
   banReason     String?   @db.Text
   createdAt     DateTime  @default(now())

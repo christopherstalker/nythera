@@ -109,6 +109,8 @@ export async function requireMobileUser(request: Request) {
       memoryEnabled: true,
       compactMode: true,
       notificationsEnabled: true,
+      preferredTheme: true,
+      accentColor: true,
       bannedAt: true
     }
   });
@@ -220,6 +222,8 @@ export function publicMobileUser(user: {
   memoryEnabled?: boolean;
   compactMode?: boolean;
   notificationsEnabled?: boolean;
+  preferredTheme?: string;
+  accentColor?: string;
 }) {
   return {
     id: user.id,
@@ -232,6 +236,8 @@ export function publicMobileUser(user: {
     ageVerified: user.ageVerified ?? false,
     memoryEnabled: user.memoryEnabled ?? true,
     compactMode: user.compactMode ?? false,
-    notificationsEnabled: user.notificationsEnabled ?? false
+    notificationsEnabled: user.notificationsEnabled ?? false,
+    preferredTheme: user.preferredTheme ?? "dark",
+    accentColor: user.accentColor ?? "#FF7A18"
   };
 }

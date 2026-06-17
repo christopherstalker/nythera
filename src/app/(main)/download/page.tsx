@@ -62,7 +62,7 @@ export default function DownloadPage() {
           <div className="min-w-0 flex-1">
             <h2 className="text-lg font-semibold text-[var(--text-primary)]">Windows</h2>
             <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
-              Native desktop app (.exe installer). Loads the live Nythera site — updates without reinstalling.
+              Native desktop app (.exe installer). Loads the live Nythera site - updates without reinstalling.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button asChild>
