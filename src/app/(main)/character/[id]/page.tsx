@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Copy, Edit3, Flag, Globe, Heart, Lock, MessageCircle, Share2, Sparkles, Star, User, X } from "lucide-react";
+import { Copy, Edit3, Flag, Globe, Heart, Lock, MessageCircle, Share2, Sparkles, Star, Trash2, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CharacterAvatar } from "@/components/character/character-avatar";
@@ -52,6 +52,7 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
   const [reviews, setReviews] = useState<Array<{ value: number; review?: string | null; user?: { username?: string | null } | null }>>([]);
   const [status, setStatus] = useState<string | null>(null);
   const [visibilitySaving, setVisibilitySaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetch(`/api/characters/${params.id}`)
@@ -207,6 +208,38 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
 
     const body = await response.json().catch(() => null);
     setStatus(body?.error ?? "Could not submit report.");
+  }
+
+  async function deleteCharacter() {
+    if (!character || deleting) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete "${character.name}" forever? This removes the bot, its chats, likes, ratings, reports, and memories. This cannot be undone.`
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setDeleting(true);
+    setStatus(null);
+    const response = await fetch(`/api/characters/${character.id}`, { method: "DELETE" });
+    setDeleting(false);
+
+    if (response.status === 401) {
+      router.push("/login");
+      return;
+    }
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      setStatus(body?.error ?? "Could not delete character.");
+      return;
+    }
+
+    window.dispatchEvent(new CustomEvent("nythera:characters-updated"));
+    router.replace("/library");
   }
 
   async function submitRating() {
@@ -401,6 +434,12 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
                   <Share2 className="h-4 w-4" />
                   Copy public link
                 </Button>
+                {viewer.canEdit ? (
+                  <Button type="button" variant="destructive" onClick={deleteCharacter} disabled={deleting}>
+                    <Trash2 className="h-4 w-4" />
+                    {deleting ? "Deleting..." : "Delete forever"}
+                  </Button>
+                ) : null}
                 <Button type="button" variant="outline" onClick={() => setReportOpen(true)}>
                   <Flag className="h-4 w-4 text-destructive" />
                   Report

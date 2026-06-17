@@ -26,6 +26,13 @@ const nsfwOptions = [
   { id: "include", label: "Include 18+" },
   { id: "only", label: "Only 18+" }
 ] as const;
+const feedTabs = [
+  { id: "trending", label: "Trending" },
+  { id: "recommended", label: "Recommended" },
+  { id: "for-you", label: "For You" }
+] as const;
+
+type FeedTabId = (typeof feedTabs)[number]["id"];
 
 async function fetchCharacters(params: URLSearchParams, signal?: AbortSignal) {
   const response = await fetch(`/api/characters?${params.toString()}`, { signal });
@@ -60,12 +67,16 @@ function ExplorePageContent() {
   const [query, setQuery] = useState(initialQuery);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [sort, setSort] = useState<(typeof sortOptions)[number]["id"]>("trending");
+  const [activeFeed, setActiveFeed] = useState<FeedTabId>("trending");
   const [ratingMin, setRatingMin] = useState(0);
   const [nsfwMode, setNsfwMode] = useState<(typeof nsfwOptions)[number]["id"]>("safe");
   const [loading, setLoading] = useState(true);
   const hasActiveFilters = query.trim().length > 0 || selectedTags.length > 0 || sort !== "trending" || ratingMin > 0 || nsfwMode !== "safe";
   const showFeedSections = !hasActiveFilters;
   const isCatalogEmpty = !loading && characters.length === 0 && trending.length === 0 && recommended.length === 0;
+  const activeFeedTab = feedTabs.find((tab) => tab.id === activeFeed) ?? feedTabs[0];
+  const activeFeedCharacters =
+    activeFeed === "recommended" ? recommended : activeFeed === "for-you" ? characters.slice(0, 12) : trending;
 
   useEffect(() => {
     setQuery(initialQuery);
@@ -222,11 +233,28 @@ function ExplorePageContent() {
       </Surface>
 
       {showFeedSections ? (
-        <div className="space-y-8">
-          <CharacterRow title="Trending" characters={trending} loading={loading} />
-          <CharacterRow title="Recommended" characters={recommended} loading={loading} />
-          {characters.length > 0 ? <CharacterRow title="For You" characters={characters.slice(0, 12)} loading={loading} /> : null}
-        </div>
+        <section className="space-y-4">
+          <div className="scrollbar-none overflow-x-auto">
+            <div className="inline-flex min-w-max gap-2 rounded-[var(--radius-pill)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-1 shadow-[var(--glass-highlight)] backdrop-blur-xl">
+              {feedTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveFeed(tab.id)}
+                  className={cn(
+                    "focus-ring h-10 rounded-[var(--radius-pill)] px-4 text-sm font-semibold transition-colors",
+                    activeFeed === tab.id
+                      ? "bg-[var(--accent-purple-soft)] text-[var(--text-primary)]"
+                      : "text-[var(--text-secondary)] hover:bg-white/[0.045] hover:text-[var(--text-primary)]"
+                  )}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <CharacterRow title={activeFeedTab.label} characters={activeFeedCharacters} loading={loading} />
+        </section>
       ) : null}
 
       {!showFeedSections && (loading || characters.length > 0) ? <CharacterGrid characters={characters} loading={loading} /> : null}
