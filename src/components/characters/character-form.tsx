@@ -9,6 +9,7 @@ import {
   ImagePlus,
   Lock,
   MessageSquare,
+  MessagesSquare,
   Palette,
   Save,
   ShieldCheck,
@@ -57,6 +58,7 @@ const sectionIcons = {
   basics: Bot,
   personality: MessageSquare,
   scenario: BookOpen,
+  greeting: MessagesSquare,
   speaking: Palette,
   advanced: ShieldCheck
 } as const;
@@ -73,6 +75,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
     basics: true,
     personality: false,
     scenario: false,
+    greeting: false,
     speaking: false,
     advanced: false
   });
@@ -96,7 +99,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
 
   function update<K extends keyof CharacterFormValue>(field: K, value: CharacterFormValue[K]) {
     setDraft((current) => ({ ...current, [field]: value }));
-    if (formMode === "simple") {
+    if (formMode === "simple" && field !== "greeting" && field !== "avatarUrl" && field !== "tags") {
       setGeneratedPreview(null);
     }
   }
@@ -110,6 +113,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
         basics: true,
         personality: true,
         scenario: true,
+        greeting: true,
         speaking: true,
         advanced: false
       });
@@ -193,7 +197,8 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           name: draft.name.trim(),
-          description: draft.description.trim()
+          description: draft.description.trim(),
+          greeting: draft.greeting.trim() || undefined
         })
       });
 
@@ -218,7 +223,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
       setGeneratedPreview({
         personality: generated.personality,
         scenario: generated.scenario,
-        greeting: generated.greeting,
+        greeting: draft.greeting.trim() || generated.greeting,
         tags: Array.isArray(generated.tags) ? generated.tags : draft.tags,
         persona: generated.persona ?? null,
         communicationStyle: generated.communicationStyle ?? null
@@ -292,7 +297,8 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
             name: draft.name.trim(),
-            description: draft.description.trim()
+            description: draft.description.trim(),
+            greeting: draft.greeting.trim() || undefined
           })
         });
 
@@ -309,7 +315,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
             preview = {
               personality: generated.personality,
               scenario: generated.scenario,
-              greeting: generated.greeting,
+              greeting: draft.greeting.trim() || generated.greeting,
               tags: Array.isArray(generated.tags) ? generated.tags : draft.tags,
               persona: generated.persona ?? null,
               communicationStyle: generated.communicationStyle ?? null
@@ -415,6 +421,15 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
                   <TagChipInput value={draft.tags} onChange={(tags) => update("tags", tags)} presets={VIBE_PRESETS} />
                 </Field>
 
+                <Field label="Greeting / First message">
+                  <Textarea
+                    value={draft.greeting}
+                    onChange={(event) => update("greeting", event.target.value)}
+                    placeholder="The first message users will see."
+                    className="min-h-28"
+                  />
+                </Field>
+
                 {generatedPreview ? <GeneratedPreviewCard preview={generatedPreview} /> : null}
               </section>
             ) : null}
@@ -461,13 +476,19 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
               <TagChipInput value={draft.tags} onChange={(tags) => update("tags", tags)} presets={VIBE_PRESETS} />
             </Field>
 
-            <Field label="Example greeting" hint="Optional, but helps the preview feel more personal.">
+            <Field
+              label="Greeting / First message"
+              hint="Optional. If you write this yourself, AI preview will keep your text instead of replacing it."
+            >
               <Textarea
                 value={draft.greeting}
                 onChange={(event) => update("greeting", event.target.value)}
-                placeholder="The first message your character might send."
-                className="min-h-28"
+                placeholder="Write the opening message users will see when they start chatting with this character."
+                className="min-h-32"
               />
+              {draft.greeting.trim() ? (
+                <div className="mt-3 bubble-char max-w-full text-sm leading-6">{draft.greeting}</div>
+              ) : null}
             </Field>
 
             {generatedPreview ? (
@@ -551,23 +572,35 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
                   ) : null}
 
                   {section.id === "scenario" ? (
+                    <Field label="Scenario / world">
+                      <Textarea
+                        value={draft.scenario}
+                        onChange={(event) => update("scenario", event.target.value)}
+                        placeholder="Where the scene starts and what should stay true."
+                        className="min-h-32"
+                      />
+                    </Field>
+                  ) : null}
+
+                  {section.id === "greeting" ? (
                     <>
-                      <Field label="Scenario / world">
-                        <Textarea
-                          value={draft.scenario}
-                          onChange={(event) => update("scenario", event.target.value)}
-                          placeholder="Where the scene starts and what should stay true."
-                          className="min-h-32"
-                        />
-                      </Field>
-                      <Field label="Greeting">
+                      <Field
+                        label="Greeting / First message"
+                        hint="This is the opening line users see in chat. Make it immersive and in character."
+                      >
                         <Textarea
                           value={draft.greeting}
                           onChange={(event) => update("greeting", event.target.value)}
-                          placeholder="The first message users will see."
-                          className="min-h-28"
+                          placeholder="Write the first message your character sends when a conversation begins."
+                          className="min-h-36"
                         />
                       </Field>
+                      {draft.greeting.trim() ? (
+                        <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4">
+                          <p className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-muted)]">Preview</p>
+                          <div className="mt-3 bubble-char max-w-full text-sm leading-6">{draft.greeting}</div>
+                        </div>
+                      ) : null}
                     </>
                   ) : null}
 

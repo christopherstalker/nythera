@@ -6,7 +6,8 @@ import { getEffectiveProviderKeys } from "@/lib/user-keys";
 
 const generateSchema = z.object({
   name: z.string().trim().min(2).max(80),
-  description: z.string().trim().min(10).max(2000)
+  description: z.string().trim().min(10).max(2000),
+  greeting: z.string().trim().max(2000).optional()
 });
 
 export async function POST(request: Request) {
@@ -23,6 +24,7 @@ export async function POST(request: Request) {
     const generated = await generateCharacterFromDescription({
       name: input.name,
       description: input.description,
+      greeting: input.greeting,
       userId: user.id,
       providerKeys
     });

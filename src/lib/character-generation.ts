@@ -24,6 +24,7 @@ const generatedSchema = z.object({
 export async function generateCharacterFromDescription(input: {
   name: string;
   description: string;
+  greeting?: string;
   userId: string;
   providerKeys?: ProviderKeys;
 }) {
@@ -45,7 +46,13 @@ export async function generateCharacterFromDescription(input: {
         },
         {
           role: "user",
-          content: `Name: ${input.name}\nDescription: ${input.description}`
+          content: [
+            `Name: ${input.name}`,
+            `Description: ${input.description}`,
+            input.greeting?.trim() ? `Preferred greeting (keep this tone and do not replace it verbatim unless improving flow): ${input.greeting.trim()}` : null
+          ]
+            .filter(Boolean)
+            .join("\n")
         }
       ],
       model: keys[0]?.defaultModel || "gpt-4o-mini",
@@ -66,7 +73,7 @@ export async function generateCharacterFromDescription(input: {
     return {
       personality: parsed.personality,
       scenario: parsed.scenario,
-      greeting: parsed.greeting,
+      greeting: input.greeting?.trim() || parsed.greeting,
       tags: parsed.tags,
       persona: {
         name: input.name.trim(),

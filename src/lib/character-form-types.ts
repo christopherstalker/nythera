@@ -85,7 +85,7 @@ export const VIBE_PRESETS = [
   "Horror"
 ] as const;
 
-export const CUSTOM_SECTION_IDS = ["basics", "personality", "scenario", "speaking", "advanced"] as const;
+export const CUSTOM_SECTION_IDS = ["basics", "personality", "scenario", "greeting", "speaking", "advanced"] as const;
 
 export type CustomSectionId = (typeof CUSTOM_SECTION_IDS)[number];
 
@@ -96,8 +96,9 @@ export const CUSTOM_SECTIONS: ReadonlyArray<{
 }> = [
   { id: "basics", title: "Basics", description: "Name, hook, avatar, and tags." },
   { id: "personality", title: "Personality & Persona", description: "Who they are and how they feel." },
-  { id: "scenario", title: "Scenario & World", description: "Setting, lore, and opening scene." },
-  { id: "speaking", title: "Speaking Style & Examples", description: "Voice, tone, and first message." },
+  { id: "scenario", title: "Scenario & World", description: "Setting, lore, and world context." },
+  { id: "greeting", title: "Greeting", description: "The first message users see when a chat begins." },
+  { id: "speaking", title: "Speaking Style", description: "Voice, tone, and message shape." },
   { id: "advanced", title: "Advanced", description: "Boundaries, tuning, and publish settings." }
 ];
 

@@ -27,8 +27,9 @@ const sectionPrompts: Record<CustomSectionId, string> = {
   basics: "Improve the public-facing description and suggest a concise role label. Return JSON with description and personaRole only.",
   personality:
     "Expand personality traits, emotional tone, motivation, and archetype. Return JSON with personality, personaTraits, emotionalTone, motivation, archetype, and personaRole only.",
-  scenario: "Write immersive scenario lore and a strong opening greeting. Return JSON with scenario and greeting only.",
-  speaking: "Refine speaking style, tone, and greeting examples. Return JSON with speakingStyle, tone, greeting, and emotionalTone only.",
+  scenario: "Write immersive scenario lore and world context. Return JSON with scenario only.",
+  greeting: "Write a cinematic first message the character sends when a chat begins. Return JSON with greeting only.",
+  speaking: "Refine speaking style, tone, and emotional delivery. Return JSON with speakingStyle, tone, and emotionalTone only.",
   advanced:
     "Suggest respectful boundaries, behavioral rules, and forbidden behaviors. Return JSON with boundaries, behavioralRules, and forbiddenBehaviors only."
 };
@@ -107,14 +108,16 @@ function buildFallback(section: CustomSectionId, name: string, description: stri
       };
     case "scenario":
       return {
-        scenario: generated.scenario,
-        greeting: generated.greeting
+        scenario: generated.scenario
+      };
+    case "greeting":
+      return {
+        greeting: context?.greeting?.trim() || generated.greeting
       };
     case "speaking":
       return {
         speakingStyle: generated.speakingStyle,
         tone: generated.tone,
-        greeting: generated.greeting,
         emotionalTone: generated.emotionalTone
       };
     case "advanced":
