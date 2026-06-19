@@ -124,10 +124,10 @@ export function ContinueChatsPanel() {
                 >
                   <CharacterAvatar name={characterName} avatarUrl={chat.character?.avatarUrl} size="sm" />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-foreground">{chat.title || characterName}</p>
-                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{chat.character?.description || "No description yet"}</p>
+                    <p className="block truncate text-sm font-semibold text-foreground">{chat.title || characterName}</p>
+                    <p className="mt-1 block line-clamp-2 text-xs leading-5 text-muted-foreground">{chat.character?.description || "No description yet"}</p>
                   </div>
-                  <span className="text-xs text-muted-foreground">{formatChatTime(chat.lastActiveAt ?? chat.updatedAt)}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">{formatChatTime(chat.lastActiveAt ?? chat.updatedAt)}</span>
                 </Link>
               );
             })

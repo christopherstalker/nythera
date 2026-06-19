@@ -149,10 +149,10 @@ export function HistoryTabContent({
           )}
         >
           <Avatar name={chat.character.name} src={chat.character.avatarUrl} size="xs" />
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-medium text-[var(--text-primary)]">{chat.title || chat.character.name}</span>
-            <span className="mt-0.5 block truncate text-xs text-[var(--text-muted)]">{chat.character.description || chat.messages[0]?.content || "Continue chat"}</span>
-          </span>
+          <div className="min-w-0 flex-1">
+            <p className="block truncate text-sm font-medium text-[var(--text-primary)]">{chat.title || chat.character.name}</p>
+            <p className="mt-0.5 block truncate text-xs text-[var(--text-muted)]">{chat.character.description || chat.messages[0]?.content || "Continue chat"}</p>
+          </div>
         </Link>
       ))}
       {panel.chats.length === 0 ? <PanelStatusText>No chat history yet.</PanelStatusText> : null}
