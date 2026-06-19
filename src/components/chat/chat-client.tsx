@@ -41,7 +41,7 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
   const [composerSheetOpen, setComposerSheetOpen] = useState(false);
   const persistedApiRef = useRef({ model: initialModel || "gpt-4o-mini", temperature: initialTemperature ?? 0.7 });
   const quickPanel = useChatQuickPanel({ chatId, characterId, enabled: true });
-  const { messages, send, editMessage, deleteMessage, branchFromMessage, isStreaming, error } = useChat(chatId, initialMessages);
+  const { messages, send, editMessage, deleteMessage, rewindToMessage, branchFromMessage, isStreaming, error } = useChat(chatId, initialMessages);
   const setActiveChatId = useUiStore((state) => state.setActiveChatId);
   const usesAutoModel = !manualModelOverride && APP_DEFAULT_MODELS.has(model.trim().toLowerCase());
   const visibleModel = usesAutoModel && activeRouteModel ? activeRouteModel : model;
@@ -246,6 +246,7 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
             onDelete={deleteMessage}
             onRegenerate={regenerate}
             onContinue={continueChat}
+            onRewind={rewindToMessage}
             onBranch={branch}
           />
           <ChatInput

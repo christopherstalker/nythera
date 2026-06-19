@@ -37,12 +37,12 @@ export function CharacterCard({ character, className }: CharacterCardProps) {
       type="button"
       onClick={openProfile}
       className={cn(
-        "group glass-card glass-card-hover relative flex h-[var(--card-height)] w-full min-w-0 shrink-0 overflow-hidden text-left active:scale-[0.98]",
+        "group glass-card glass-card-hover relative flex h-[var(--card-height)] w-full min-w-0 shrink-0 text-left active:scale-[0.98]",
         className
       )}
       aria-label={`Open ${character.name}`}
     >
-      <div className="absolute inset-x-0 top-0 h-[72%] overflow-hidden">
+      <div className="absolute inset-x-0 top-0 h-[72%] overflow-hidden rounded-t-[var(--radius-lg)]">
         {character.avatarUrl ? (
           <img
             src={character.avatarUrl}

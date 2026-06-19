@@ -134,7 +134,7 @@ export function Sidebar() {
     });
   }, [query, groupedRecentChats]);
 
-  const labelClass = cn("min-w-0 truncate md:hidden lg:block", collapsed && "lg:hidden");
+  const labelClass = cn("min-w-0 md:hidden lg:block", collapsed && "lg:hidden");
 
   function onSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key !== "Enter") {
@@ -209,7 +209,7 @@ export function Sidebar() {
                 <Link
                   key={chat.id}
                   href={`/chat/${chat.id}`}
-                  className={cn("nav-item h-12 px-2", active && "nav-item-active")}
+                  className={cn("nav-item !h-12 px-2", active && "nav-item-active")}
                   title={chat.character.name}
                 >
                   <Avatar name={chat.character.name} src={chat.character.avatarUrl} size="xs" />
@@ -221,7 +221,7 @@ export function Sidebar() {
               );
             })}
             {filteredChats.length === 0 ? (
-              <Link href="/explore" className="nav-item h-12 px-2">
+              <Link href="/explore" className="nav-item !h-12 px-2">
                 <MessageCircle className="h-5 w-5 shrink-0" />
                 <span className={labelClass}>No recent chats</span>
               </Link>

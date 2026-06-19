@@ -21,7 +21,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="relative isolate min-h-dvh overflow-hidden bg-[var(--bg-base)]">
+    <div className="relative isolate min-h-dvh bg-[var(--bg-base)]">
       <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10" style={{ background: "var(--app-shell-gradient)" }} />
       <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-80 bg-gradient-to-b from-primary/[0.08] to-transparent" />
       <Sidebar />

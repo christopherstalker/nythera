@@ -13,10 +13,11 @@ type MessageListProps = {
   onDelete?: (messageId: string) => void;
   onRegenerate?: (messageId: string) => void;
   onContinue?: () => void;
+  onRewind?: (messageId: string) => void;
   onBranch?: (messageId: string) => void;
 };
 
-export function MessageList({ messages, characterName, summary, error, onEdit, onDelete, onRegenerate, onContinue, onBranch }: MessageListProps) {
+export function MessageList({ messages, characterName, summary, error, onEdit, onDelete, onRegenerate, onContinue, onRewind, onBranch }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const nearBottomRef = useRef(true);
@@ -83,6 +84,7 @@ export function MessageList({ messages, characterName, summary, error, onEdit, o
                   onDelete={onDelete}
                   onRegenerate={onRegenerate}
                   onContinue={onContinue}
+                  onRewind={onRewind}
                   onBranch={onBranch}
                 />
               );
@@ -102,6 +104,7 @@ export function MessageList({ messages, characterName, summary, error, onEdit, o
                 onDelete={onDelete}
                 onRegenerate={onRegenerate}
                 onContinue={onContinue}
+                onRewind={onRewind}
                 onBranch={onBranch}
                 variantIndex={selectedIndex}
                 variantCount={item.variants.length}

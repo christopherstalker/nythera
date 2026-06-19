@@ -198,6 +198,30 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
     setMessages((current) => current.filter((message) => message.id !== messageId));
   }, []);
 
+  const rewindToMessage = useCallback(
+    async (messageId: string) => {
+      const index = messages.findIndex((message) => message.id === messageId);
+      if (index === -1) {
+        return;
+      }
+
+      const toDelete = messages.slice(index);
+      setMessages((current) => current.slice(0, index));
+
+      try {
+        await Promise.all(
+          toDelete.map((message) =>
+            fetch(`/api/messages?id=${encodeURIComponent(message.id)}`, { method: "DELETE" })
+          )
+        );
+      } catch (caught) {
+        console.error("Failed to delete messages during rewind:", caught);
+        setError("Failed to rewind completely. Please refresh.");
+      }
+    },
+    [messages]
+  );
+
   const branchFromMessage = useCallback(
     async (messageId: string) => {
       const response = await fetch(`/api/chats/${chatId}/branch`, {
@@ -218,7 +242,7 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
     [chatId]
   );
 
-  return { messages, isStreaming, error, send, editMessage, deleteMessage, branchFromMessage };
+  return { messages, isStreaming, error, send, editMessage, deleteMessage, rewindToMessage, branchFromMessage };
 }
 
 function createRequestId() {
