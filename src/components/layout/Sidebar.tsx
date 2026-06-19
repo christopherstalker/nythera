@@ -213,10 +213,10 @@ export function Sidebar() {
                   title={chat.character.name}
                 >
                   <Avatar name={chat.character.name} src={chat.character.avatarUrl} size="xs" />
-                  <span className={cn("min-w-0 flex-1", labelClass)}>
-                    <span className="block truncate text-sm">{chat.character.name}</span>
-                    <span className="block truncate text-xs font-normal text-[var(--text-muted)]">{chat.character.description || "No description yet"}</span>
-                  </span>
+                  <div className={cn("min-w-0 flex-1", labelClass)}>
+                    <p className="block truncate text-sm">{chat.character.name}</p>
+                    <p className="block truncate text-xs font-normal text-[var(--text-muted)]">{chat.character.description || "No description yet"}</p>
+                  </div>
                 </Link>
               );
             })}
