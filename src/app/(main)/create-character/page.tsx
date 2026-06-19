@@ -8,7 +8,7 @@ export default function CreateCharacterPage() {
       <PageHeader
         icon={Plus}
         title="Create character"
-        description="Start simple with a name and short description, or switch to custom controls when you need them."
+        description="Generate from one prompt with your API key, start simple, or open custom controls when you need them."
       />
       <CharacterForm mode="create" />
     </PageShell>
