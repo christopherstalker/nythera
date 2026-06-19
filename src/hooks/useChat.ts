@@ -61,7 +61,7 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
       };
 
       setMessages((current) => {
-        if (options?.regenerate) {
+        if (options?.regenerate || isContinuation) {
           return [...current, assistantMessage];
         }
 
