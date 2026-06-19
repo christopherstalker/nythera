@@ -15,9 +15,10 @@ type MessageListProps = {
   onContinue?: () => void;
   onRewind?: (messageId: string) => void;
   onBranch?: (messageId: string) => void;
+  onPin?: (messageId: string) => void;
 };
 
-export function MessageList({ messages, characterName, summary, error, onEdit, onDelete, onRegenerate, onContinue, onRewind, onBranch }: MessageListProps) {
+export function MessageList({ messages, characterName, summary, error, onEdit, onDelete, onRegenerate, onContinue, onRewind, onBranch, onPin }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const nearBottomRef = useRef(true);
@@ -73,21 +74,23 @@ export function MessageList({ messages, characterName, summary, error, onEdit, o
         ) : (
           displayItems.map((item) => {
             if (item.type === "single") {
-              return (
-                <MessageBubble
-                  key={item.message.id}
-                  id={item.message.id}
-                  role={item.message.role}
-                  content={item.message.content}
-                  characterName={characterName}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                  onRegenerate={onRegenerate}
-                  onContinue={onContinue}
-                  onRewind={onRewind}
-                  onBranch={onBranch}
-                />
-              );
+return (
+             <MessageBubble
+               key={item.message.id}
+               id={item.message.id}
+               role={item.message.role}
+               content={item.message.content}
+               characterName={characterName}
+               isPinned={item.message.pinned}
+               onEdit={onEdit}
+               onDelete={onDelete}
+               onRegenerate={onRegenerate}
+               onContinue={onContinue}
+               onRewind={onRewind}
+               onBranch={onBranch}
+               onPin={onPin}
+             />
+           );
             }
 
             const selectedIndex = variantByGroup[item.key] ?? item.variants.length - 1;
@@ -100,24 +103,26 @@ export function MessageList({ messages, characterName, summary, error, onEdit, o
                 role={selected.role}
                 content={selected.content}
                 characterName={characterName}
+                isPinned={selected.pinned}
                 onEdit={onEdit}
                 onDelete={onDelete}
                 onRegenerate={onRegenerate}
                 onContinue={onContinue}
                 onRewind={onRewind}
                 onBranch={onBranch}
+                onPin={onPin}
                 variantIndex={selectedIndex}
                 variantCount={item.variants.length}
                 onPreviousVariant={() =>
                   setVariantByGroup((current) => ({
                     ...current,
-                    [item.key]: Math.max(0, (current[item.key] ?? selectedIndex) - 1)
+                    [item.key]: Math.max(0, (current[item.key] ?? selectedIndex) - 1),
                   }))
                 }
                 onNextVariant={() =>
                   setVariantByGroup((current) => ({
                     ...current,
-                    [item.key]: Math.min(item.variants.length - 1, (current[item.key] ?? selectedIndex) + 1)
+                    [item.key]: Math.min(item.variants.length - 1, (current[item.key] ?? selectedIndex) + 1),
                   }))
                 }
               />

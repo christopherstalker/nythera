@@ -41,7 +41,7 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
   const [composerSheetOpen, setComposerSheetOpen] = useState(false);
   const persistedApiRef = useRef({ model: initialModel || "gpt-4o-mini", temperature: initialTemperature ?? 0.7 });
   const quickPanel = useChatQuickPanel({ chatId, characterId, enabled: true });
-  const { messages, send, editMessage, deleteMessage, rewindToMessage, branchFromMessage, isStreaming, error } = useChat(chatId, initialMessages);
+  const { messages, send, editMessage, deleteMessage, rewindToMessage, branchFromMessage, pinMessage, unpinMessage, isStreaming, error } = useChat(chatId, initialMessages);
   const setActiveChatId = useUiStore((state) => state.setActiveChatId);
   const usesAutoModel = !manualModelOverride && APP_DEFAULT_MODELS.has(model.trim().toLowerCase());
   const visibleModel = usesAutoModel && activeRouteModel ? activeRouteModel : model;
@@ -185,6 +185,16 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
     }
   }
 
+  async function togglePin(messageId: string) {
+    const message = messages.find((m) => m.id === messageId);
+    if (!message) return;
+    if (message.pinned) {
+      await unpinMessage(messageId);
+    } else {
+      await pinMessage(messageId);
+    }
+  }
+
   async function startNewChat() {
     if (!characterId) {
       return;
@@ -248,6 +258,7 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
             onContinue={continueChat}
             onRewind={rewindToMessage}
             onBranch={branch}
+            onPin={togglePin}
           />
           <ChatInput
             value={draft}

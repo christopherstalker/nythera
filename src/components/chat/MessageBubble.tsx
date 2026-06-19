@@ -1,20 +1,25 @@
+"use client";
+
 import { useState, useEffect, useRef } from "react";
 import { RichMessageText } from "@/components/chat/rich-message-text";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
+import { MessageContextMenu } from "@/components/chat/MessageContextMenu";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, ChevronsRight, Flag, GitBranch, Pencil, RefreshCcw, Trash2, Copy, History } from "lucide-react";
+import { ChevronLeft, ChevronRight, GitBranch, Pencil, RefreshCcw, Trash2, Flag } from "lucide-react";
 
 type MessageBubbleProps = {
   id: string;
   role: "USER" | "ASSISTANT" | "SYSTEM";
   content: string;
   characterName: string;
+  isPinned?: boolean;
   onEdit?: (messageId: string, content: string) => void;
   onDelete?: (messageId: string) => void;
   onRegenerate?: (messageId: string) => void;
   onContinue?: () => void;
   onRewind?: (messageId: string) => void;
   onBranch?: (messageId: string) => void;
+  onPin?: (messageId: string) => void;
   variantIndex?: number;
   variantCount?: number;
   onPreviousVariant?: () => void;
@@ -26,39 +31,45 @@ export function MessageBubble({
   role,
   content,
   characterName,
+  isPinned,
   onEdit,
   onDelete,
   onRegenerate,
   onContinue,
   onRewind,
   onBranch,
+  onPin,
   variantIndex,
   variantCount,
   onPreviousVariant,
-  onNextVariant
+  onNextVariant,
 }: MessageBubbleProps) {
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
-  const touchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const touchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isUser = role === "USER";
+  const hasVariants = !isUser && variantCount !== undefined && variantCount > 1 && variantIndex !== undefined;
 
   useEffect(() => {
     if (!menuPosition) return;
     const handleClose = () => setMenuPosition(null);
+    const handleEsc = (e: KeyboardEvent) => e.key === "Escape" && handleClose();
     window.addEventListener("click", handleClose);
     window.addEventListener("scroll", handleClose, { passive: true });
-    window.addEventListener("contextmenu", handleClose);
+    window.addEventListener("keydown", handleEsc);
     return () => {
       window.removeEventListener("click", handleClose);
       window.removeEventListener("scroll", handleClose);
-      window.removeEventListener("contextmenu", handleClose);
+      window.removeEventListener("keydown", handleEsc);
     };
   }, [menuPosition]);
 
   if (role === "SYSTEM") {
-    return <p className="text-center text-xs italic text-[var(--text-muted)]">{content}</p>;
+    return (
+      <p className="text-center text-xs italic text-[var(--text-muted)] px-4 py-2">
+        {content}
+      </p>
+    );
   }
-
-  const isUser = role === "USER";
-  const hasVariants = !isUser && variantCount !== undefined && variantCount > 1 && variantIndex !== undefined;
 
   function edit() {
     const next = window.prompt("Edit message", content);
@@ -69,22 +80,23 @@ export function MessageBubble({
 
   async function report() {
     const details = window.prompt("Report details", "Problematic message");
-    if (details === null) {
-      return;
-    }
+    if (details === null) return;
 
-    const response = await fetch(`/api/messages/${id}/report`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ reason: "Message report", details })
-    });
+    try {
+      const response = await fetch(`/api/messages/${id}/report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: "Message report", details }),
+      });
 
-    if (!response.ok) {
+      if (!response.ok) {
+        window.alert("Could not submit report.");
+        return;
+      }
+      window.alert("Report submitted.");
+    } catch {
       window.alert("Could not submit report.");
-      return;
     }
-
-    window.alert("Report submitted.");
   }
 
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -96,14 +108,14 @@ export function MessageBubble({
     const touch = e.touches[0];
     const x = touch.clientX;
     const y = touch.clientY;
-    
+
     if (touchTimerRef.current) {
       clearTimeout(touchTimerRef.current);
     }
-    
+
     touchTimerRef.current = setTimeout(() => {
       setMenuPosition({ x, y });
-    }, 600);
+    }, 500);
   };
 
   const handleTouchEnd = () => {
@@ -116,186 +128,109 @@ export function MessageBubble({
   const copyToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(content);
-    } catch (err) {
-      console.error("Failed to copy text:", err);
+    } catch {
+      window.alert("Failed to copy text");
     }
   };
-
-  const getMenuCoords = () => {
-    if (!menuPosition) return { top: 0, left: 0 };
-    const menuWidth = 160;
-    const menuHeight = 240;
-    
-    let left = menuPosition.x;
-    let top = menuPosition.y;
-
-    if (typeof window !== "undefined") {
-      if (left + menuWidth > window.innerWidth) {
-        left = window.innerWidth - menuWidth - 12;
-      }
-      if (top + menuHeight > window.innerHeight) {
-        top = window.innerHeight - menuHeight - 12;
-      }
-    }
-
-    return { top, left };
-  };
-
-  const coords = getMenuCoords();
 
   return (
     <div
-      className={cn("group flex message-enter relative", isUser ? "justify-end" : "justify-start")}
+      className={cn("group flex message-enter relative w-full", isUser ? "justify-end" : "justify-start")}
       onContextMenu={handleContextMenu}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchEnd}
     >
-      <div className={cn("max-w-[92%] sm:max-w-[78%]", isUser ? "items-end" : "items-start")}>
-        <div className={cn("whitespace-pre-wrap break-words select-text", isUser ? "bubble-user max-w-full" : "bubble-char max-w-full")}>
-          {content ? <RichMessageText text={content} /> : <TypingIndicator />}
-        </div>
-        {content ? (
-          <div className={cn("mt-1 flex gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100", isUser ? "justify-end" : "justify-start")}>
-            {isUser ? (
-              <ActionButton label="Edit" onClick={edit}>
-                <Pencil className="h-3.5 w-3.5" />
-              </ActionButton>
-            ) : (
-              <>
-                <ActionButton label="Continue" onClick={() => onContinue?.()}>
-                  <ChevronsRight className="h-3.5 w-3.5" />
-                </ActionButton>
-                <ActionButton label="Regenerate" onClick={() => onRegenerate?.(id)}>
-                  <RefreshCcw className="h-3.5 w-3.5" />
-                </ActionButton>
-              </>
+      <div className="flex max-w-[75%]">
+        <div className={cn("flex flex-col", isUser ? "items-end" : "items-start", "w-full max-w-full")}>
+          <div
+            className={cn(
+              "bubble-char relative w-full max-w-full",
+              isUser && "bubble-user"
             )}
-            {hasVariants ? (
-              <span className="flex h-8 items-center gap-1 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-1.5 text-xs text-[var(--text-secondary)] shadow-[var(--glass-highlight)] backdrop-blur-xl">
-                <ActionButton label="Previous attempt" onClick={() => onPreviousVariant?.()} disabled={variantIndex <= 0} compact>
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                </ActionButton>
-                <span className="min-w-9 text-center">{variantIndex + 1}/{variantCount}</span>
-                <ActionButton label="Next attempt" onClick={() => onNextVariant?.()} disabled={variantIndex >= variantCount - 1} compact>
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </ActionButton>
+          >
+            {isPinned && (
+              <span className="absolute -top-2 -right-2 text-[var(--accent-purple)] text-xs">
+                📌
               </span>
-            ) : null}
-            <ActionButton label="Branch" onClick={() => onBranch?.(id)}>
-              <GitBranch className="h-3.5 w-3.5" />
-            </ActionButton>
-            <ActionButton label="Report" onClick={report}>
-              <Flag className="h-3.5 w-3.5" />
-            </ActionButton>
-            <ActionButton label="Delete" onClick={() => onDelete?.(id)} destructive>
-              <Trash2 className="h-3.5 w-3.5" />
-            </ActionButton>
+            )}
+            {content ? <RichMessageText text={content} /> : <TypingIndicator />}
           </div>
-        ) : null}
+
+          {content ? (
+            <div
+              className={cn(
+                "mt-1 flex gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100",
+                isUser ? "justify-end" : "justify-start"
+              )}
+            >
+              {isUser ? (
+                <ActionButton label="Edit" onClick={edit}>
+                  <Pencil className="h-3.5 w-3.5" />
+                </ActionButton>
+              ) : (
+                <>
+                  <ActionButton label="Continue" onClick={() => onContinue?.()}>
+                    <RefreshCcw className="h-3.5 w-3.5 rotate-90" />
+                  </ActionButton>
+                  <ActionButton label="Regenerate" onClick={() => onRegenerate?.(id)}>
+                    <RefreshCcw className="h-3.5 w-3.5" />
+                  </ActionButton>
+                </>
+              )}
+              {hasVariants && (
+                <span className="flex h-8 items-center gap-1 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-1.5 text-xs text-[var(--text-secondary)] shadow-[var(--glass-highlight)] backdrop-blur-xl">
+                  <ActionButton
+                    label="Previous attempt"
+                    onClick={() => onPreviousVariant?.()}
+                    disabled={variantIndex <= 0}
+                    compact
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </ActionButton>
+                  <span className="min-w-9 text-center">
+                    {variantIndex! + 1}/{variantCount}
+                  </span>
+                  <ActionButton
+                    label="Next attempt"
+                    onClick={() => onNextVariant?.()}
+                    disabled={variantIndex >= variantCount! - 1}
+                    compact
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </ActionButton>
+                </span>
+              )}
+              <ActionButton label="Branch" onClick={() => onBranch?.(id)}>
+                <GitBranch className="h-3.5 w-3.5" />
+              </ActionButton>
+              <ActionButton label="Report" onClick={report}>
+                <Flag className="h-3.5 w-3.5" />
+              </ActionButton>
+              <ActionButton label="Delete" onClick={() => onDelete?.(id)} destructive>
+                <Trash2 className="h-3.5 w-3.5" />
+              </ActionButton>
+            </div>
+          ) : null}
+        </div>
       </div>
+
       <span className="sr-only">{isUser ? "You" : characterName}</span>
 
       {menuPosition && (
-        <div
-          style={{
-            position: "fixed",
-            top: `${coords.top}px`,
-            left: `${coords.left}px`,
-          }}
-          className="z-[9999] flex w-[160px] flex-col gap-0.5 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-1 shadow-2xl backdrop-blur-xl animate-fade-in"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            type="button"
-            onClick={() => {
-              void copyToClipboard();
-              setMenuPosition(null);
-            }}
-            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-white/[0.055] transition-colors"
-          >
-            <Copy className="h-4 w-4 text-[var(--text-secondary)]" />
-            Copy
-          </button>
-
-          {isUser && (
-            <button
-              type="button"
-              onClick={() => {
-                edit();
-                setMenuPosition(null);
-              }}
-              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-white/[0.055] transition-colors"
-            >
-              <Pencil className="h-4 w-4 text-[var(--text-secondary)]" />
-              Edit
-            </button>
-          )}
-
-          {!isUser && (
-            <button
-              type="button"
-              onClick={() => {
-                onContinue?.();
-                setMenuPosition(null);
-              }}
-              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-white/[0.055] transition-colors"
-            >
-              <ChevronsRight className="h-4 w-4 text-[var(--text-secondary)]" />
-              Continue
-            </button>
-          )}
-
-          {!isUser && (
-            <button
-              type="button"
-              onClick={() => {
-                onRegenerate?.(id);
-                setMenuPosition(null);
-              }}
-              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-white/[0.055] transition-colors"
-            >
-              <RefreshCcw className="h-4 w-4 text-[var(--text-secondary)]" />
-              Regenerate
-            </button>
-          )}
-
-          <button
-            type="button"
-            onClick={() => {
-              onRewind?.(id);
-              setMenuPosition(null);
-            }}
-            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-white/[0.055] transition-colors"
-          >
-            <History className="h-4 w-4 text-[var(--text-secondary)]" />
-            Rewind
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              onBranch?.(id);
-              setMenuPosition(null);
-            }}
-            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-white/[0.055] transition-colors"
-          >
-            <GitBranch className="h-4 w-4 text-[var(--text-secondary)]" />
-            Branch
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              onDelete?.(id);
-              setMenuPosition(null);
-            }}
-            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs text-red-400 hover:bg-red-500/10 hover:text-red-200 transition-colors"
-          >
-            <Trash2 className="h-4 w-4 text-red-400" />
-            Delete
-          </button>
-        </div>
+        <MessageContextMenu
+          isOpen
+          position={menuPosition}
+          onClose={() => setMenuPosition(null)}
+          onCopy={copyToClipboard}
+          onEdit={isUser ? edit : undefined}
+          onRegenerate={!isUser ? () => onRegenerate?.(id) : undefined}
+          onRewind={() => onRewind?.(id)}
+          onPin={onPin ? () => onPin(id) : undefined}
+          onDelete={() => onDelete?.(id)}
+          isUserMessage={isUser}
+          isPinned={isPinned}
+        />
       )}
     </div>
   );
@@ -307,7 +242,7 @@ function ActionButton({
   destructive,
   onClick,
   disabled,
-  compact
+  compact,
 }: {
   label: string;
   children: React.ReactNode;
@@ -324,9 +259,11 @@ function ActionButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "focus-ring grid place-items-center rounded-full text-[var(--text-secondary)] transition-colors hover:bg-white/[0.06] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-35",
-        compact ? "h-5 w-5 border-0 bg-transparent" : "h-8 w-8 border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--glass-highlight)] backdrop-blur-xl",
-        destructive && "hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-200"
+        "focus-ring grid place-items-center rounded-full text-[var(--text-secondary)] transition-all duration-150 hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-35",
+        compact
+          ? "h-5 w-5 border-0 bg-transparent"
+          : "h-8 w-8 border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--glass-highlight)] backdrop-blur-xl",
+        destructive && "hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-200 focus:ring-red-400/30"
       )}
     >
       {children}

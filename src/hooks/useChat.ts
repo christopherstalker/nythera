@@ -8,6 +8,7 @@ export type ChatMessage = {
   content: string;
   createdAt?: string;
   clientRequestId?: string | null;
+  pinned?: boolean;
 };
 
 type SendOptions = {
@@ -244,7 +245,51 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
     [chatId]
   );
 
-  return { messages, isStreaming, error, send, editMessage, deleteMessage, rewindToMessage, branchFromMessage };
+  const pinMessage = useCallback(async (messageId: string) => {
+    const response = await fetch(`/api/messages?id=${encodeURIComponent(messageId)}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ pinned: true })
+    });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      setError(body?.error ?? "Could not pin message.");
+      return;
+    }
+
+    const body = await response.json();
+    setMessages((current) => current.map((message) => (message.id === messageId ? body.message : message)));
+  }, []);
+
+  const unpinMessage = useCallback(async (messageId: string) => {
+    const response = await fetch(`/api/messages?id=${encodeURIComponent(messageId)}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ pinned: false })
+    });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      setError(body?.error ?? "Could not unpin message.");
+      return;
+    }
+
+    const body = await response.json();
+    setMessages((current) => current.map((message) => (message.id === messageId ? body.message : message)));
+  }, []);
+
+  const togglePin = useCallback(async (messageId: string) => {
+    const message = messages.find((m) => m.id === messageId);
+    if (!message) return;
+    if (message.pinned) {
+      await unpinMessage(messageId);
+    } else {
+      await pinMessage(messageId);
+    }
+  }, [messages, pinMessage, unpinMessage]);
+
+  return { messages, isStreaming, error, send, editMessage, deleteMessage, rewindToMessage, branchFromMessage, pinMessage, unpinMessage, togglePin };
 }
 
 function createRequestId() {
