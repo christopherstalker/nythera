@@ -1,4 +1,5 @@
 import { MessageRole } from "@prisma/client";
+import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { HttpError, getRequestIp, parseJson, requireUser, routeError } from "@/lib/api";
 import { enforceRateLimit } from "@/lib/rate-limit";
@@ -213,7 +214,8 @@ export async function POST(request: Request, context: Context) {
             content: assistantText,
             model: usage.model,
             tokens: usage.outputTokens,
-            flagged: outputBlocked
+            flagged: outputBlocked,
+            clientRequestId: continueChat ? `continue-${input.requestId || crypto.randomUUID()}` : undefined
           });
           assistantPersisted = true;
           const nextTitle =

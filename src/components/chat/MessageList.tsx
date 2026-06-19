@@ -149,7 +149,11 @@ function buildDisplayItems(messages: ChatMessage[]): DisplayItem[] {
 
     const variants = [message];
     let nextIndex = index + 1;
-    while (nextIndex < messages.length && messages[nextIndex].role === "ASSISTANT") {
+    while (
+      nextIndex < messages.length &&
+      messages[nextIndex].role === "ASSISTANT" &&
+      !messages[nextIndex].clientRequestId?.startsWith("continue-")
+    ) {
       variants.push(messages[nextIndex]);
       nextIndex += 1;
     }

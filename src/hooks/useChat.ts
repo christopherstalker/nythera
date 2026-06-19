@@ -7,6 +7,7 @@ export type ChatMessage = {
   role: "USER" | "ASSISTANT" | "SYSTEM";
   content: string;
   createdAt?: string;
+  clientRequestId?: string | null;
 };
 
 type SendOptions = {
@@ -57,7 +58,8 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
       const assistantMessage: ChatMessage = {
         id: `local-assistant-${requestId}`,
         role: "ASSISTANT",
-        content: ""
+        content: "",
+        clientRequestId: isContinuation ? `continue-${requestId}` : undefined
       };
 
       setMessages((current) => {

@@ -1,4 +1,5 @@
 import { MessageRole } from "@prisma/client";
+import crypto from "crypto";
 import { getRequestIp, HttpError, json, parseJson, routeError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireMobileUser } from "@/lib/mobile-auth";
@@ -183,7 +184,8 @@ export async function POST(request: Request, context: Context) {
       content: assistantText,
       model: usage.model,
       tokens: usage.outputTokens,
-      flagged: outputBlocked
+      flagged: outputBlocked,
+      clientRequestId: continueChat ? `continue-${input.requestId || crypto.randomUUID()}` : undefined
     });
 
     const nextTitle =

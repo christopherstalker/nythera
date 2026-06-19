@@ -385,6 +385,7 @@
     @apply border border-[var(--border-default)] bg-[var(--bg-elevated)] shadow-[var(--shadow-soft)] backdrop-blur-xl transition duration-200;
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-soft), var(--glass-highlight);
+    overflow: hidden;
   }
 
   .glass-card-hover {
@@ -517,6 +518,13 @@
 @layer utilities {
   .text-character {
     letter-spacing: 0;
+  }
+
+  .line-clamp-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   .line-clamp-2 {
