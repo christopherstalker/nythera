@@ -32,3 +32,36 @@ test("static and dynamic favicons use the supplied geometric N mark without a wo
   assert.match(appearance, new RegExp(markPath));
   assert.doesNotMatch(publicIcon, /<text|AI ROLEPLAY PLATFORM/i);
 });
+
+test("install icons use cache-busting URLs and a fresh service-worker cache", async () => {
+  const sources = await Promise.all(
+    [
+      "../src/app/manifest.ts",
+      "../src/app/layout.tsx",
+      "../src/app/(main)/download/page.tsx",
+      "../src/components/pwa/mobile-install-prompt.tsx",
+      "../public/offline.html"
+    ].map((path) => readFile(new URL(path, import.meta.url), "utf8"))
+  );
+  const serviceWorker = await readFile(new URL("../public/sw.js", import.meta.url), "utf8");
+  const combined = sources.join("\n");
+
+  assert.match(combined, /\/icons\/nythera-n-v2-192\.png/);
+  assert.match(combined, /\/icons\/nythera-n-v2-512\.png/);
+  assert.match(combined, /\/icons\/nythera-n-v2-apple-180\.png/);
+  assert.doesNotMatch(combined, /\/icons\/(?:icon-192|icon-512|apple-touch-icon)\.png/);
+  assert.match(serviceWorker, /nythera-v8/);
+  assert.match(serviceWorker, /\/icons\/nythera-n-v2-maskable-512\.png/);
+
+  const fixtures = [
+    ["../public/icons/nythera-n-v2-192.png", 192],
+    ["../public/icons/nythera-n-v2-512.png", 512],
+    ["../public/icons/nythera-n-v2-maskable-512.png", 512],
+    ["../public/icons/nythera-n-v2-apple-180.png", 180]
+  ] as const;
+
+  for (const [path, expectedSize] of fixtures) {
+    const image = await readFile(new URL(path, import.meta.url));
+    assert.deepEqual(pngSize(image), { width: expectedSize, height: expectedSize });
+  }
+});

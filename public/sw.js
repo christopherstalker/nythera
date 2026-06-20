@@ -1,10 +1,10 @@
-const CACHE_NAME = "nythera-v7";
+const CACHE_NAME = "nythera-v8";
 const CORE_ASSETS = [
   "/offline.html",
   "/icon.svg",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png",
-  "/icons/maskable-512.png",
+  "/icons/nythera-n-v2-192.png",
+  "/icons/nythera-n-v2-512.png",
+  "/icons/nythera-n-v2-maskable-512.png",
   "/manifest.webmanifest"
 ];
 
