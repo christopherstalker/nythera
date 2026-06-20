@@ -182,6 +182,7 @@ model Chat {
   title        String?
   temperature  Float     @default(0.7)
   model        String    @default("gpt-4o-mini")
+  responsePrompt String?  @db.Text
   messageCount Int       @default(0)
   summary      String?   @db.Text
   archivedAt   DateTime?

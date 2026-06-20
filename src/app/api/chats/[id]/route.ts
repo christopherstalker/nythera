@@ -64,6 +64,7 @@ export async function PATCH(request: Request, context: Context) {
           archivedAt: input.archived === undefined ? undefined : input.archived ? new Date() : null,
           temperature: input.temperature,
           model: input.model,
+          responsePrompt: input.responsePrompt === undefined ? undefined : input.responsePrompt || null,
           lastActiveAt: new Date()
         }
       }),

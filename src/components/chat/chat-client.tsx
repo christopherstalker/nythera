@@ -19,6 +19,7 @@ type ChatClientProps = {
   summary?: string | null;
   model?: string | null;
   temperature?: number | null;
+  responsePrompt?: string | null;
   initialMessages: ChatMessage[];
 };
 
@@ -30,16 +31,17 @@ type SavedProviderKey = {
 
 const APP_DEFAULT_MODELS = new Set(["gpt-4o-mini", "gpt-3.5-turbo"]);
 
-export function ChatClient({ chatId, characterId, characterName, characterAvatarUrl, summary, model: initialModel, temperature: initialTemperature, initialMessages }: ChatClientProps) {
+export function ChatClient({ chatId, characterId, characterName, characterAvatarUrl, summary, model: initialModel, temperature: initialTemperature, responsePrompt: initialResponsePrompt, initialMessages }: ChatClientProps) {
   const [draft, setDraft] = useState("");
   const [model, setModel] = useState(initialModel || "gpt-4o-mini");
   const [activeRouteModel, setActiveRouteModel] = useState<string | null>(null);
   const [manualModelOverride, setManualModelOverride] = useState(false);
   const [temperature, setTemperature] = useState(initialTemperature ?? 0.7);
+  const [responsePrompt, setResponsePrompt] = useState(initialResponsePrompt ?? "");
   const [apiSaveStatus, setApiSaveStatus] = useState<string | null>(null);
   const [quickPanelOpen, setQuickPanelOpen] = useState(false);
   const [composerSheetOpen, setComposerSheetOpen] = useState(false);
-  const persistedApiRef = useRef({ model: initialModel || "gpt-4o-mini", temperature: initialTemperature ?? 0.7 });
+  const persistedApiRef = useRef({ model: initialModel || "gpt-4o-mini", temperature: initialTemperature ?? 0.7, responsePrompt: initialResponsePrompt ?? "" });
   const quickPanel = useChatQuickPanel({ chatId, characterId, enabled: true });
   const { messages, send, editMessage, deleteMessage, rewindToMessage, branchFromMessage, pinMessage, unpinMessage, isStreaming, error } = useChat(chatId, initialMessages);
   const setActiveChatId = useUiStore((state) => state.setActiveChatId);
@@ -49,11 +51,12 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
   useEffect(() => {
     setModel(initialModel || "gpt-4o-mini");
     setTemperature(initialTemperature ?? 0.7);
+    setResponsePrompt(initialResponsePrompt ?? "");
     setManualModelOverride(false);
     setActiveRouteModel(null);
     setApiSaveStatus(null);
-    persistedApiRef.current = { model: initialModel || "gpt-4o-mini", temperature: initialTemperature ?? 0.7 };
-  }, [chatId, initialModel, initialTemperature]);
+    persistedApiRef.current = { model: initialModel || "gpt-4o-mini", temperature: initialTemperature ?? 0.7, responsePrompt: initialResponsePrompt ?? "" };
+  }, [chatId, initialModel, initialResponsePrompt, initialTemperature]);
 
   useEffect(() => {
     setActiveChatId(chatId);
@@ -67,8 +70,9 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
   useEffect(() => {
     const nextModel = model.trim() || "gpt-4o-mini";
     const nextTemperature = Number.isFinite(temperature) ? temperature : 0.7;
+    const nextResponsePrompt = responsePrompt.trim();
     const persisted = persistedApiRef.current;
-    if (persisted.model === nextModel && persisted.temperature === nextTemperature) {
+    if (persisted.model === nextModel && persisted.temperature === nextTemperature && persisted.responsePrompt === nextResponsePrompt) {
       return;
     }
 
@@ -78,14 +82,14 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
       fetch(`/api/chats/${chatId}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ model: nextModel, temperature: nextTemperature }),
+        body: JSON.stringify({ model: nextModel, temperature: nextTemperature, responsePrompt: nextResponsePrompt }),
         signal: controller.signal
       })
         .then((response) => {
           if (!response.ok) {
             throw new Error("Could not save API settings.");
           }
-          persistedApiRef.current = { model: nextModel, temperature: nextTemperature };
+          persistedApiRef.current = { model: nextModel, temperature: nextTemperature, responsePrompt: nextResponsePrompt };
           setApiSaveStatus("API settings saved.");
         })
         .catch((error) => {
@@ -99,7 +103,7 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
       window.clearTimeout(timeout);
       controller.abort();
     };
-  }, [chatId, model, temperature]);
+  }, [chatId, model, responsePrompt, temperature]);
 
   useEffect(() => {
     // Streaming state subtly raises brand glow without changing chat/proxy behavior.
@@ -148,7 +152,7 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
     }
 
     setDraft("");
-    void send(content, { model, temperature });
+    void send(content, { model, temperature, responsePrompt });
   }
 
   function continueChat() {
@@ -156,7 +160,7 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
       return;
     }
 
-    void send("", { model, temperature, continueChat: true });
+    void send("", { model, temperature, responsePrompt, continueChat: true });
   }
 
   function regenerate(assistantMessageId: string) {
@@ -173,6 +177,7 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
     void send(previousUser.content, {
       model,
       temperature,
+      responsePrompt,
       regenerate: true,
       replaceAssistantId: assistantMessageId
     });
@@ -270,6 +275,8 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
             temperature={temperature}
             onModelChange={handleModelChange}
             onTemperatureChange={setTemperature}
+            responsePrompt={responsePrompt}
+            onResponsePromptChange={setResponsePrompt}
             apiStatus={apiSaveStatus}
             personaName={quickPanel.activePersona?.displayName}
             personaAvatarUrl={quickPanel.activePersona?.avatarUrl}

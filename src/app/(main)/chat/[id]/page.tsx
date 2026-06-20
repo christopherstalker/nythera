@@ -12,6 +12,7 @@ type Chat = {
   summary?: string | null;
   model?: string | null;
   temperature?: number | null;
+  responsePrompt?: string | null;
   character: {
     id: string;
     name: string;
@@ -77,6 +78,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       summary={chat.summary}
       model={chat.model}
       temperature={chat.temperature}
+      responsePrompt={chat.responsePrompt}
       initialMessages={chat.messages}
     />
   );

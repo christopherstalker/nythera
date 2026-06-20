@@ -15,6 +15,7 @@ export type ChatMessage = {
 type SendOptions = {
   model?: string;
   temperature?: number;
+  responsePrompt?: string;
   regenerate?: boolean;
   continueChat?: boolean;
   replaceAssistantId?: string;
@@ -83,6 +84,7 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
             message: trimmedContent,
             model: options?.model,
             temperature: options?.temperature,
+            responsePrompt: options?.responsePrompt,
             requestId,
             regenerate: options?.regenerate,
             continueChat: isContinuation

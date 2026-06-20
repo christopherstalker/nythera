@@ -136,6 +136,7 @@ export async function POST(request: Request, context: Context) {
       summary: chat.summary,
       recentMessages,
       currentMessage: message,
+      responsePrompt: input.responsePrompt ?? chat.responsePrompt,
       injectionAssessment
     });
 
@@ -238,6 +239,7 @@ export async function POST(request: Request, context: Context) {
               title: nextTitle,
               model,
               temperature,
+              responsePrompt: input.responsePrompt === undefined ? undefined : input.responsePrompt || null,
               lastActiveAt: new Date(),
               updatedAt: new Date()
             },

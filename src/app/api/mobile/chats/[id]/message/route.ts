@@ -119,6 +119,7 @@ export async function POST(request: Request, context: Context) {
       summary: chat.summary,
       recentMessages: [...chat.messages].reverse(),
       currentMessage: message,
+      responsePrompt: chat.responsePrompt,
       injectionAssessment
     });
 

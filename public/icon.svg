@@ -1,42 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Nythera">
   <defs>
-    <linearGradient id="ny-edge" x1="96" y1="88" x2="416" y2="424" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FFD08A"/>
-      <stop offset="0.42" stop-color="#FF7A18"/>
-      <stop offset="1" stop-color="#B43C07"/>
-    </linearGradient>
-    <radialGradient id="ny-core" cx="256" cy="252" r="44" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FFF7ED"/>
-      <stop offset="0.45" stop-color="#FFB347"/>
-      <stop offset="1" stop-color="#FF7A18" stop-opacity="0"/>
+    <radialGradient id="background" cx="50%" cy="42%" r="72%">
+      <stop stop-color="#0D1019"/>
+      <stop offset="1" stop-color="#03050B"/>
     </radialGradient>
-    <filter id="ny-glow" x="-35%" y="-35%" width="170%" height="170%">
-      <feGaussianBlur stdDeviation="10" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
+    <linearGradient id="mark" x1="112" y1="104" x2="392" y2="414" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF5A0A"/>
+      <stop offset="0.5" stop-color="#FF7A18"/>
+      <stop offset="1" stop-color="#FFB52E"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="9"/>
     </filter>
   </defs>
-  <rect width="512" height="512" rx="108" fill="#0B0B12"/>
-  <g opacity="0.18" stroke="#FF7A18" stroke-width="1.5">
-    <path d="M64 128h384M64 256h384M64 384h384M128 64v384M256 64v384M384 64v384"/>
-  </g>
-  <circle cx="256" cy="252" r="132" fill="#FF7A18" opacity="0.1"/>
-  <g fill="none" stroke="#FF7A18" stroke-linecap="round" stroke-linejoin="round" opacity="0.55">
-    <path stroke-width="2.5" d="M176 168v176M176 168l160 176M336 168v176"/>
-    <path stroke-width="5" stroke="url(#ny-edge)" filter="url(#ny-glow)" d="M168 160v192M168 160l176 192M344 160v192"/>
-    <path stroke-width="2" d="M168 160v192M168 160l176 192M344 160v192"/>
-  </g>
-  <g stroke="#FF7A18" stroke-width="2.2" opacity="0.7">
-    <path d="M196 196h24M292 292h24M196 316v-24M316 196v24"/>
-    <circle cx="208" cy="208" r="5" fill="#FF7A18" stroke="none"/>
-    <circle cx="304" cy="304" r="5" fill="#FF7A18" stroke="none"/>
-    <circle cx="220" cy="332" r="4" fill="#FFB347" stroke="none"/>
-    <circle cx="332" cy="220" r="4" fill="#FFB347" stroke="none"/>
-  </g>
-  <circle cx="256" cy="252" r="38" fill="url(#ny-core)" opacity="0.95"/>
-  <circle cx="256" cy="252" r="24" fill="none" stroke="#FF7A18" stroke-width="2.5" opacity="0.85"/>
-  <circle cx="256" cy="252" r="12" fill="none" stroke="#FFD08A" stroke-width="2" opacity="0.9"/>
-  <circle cx="256" cy="252" r="5" fill="#FFF7ED"/>
+  <rect width="512" height="512" rx="92" fill="url(#background)"/>
+  <path d="M112 104L326 282V148L392 198V414L178 236V370L112 320Z" fill="#FF7A18" opacity="0.34" filter="url(#glow)"/>
+  <path d="M112 104L326 282V148L392 198V414L178 236V370L112 320Z" fill="url(#mark)"/>
 </svg>

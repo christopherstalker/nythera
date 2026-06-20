@@ -9,6 +9,7 @@ import {
   type PromptInjectionAssessment
 } from "@/lib/prompt-security";
 import type { PromptMessage, RetrievedMemory } from "@/types";
+import { buildResponsePromptLayer } from "@/lib/response-prompt";
 
 type PromptCharacter = Pick<Character, "name" | "description" | "personality" | "scenario" | "greeting" | "communicationStyle" | "persona">;
 
@@ -22,11 +23,13 @@ export function assembleNytheraPrompt(input: {
   shortTermLimit?: number;
   memoryLimit?: number;
   userPersona?: string | null;
+  responsePrompt?: string | null;
 }): PromptMessage[] {
   const persona = resolveCharacterPersona(input.character);
   const safetyLayer = buildSystemSafetyLayer(input.injectionAssessment);
   const personaLayer = buildPersonaLayer(persona);
   const scenarioLayer = buildScenarioLayer(input.character);
+  const responsePromptLayer = input.responsePrompt?.trim() ? buildResponsePromptLayer(input.responsePrompt) : null;
   const memoryLayer = buildLongTermMemoryLayer(input.memories, input.userPersona, input.memoryLimit ?? 8);
   const summaryLayer = buildSummaryLayer(input.summary);
 
@@ -47,6 +50,7 @@ export function assembleNytheraPrompt(input: {
     { role: "system", content: safetyLayer },
     { role: "system", content: personaLayer },
     { role: "system", content: scenarioLayer },
+    ...(responsePromptLayer ? [{ role: "system" as const, content: responsePromptLayer }] : []),
     { role: "system", content: memoryLayer },
     { role: "system", content: summaryLayer },
     ...recent,
@@ -140,4 +144,3 @@ function takeShortTermMessages(messages: Pick<Message, "role" | "content">[], li
   const sanitizedLimit = Math.max(20, Math.min(limit, 40));
   return messages.slice(-sanitizedLimit);
 }
-

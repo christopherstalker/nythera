@@ -75,7 +75,8 @@ export const chatUpdateSchema = z.object({
   title: z.string().max(120).optional(),
   archived: z.boolean().optional(),
   temperature: z.coerce.number().min(0).max(2).optional(),
-  model: z.string().max(160).optional()
+  model: z.string().max(160).optional(),
+  responsePrompt: z.string().trim().max(2000).optional()
 });
 
 export const streamMessageSchema = z
@@ -83,6 +84,7 @@ export const streamMessageSchema = z
     message: z.string().max(4000).optional().default(""),
     temperature: z.coerce.number().min(0).max(2).optional(),
     model: z.string().max(160).optional(),
+    responsePrompt: z.string().trim().max(2000).optional(),
     requestId: z.string().min(8).max(120).optional(),
     regenerate: z.boolean().optional(),
     continueChat: z.boolean().optional()

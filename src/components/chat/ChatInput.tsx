@@ -3,6 +3,7 @@
 import { KeyboardEvent, useEffect, useRef, useState } from "react";
 import { ArrowUp, ChevronsRight, SlidersHorizontal } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
+import { RESPONSE_PROMPT_EXAMPLES } from "@/lib/response-prompt";
 
 type ChatInputProps = {
   value: string;
@@ -13,6 +14,8 @@ type ChatInputProps = {
   temperature?: number;
   onModelChange?: (value: string) => void;
   onTemperatureChange?: (value: number) => void;
+  responsePrompt?: string;
+  onResponsePromptChange?: (value: string) => void;
   apiStatus?: string | null;
   personaName?: string | null;
   personaAvatarUrl?: string | null;
@@ -28,6 +31,8 @@ export function ChatInput({
   temperature,
   onModelChange,
   onTemperatureChange,
+  responsePrompt,
+  onResponsePromptChange,
   apiStatus,
   personaName,
   personaAvatarUrl,
@@ -58,7 +63,7 @@ export function ChatInput({
   }
 
   const canSend = !disabled && Boolean(value.trim());
-  const hasApiControls = Boolean(onModelChange || onTemperatureChange);
+  const hasApiControls = Boolean(onModelChange || onTemperatureChange || onResponsePromptChange);
   const currentTemperature = temperature ?? 0.7;
 
   return (
@@ -98,6 +103,36 @@ export function ChatInput({
                   onChange={(event) => onTemperatureChange(Math.min(2, Math.max(0, Number(event.target.value) || 0)))}
                   className="w-14 rounded-lg border border-[var(--border-default)] bg-transparent px-1.5 py-1 text-right text-[var(--text-primary)] outline-none"
                 />
+              </span>
+            </label>
+          ) : null}
+          {onResponsePromptChange ? (
+            <label className="grid gap-1.5 sm:col-span-2">
+              <span className="flex items-center justify-between gap-3 px-1 text-[11px] font-medium uppercase text-[var(--text-muted)]">
+                <span>Response instructions</span>
+                <span>{(responsePrompt ?? "").length}/2000</span>
+              </span>
+              <textarea
+                value={responsePrompt ?? ""}
+                onChange={(event) => onResponsePromptChange(event.target.value.slice(0, 2000))}
+                placeholder="Example: Write 2–4 immersive paragraphs, lead with dialogue, and never narrate my actions."
+                rows={3}
+                className="focus-ring glass-input min-h-20 resize-y rounded-[var(--radius-md)] px-3 py-2 text-xs leading-5 focus:border-[var(--accent-purple)]"
+              />
+              <p className="px-1 text-xs leading-5 text-[var(--text-muted)]">
+                Tip: specify reply length, point of view, pacing, dialogue/action balance, or formatting. Character and safety rules always stay in control.
+              </p>
+              <span className="flex flex-wrap gap-1.5 px-1">
+                {RESPONSE_PROMPT_EXAMPLES.map((example) => (
+                  <button
+                    key={example.label}
+                    type="button"
+                    onClick={() => onResponsePromptChange(example.prompt)}
+                    className="focus-ring rounded-full border border-[var(--border-default)] bg-[var(--bg-elevated)] px-2.5 py-1 text-xs text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
+                  >
+                    {example.label}
+                  </button>
+                ))}
               </span>
             </label>
           ) : null}
