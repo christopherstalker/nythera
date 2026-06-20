@@ -42,10 +42,10 @@ export const metadata: Metadata = {
     description: "AI roleplay platform with persona, memory, and secure model access.",
     images: [
       {
-        url: "/og-image.png",
+        url: "/og-image-v2.png",
         width: 1200,
-        height: 1200,
-        alt: "Nythera — AI Roleplay Platform"
+        height: 630,
+        alt: "Nythera N logo"
       }
     ]
   },
@@ -53,7 +53,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Nythera",
     description: "AI roleplay platform with persona, memory, and secure model access.",
-    images: ["/og-image.png"]
+    images: ["/og-image-v2.png"]
   }
 };
 

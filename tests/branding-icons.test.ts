@@ -65,3 +65,17 @@ test("install icons use cache-busting URLs and a fresh service-worker cache", as
     assert.deepEqual(pngSize(image), { width: expectedSize, height: expectedSize });
   }
 });
+
+test("social previews use the N-focused landscape image and a versioned public URL", async () => {
+  const layout = await readFile(new URL("../src/app/layout.tsx", import.meta.url), "utf8");
+
+  assert.match(layout, /\/og-image-v2\.png/);
+  assert.doesNotMatch(layout, /["']\/og-image\.png["']/);
+
+  const publicImage = await readFile(new URL("../public/og-image-v2.png", import.meta.url));
+  const appImage = await readFile(new URL("../src/app/opengraph-image.png", import.meta.url));
+
+  assert.deepEqual(pngSize(publicImage), { width: 1200, height: 630 });
+  assert.deepEqual(pngSize(appImage), { width: 1200, height: 630 });
+  assert.ok(publicImage.equals(appImage));
+});
