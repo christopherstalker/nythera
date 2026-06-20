@@ -7,6 +7,7 @@ import type { ChatMessage } from "@/hooks/useChat";
 type MessageListProps = {
   messages: ChatMessage[];
   characterName: string;
+  characterAvatarUrl?: string | null;
   summary?: string | null;
   error?: string | null;
   onEdit?: (messageId: string, content: string) => void;
@@ -18,7 +19,7 @@ type MessageListProps = {
   onPin?: (messageId: string) => void;
 };
 
-export function MessageList({ messages, characterName, summary, error, onEdit, onDelete, onRegenerate, onContinue, onRewind, onBranch, onPin }: MessageListProps) {
+export function MessageList({ messages, characterName, characterAvatarUrl, summary, error, onEdit, onDelete, onRegenerate, onContinue, onRewind, onBranch, onPin }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const nearBottomRef = useRef(true);
@@ -81,6 +82,7 @@ return (
                role={item.message.role}
                content={item.message.content}
                characterName={characterName}
+               characterAvatarUrl={characterAvatarUrl}
                isPinned={item.message.pinned}
                onEdit={onEdit}
                onDelete={onDelete}
@@ -103,6 +105,7 @@ return (
                 role={selected.role}
                 content={selected.content}
                 characterName={characterName}
+                characterAvatarUrl={characterAvatarUrl}
                 isPinned={selected.pinned}
                 onEdit={onEdit}
                 onDelete={onDelete}

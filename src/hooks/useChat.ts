@@ -187,8 +187,14 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
     }
 
     const body = await response.json();
-    setMessages((current) => current.map((message) => (message.id === messageId ? body.message : message)));
-  }, []);
+    const deletedIds = new Set<string>(Array.isArray(body.deletedMessageIds) ? body.deletedMessageIds : []);
+    setMessages((current) =>
+      current
+        .filter((message) => !deletedIds.has(message.id))
+        .map((message) => (message.id === messageId ? body.message : message))
+    );
+    await send(trimmed, { regenerate: true });
+  }, [send]);
 
   const deleteMessage = useCallback(async (messageId: string) => {
     const response = await fetch(`/api/messages?id=${encodeURIComponent(messageId)}`, { method: "DELETE" });

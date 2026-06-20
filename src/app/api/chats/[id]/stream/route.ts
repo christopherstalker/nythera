@@ -143,6 +143,7 @@ export async function POST(request: Request, context: Context) {
     let assistantText = "";
     let outputBlocked = false;
     let assistantPersisted = false;
+    let publicErrorMessage = "The model stream failed.";
     let usage: {
       inputTokens: number;
       outputTokens: number;
@@ -200,6 +201,7 @@ export async function POST(request: Request, context: Context) {
             }
 
             if (chunk.type === "error") {
+              publicErrorMessage = chunk.message;
               throw new Error(chunk.message);
             }
           }
@@ -336,7 +338,7 @@ export async function POST(request: Request, context: Context) {
             }
           });
 
-          send({ type: "error", message: "The model stream failed." });
+          send({ type: "error", message: publicErrorMessage });
         } finally {
           controller.close();
         }

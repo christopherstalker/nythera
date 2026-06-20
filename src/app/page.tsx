@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page";
 import { cn } from "@/lib/utils";
+import { toChatPreview } from "@/lib/chat-preview";
 
 type RecentChat = {
   id: string;
@@ -271,7 +272,7 @@ function RecentChatCard({ chat, featured = false }: { chat: RecentChat; featured
         <p className="truncate text-base font-semibold leading-6 tracking-tight text-white">{chat.character.name}</p>
         <p className="mt-0.5 truncate text-xs text-[var(--text-muted)]">{featured ? "Latest chat" : "Continue chat"}</p>
         <p className="mt-2 line-clamp-2 text-xs leading-5 text-[var(--text-secondary)]">
-          {chat.character.description || chat.messages[0]?.content || "Return to this character."}
+          {toChatPreview(chat.messages[0]?.content || chat.character.description || "Return to this character.")}
         </p>
       </div>
     </Link>

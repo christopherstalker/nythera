@@ -43,7 +43,7 @@ export async function GET(_request: Request, context: Context) {
       }
     }
 
-    const [liked, myRating] = session?.user?.id
+    const [liked, myRating, recentChat] = session?.user?.id
       ? await Promise.all([
           prisma.characterLike.findUnique({
             where: {
@@ -61,12 +61,22 @@ export async function GET(_request: Request, context: Context) {
                 characterId: character.id
               }
             }
+          }),
+          prisma.chat.findFirst({
+            where: {
+              userId: session.user.id,
+              characterId: character.id,
+              archivedAt: null
+            },
+            orderBy: [{ lastActiveAt: "desc" }, { updatedAt: "desc" }],
+            select: { id: true }
           })
         ])
-      : [null, null];
+      : [null, null, null];
 
     return json({
       character,
+      recentChat,
       viewer: {
         canEdit: Boolean(session?.user?.id && session.user.id === character.creatorId),
         liked: Boolean(liked),

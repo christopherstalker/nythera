@@ -6,6 +6,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
 import pino from "pino";
 import { z } from "zod";
+import { classifyProviderError } from "./provider-errors.js";
 
 type ChatMessage = {
   role: "system" | "user" | "assistant";
@@ -24,7 +25,7 @@ type ProviderKey = {
 type ProviderKeys = ProviderKey[];
 
 type GatewayRoute = {
-  provider: "openai" | "anthropic" | "gemini" | "openai-compatible" | "local";
+  provider: "openai" | "anthropic" | "gemini" | "openai-compatible";
   providerName: string;
   model: string;
   key?: ProviderKey;
@@ -189,6 +190,7 @@ app.post("/v1/chat/stream", async (request, response) => {
 
     const attemptLabels = attempts.slice(0, attempts.indexOf(attempt) + 1).map((item) => `${item.providerName}:${item.model}`);
     const streamedBeforeAttempt = streamed.length;
+    const attemptStarted = Date.now();
     try {
       const usage = await streamProvider({
         provider: attempt.provider,
@@ -229,14 +231,13 @@ app.post("/v1/chat/stream", async (request, response) => {
         response.end();
       }
       logger.info({
-        route: "chat",
+        event: "llm_provider_attempt",
         provider: attempt.providerName,
-        model: attempt.model,
         chatId: parsed.data.chatId,
         userId,
-        latencyMs: Date.now() - started,
-        inputTokens: usage.inputTokens,
-        outputTokens: usage.outputTokens || estimateTokens(streamed)
+        success: true,
+        statusCode: 200,
+        latencyMs: Date.now() - attemptStarted
       });
       return;
     } catch (error) {
@@ -246,11 +247,16 @@ app.post("/v1/chat/stream", async (request, response) => {
       }
 
       lastError = error;
+      const classified = classifyProviderError(error);
       logger.warn({
-        error: error instanceof Error ? error.message : String(error),
+        event: "llm_provider_attempt",
         provider: attempt.providerName,
-        model: attempt.model,
-        emittedAny: streamed.length > streamedBeforeAttempt
+        chatId: parsed.data.chatId,
+        userId,
+        success: false,
+        statusCode: classified.status,
+        errorCode: classified.code,
+        latencyMs: Date.now() - attemptStarted
       });
       if (streamed.length > streamedBeforeAttempt) {
         writeEvent({
@@ -260,13 +266,18 @@ app.post("/v1/chat/stream", async (request, response) => {
         response.end();
         return;
       }
+      if (!classified.retryable) {
+        writeEvent({ type: "error", message: classified.message });
+        response.end();
+        return;
+      }
       await delay(300);
     }
   }
 
   writeEvent({
     type: "error",
-    message: lastError instanceof Error ? lastError.message : "All model providers failed."
+    message: classifyProviderError(lastError).message
   });
   if (!clientClosed) {
     response.end();
@@ -280,10 +291,6 @@ app.listen(port, () => {
 function routeModel(requested: string, keys: ProviderKeys): GatewayRoute {
   const raw = requested.trim() || "gpt-4o-mini";
   const normalized = raw.toLowerCase();
-
-  if (normalized.includes("local")) {
-    return { provider: "local", providerName: "local", model: "local-dev-roleplay" };
-  }
 
   const explicit = parseExplicitProviderModel(raw, keys);
   if (explicit) {
@@ -322,7 +329,7 @@ function routeModel(requested: string, keys: ProviderKeys): GatewayRoute {
     return routeFromKey(defaultKey, defaultKey.defaultModel || raw);
   }
 
-  return { provider: "local", providerName: "local", model: "local-dev-roleplay" };
+  return { provider: "openai", providerName: "openai", model: raw };
 }
 
 function routeFromAvailableKey(keys: ProviderKeys) {
@@ -332,8 +339,6 @@ function routeFromAvailableKey(keys: ProviderKeys) {
 
 function fallbackRoutes(primary: GatewayRoute, keys: ProviderKeys) {
   const routes = keys.map((key) => routeFromKey(key, key.defaultModel || "gpt-4o-mini"));
-  routes.push({ provider: "local", providerName: "local", model: "local-dev-roleplay" });
-
   return routes.filter((route) => route.providerName !== primary.providerName || route.model !== primary.model);
 }
 
@@ -370,7 +375,7 @@ function routeFromKey(key: ProviderKey, model: string): GatewayRoute {
 }
 
 async function streamProvider(input: {
-  provider: "openai" | "anthropic" | "gemini" | "openai-compatible" | "local";
+  provider: "openai" | "anthropic" | "gemini" | "openai-compatible";
   model: string;
   messages: ChatMessage[];
   temperature: number;
@@ -412,7 +417,7 @@ async function streamProvider(input: {
     return streamGemini({ ...input, client });
   }
 
-  return streamLocal(input);
+  throw new Error(`${input.provider} is not configured.`);
 }
 
 function requireBaseUrl(key: ProviderKey) {
@@ -607,27 +612,6 @@ async function streamGemini(input: {
   return {
     inputTokens: estimateTokens(prompt),
     outputTokens: 0
-  };
-}
-
-async function streamLocal(input: {
-  messages: ChatMessage[];
-  writeDelta: (delta: string) => void;
-}) {
-  const final = input.messages.at(-1)?.content ?? "";
-  const text = `Local proxy fallback is active. I received: "${final.slice(
-    0,
-    180
-  )}". Add your own model key in Nythera settings to use live model streaming.`;
-
-  for (const part of text.split(/(\s+)/)) {
-    await delay(18);
-    input.writeDelta(part);
-  }
-
-  return {
-    inputTokens: estimateTokens(input.messages.map((message) => message.content).join("\n")),
-    outputTokens: estimateTokens(text)
   };
 }
 

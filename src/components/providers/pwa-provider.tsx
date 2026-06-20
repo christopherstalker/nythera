@@ -7,7 +7,7 @@ import {
   type BeforeInstallPromptEvent,
   PWA_MOBILE_DISMISS_KEY,
   PWA_SW_URL,
-  isIosDevice,
+  isIosSafari,
   isMobileDevice,
   isStandaloneDisplay
 } from "@/lib/pwa";
@@ -45,7 +45,7 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
     setDismissed(localStorage.getItem(PWA_MOBILE_DISMISS_KEY) === "true");
     setStandalone(isStandaloneDisplay());
     setMobile(isMobileDevice());
-    setIos(isIosDevice());
+    setIos(isIosSafari());
 
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();

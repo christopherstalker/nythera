@@ -47,6 +47,15 @@ export function isIosDevice() {
   );
 }
 
+export function isIosSafari() {
+  if (!isIosDevice()) {
+    return false;
+  }
+
+  const userAgent = navigator.userAgent;
+  return /Safari/i.test(userAgent) && !/(CriOS|FxiOS|EdgiOS|OPiOS)/i.test(userAgent);
+}
+
 export function isAndroidDevice() {
   if (typeof navigator === "undefined") {
     return false;

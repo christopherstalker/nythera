@@ -245,11 +245,12 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
           className="fixed inset-0 z-30 bg-black/35 backdrop-blur-[2px] xl:hidden"
         />
       ) : null}
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-2 px-2 pb-0 sm:gap-3 md:flex-row md:px-3 md:pb-3">
+      <div className="relative flex min-h-0 flex-1 flex-col gap-2 px-2 pb-0 sm:gap-3 md:flex-row md:px-3 md:pb-3">
         <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <MessageList
             messages={messages}
             characterName={characterName}
+            characterAvatarUrl={characterAvatarUrl}
             summary={summary}
             error={error}
             onEdit={editMessage}

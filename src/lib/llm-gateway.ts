@@ -3,7 +3,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
-import { sleep } from "@/lib/utils";
+import { classifyProviderError } from "@/lib/llm-provider-errors";
 import type { ProviderKey, ProviderKeys } from "@/lib/user-keys";
 import type { PromptMessage, StreamChunk } from "@/types";
 
@@ -16,11 +16,10 @@ type StreamInput = {
   providerKeys?: ProviderKeys;
 };
 
-const FALLBACK_MODEL = "local-dev-roleplay";
 const APP_DEFAULT_MODELS = new Set(["gpt-4o-mini", "gpt-3.5-turbo"]);
 
 type GatewayRoute = {
-  provider: "openai" | "anthropic" | "gemini" | "openai-compatible" | "local";
+  provider: "openai" | "anthropic" | "gemini" | "openai-compatible";
   providerName: string;
   model: string;
   key?: ProviderKey;
@@ -36,6 +35,7 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
 
   for (const [index, attempt] of attempts.entries()) {
     let emittedAny = false;
+    const attemptStarted = Date.now();
     attemptLabels.push(`${attempt.providerName}:${attempt.model}`);
     try {
       let outputText = "";
@@ -56,6 +56,16 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
         yield { type: "delta", text: delta };
       }
 
+      console.info({
+        event: "llm_provider_attempt",
+        provider: attempt.providerName,
+        userId: input.userId,
+        chatId: input.chatId,
+        success: true,
+        statusCode: 200,
+        latencyMs: Date.now() - attemptStarted
+      });
+
       yield {
         type: "usage",
         inputTokens: estimateTokens(input.messages.map((message) => message.content).join("\n")),
@@ -70,21 +80,30 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
       return;
     } catch (error) {
       lastError = error;
-      console.warn("Gateway provider attempt failed.", {
+      const classified = classifyProviderError(error);
+      console.warn({
+        event: "llm_provider_attempt",
         provider: attempt.providerName,
-        model: attempt.model,
-        emittedAny,
-        error: error instanceof Error ? error.message : String(error)
+        userId: input.userId,
+        chatId: input.chatId,
+        success: false,
+        statusCode: classified.status,
+        errorCode: classified.code,
+        latencyMs: Date.now() - attemptStarted
       });
       if (emittedAny) {
         yield { type: "error", message: "The model stream was interrupted." };
         return;
       }
+      if (!classified.retryable) {
+        yield { type: "error", message: classified.message };
+        return;
+      }
     }
   }
 
-  console.error("All gateway providers failed, using local fallback.", lastError);
-  yield* fallbackStream(input, started, attemptLabels);
+  const classified = classifyProviderError(lastError);
+  yield { type: "error", message: classified.message };
 }
 
 export async function createGatewayEmbedding(text: string, providerKeys?: ProviderKeys) {
@@ -113,10 +132,6 @@ export async function createGatewayEmbedding(text: string, providerKeys?: Provid
 function routeModel(requested: string, keys: ProviderKeys): GatewayRoute {
   const raw = requested.trim() || "gpt-4o-mini";
   const normalized = raw.toLowerCase();
-
-  if (normalized.includes("local")) {
-    return { provider: "local", providerName: "local", model: FALLBACK_MODEL };
-  }
 
   const explicit = parseExplicitProviderModel(raw, keys);
   if (explicit) {
@@ -155,7 +170,7 @@ function routeModel(requested: string, keys: ProviderKeys): GatewayRoute {
     return routeFromKey(defaultKey, defaultKey.defaultModel || raw);
   }
 
-  return { provider: "local", providerName: "local", model: FALLBACK_MODEL };
+  return { provider: "openai", providerName: "openai", model: raw };
 }
 
 function routeFromAvailableKey(keys: ProviderKeys) {
@@ -165,8 +180,6 @@ function routeFromAvailableKey(keys: ProviderKeys) {
 
 function fallbackRoutes(primary: GatewayRoute, keys: ProviderKeys) {
   const routes = keys.map((key) => routeFromKey(key, key.defaultModel || "gpt-4o-mini"));
-  routes.push({ provider: "local", providerName: "local", model: FALLBACK_MODEL });
-
   return routes.filter((route) => route.providerName !== primary.providerName || route.model !== primary.model);
 }
 
@@ -203,7 +216,7 @@ function routeFromKey(key: ProviderKey, model: string): GatewayRoute {
 }
 
 async function streamProvider(input: {
-  provider: "openai" | "anthropic" | "gemini" | "openai-compatible" | "local";
+  provider: "openai" | "anthropic" | "gemini" | "openai-compatible";
   model: string;
   messages: PromptMessage[];
   temperature: number;
@@ -264,9 +277,7 @@ async function streamProvider(input: {
     };
   }
 
-  return {
-    deltas: streamLocalDeltas(input.messages, input.writeDelta)
-  };
+  throw new Error(`${input.provider} is not configured.`);
 }
 
 function requireBaseUrl(key: ProviderKey) {
@@ -349,41 +360,6 @@ async function* streamGemini(input: {
       yield input.writeDelta(text);
     }
   }
-}
-
-async function* streamLocalDeltas(messages: PromptMessage[], writeDelta: (delta: string) => string) {
-  const final = messages.at(-1)?.content ?? "";
-  const text = `Local proxy fallback is active. I received: "${final.slice(
-    0,
-    180
-  )}". Add your own model key in Nythera settings to use live model streaming.`;
-
-  for (const part of text.split(/(\s+)/)) {
-    await sleep(18);
-    yield writeDelta(part);
-  }
-}
-
-async function* fallbackStream(input: StreamInput, started = Date.now(), attempts: string[] = []): AsyncGenerator<StreamChunk> {
-  let outputText = "";
-  for await (const delta of streamLocalDeltas(input.messages, (text) => {
-    outputText += text;
-    return text;
-  })) {
-    yield { type: "delta", text: delta };
-  }
-
-  yield {
-    type: "usage",
-    inputTokens: estimateTokens(input.messages.map((message) => message.content).join("\n")),
-    outputTokens: estimateTokens(outputText),
-    model: FALLBACK_MODEL,
-    provider: "local",
-    latencyMs: Date.now() - started,
-    fallbackTriggered: attempts.length > 0,
-    attempts: [...attempts, `local:${FALLBACK_MODEL}`]
-  };
-  yield { type: "done" };
 }
 
 function deterministicEmbedding(text: string) {

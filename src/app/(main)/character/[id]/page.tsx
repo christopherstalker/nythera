@@ -37,6 +37,7 @@ type Character = {
 export default function CharacterPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [character, setCharacter] = useState<Character | null>(null);
+  const [recentChat, setRecentChat] = useState<{ id: string } | null>(null);
   const [viewer, setViewer] = useState<{ canEdit: boolean; liked: boolean; rating?: { value: number; review?: string | null } | null }>({
     canEdit: false,
     liked: false,
@@ -59,6 +60,7 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
       .then((response) => (response.ok ? response.json() : Promise.reject(response)))
       .then((body) => {
         setCharacter(body.character);
+        setRecentChat(body.recentChat ?? null);
         setViewer(body.viewer ?? { canEdit: false, liked: false, rating: null });
         setLiked(Boolean(body.viewer?.liked));
         setRatingValue(Number(body.viewer?.rating?.value ?? 0));
@@ -122,6 +124,11 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
 
   async function startChat() {
     if (!character) {
+      return;
+    }
+
+    if (recentChat) {
+      router.push(`/chat/${recentChat.id}`);
       return;
     }
 
@@ -355,7 +362,7 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
               ) : null}
               <Button onClick={startChat} size="lg" className="px-7">
                 <MessageCircle className="h-4 w-4" />
-                Start chat
+                {recentChat ? "Continue chat" : "Start chat"}
               </Button>
               <Button
                 type="button"

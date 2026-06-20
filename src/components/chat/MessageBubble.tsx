@@ -4,14 +4,16 @@ import { useState, useEffect, useRef } from "react";
 import { RichMessageText } from "@/components/chat/rich-message-text";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
 import { MessageContextMenu } from "@/components/chat/MessageContextMenu";
+import { CharacterAvatar } from "@/components/character/character-avatar";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, GitBranch, Pencil, RefreshCcw, Trash2, Flag } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsRight, GitBranch, History, Pencil, RefreshCcw, Trash2, Flag, User } from "lucide-react";
 
 type MessageBubbleProps = {
   id: string;
   role: "USER" | "ASSISTANT" | "SYSTEM";
   content: string;
   characterName: string;
+  characterAvatarUrl?: string | null;
   isPinned?: boolean;
   onEdit?: (messageId: string, content: string) => void;
   onDelete?: (messageId: string) => void;
@@ -31,6 +33,7 @@ export function MessageBubble({
   role,
   content,
   characterName,
+  characterAvatarUrl,
   isPinned,
   onEdit,
   onDelete,
@@ -141,7 +144,14 @@ export function MessageBubble({
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchEnd}
     >
-      <div className="flex max-w-[75%]">
+      <div className={cn("flex max-w-[92%] items-start gap-2 sm:max-w-[85%] xl:max-w-[75%]", isUser && "flex-row-reverse")}>
+        {isUser ? (
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--bg-elevated)] text-[var(--text-secondary)] xl:hidden">
+            <User className="h-4 w-4" />
+          </span>
+        ) : (
+          <CharacterAvatar name={characterName} avatarUrl={characterAvatarUrl} size="sm" className="h-9 w-9 shrink-0 rounded-full xl:hidden" />
+        )}
         <div className={cn("flex flex-col", isUser ? "items-end" : "items-start", "w-full max-w-full")}>
           <div
             className={cn(
@@ -160,7 +170,7 @@ export function MessageBubble({
           {content ? (
             <div
               className={cn(
-                "mt-1 flex gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100",
+                "mt-1 flex flex-wrap gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100",
                 isUser ? "justify-end" : "justify-start"
               )}
             >
@@ -171,13 +181,16 @@ export function MessageBubble({
               ) : (
                 <>
                   <ActionButton label="Continue" onClick={() => onContinue?.()}>
-                    <RefreshCcw className="h-3.5 w-3.5 rotate-90" />
+                    <ChevronsRight className="h-3.5 w-3.5" />
                   </ActionButton>
                   <ActionButton label="Regenerate" onClick={() => onRegenerate?.(id)}>
                     <RefreshCcw className="h-3.5 w-3.5" />
                   </ActionButton>
                 </>
               )}
+              <ActionButton label="Rewind" onClick={() => onRewind?.(id)}>
+                <History className="h-3.5 w-3.5" />
+              </ActionButton>
               {hasVariants && (
                 <span className="flex h-8 items-center gap-1 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-1.5 text-xs text-[var(--text-secondary)] shadow-[var(--glass-highlight)] backdrop-blur-xl">
                   <ActionButton
@@ -262,7 +275,7 @@ function ActionButton({
         "focus-ring grid place-items-center rounded-full text-[var(--text-secondary)] transition-all duration-150 hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-35",
         compact
           ? "h-5 w-5 border-0 bg-transparent"
-          : "h-8 w-8 border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--glass-highlight)] backdrop-blur-xl",
+          : "h-9 w-9 border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--glass-highlight)] backdrop-blur-xl",
         destructive && "hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-200 focus:ring-red-400/30"
       )}
     >

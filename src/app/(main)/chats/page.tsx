@@ -7,6 +7,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader, PageShell } from "@/components/ui/page";
+import { toChatPreview } from "@/lib/chat-preview";
 
 type Chat = {
   id: string;
@@ -68,7 +69,7 @@ export default function ChatsPage() {
               <Avatar name={chat.character.name} src={chat.character.avatarUrl} size="sm" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{chat.title || chat.character.name}</p>
-                <p className="mt-1 truncate text-[13px] leading-5 text-[var(--text-secondary)]">{chat.character.description || "No description yet"}</p>
+                <p className="mt-1 truncate text-[13px] leading-5 text-[var(--text-secondary)]">{toChatPreview(chat.messages[0]?.content || chat.character.description || "No messages yet")}</p>
               </div>
             </Link>
           ))}

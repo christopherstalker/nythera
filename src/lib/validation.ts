@@ -67,7 +67,7 @@ export const chatCreateSchema = z.object({
   characterId: z.string().min(1),
   title: z.string().max(120).optional(),
   temperature: z.coerce.number().min(0).max(2).default(0.7),
-  model: z.string().max(160).default("gpt-4o-mini")
+  model: z.string().max(160).optional()
 });
 
 export const chatUpdateSchema = z.object({

@@ -69,7 +69,7 @@ export async function POST(request: Request) {
       throw new HttpError(404, "Character not found.");
     }
 
-    const model = input.model;
+    const model = input.model ?? user.preferredModel;
     const chat = await prisma.$transaction(async (tx) => {
       const created = await tx.chat.create({
         data: {
