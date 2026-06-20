@@ -28,9 +28,17 @@ export default function LibraryPage() {
 
   useEffect(() => {
     fetch("/api/library", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : Promise.reject(response)))
+      .then((response) => {
+        if (response.ok) {
+          return response.json();
+        }
+
+        throw new Error(response.status === 401 ? "AUTH_REQUIRED" : "LIBRARY_UNAVAILABLE");
+      })
       .then((body) => setLibrary(body))
-      .catch(() => setError("Sign in to view your library."));
+      .catch((caught) => {
+        setError(caught instanceof Error && caught.message === "AUTH_REQUIRED" ? "Sign in to view your library." : "Your library could not be loaded. Please try again.");
+      });
   }, []);
 
   return (
@@ -50,7 +58,18 @@ export default function LibraryPage() {
       />
 
       {error ? (
-        <EmptyState icon={BookMarked} title="Library unavailable" description={error} action={<Button asChild><Link href="/login">Sign in</Link></Button>} />
+        <EmptyState
+          icon={BookMarked}
+          title="Library unavailable"
+          description={error}
+          action={
+            error === "Sign in to view your library." ? (
+              <Button asChild><Link href="/login">Sign in</Link></Button>
+            ) : (
+              <Button onClick={() => window.location.reload()}>Try again</Button>
+            )
+          }
+        />
       ) : !library ? (
         <div className="grid gap-4">
           <div className="skeleton h-32" />
