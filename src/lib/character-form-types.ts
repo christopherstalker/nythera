@@ -1,7 +1,10 @@
 export type CharacterVisibility = "PRIVATE" | "PUBLIC" | "UNLISTED";
+export type CharacterCreationMode = "simple" | "custom";
+export type CharacterFormMode = CharacterCreationMode | "prompt";
 
 export type CharacterFormValue = {
   id?: string;
+  creationMode: CharacterCreationMode;
   name: string;
   avatarUrl: string;
   description: string;
@@ -39,6 +42,7 @@ export type CharacterFormInitialValue = Omit<Partial<CharacterFormValue>, "tags"
 };
 
 export type CharacterCreatePayload = {
+  creationMode: CharacterCreationMode;
   name: string;
   avatarUrl: string;
   description: string;
@@ -103,6 +107,7 @@ export const CUSTOM_SECTIONS: ReadonlyArray<{
 ];
 
 export const emptyCharacterDraft: CharacterFormValue = {
+  creationMode: "custom",
   name: "",
   avatarUrl: "",
   description: "",

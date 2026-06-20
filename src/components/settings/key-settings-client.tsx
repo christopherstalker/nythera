@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { Copy, Eye, EyeOff, Save, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FIRST_CLASS_PROVIDER_PRESETS, type ProviderApiFormat } from "@/lib/provider-presets";
 
 type SavedKey = {
   id: string;
@@ -19,41 +20,9 @@ type SavedKey = {
   isDefault: boolean;
 };
 
-type ApiFormat = "OPENAI" | "ANTHROPIC" | "GEMINI" | "OPENAI_COMPATIBLE";
+type ApiFormat = ProviderApiFormat;
 
-const providers: Array<{
-  provider: string;
-  displayName: string;
-  apiFormat: ApiFormat;
-  baseUrl: string;
-  defaultModel: string;
-  placeholder: string;
-}> = [
-  {
-    provider: "openai",
-    displayName: "OpenAI",
-    apiFormat: "OPENAI",
-    baseUrl: "https://api.openai.com/v1",
-    defaultModel: "gpt-4o-mini",
-    placeholder: "sk-..."
-  },
-  {
-    provider: "anthropic",
-    displayName: "Anthropic",
-    apiFormat: "ANTHROPIC",
-    baseUrl: "",
-    defaultModel: "claude-3-5-sonnet-latest",
-    placeholder: "sk-ant-..."
-  },
-  {
-    provider: "gemini",
-    displayName: "Gemini",
-    apiFormat: "GEMINI",
-    baseUrl: "",
-    defaultModel: "gemini-2.5-flash",
-    placeholder: "AIza..."
-  }
-];
+const providers = FIRST_CLASS_PROVIDER_PRESETS;
 
 export function KeySettingsClient() {
   const { status: sessionStatus } = useSession();
@@ -272,7 +241,7 @@ export function KeySettingsClient() {
 
       <form onSubmit={saveCustom} className="glass-card p-4">
         <h3 className="text-sm font-semibold text-[var(--text-primary)]">Custom provider</h3>
-        <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">Use OpenAI-compatible providers such as OpenRouter, Groq, DeepSeek, Together, or Mistral.</p>
+        <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">Use other OpenAI-compatible providers such as OpenRouter, Groq, Together, or Mistral.</p>
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
           <Input value={custom.provider} onChange={(event) => setCustom((current) => ({ ...current, provider: event.target.value }))} placeholder="provider id" />
           <Input value={custom.displayName} onChange={(event) => setCustom((current) => ({ ...current, displayName: event.target.value }))} placeholder="Display name" />

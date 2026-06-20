@@ -98,6 +98,7 @@ export async function POST(request: Request) {
     const character = await prisma.character.create({
       data: {
         creatorId: user.id,
+        creationMode: input.creationMode,
         name: input.name,
         avatarUrl: input.avatarUrl || null,
         description: input.description,

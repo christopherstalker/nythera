@@ -15,7 +15,7 @@ type MessageBubbleProps = {
   characterName: string;
   characterAvatarUrl?: string | null;
   isPinned?: boolean;
-  onEdit?: (messageId: string, content: string) => void;
+  onEdit?: (messageId: string, content: string) => void | Promise<void>;
   onDelete?: (messageId: string) => void;
   onRegenerate?: (messageId: string) => void;
   onContinue?: () => void;
@@ -48,6 +48,9 @@ export function MessageBubble({
   onNextVariant,
 }: MessageBubbleProps) {
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editDraft, setEditDraft] = useState(content);
+  const [savingEdit, setSavingEdit] = useState(false);
   const touchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isUser = role === "USER";
   const hasVariants = !isUser && variantCount !== undefined && variantCount > 1 && variantIndex !== undefined;
@@ -75,10 +78,21 @@ export function MessageBubble({
   }
 
   function edit() {
-    const next = window.prompt("Edit message", content);
-    if (next !== null && next.trim() && next !== content) {
-      onEdit?.(id, next);
+    setEditDraft(content);
+    setIsEditing(true);
+    setMenuPosition(null);
+  }
+
+  async function saveEdit() {
+    const next = editDraft.trim();
+    if (!next || next === content || savingEdit) {
+      return;
     }
+
+    setSavingEdit(true);
+    await onEdit?.(id, next);
+    setSavingEdit(false);
+    setIsEditing(false);
   }
 
   async function report() {
@@ -164,21 +178,61 @@ export function MessageBubble({
                 📌
               </span>
             )}
-            {content ? <RichMessageText text={content} /> : <TypingIndicator />}
+            {isEditing ? (
+              <div className="grid gap-2">
+                <textarea
+                  autoFocus
+                  aria-label="Edit message text"
+                  value={editDraft}
+                  onChange={(event) => setEditDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      setIsEditing(false);
+                    } else if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+                      event.preventDefault();
+                      void saveEdit();
+                    }
+                  }}
+                  className="focus-ring min-h-24 w-full resize-y rounded-xl border border-[var(--border-default)] bg-[var(--bg-input)] px-3 py-2 text-sm leading-6 text-[var(--text-primary)]"
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    aria-label="Cancel edit"
+                    onClick={() => setIsEditing(false)}
+                    className="focus-ring rounded-full border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Save edit"
+                    onClick={() => void saveEdit()}
+                    disabled={!editDraft.trim() || editDraft.trim() === content || savingEdit}
+                    className="focus-ring rounded-full bg-[var(--accent-purple)] px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {savingEdit ? "Saving..." : "Save"}
+                  </button>
+                </div>
+              </div>
+            ) : content ? (
+              <RichMessageText text={content} />
+            ) : (
+              <TypingIndicator />
+            )}
           </div>
 
-          {content ? (
+          {content && !isEditing ? (
             <div
               className={cn(
                 "mt-1 flex flex-wrap gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100",
                 isUser ? "justify-end" : "justify-start"
               )}
             >
-              {isUser ? (
-                <ActionButton label="Edit" onClick={edit}>
-                  <Pencil className="h-3.5 w-3.5" />
-                </ActionButton>
-              ) : (
+              <ActionButton label="Edit" onClick={edit}>
+                <Pencil className="h-3.5 w-3.5" />
+              </ActionButton>
+              {!isUser ? (
                 <>
                   <ActionButton label="Continue" onClick={() => onContinue?.()}>
                     <ChevronsRight className="h-3.5 w-3.5" />
@@ -187,7 +241,7 @@ export function MessageBubble({
                     <RefreshCcw className="h-3.5 w-3.5" />
                   </ActionButton>
                 </>
-              )}
+              ) : null}
               <ActionButton label="Rewind" onClick={() => onRewind?.(id)}>
                 <History className="h-3.5 w-3.5" />
               </ActionButton>
@@ -236,7 +290,7 @@ export function MessageBubble({
           position={menuPosition}
           onClose={() => setMenuPosition(null)}
           onCopy={copyToClipboard}
-          onEdit={isUser ? edit : undefined}
+          onEdit={edit}
           onRegenerate={!isUser ? () => onRegenerate?.(id) : undefined}
           onRewind={() => onRewind?.(id)}
           onPin={onPin ? () => onPin(id) : undefined}

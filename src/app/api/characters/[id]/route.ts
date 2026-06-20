@@ -95,6 +95,7 @@ export async function PATCH(request: Request, context: Context) {
       where: { id: context.params.id },
       select: {
         creatorId: true,
+        creationMode: true,
         name: true,
         description: true,
         personality: true,
@@ -115,6 +116,9 @@ export async function PATCH(request: Request, context: Context) {
     }
 
     const input = await parseJson(request, characterUpdateSchema);
+    if (input.creationMode && input.creationMode !== character.creationMode) {
+      throw new HttpError(400, "A character cannot be converted between Simple and Custom modes.");
+    }
     if (input.isNSFW && !user.ageVerified) {
       throw new HttpError(403, "Confirm age-gated access in profile settings before marking characters as NSFW.");
     }
@@ -211,6 +215,7 @@ export async function POST(_request: Request, context: Context) {
       data: {
         creatorId: user.id,
         cloneSourceId: source.id,
+        creationMode: source.creationMode,
         name: `${source.name} remix`,
         avatarUrl: source.avatarUrl,
         description: source.description,

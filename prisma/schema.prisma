@@ -121,6 +121,7 @@ model Character {
   greeting           String           @db.Text
   communicationStyle Json?
   persona            Json?
+  creationMode       CharacterCreationMode @default(custom)
   visibility         Visibility       @default(PRIVATE)
   moderationStatus   ModerationStatus @default(PENDING)
   tags               String[]         @default([])
@@ -348,6 +349,11 @@ enum Visibility {
   PRIVATE
   PUBLIC
   UNLISTED
+}
+
+enum CharacterCreationMode {
+  simple
+  custom
 }
 
 enum MessageRole {

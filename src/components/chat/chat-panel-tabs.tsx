@@ -8,6 +8,7 @@ import { ImageFilePicker } from "@/components/ui/image-file-picker";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useChatQuickPanel } from "@/hooks/use-chat-quick-panel";
+import { toChatPreview } from "@/lib/chat-preview";
 import { cn } from "@/lib/utils";
 
 type PanelState = ReturnType<typeof useChatQuickPanel>;
@@ -144,14 +145,14 @@ export function HistoryTabContent({
           href={`/chat/${chat.id}`}
           onClick={onNavigate}
           className={cn(
-            "flex items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-input)] p-3 no-underline shadow-[var(--glass-highlight)] transition-colors hover:bg-white/[0.055]",
+            "flex items-center gap-3 overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-input)] p-3 no-underline shadow-[var(--glass-highlight)] transition-colors hover:bg-white/[0.055]",
             chat.id === chatId && "border-[rgb(var(--accent-rgb)_/_0.38)] bg-[var(--accent-purple-soft)]"
           )}
         >
           <Avatar name={chat.character.name} src={chat.character.avatarUrl} size="xs" />
           <div className="min-w-0 flex-1">
             <p className="block truncate text-sm font-medium text-[var(--text-primary)]">{chat.title || chat.character.name}</p>
-            <p className="mt-0.5 block line-clamp-1 text-xs text-[var(--text-muted)]">{chat.character.description || chat.messages[0]?.content || "Continue chat"}</p>
+            <p className="mt-0.5 block truncate text-xs text-[var(--text-muted)]">{toChatPreview(chat.messages[0]?.content || chat.character.description || "Continue chat")}</p>
           </div>
         </Link>
       ))}

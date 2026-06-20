@@ -75,11 +75,11 @@ export function MessageContextMenu({
         Copy
       </MenuItem>
 
-      {isUserMessage && (
+      {onEdit ? (
         <MenuItem onClick={onEdit} icon={<Edit3 className="h-4 w-4" />}>
           Edit
         </MenuItem>
-      )}
+      ) : null}
 
       {!isUserMessage && (
         <MenuItem onClick={onRegenerate} icon={<RefreshCcw className="h-4 w-4" />}>

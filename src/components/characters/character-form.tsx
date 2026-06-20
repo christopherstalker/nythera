@@ -31,6 +31,8 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   applyPromptGenerationToDraft,
   buildCharacterCreatePayload,
+  creationModeForEditor,
+  creationModeForNewCharacter,
   firstValidationIssue,
   normalizeInitialCharacterValue,
   promptPreviewFromGeneration,
@@ -40,6 +42,7 @@ import {
   CUSTOM_SECTIONS,
   VIBE_PRESETS,
   type CharacterFormInitialValue,
+  type CharacterFormMode,
   type CharacterFormValue,
   type CustomSectionId,
   type GeneratedCharacterPreview,
@@ -51,8 +54,6 @@ type CharacterFormProps = {
   mode: "create" | "edit";
   initialValue?: CharacterFormInitialValue;
 };
-
-type CreationMode = "simple" | "custom" | "prompt";
 
 const sectionIcons = {
   basics: Bot,
@@ -70,7 +71,9 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
   const [saving, setSaving] = useState(false);
   const [generatingPreview, setGeneratingPreview] = useState(false);
   const [assistingSection, setAssistingSection] = useState<CustomSectionId | null>(null);
-  const [formMode, setFormMode] = useState<CreationMode>(() => (mode === "edit" ? "custom" : "simple"));
+  const [formMode, setFormMode] = useState<CharacterFormMode>(() =>
+    mode === "edit" ? creationModeForEditor(initialValue?.creationMode) : "simple"
+  );
   const [openSections, setOpenSections] = useState<Record<CustomSectionId, boolean>>({
     basics: true,
     personality: false,
@@ -85,7 +88,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
   const [promptGenerated, setPromptGenerated] = useState(false);
   const [promptOptions, setPromptOptions] = useState<PromptGeneratorOptions | null>(null);
 
-  const isSimpleMode = mode === "create" && formMode === "simple";
+  const isSimpleMode = formMode === "simple";
   const isPromptMode = mode === "create" && formMode === "prompt";
   const previewDraft = useMemo(
     () => (generatedPreview ? mergePreviewIntoDraft(draft, generatedPreview) : draft),
@@ -104,7 +107,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
     }
   }
 
-  function switchFormMode(nextMode: CreationMode) {
+  function switchFormMode(nextMode: CharacterFormMode) {
     if (nextMode === "custom" && generatedPreview) {
       setDraft((current) => mergePreviewIntoDraft(current, generatedPreview));
     }
@@ -336,7 +339,8 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
     const payload = buildCharacterCreatePayload({
       draft,
       generated: preview,
-      isSimpleMode: isSimpleMode || isPromptMode
+      isSimpleMode: isSimpleMode || isPromptMode,
+      creationMode: mode === "edit" ? creationModeForEditor(initialValue?.creationMode) : creationModeForNewCharacter(formMode)
     });
 
     const validation = validateCharacterCreatePayload(payload);
@@ -675,11 +679,13 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
                 Open in Custom
               </Button>
             </div>
-          ) : isSimpleMode ? (
+          ) : isSimpleMode && mode === "create" ? (
             <Button type="button" variant="outline" onClick={() => switchFormMode("custom")}>
               <SlidersHorizontal className="h-4 w-4" />
               Customize
             </Button>
+          ) : isSimpleMode ? (
+            <p className="text-sm text-[var(--text-muted)]">Edit the same essentials used to create this character.</p>
           ) : (
             <p className="text-sm text-[var(--text-muted)]">Fill sections in any order. AI Assist can help inside each block.</p>
           )}

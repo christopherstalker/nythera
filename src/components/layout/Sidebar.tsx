@@ -209,7 +209,7 @@ export function Sidebar() {
                 <Link
                   key={chat.id}
                   href={`/chat/${chat.id}`}
-                  className={cn("nav-item !h-12 px-2", active && "nav-item-active")}
+                  className={cn("nav-item !h-12 overflow-hidden px-2", active && "nav-item-active")}
                   title={chat.character.name}
                 >
                   <Avatar name={chat.character.name} src={chat.character.avatarUrl} size="xs" />

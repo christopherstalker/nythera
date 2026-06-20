@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { partitionMessagesForRewind, shouldRegenerateAfterMessageEdit } from "@/lib/message-actions";
 
 export type ChatMessage = {
   id: string;
@@ -193,7 +194,9 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
         .filter((message) => !deletedIds.has(message.id))
         .map((message) => (message.id === messageId ? body.message : message))
     );
-    await send(trimmed, { regenerate: true });
+    if (shouldRegenerateAfterMessageEdit(body.message.role)) {
+      await send(trimmed, { regenerate: true });
+    }
   }, [send]);
 
   const deleteMessage = useCallback(async (messageId: string) => {
@@ -214,15 +217,18 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
         return;
       }
 
-      const toDelete = messages.slice(index);
-      setMessages((current) => current.slice(0, index));
+      const { retained, removed: toDelete } = partitionMessagesForRewind(messages, messageId);
+      setMessages(retained);
 
       try {
-        await Promise.all(
+        const responses = await Promise.all(
           toDelete.map((message) =>
             fetch(`/api/messages?id=${encodeURIComponent(message.id)}`, { method: "DELETE" })
           )
         );
+        if (responses.some((response) => !response.ok)) {
+          throw new Error("One or more messages could not be deleted.");
+        }
       } catch (caught) {
         console.error("Failed to delete messages during rewind:", caught);
         setError("Failed to rewind completely. Please refresh.");

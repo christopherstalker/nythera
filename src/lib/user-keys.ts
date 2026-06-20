@@ -3,8 +3,9 @@ import "server-only";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
+import { enforceFirstClassProviderConfig, type ProviderApiFormat } from "@/lib/provider-presets";
 
-export type ProviderApiFormat = "OPENAI" | "ANTHROPIC" | "GEMINI" | "OPENAI_COMPATIBLE";
+export type { ProviderApiFormat } from "@/lib/provider-presets";
 
 export type ProviderKey = {
   provider: string;
@@ -31,7 +32,13 @@ export async function saveUserApiKey(input: {
 }) {
   const trimmed = input.apiKey.trim();
   const provider = normalizeProviderId(input.provider);
-  const displayName = input.displayName?.trim() || providerToDisplayName(provider);
+  const config = enforceFirstClassProviderConfig({
+    provider,
+    displayName: input.displayName?.trim() || providerToDisplayName(provider),
+    apiFormat: input.apiFormat,
+    baseUrl: input.baseUrl?.trim() || "",
+    defaultModel: input.defaultModel?.trim() || ""
+  });
 
   return prisma.$transaction(async (tx) => {
     await tx.userApiKey.updateMany({
@@ -50,10 +57,10 @@ export async function saveUserApiKey(input: {
         }
       },
       update: {
-        displayName,
-        apiFormat: input.apiFormat,
-        baseUrl: normalizeOptionalUrl(input.baseUrl),
-        defaultModel: input.defaultModel?.trim() || null,
+        displayName: config.displayName,
+        apiFormat: config.apiFormat,
+        baseUrl: normalizeOptionalUrl(config.baseUrl),
+        defaultModel: config.defaultModel || null,
         encryptedKey: encryptSecret(trimmed),
         last4: trimmed.slice(-4),
         label: input.label || null,
@@ -62,10 +69,10 @@ export async function saveUserApiKey(input: {
       create: {
         userId: input.userId,
         provider,
-        displayName,
-        apiFormat: input.apiFormat,
-        baseUrl: normalizeOptionalUrl(input.baseUrl),
-        defaultModel: input.defaultModel?.trim() || null,
+        displayName: config.displayName,
+        apiFormat: config.apiFormat,
+        baseUrl: normalizeOptionalUrl(config.baseUrl),
+        defaultModel: config.defaultModel || null,
         encryptedKey: encryptSecret(trimmed),
         last4: trimmed.slice(-4),
         label: input.label || null,

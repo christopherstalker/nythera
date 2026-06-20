@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
 import { z } from "zod";
+import { canEditMessageRole, shouldRegenerateAfterMessageEdit } from "@/lib/message-actions";
 
 const messageUpdateSchema = z.object({
   content: z.string().trim().min(1).max(4000)
@@ -93,20 +94,25 @@ export async function PATCH(request: Request) {
       throw new HttpError(404, "Message not found.");
     }
 
-    if (message.role !== "USER") {
-      throw new HttpError(400, "Only user messages can be edited.");
+    if (!canEditMessageRole(message.role)) {
+      throw new HttpError(400, "System messages cannot be edited.");
     }
 
-    const ordered = await prisma.message.findMany({
-      where: { chatId: message.chat.id },
-      orderBy: [{ createdAt: "asc" }, { sequence: "asc" }, { id: "asc" }],
-      select: { id: true }
-    });
-    const messageIndex = ordered.findIndex((item) => item.id === message.id);
-    if (messageIndex < 0) {
-      throw new HttpError(409, "Message order changed. Refresh and try again.");
+    let retainedMessageCount: number | undefined;
+    let deletedMessageIds: string[] = [];
+    if (shouldRegenerateAfterMessageEdit(message.role)) {
+      const ordered = await prisma.message.findMany({
+        where: { chatId: message.chat.id },
+        orderBy: [{ createdAt: "asc" }, { sequence: "asc" }, { id: "asc" }],
+        select: { id: true }
+      });
+      const messageIndex = ordered.findIndex((item) => item.id === message.id);
+      if (messageIndex < 0) {
+        throw new HttpError(409, "Message order changed. Refresh and try again.");
+      }
+      deletedMessageIds = ordered.slice(messageIndex + 1).map((item) => item.id);
+      retainedMessageCount = messageIndex + 1;
     }
-    const deletedMessageIds = ordered.slice(messageIndex + 1).map((item) => item.id);
 
     const updated = await prisma.$transaction(async (tx) => {
       const nextMessage = await tx.message.update({
@@ -118,7 +124,11 @@ export async function PATCH(request: Request) {
       }
       await tx.chat.update({
         where: { id: message.chat.id },
-        data: { messageCount: messageIndex + 1, updatedAt: new Date(), lastActiveAt: new Date() }
+        data: {
+          messageCount: retainedMessageCount,
+          updatedAt: new Date(),
+          lastActiveAt: new Date()
+        }
       });
       return nextMessage;
     });

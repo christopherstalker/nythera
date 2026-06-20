@@ -6,7 +6,9 @@ import {
   type CharacterFormInitialValue,
   type CharacterFormValue,
   type CharacterCreatePayload,
-  type GeneratedCharacterPreview
+  type GeneratedCharacterPreview,
+  type CharacterCreationMode,
+  type CharacterFormMode
 } from "@/lib/character-form-types";
 import type { PromptGeneratedCharacter } from "@/lib/character-prompt-generation";
 
@@ -19,7 +21,16 @@ type BuildPayloadOptions = {
   draft: CharacterFormValue;
   generated?: GeneratedCharacterPreview | null;
   isSimpleMode?: boolean;
+  creationMode?: CharacterCreationMode;
 };
+
+export function creationModeForNewCharacter(formMode: CharacterFormMode): CharacterCreationMode {
+  return formMode === "simple" ? "simple" : "custom";
+}
+
+export function creationModeForEditor(creationMode?: CharacterCreationMode | null): CharacterCreationMode {
+  return creationMode === "simple" ? "simple" : "custom";
+}
 
 export function normalizeInitialCharacterValue(value?: CharacterFormInitialValue): CharacterFormValue {
   if (!value) {
@@ -112,7 +123,12 @@ export function ensureDraftMinimums(draft: CharacterFormValue): CharacterFormVal
   };
 }
 
-export function buildCharacterCreatePayload({ draft, generated, isSimpleMode = false }: BuildPayloadOptions): CharacterCreatePayload {
+export function buildCharacterCreatePayload({
+  draft,
+  generated,
+  isSimpleMode = false,
+  creationMode = draft.creationMode
+}: BuildPayloadOptions): CharacterCreatePayload {
   const merged = applyGeneratedPreview(draft, generated);
   const tags = normalizeCharacterTags(merged.tags.length > 0 ? merged.tags : ["roleplay"]);
 
@@ -144,6 +160,7 @@ export function buildCharacterCreatePayload({ draft, generated, isSimpleMode = f
   });
 
   const payload: CharacterCreatePayload = {
+    creationMode,
     name: merged.name.trim(),
     avatarUrl: merged.avatarUrl.trim(),
     description: merged.description.trim(),

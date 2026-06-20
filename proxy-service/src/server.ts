@@ -319,6 +319,13 @@ function routeModel(requested: string, keys: ProviderKeys): GatewayRoute {
     return key ? routeFromKey(key, raw) : routeFromAvailableKey(keys) ?? { provider: "gemini", providerName: "gemini", model: raw };
   }
 
+  if (normalized.includes("deepseek")) {
+    const key = keys.find((item) => item.provider === "deepseek");
+    return key
+      ? routeFromKey(key, raw)
+      : routeFromAvailableKey(keys) ?? { provider: "openai-compatible", providerName: "deepseek", model: raw };
+  }
+
   if (normalized.includes("4o") || normalized.includes("gpt-4")) {
     const key = keys.find((item) => item.apiFormat === "OPENAI" || item.provider === "openai");
     return key ? routeFromKey(key, raw) : routeFromAvailableKey(keys) ?? { provider: "openai", providerName: "openai", model: raw };

@@ -48,6 +48,7 @@ export const characterPersonaSchema = z.object({
 });
 
 export const characterCreateSchema = z.object({
+  creationMode: z.enum(["simple", "custom"]).default("custom"),
   name: z.string().min(2).max(80),
   avatarUrl: imageSourceSchema.optional().or(z.literal("")),
   description: z.string().min(10).max(5000),
