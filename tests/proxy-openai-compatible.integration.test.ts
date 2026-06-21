@@ -3,9 +3,18 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { createServer, type Server } from "node:http";
 import { once } from "node:events";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 
-test("custom providers use the direct OpenAI-compatible chat-completions endpoint", async (context) => {
+const STARTUP_FAILURE_FIXTURE_ENV = "PROXY_STARTUP_FAILURE_FIXTURE";
+const isStartupFailureFixture = process.env[STARTUP_FAILURE_FIXTURE_ENV] === "1";
+
+function integrationTest(name: string, run: (context: TestContext) => void | Promise<void>) {
+  if (!isStartupFailureFixture) {
+    test(name, run);
+  }
+}
+
+integrationTest("custom providers use the direct OpenAI-compatible chat-completions endpoint", async (context) => {
   let requestedPath = "";
   let authorization = "";
   const upstream = createServer((request, response) => {
@@ -14,13 +23,7 @@ test("custom providers use the direct OpenAI-compatible chat-completions endpoin
     writeSuccessfulOpenAIStream(response, "direct response");
   });
   const upstreamUrl = await listen(upstream);
-  let proxy: Awaited<ReturnType<typeof startProxy>> | undefined;
-
-  context.after(async () => {
-    await Promise.allSettled([proxy ? stopProcess(proxy) : undefined, closeServer(upstream)]);
-  });
-
-  proxy = await startProxy();
+  const proxy = await startProxyWithCleanup(context, [upstream]);
   const body = await requestProxy(proxy.port, [providerKey("local-vllm", upstreamUrl, 0)]);
   assert.match(body, /direct response/);
   assert.equal(requestedPath, "/chat/completions");
@@ -28,7 +31,7 @@ test("custom providers use the direct OpenAI-compatible chat-completions endpoin
   assert.doesNotMatch(body, /openrouter/i);
 });
 
-test("a retryable 429 advances to the next enabled provider", async (context) => {
+integrationTest("a retryable 429 advances to the next enabled provider", async (context) => {
   let primaryAttempts = 0;
   let fallbackAttempts = 0;
   const primary = createServer((_request, response) => {
@@ -41,17 +44,7 @@ test("a retryable 429 advances to the next enabled provider", async (context) =>
     writeSuccessfulOpenAIStream(response, "fallback response");
   });
   const [primaryUrl, fallbackUrl] = await Promise.all([listen(primary), listen(fallback)]);
-  let proxy: Awaited<ReturnType<typeof startProxy>> | undefined;
-
-  context.after(async () => {
-    await Promise.allSettled([
-      proxy ? stopProcess(proxy) : undefined,
-      closeServer(primary),
-      closeServer(fallback)
-    ]);
-  });
-
-  proxy = await startProxy();
+  const proxy = await startProxyWithCleanup(context, [primary, fallback]);
   const body = await requestProxy(proxy.port, [
     providerKey("primary-local", primaryUrl, 0),
     providerKey("fallback-local", fallbackUrl, 1)
@@ -64,7 +57,7 @@ test("a retryable 429 advances to the next enabled provider", async (context) =>
   assert.match(body, /"provider":"fallback-local"/);
 });
 
-test("proxy readiness allows a slow cold start", async (context) => {
+integrationTest("proxy readiness allows a slow cold start", async (context) => {
   let child: ChildProcess | undefined;
   context.after(async () => {
     if (child) {
@@ -84,7 +77,7 @@ test("proxy readiness allows a slow cold start", async (context) => {
   assert.ok(Date.now() - started >= 2_500);
 });
 
-test("proxy startup reports signal termination", async (context) => {
+integrationTest("proxy startup reports signal termination", async (context) => {
   let child: ChildProcess | undefined;
   context.after(async () => {
     if (child) {
@@ -104,6 +97,38 @@ test("proxy startup reports signal termination", async (context) => {
   );
   assert.equal(child?.signalCode, "SIGTERM");
 });
+
+integrationTest("startup failure cleanup lets the test subprocess exit", async () => {
+  const fixture = spawn(
+    process.execPath,
+    ["--import", "tsx", path.join(process.cwd(), "tests/proxy-openai-compatible.integration.test.ts")],
+    {
+      cwd: process.cwd(),
+      env: { ...process.env, [STARTUP_FAILURE_FIXTURE_ENV]: "1" },
+      stdio: ["ignore", "pipe", "pipe"]
+    }
+  );
+  let output = "";
+  for (const stream of [fixture.stdout, fixture.stderr]) {
+    stream?.setEncoding("utf8");
+    stream?.on("data", (chunk: string) => {
+      output += chunk;
+    });
+  }
+
+  const result = await waitForProcessExit(fixture, 4_000);
+  assert.equal(result.signal, null);
+  assert.equal(result.code, 1);
+  assert.match(output, /Proxy exited before becoming ready with code 23\./);
+});
+
+if (isStartupFailureFixture) {
+  test("forced startup failure closes its mock server", async (context) => {
+    const upstream = createServer();
+    await listen(upstream);
+    await startProxyWithCleanup(context, [upstream], { nodeArgs: ["--eval", "process.exit(23)"] });
+  });
+}
 
 function providerKey(provider: string, baseUrl: string, fallbackPriority: number) {
   return {
@@ -143,6 +168,20 @@ type StartProxyOptions = {
 
 const PROXY_STARTUP_TIMEOUT_MS = 10_000;
 const PROXY_READINESS_POLL_MS = 25;
+
+async function startProxyWithCleanup(context: TestContext, servers: Server[], options: StartProxyOptions = {}) {
+  let proxy: Awaited<ReturnType<typeof startProxy>> | undefined;
+  context.after(async () => {
+    const cleanup = servers.map((server) => closeServer(server));
+    if (proxy) {
+      cleanup.push(stopProcess(proxy));
+    }
+    await Promise.allSettled(cleanup);
+  });
+
+  proxy = await startProxy(options);
+  return proxy;
+}
 
 async function startProxy(options: StartProxyOptions = {}) {
   const port = await reservePort();
@@ -212,6 +251,16 @@ async function stopProcess(child: ChildProcess) {
   const exited = once(child, "exit");
   child.kill();
   await exited;
+}
+
+async function waitForProcessExit(child: ChildProcess, timeoutMs: number) {
+  try {
+    const [code, signal] = await once(child, "close", { signal: AbortSignal.timeout(timeoutMs) });
+    return { code: code as number | null, signal: signal as NodeJS.Signals | null };
+  } catch {
+    await stopProcess(child);
+    throw new Error(`Startup-failure fixture did not exit within ${timeoutMs}ms.`);
+  }
 }
 
 async function closeServer(server: Server) {
