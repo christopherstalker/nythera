@@ -87,7 +87,7 @@ const config: Config = {
         }
       },
       fontFamily: {
-        sans: ["var(--font-space-grotesk)", "Segoe UI", "Roboto", "Arial", "sans-serif"]
+        sans: ['var(--font-space-grotesk, "Segoe UI")', "Roboto", "Arial", "sans-serif"]
       },
       fontSize: {
         display: ["var(--type-display)", { lineHeight: ".98", letterSpacing: "-.052em" }],
@@ -123,12 +123,12 @@ const config: Config = {
         raised: "var(--elevation-raised)",
         floating: "var(--elevation-floating)",
         glow: "var(--elevation-glow)",
-        soft: "var(--shadow-soft)",
-        "card-glow": "var(--shadow-card)",
+        soft: "var(--elevation-raised)",
+        "card-glow": "var(--elevation-floating)",
         "violet-hover": "var(--elevation-glow)",
-        "violet-strong": "var(--shadow-glow)",
+        "violet-strong": "var(--elevation-glow)",
         "brand-hover": "var(--elevation-glow)",
-        "brand-strong": "var(--shadow-glow)",
+        "brand-strong": "var(--elevation-glow)",
         inset: "var(--glass-highlight)"
       }
     }

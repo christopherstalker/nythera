@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import postcss, { type AnyNode, type AtRule, type Rule } from "postcss";
+import { fileURLToPath } from "node:url";
+import autoprefixer from "autoprefixer";
+import postcss, { type AcceptedPlugin, type AnyNode, type AtRule, type Rule } from "postcss";
+import tailwindcss from "tailwindcss";
+import tailwindConfig from "../tailwind.config";
 
 const tokenFile = new URL("../src/styles/design-tokens.css", import.meta.url);
 const contractSelectors = [":root", ":root, .dark", ".light"] as const;
@@ -404,6 +408,68 @@ test("contrast conversion rejects out-of-gamut OKLCH instead of clamping", () =>
   assert.throws(() => luminance([0.7, 0.5, 30]), /outside linear sRGB gamut/);
 });
 
+test("global CSS compiles imported tokens and semantic Tailwind utilities", async () => {
+  const globalsFile = new URL("../src/app/globals.css", import.meta.url);
+  const postcssConfigFile = new URL("../postcss.config.mjs", import.meta.url);
+  const [{ default: postcssConfig }, globals] = await Promise.all([
+    import(postcssConfigFile.href) as Promise<{ default: { plugins: Record<string, unknown> } }>,
+    readFile(globalsFile, "utf8")
+  ]);
+  const contentFixture = `
+    <div class="bg-canvas/72 text-content-primary border-outline bg-aurora-primary shadow-glow bg-primary font-sans"></div>
+  `;
+  const plugins: AcceptedPlugin[] = [];
+
+  for (const [pluginName, pluginOptions] of Object.entries(postcssConfig.plugins)) {
+    if (pluginName === "tailwindcss") {
+      plugins.push(tailwindcss({
+        ...tailwindConfig,
+        content: [{ raw: contentFixture, extension: "html" }]
+      }));
+      continue;
+    }
+    if (pluginName === "autoprefixer") {
+      plugins.push(autoprefixer(pluginOptions as Parameters<typeof autoprefixer>[0]));
+      continue;
+    }
+
+    const pluginModule = await import(pluginName) as {
+      default: (options: unknown) => AcceptedPlugin;
+    };
+    plugins.push(pluginModule.default(pluginOptions));
+  }
+
+  const result = await postcss(plugins).process(globals, { from: fileURLToPath(globalsFile) });
+  const compiled = result.css;
+
+  assert.doesNotMatch(compiled, /@import\s/, "compiled CSS must inline token imports");
+  assert.deepEqual(Object.keys(postcssConfig.plugins), ["postcss-import", "tailwindcss", "autoprefixer"]);
+  for (const selector of [
+    ".bg-canvas\\/72",
+    ".text-content-primary",
+    ".border-outline",
+    ".bg-aurora-primary",
+    ".shadow-glow",
+    ".bg-primary",
+    ".font-sans"
+  ]) {
+    assert.ok(compiled.includes(selector), `missing generated selector ${selector}`);
+  }
+  for (const declaration of [
+    "background-color: oklch(var(--color-canvas) / .72)",
+    "color: oklch(var(--color-text-primary) / var(--tw-text-opacity, 1))",
+    "border-color: oklch(var(--color-border-default) / var(--tw-border-opacity, 1))",
+    "background-image: var(--gradient-aurora-primary)",
+    "--tw-shadow: var(--elevation-glow)",
+    "background-color: oklch(var(--color-accent-primary) / var(--tw-bg-opacity, 1))",
+    'font-family: var(--font-space-grotesk, "Segoe UI"), Roboto, Arial, sans-serif'
+  ]) {
+    assert.ok(compiled.includes(declaration), `missing generated declaration: ${declaration}`);
+  }
+  assert.match(compiled, /--color-canvas:\s*0\.115 0\.027 276/);
+  assert.match(compiled, /--elevation-glow:\s*0 0 42px oklch\(var\(--color-accent-primary\) \/ \.2\)/);
+});
+
 test("Tailwind and global CSS consume the semantic token contract", async () => {
   const [tailwindConfig, globals] = await Promise.all([
     readFile(new URL("../tailwind.config.ts", import.meta.url), "utf8"),
@@ -436,16 +502,22 @@ test("Tailwind and global CSS consume the semantic token contract", async () => 
     'raised: "var(--elevation-raised)"',
     'floating: "var(--elevation-floating)"',
     'glow: "var(--elevation-glow)"',
-    'soft: "var(--shadow-soft)"',
-    '"card-glow": "var(--shadow-card)"',
+    'soft: "var(--elevation-raised)"',
+    '"card-glow": "var(--elevation-floating)"',
     '"violet-hover": "var(--elevation-glow)"',
-    '"violet-strong": "var(--shadow-glow)"',
+    '"violet-strong": "var(--elevation-glow)"',
     '"brand-hover": "var(--elevation-glow)"',
-    '"brand-strong": "var(--shadow-glow)"',
+    '"brand-strong": "var(--elevation-glow)"',
     'inset: "var(--glass-highlight)"'
   ]) {
     assert.ok(tailwindConfig.includes(mapping), `incorrect Tailwind shadow mapping: ${mapping}`);
   }
+  assert.ok(
+    tailwindConfig.includes(
+      'sans: [\'var(--font-space-grotesk, "Segoe UI")\', "Roboto", "Arial", "sans-serif"]'
+    ),
+    "font-sans must retain Segoe UI when the Space Grotesk variable is undefined"
+  );
   assert.doesNotMatch(tailwindConfig, /hsl\(var\(--/);
 
   assert.ok(
