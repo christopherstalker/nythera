@@ -64,6 +64,47 @@ test("a retryable 429 advances to the next enabled provider", async (context) =>
   assert.match(body, /"provider":"fallback-local"/);
 });
 
+test("proxy readiness allows a slow cold start", async (context) => {
+  let child: ChildProcess | undefined;
+  context.after(async () => {
+    if (child) {
+      await stopProcess(child);
+    }
+  });
+
+  const started = Date.now();
+  const proxy = await startProxy({
+    nodeArgs: delayedHealthServerArgs(2_500),
+    onSpawn(spawned) {
+      child = spawned;
+    }
+  });
+
+  assert.equal(proxy, child);
+  assert.ok(Date.now() - started >= 2_500);
+});
+
+test("proxy startup reports signal termination", async (context) => {
+  let child: ChildProcess | undefined;
+  context.after(async () => {
+    if (child) {
+      await stopProcess(child);
+    }
+  });
+
+  await assert.rejects(
+    startProxy({
+      nodeArgs: ["--eval", "setInterval(() => {}, 1_000)"],
+      onSpawn(spawned) {
+        child = spawned;
+        spawned.kill("SIGTERM");
+      }
+    }),
+    /signal SIGTERM/
+  );
+  assert.equal(child?.signalCode, "SIGTERM");
+});
+
 function providerKey(provider: string, baseUrl: string, fallbackPriority: number) {
   return {
     provider,
@@ -95,9 +136,18 @@ async function requestProxy(port: number, providerKeys: ReturnType<typeof provid
   return response.text();
 }
 
-async function startProxy() {
+type StartProxyOptions = {
+  nodeArgs?: string[];
+  onSpawn?: (child: ChildProcess) => void;
+};
+
+const PROXY_STARTUP_TIMEOUT_MS = 10_000;
+const PROXY_READINESS_POLL_MS = 25;
+
+async function startProxy(options: StartProxyOptions = {}) {
   const port = await reservePort();
-  const child = spawn(process.execPath, ["--import", "tsx", path.join(process.cwd(), "proxy-service/src/server.ts")], {
+  const nodeArgs = options.nodeArgs ?? ["--import", "tsx", path.join(process.cwd(), "proxy-service/src/server.ts")];
+  const child = spawn(process.execPath, nodeArgs, {
     cwd: process.cwd(),
     env: {
       ...process.env,
@@ -110,8 +160,13 @@ async function startProxy() {
     },
     stdio: "ignore"
   });
+  options.onSpawn?.(child);
 
-  for (let attempt = 0; attempt < 80; attempt += 1) {
+  const deadline = Date.now() + PROXY_STARTUP_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    if (child.signalCode !== null) {
+      throw new Error(`Proxy exited before becoming ready with signal ${child.signalCode}.`);
+    }
     if (child.exitCode !== null) {
       throw new Error(`Proxy exited before becoming ready with code ${child.exitCode}.`);
     }
@@ -120,12 +175,15 @@ async function startProxy() {
       if (response.ok) {
         return Object.assign(child, { port });
       }
-    } catch {
-      await new Promise((resolve) => setTimeout(resolve, 25));
+    } catch {}
+
+    const remainingMs = deadline - Date.now();
+    if (remainingMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, Math.min(PROXY_READINESS_POLL_MS, remainingMs)));
     }
   }
 
-  child.kill();
+  await stopProcess(child);
   throw new Error("Proxy did not become ready.");
 }
 
@@ -183,4 +241,21 @@ function writeSuccessfulOpenAIStream(response: import("node:http").ServerRespons
     usage: { prompt_tokens: 3, completion_tokens: 2, total_tokens: 5 }
   })}\n\n`);
   response.end("data: [DONE]\n\n");
+}
+
+function delayedHealthServerArgs(delayMs: number) {
+  return [
+    "--eval",
+    `const { createServer } = require("node:http");
+setTimeout(() => {
+  createServer((request, response) => {
+    if (request.url !== "/health") {
+      response.writeHead(404).end();
+      return;
+    }
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end('{"ok":true}');
+  }).listen(Number(process.env.PORT), "127.0.0.1");
+}, ${delayMs});`
+  ];
 }
