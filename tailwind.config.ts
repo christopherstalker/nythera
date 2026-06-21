@@ -125,9 +125,9 @@ const config: Config = {
         glow: "var(--elevation-glow)",
         soft: "var(--shadow-soft)",
         "card-glow": "var(--shadow-card)",
-        "violet-hover": "var(--shadow-glow-soft)",
+        "violet-hover": "var(--elevation-glow)",
         "violet-strong": "var(--shadow-glow)",
-        "brand-hover": "var(--shadow-glow-soft)",
+        "brand-hover": "var(--elevation-glow)",
         "brand-strong": "var(--shadow-glow)",
         inset: "var(--glass-highlight)"
       }

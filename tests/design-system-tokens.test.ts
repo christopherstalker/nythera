@@ -432,6 +432,20 @@ test("Tailwind and global CSS consume the semantic token contract", async () => 
   assert.match(tailwindConfig, /content:\s*\{[\s\S]*?primary:[\s\S]*?secondary:[\s\S]*?muted:[\s\S]*?disabled:/);
   assert.match(tailwindConfig, /outline:\s*\{[\s\S]*?subtle:[\s\S]*?DEFAULT:[\s\S]*?strong:[\s\S]*?disabled:/);
   assert.match(tailwindConfig, /"aurora-primary":\s*"var\(--gradient-aurora-primary\)"/);
+  for (const mapping of [
+    'raised: "var(--elevation-raised)"',
+    'floating: "var(--elevation-floating)"',
+    'glow: "var(--elevation-glow)"',
+    'soft: "var(--shadow-soft)"',
+    '"card-glow": "var(--shadow-card)"',
+    '"violet-hover": "var(--elevation-glow)"',
+    '"violet-strong": "var(--shadow-glow)"',
+    '"brand-hover": "var(--elevation-glow)"',
+    '"brand-strong": "var(--shadow-glow)"',
+    'inset: "var(--glass-highlight)"'
+  ]) {
+    assert.ok(tailwindConfig.includes(mapping), `incorrect Tailwind shadow mapping: ${mapping}`);
+  }
   assert.doesNotMatch(tailwindConfig, /hsl\(var\(--/);
 
   assert.ok(
