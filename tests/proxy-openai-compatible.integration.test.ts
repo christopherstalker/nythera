@@ -17,9 +17,7 @@ test("custom providers use the direct OpenAI-compatible chat-completions endpoin
   const proxy = await startProxy();
 
   context.after(async () => {
-    proxy.kill();
-    upstream.close();
-    await Promise.allSettled([once(proxy, "exit"), once(upstream, "close")]);
+    await Promise.allSettled([stopProcess(proxy), closeServer(upstream)]);
   });
 
   const body = await requestProxy(proxy.port, [providerKey("local-vllm", upstreamUrl, 0)]);
@@ -45,10 +43,7 @@ test("a retryable 429 advances to the next enabled provider", async (context) =>
   const proxy = await startProxy();
 
   context.after(async () => {
-    proxy.kill();
-    primary.close();
-    fallback.close();
-    await Promise.allSettled([once(proxy, "exit"), once(primary, "close"), once(fallback, "close")]);
+    await Promise.allSettled([stopProcess(proxy), closeServer(primary), closeServer(fallback)]);
   });
 
   const body = await requestProxy(proxy.port, [
@@ -142,9 +137,26 @@ async function reservePort() {
   const server = createServer();
   const url = await listen(server);
   const port = Number(new URL(url).port);
-  server.close();
-  await once(server, "close");
+  await closeServer(server);
   return port;
+}
+
+async function stopProcess(child: ChildProcess) {
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return;
+  }
+  const exited = once(child, "exit");
+  child.kill();
+  await exited;
+}
+
+async function closeServer(server: Server) {
+  if (!server.listening) {
+    return;
+  }
+  const closed = once(server, "close");
+  server.close();
+  await closed;
 }
 
 function writeSuccessfulOpenAIStream(response: import("node:http").ServerResponse, text: string) {
@@ -166,5 +178,3 @@ function writeSuccessfulOpenAIStream(response: import("node:http").ServerRespons
   })}\n\n`);
   response.end("data: [DONE]\n\n");
 }
-
-type ProxyProcess = ChildProcess & { port: number };
