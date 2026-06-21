@@ -84,6 +84,12 @@ return (
                characterName={characterName}
                characterAvatarUrl={characterAvatarUrl}
                isPinned={item.message.pinned}
+               model={item.message.model}
+               provider={item.message.provider}
+               inputTokens={item.message.inputTokens}
+               outputTokens={item.message.outputTokens}
+               estimatedCost={item.message.estimatedCost}
+               usageEstimated={item.message.usageEstimated}
                onEdit={onEdit}
                onDelete={onDelete}
                onRegenerate={onRegenerate}
@@ -107,6 +113,12 @@ return (
                 characterName={characterName}
                 characterAvatarUrl={characterAvatarUrl}
                 isPinned={selected.pinned}
+                model={selected.model}
+                provider={selected.provider}
+                inputTokens={selected.inputTokens}
+                outputTokens={selected.outputTokens}
+                estimatedCost={selected.estimatedCost}
+                usageEstimated={selected.usageEstimated}
                 onEdit={onEdit}
                 onDelete={onDelete}
                 onRegenerate={onRegenerate}

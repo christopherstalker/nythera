@@ -9,6 +9,10 @@ type StreamInput = {
   messages: PromptMessage[];
   model: string;
   temperature: number;
+  topP?: number | null;
+  frequencyPenalty?: number | null;
+  presencePenalty?: number | null;
+  maxTokens?: number | null;
   userId: string;
   chatId: string;
   providerKeys?: ProviderKeys;

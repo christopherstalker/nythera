@@ -5,6 +5,7 @@ import { HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
 import { moderateText } from "@/lib/safety";
 import { characterUpdateSchema } from "@/lib/validation";
 import { normalizeCharacterTags } from "@/lib/character-tags";
+import { redactCharacterModelSettings } from "@/lib/character-model-settings";
 
 type Context = {
   params: {
@@ -74,11 +75,12 @@ export async function GET(_request: Request, context: Context) {
         ])
       : [null, null, null];
 
+    const canEdit = Boolean(session?.user?.id && session.user.id === character.creatorId);
     return json({
-      character,
+      character: canEdit ? character : redactCharacterModelSettings(character),
       recentChat,
       viewer: {
-        canEdit: Boolean(session?.user?.id && session.user.id === character.creatorId),
+        canEdit,
         liked: Boolean(liked),
         rating: myRating
       }
@@ -103,7 +105,8 @@ export async function PATCH(request: Request, context: Context) {
         greeting: true,
         avatarUrl: true,
         visibility: true,
-        persona: true
+        persona: true,
+        systemPromptOverride: true
       }
     });
 
@@ -146,6 +149,7 @@ export async function PATCH(request: Request, context: Context) {
         input.personality ?? character.personality,
         input.scenario ?? character.scenario,
         input.greeting ?? character.greeting,
+        input.systemPromptOverride === undefined ? character.systemPromptOverride : input.systemPromptOverride,
         JSON.stringify(input.persona ?? character.persona ?? {})
       ]
         .filter(Boolean)

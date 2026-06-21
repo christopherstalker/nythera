@@ -6,11 +6,16 @@ import OpenAI from "openai";
 import { classifyProviderError } from "@/lib/llm-provider-errors";
 import type { ProviderKey, ProviderKeys } from "@/lib/user-keys";
 import type { PromptMessage, StreamChunk } from "@/types";
+import { eligibleFallbackKeys } from "@/lib/provider-fallback";
 
 type StreamInput = {
   messages: PromptMessage[];
   model: string;
   temperature: number;
+  topP?: number | null;
+  frequencyPenalty?: number | null;
+  presencePenalty?: number | null;
+  maxTokens?: number | null;
   userId: string;
   chatId: string;
   providerKeys?: ProviderKeys;
@@ -44,6 +49,10 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
         model: attempt.model,
         messages: input.messages,
         temperature: input.temperature,
+        topP: input.topP,
+        frequencyPenalty: input.frequencyPenalty,
+        presencePenalty: input.presencePenalty,
+        maxTokens: input.maxTokens,
         key: attempt.key,
         writeDelta(delta) {
           outputText += delta;
@@ -55,6 +64,8 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
         emittedAny = true;
         yield { type: "delta", text: delta };
       }
+
+      const providerUsage = usage.getUsage();
 
       console.info({
         event: "llm_provider_attempt",
@@ -68,10 +79,11 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
 
       yield {
         type: "usage",
-        inputTokens: estimateTokens(input.messages.map((message) => message.content).join("\n")),
-        outputTokens: estimateTokens(outputText),
+        inputTokens: providerUsage?.inputTokens ?? estimateTokens(input.messages.map((message) => message.content).join("\n")),
+        outputTokens: providerUsage?.outputTokens ?? estimateTokens(outputText),
         provider: attempt.providerName,
         model: attempt.model,
+        usageEstimated: providerUsage === null,
         latencyMs: Date.now() - started,
         fallbackTriggered: index > 0,
         attempts: attemptLabels
@@ -186,7 +198,7 @@ function routeFromAvailableKey(keys: ProviderKeys) {
 }
 
 function fallbackRoutes(primary: GatewayRoute, keys: ProviderKeys) {
-  const routes = keys.map((key) => routeFromKey(key, key.defaultModel || "gpt-4o-mini"));
+  const routes = eligibleFallbackKeys(primary.providerName, keys).map((key) => routeFromKey(key, key.defaultModel || "gpt-4o-mini"));
   return routes.filter((route) => route.providerName !== primary.providerName || route.model !== primary.model);
 }
 
@@ -227,6 +239,10 @@ async function streamProvider(input: {
   model: string;
   messages: PromptMessage[];
   temperature: number;
+  topP?: number | null;
+  frequencyPenalty?: number | null;
+  presencePenalty?: number | null;
+  maxTokens?: number | null;
   key?: ProviderKey;
   writeDelta: (delta: string) => string;
 }) {
@@ -235,6 +251,7 @@ async function streamProvider(input: {
       throw new Error(`${input.provider} is not configured.`);
     }
 
+    const usage = createUsageTracker();
     return {
       deltas: streamOpenAI({
         client: new OpenAI({
@@ -247,8 +264,14 @@ async function streamProvider(input: {
         model: input.model,
         messages: input.messages,
         temperature: input.temperature,
-        writeDelta: input.writeDelta
-      })
+        topP: input.topP,
+        frequencyPenalty: input.frequencyPenalty,
+        presencePenalty: input.presencePenalty,
+        maxTokens: input.maxTokens,
+        writeDelta: input.writeDelta,
+        onUsage: usage.record
+      }),
+      getUsage: usage.read
     };
   }
 
@@ -257,14 +280,19 @@ async function streamProvider(input: {
       throw new Error("Anthropic is not configured.");
     }
 
+    const usage = createUsageTracker();
     return {
       deltas: streamAnthropic({
         client: new Anthropic({ apiKey: input.key.apiKey }),
         model: input.model,
         messages: input.messages,
         temperature: input.temperature,
-        writeDelta: input.writeDelta
-      })
+        topP: input.topP,
+        maxTokens: input.maxTokens,
+        writeDelta: input.writeDelta,
+        onUsage: usage.record
+      }),
+      getUsage: usage.read
     };
   }
 
@@ -273,14 +301,19 @@ async function streamProvider(input: {
       throw new Error("Gemini is not configured.");
     }
 
+    const usage = createUsageTracker();
     return {
       deltas: streamGemini({
         client: new GoogleGenerativeAI(input.key.apiKey),
         model: input.model,
         messages: input.messages,
         temperature: input.temperature,
-        writeDelta: input.writeDelta
-      })
+        topP: input.topP,
+        maxTokens: input.maxTokens,
+        writeDelta: input.writeDelta,
+        onUsage: usage.record
+      }),
+      getUsage: usage.read
     };
   }
 
@@ -300,16 +333,32 @@ async function* streamOpenAI(input: {
   model: string;
   messages: PromptMessage[];
   temperature: number;
+  topP?: number | null;
+  frequencyPenalty?: number | null;
+  presencePenalty?: number | null;
+  maxTokens?: number | null;
   writeDelta: (delta: string) => string;
+  onUsage: (usage: { inputTokens: number; outputTokens: number }) => void;
 }) {
   const stream = await input.client.chat.completions.create({
     model: input.model,
     messages: input.messages,
     temperature: input.temperature,
-    stream: true
+    top_p: input.topP ?? undefined,
+    frequency_penalty: input.frequencyPenalty ?? undefined,
+    presence_penalty: input.presencePenalty ?? undefined,
+    max_tokens: input.maxTokens ?? undefined,
+    stream: true,
+    stream_options: { include_usage: true }
   });
 
   for await (const chunk of stream) {
+    if (chunk.usage) {
+      input.onUsage({
+        inputTokens: chunk.usage.prompt_tokens,
+        outputTokens: chunk.usage.completion_tokens
+      });
+    }
     const delta = chunk.choices[0]?.delta?.content;
     if (delta) {
       yield input.writeDelta(delta);
@@ -322,9 +371,17 @@ async function* streamAnthropic(input: {
   model: string;
   messages: PromptMessage[];
   temperature: number;
+  topP?: number | null;
+  maxTokens?: number | null;
   writeDelta: (delta: string) => string;
+  onUsage: (usage: { inputTokens: number; outputTokens: number }) => void;
 }) {
-  const system = input.messages.find((message) => message.role === "system")?.content;
+  let inputTokens = 0;
+  let outputTokens = 0;
+  const system = input.messages
+    .filter((message) => message.role === "system")
+    .map((message) => message.content)
+    .join("\n\n");
   const messages = input.messages
     .filter((message) => message.role !== "system")
     .map((message) => ({
@@ -334,13 +391,22 @@ async function* streamAnthropic(input: {
 
   const stream = input.client.messages.stream({
     model: input.model,
-    max_tokens: 900,
+    max_tokens: input.maxTokens ?? 900,
     temperature: input.temperature,
+    top_p: input.topP ?? undefined,
     system,
     messages
   });
 
   for await (const event of stream) {
+    if (event.type === "message_start") {
+      inputTokens = event.message.usage.input_tokens;
+      input.onUsage({ inputTokens, outputTokens });
+    }
+    if (event.type === "message_delta") {
+      outputTokens = event.usage.output_tokens;
+      input.onUsage({ inputTokens, outputTokens });
+    }
     if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
       yield input.writeDelta(event.delta.text);
     }
@@ -352,11 +418,18 @@ async function* streamGemini(input: {
   model: string;
   messages: PromptMessage[];
   temperature: number;
+  topP?: number | null;
+  maxTokens?: number | null;
   writeDelta: (delta: string) => string;
+  onUsage: (usage: { inputTokens: number; outputTokens: number }) => void;
 }) {
   const model = input.client.getGenerativeModel({
     model: input.model,
-    generationConfig: { temperature: input.temperature }
+    generationConfig: {
+      temperature: input.temperature,
+      topP: input.topP ?? undefined,
+      maxOutputTokens: input.maxTokens ?? undefined
+    }
   });
   const prompt = input.messages.map((message) => `${message.role.toUpperCase()}: ${message.content}`).join("\n\n");
   const result = await model.generateContentStream(prompt);
@@ -367,6 +440,25 @@ async function* streamGemini(input: {
       yield input.writeDelta(text);
     }
   }
+  const response = await result.response;
+  if (response.usageMetadata) {
+    input.onUsage({
+      inputTokens: response.usageMetadata.promptTokenCount ?? 0,
+      outputTokens: response.usageMetadata.candidatesTokenCount ?? 0
+    });
+  }
+}
+
+function createUsageTracker() {
+  let usage: { inputTokens: number; outputTokens: number } | null = null;
+  return {
+    record(next: { inputTokens: number; outputTokens: number }) {
+      usage = next;
+    },
+    read() {
+      return usage;
+    }
+  };
 }
 
 function deterministicEmbedding(text: string) {

@@ -34,6 +34,14 @@ export type PromptMessage = {
   content: string;
 };
 
+export type ModelSamplingSettings = {
+  temperature: number;
+  topP?: number | null;
+  frequencyPenalty?: number | null;
+  presencePenalty?: number | null;
+  maxTokens?: number | null;
+};
+
 export type RetrievedMemory = {
   id: string;
   content: string;
@@ -52,6 +60,7 @@ export type StreamChunk =
       outputTokens: number;
       model: string;
       provider: string;
+      usageEstimated: boolean;
       latencyMs?: number;
       fallbackTriggered?: boolean;
       attempts?: string[];

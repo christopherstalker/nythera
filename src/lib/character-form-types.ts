@@ -33,6 +33,14 @@ export type CharacterFormValue = {
   initiative: number;
   messageLength: string;
   roleplayIntensity: number;
+  preferredProvider: string;
+  preferredModel: string;
+  temperature: number | null;
+  topP: number | null;
+  frequencyPenalty: number | null;
+  presencePenalty: number | null;
+  maxTokens: number | null;
+  systemPromptOverride: string;
 };
 
 export type CharacterFormInitialValue = Omit<Partial<CharacterFormValue>, "tags"> & {
@@ -54,6 +62,14 @@ export type CharacterCreatePayload = {
   tags: string[];
   persona?: Record<string, unknown>;
   communicationStyle?: Record<string, unknown>;
+  preferredProvider: string | null;
+  preferredModel: string | null;
+  temperature: number | null;
+  topP: number | null;
+  frequencyPenalty: number | null;
+  presencePenalty: number | null;
+  maxTokens: number | null;
+  systemPromptOverride: string | null;
 };
 
 export type GeneratedCharacterPreview = {
@@ -135,5 +151,13 @@ export const emptyCharacterDraft: CharacterFormValue = {
   seriousness: 5,
   initiative: 5,
   messageLength: "",
-  roleplayIntensity: 5
+  roleplayIntensity: 5,
+  preferredProvider: "",
+  preferredModel: "",
+  temperature: null,
+  topP: null,
+  frequencyPenalty: null,
+  presencePenalty: null,
+  maxTokens: null,
+  systemPromptOverride: ""
 };

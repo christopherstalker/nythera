@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireMobileUser } from "@/lib/mobile-auth";
 import { moderateText } from "@/lib/safety";
 import { characterUpdateSchema } from "@/lib/validation";
+import { redactCharacterModelSettings } from "@/lib/character-model-settings";
 
 type Context = {
   params: {
@@ -15,6 +16,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request, context: Context) {
   try {
+    let viewer = request.headers.get("authorization") ? await requireMobileUser(request).catch(() => null) : null;
     const character = await prisma.character.findUnique({
       where: { id: context.params.id },
       include: {
@@ -37,13 +39,14 @@ export async function GET(request: Request, context: Context) {
     const isApprovedUnlisted = character.visibility === "UNLISTED" && character.moderationStatus === "APPROVED";
 
     if (!isApprovedPublic && !isApprovedUnlisted) {
-      const user = await requireMobileUser(request);
-      if (character.creatorId !== user.id && user.role !== "ADMIN") {
+      viewer ??= await requireMobileUser(request);
+      if (character.creatorId !== viewer.id && viewer.role !== "ADMIN") {
         throw new HttpError(404, "Character not found.");
       }
     }
 
-    return json({ character });
+    const canEdit = Boolean(viewer && (character.creatorId === viewer.id || viewer.role === "ADMIN"));
+    return json({ character: canEdit ? character : redactCharacterModelSettings(character) });
   } catch (error) {
     return routeError(error);
   }
@@ -63,7 +66,8 @@ export async function PATCH(request: Request, context: Context) {
         greeting: true,
         avatarUrl: true,
         visibility: true,
-        persona: true
+        persona: true,
+        systemPromptOverride: true
       }
     });
 
@@ -93,6 +97,7 @@ export async function PATCH(request: Request, context: Context) {
         input.personality ?? character.personality,
         input.scenario ?? character.scenario,
         input.greeting ?? character.greeting,
+        input.systemPromptOverride === undefined ? character.systemPromptOverride : input.systemPromptOverride,
         JSON.stringify(input.persona ?? character.persona ?? {})
       ]
         .filter(Boolean)

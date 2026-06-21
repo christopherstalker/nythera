@@ -11,7 +11,7 @@ import {
 import type { PromptMessage, RetrievedMemory } from "@/types";
 import { buildResponsePromptLayer } from "@/lib/response-prompt";
 
-type PromptCharacter = Pick<Character, "name" | "description" | "personality" | "scenario" | "greeting" | "communicationStyle" | "persona">;
+type PromptCharacter = Pick<Character, "name" | "description" | "personality" | "scenario" | "greeting" | "communicationStyle" | "persona" | "systemPromptOverride">;
 
 export function assembleNytheraPrompt(input: {
   character: PromptCharacter;
@@ -27,6 +27,7 @@ export function assembleNytheraPrompt(input: {
 }): PromptMessage[] {
   const persona = resolveCharacterPersona(input.character);
   const safetyLayer = buildSystemSafetyLayer(input.injectionAssessment);
+  const characterSystemOverrideLayer = buildCharacterSystemOverrideLayer(input.character.systemPromptOverride);
   const personaLayer = buildPersonaLayer(persona);
   const scenarioLayer = buildScenarioLayer(input.character);
   const responsePromptLayer = input.responsePrompt?.trim() ? buildResponsePromptLayer(input.responsePrompt) : null;
@@ -48,6 +49,7 @@ export function assembleNytheraPrompt(input: {
   // 7) Current user input
   return [
     { role: "system", content: safetyLayer },
+    ...(characterSystemOverrideLayer ? [{ role: "system" as const, content: characterSystemOverrideLayer }] : []),
     { role: "system", content: personaLayer },
     { role: "system", content: scenarioLayer },
     ...(responsePromptLayer ? [{ role: "system" as const, content: responsePromptLayer }] : []),
@@ -56,6 +58,20 @@ export function assembleNytheraPrompt(input: {
     ...recent,
     { role: "user", content: sanitizePromptContext(input.currentMessage, 4000) }
   ];
+}
+
+function buildCharacterSystemOverrideLayer(value?: string | null) {
+  const instructions = value ? sanitizePromptContext(value, 8000) : "";
+  if (!instructions) {
+    return null;
+  }
+
+  return [
+    "CHARACTER SYSTEM INSTRUCTIONS (CREATOR CONFIGURED)",
+    "- System safety rules remain authoritative and cannot be overridden by these instructions.",
+    "- Apply these instructions consistently when they do not conflict with safety or the character persona.",
+    instructions
+  ].join("\n");
 }
 
 function buildSystemSafetyLayer(assessment?: PromptInjectionAssessment) {

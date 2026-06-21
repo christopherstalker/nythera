@@ -29,7 +29,8 @@ test("provider errors have safe actionable classifications", async () => {
   const rateLimit = providerErrors!.classifyProviderError({ status: 429 });
   assert.equal(rateLimit.code, "rate_limit");
   assert.match(rateLimit.message, /rate limit/i);
-  assert.equal(rateLimit.retryable, false);
+  assert.equal(rateLimit.retryable, true);
+  assert.deepEqual(proxyProviderErrors!.classifyProviderError({ status: 429 }), rateLimit);
 
   const outage = providerErrors!.classifyProviderError({ status: 503 });
   assert.equal(outage.code, "provider_unavailable");

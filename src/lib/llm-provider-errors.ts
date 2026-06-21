@@ -32,7 +32,7 @@ export function classifyProviderError(error: unknown): ProviderErrorClassificati
       code: "rate_limit",
       message: "The selected provider's rate limit was reached. Wait a moment and try again.",
       status,
-      retryable: false
+      retryable: true
     };
   }
 

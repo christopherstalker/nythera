@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BookOpen,
@@ -49,10 +49,17 @@ import {
   type PromptGenerationMeta
 } from "@/lib/character-form-types";
 import { cn } from "@/lib/utils";
+import { FIRST_CLASS_PROVIDER_PRESETS } from "@/lib/provider-presets";
 
 type CharacterFormProps = {
   mode: "create" | "edit";
   initialValue?: CharacterFormInitialValue;
+};
+
+type ProviderOption = {
+  provider: string;
+  displayName: string;
+  defaultModel: string;
 };
 
 const sectionIcons = {
@@ -87,6 +94,42 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
   const [generationMeta, setGenerationMeta] = useState<PromptGenerationMeta | null>(null);
   const [promptGenerated, setPromptGenerated] = useState(false);
   const [promptOptions, setPromptOptions] = useState<PromptGeneratorOptions | null>(null);
+  const [savedProviderOptions, setSavedProviderOptions] = useState<ProviderOption[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void fetch("/api/keys", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body) => {
+        if (cancelled || !Array.isArray(body?.keys)) {
+          return;
+        }
+        setSavedProviderOptions(
+          body.keys.map((key: ProviderOption) => ({
+            provider: key.provider,
+            displayName: key.displayName,
+            defaultModel: key.defaultModel || ""
+          }))
+        );
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const providerOptions = useMemo(() => {
+    const options = new Map<string, ProviderOption>();
+    for (const preset of FIRST_CLASS_PROVIDER_PRESETS) {
+      options.set(preset.provider, preset);
+    }
+    for (const provider of savedProviderOptions) {
+      options.set(provider.provider, provider);
+    }
+    return [...options.values()];
+  }, [savedProviderOptions]);
 
   const isSimpleMode = formMode === "simple";
   const isPromptMode = mode === "create" && formMode === "prompt";
@@ -627,6 +670,56 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
 
                   {section.id === "advanced" ? (
                     <>
+                      <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4">
+                        <p className="text-sm font-semibold text-[var(--text-primary)]">Model configuration</p>
+                        <p className="mt-1 text-xs text-[var(--text-muted)]">Leave fields blank to use the chatting user&apos;s global defaults.</p>
+                        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                          <Field label="Provider override">
+                            <select
+                              value={draft.preferredProvider}
+                              onChange={(event) => {
+                                const provider = event.target.value;
+                                const option = providerOptions.find((item) => item.provider === provider);
+                                setDraft((current) => ({
+                                  ...current,
+                                  preferredProvider: provider,
+                                  preferredModel: provider && !current.preferredModel ? option?.defaultModel ?? "" : current.preferredModel
+                                }));
+                              }}
+                              className="focus-ring glass-input h-12 w-full rounded-[var(--radius-md)] px-4 text-sm text-[var(--text-primary)]"
+                            >
+                              <option value="">Use global default</option>
+                              {providerOptions.map((provider) => (
+                                <option key={provider.provider} value={provider.provider}>
+                                  {provider.displayName}
+                                </option>
+                              ))}
+                            </select>
+                          </Field>
+                          <Field label="Model override">
+                            <Input
+                              value={draft.preferredModel}
+                              onChange={(event) => update("preferredModel", event.target.value)}
+                              placeholder="Leave blank for provider default"
+                            />
+                          </Field>
+                          <OptionalNumberInput label="Temperature" value={draft.temperature} min={0} max={2} step={0.1} onChange={(value) => update("temperature", value)} />
+                          <OptionalNumberInput label="Top P" value={draft.topP} min={0} max={1} step={0.05} onChange={(value) => update("topP", value)} />
+                          <OptionalNumberInput label="Frequency penalty" value={draft.frequencyPenalty} min={-2} max={2} step={0.1} onChange={(value) => update("frequencyPenalty", value)} />
+                          <OptionalNumberInput label="Presence penalty" value={draft.presencePenalty} min={-2} max={2} step={0.1} onChange={(value) => update("presencePenalty", value)} />
+                          <OptionalNumberInput label="Max tokens" value={draft.maxTokens} min={1} max={32768} step={1} onChange={(value) => update("maxTokens", value)} />
+                        </div>
+                        <div className="mt-4">
+                          <Field label="System prompt override" hint="Creator instructions below platform safety and above the character persona.">
+                            <Textarea
+                              value={draft.systemPromptOverride}
+                              onChange={(event) => update("systemPromptOverride", event.target.value)}
+                              maxLength={8000}
+                              placeholder="Optional response and behavior instructions"
+                            />
+                          </Field>
+                        </div>
+                      </div>
                       <Field label="Boundaries">
                         <Textarea value={draft.boundaries} onChange={(event) => update("boundaries", event.target.value)} />
                       </Field>
@@ -892,6 +985,36 @@ function Slider({ label, value, onChange }: { label: string; value: number; onCh
         className="mt-3 w-full accent-[var(--accent-purple)]"
       />
     </label>
+  );
+}
+
+function OptionalNumberInput({
+  label,
+  value,
+  min,
+  max,
+  step,
+  onChange
+}: {
+  label: string;
+  value: number | null;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (value: number | null) => void;
+}) {
+  return (
+    <Field label={label}>
+      <Input
+        type="number"
+        value={value ?? ""}
+        min={min}
+        max={max}
+        step={step}
+        onChange={(event) => onChange(event.target.value === "" ? null : Number(event.target.value))}
+        placeholder="Use platform default"
+      />
+    </Field>
   );
 }
 

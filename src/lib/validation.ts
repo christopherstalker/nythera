@@ -59,7 +59,15 @@ export const characterCreateSchema = z.object({
   persona: characterPersonaSchema.optional(),
   visibility: z.enum(["PRIVATE", "PUBLIC", "UNLISTED"]).default("PRIVATE"),
   tags: z.array(z.string().min(1).max(32)).max(12).default([]),
-  isNSFW: z.boolean().default(false)
+  isNSFW: z.boolean().default(false),
+  preferredProvider: z.string().trim().min(1).max(48).nullable().optional(),
+  preferredModel: z.string().trim().min(1).max(160).nullable().optional(),
+  temperature: z.number().min(0).max(2).nullable().optional(),
+  topP: z.number().min(0).max(1).nullable().optional(),
+  frequencyPenalty: z.number().min(-2).max(2).nullable().optional(),
+  presencePenalty: z.number().min(-2).max(2).nullable().optional(),
+  maxTokens: z.number().int().min(1).max(32768).nullable().optional(),
+  systemPromptOverride: z.string().trim().max(8000).nullable().optional()
 });
 
 export const characterUpdateSchema = characterCreateSchema.partial();

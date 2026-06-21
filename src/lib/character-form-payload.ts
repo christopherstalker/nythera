@@ -64,7 +64,15 @@ export function normalizeInitialCharacterValue(value?: CharacterFormInitialValue
     seriousness: numberValue(style.seriousness, emptyCharacterDraft.seriousness),
     initiative: numberValue(style.initiative, emptyCharacterDraft.initiative),
     messageLength: textValue(style.messageLength ?? value.messageLength),
-    roleplayIntensity: numberValue(style.roleplayIntensity, emptyCharacterDraft.roleplayIntensity)
+    roleplayIntensity: numberValue(style.roleplayIntensity, emptyCharacterDraft.roleplayIntensity),
+    preferredProvider: textValue(value.preferredProvider),
+    preferredModel: textValue(value.preferredModel),
+    temperature: nullableNumberValue(value.temperature),
+    topP: nullableNumberValue(value.topP),
+    frequencyPenalty: nullableNumberValue(value.frequencyPenalty),
+    presencePenalty: nullableNumberValue(value.presencePenalty),
+    maxTokens: nullableNumberValue(value.maxTokens),
+    systemPromptOverride: textValue(value.systemPromptOverride)
   };
 }
 
@@ -170,6 +178,14 @@ export function buildCharacterCreatePayload({
     visibility: isSimpleMode ? "PRIVATE" : merged.visibility,
     isNSFW: merged.isNSFW,
     tags: tags.length > 0 ? tags : ["roleplay"],
+    preferredProvider: merged.preferredProvider.trim() || null,
+    preferredModel: merged.preferredModel.trim() || null,
+    temperature: merged.temperature,
+    topP: merged.topP,
+    frequencyPenalty: merged.frequencyPenalty,
+    presencePenalty: merged.presencePenalty,
+    maxTokens: merged.maxTokens,
+    systemPromptOverride: merged.systemPromptOverride.trim() || null,
     ...(Object.keys(persona).length > 0 ? { persona } : {}),
     ...(Object.keys(communicationStyle).length > 0 ? { communicationStyle } : {})
   };
@@ -310,6 +326,10 @@ function listToText(value: unknown, fallback?: string) {
 
 function numberValue(value: unknown, fallback: number) {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function nullableNumberValue(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function normalizeEnum<T extends string>(value: string, options: readonly T[]) {

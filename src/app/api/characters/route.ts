@@ -6,6 +6,7 @@ import { moderateText } from "@/lib/safety";
 import { getRequestIp, HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
 import { characterCreateSchema } from "@/lib/validation";
 import { DISCOVERY_TAGS, expandTagQuery, normalizeCharacterTags } from "@/lib/character-tags";
+import { redactCharacterModelSettings } from "@/lib/character-model-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -94,7 +95,7 @@ export async function GET(request: Request) {
       }
     });
 
-    return json({ characters, tags: DISCOVERY_TAGS });
+    return json({ characters: characters.map(redactCharacterModelSettings), tags: DISCOVERY_TAGS });
   } catch (error) {
     return routeError(error);
   }
@@ -128,7 +129,7 @@ export async function POST(request: Request) {
     }
 
     const moderation = moderateText({
-      text: [input.name, input.description, input.personality, input.scenario, input.greeting, JSON.stringify(input.persona ?? {})]
+      text: [input.name, input.description, input.personality, input.scenario, input.greeting, input.systemPromptOverride, JSON.stringify(input.persona ?? {})]
         .filter(Boolean)
         .join("\n"),
       userIsMinor: isMinor(user.birthDate),
@@ -151,6 +152,14 @@ export async function POST(request: Request) {
         greeting: input.greeting,
         communicationStyle: input.communicationStyle ?? Prisma.JsonNull,
         persona: input.persona ?? Prisma.JsonNull,
+        preferredProvider: input.preferredProvider,
+        preferredModel: input.preferredModel,
+        temperature: input.temperature,
+        topP: input.topP,
+        frequencyPenalty: input.frequencyPenalty,
+        presencePenalty: input.presencePenalty,
+        maxTokens: input.maxTokens,
+        systemPromptOverride: input.systemPromptOverride,
         visibility: input.visibility,
         tags,
         isNSFW: input.isNSFW,

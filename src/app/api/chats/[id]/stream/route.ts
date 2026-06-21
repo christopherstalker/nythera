@@ -14,6 +14,8 @@ import { generateChatTitle } from "@/lib/chat-history";
 import { getEffectiveProviderKeys } from "@/lib/user-keys";
 import { formatUserPersonaForPrompt } from "@/lib/user-persona";
 import { createMessageWithNextSequence } from "@/lib/message-sequence";
+import { resolveCharacterModelSettings } from "@/lib/character-model-settings";
+import { estimateModelCost } from "@/lib/model-pricing";
 
 type Context = {
   params: {
@@ -81,10 +83,15 @@ export async function POST(request: Request, context: Context) {
       }
     }
 
-    const model = input.model ?? chat.model;
-    const temperature = input.temperature ?? chat.temperature;
-
     const providerKeys = await getEffectiveProviderKeys(user.id);
+    const effectiveSettings = resolveCharacterModelSettings({
+      character: chat.character,
+      providerKeys,
+      globalModel: input.model ?? chat.model,
+      chatTemperature: input.temperature ?? chat.temperature
+    });
+    const model = effectiveSettings.model;
+    const temperature = effectiveSettings.temperature;
     const latestHistoryContent = chat.messages[0]?.content ?? message;
     let recentMessages = [...chat.messages].reverse();
 
@@ -150,6 +157,7 @@ export async function POST(request: Request, context: Context) {
       outputTokens: number;
       model: string;
       provider: string;
+      usageEstimated: boolean;
       latencyMs?: number;
       fallbackTriggered?: boolean;
       attempts?: string[];
@@ -157,7 +165,8 @@ export async function POST(request: Request, context: Context) {
       inputTokens: 0,
       outputTokens: 0,
       model,
-      provider: "unknown"
+      provider: "unknown",
+      usageEstimated: true
     };
 
     const stream = new ReadableStream({
@@ -171,6 +180,10 @@ export async function POST(request: Request, context: Context) {
             messages: prompt,
             model,
             temperature,
+            topP: effectiveSettings.topP,
+            frequencyPenalty: effectiveSettings.frequencyPenalty,
+            presencePenalty: effectiveSettings.presencePenalty,
+            maxTokens: effectiveSettings.maxTokens,
             userId: user.id,
             chatId: chat.id,
             providerKeys,
@@ -211,12 +224,24 @@ export async function POST(request: Request, context: Context) {
             throw new Error("The model returned an empty response.");
           }
 
+          const estimatedCost = estimateModelCost({
+            provider: usage.provider,
+            model: usage.model,
+            inputTokens: usage.inputTokens,
+            outputTokens: usage.outputTokens
+          });
+
           const assistant = await createMessageWithNextSequence({
             chatId: chat.id,
             role: MessageRole.ASSISTANT,
             content: assistantText,
             model: usage.model,
             tokens: usage.outputTokens,
+            provider: usage.provider,
+            inputTokens: usage.inputTokens,
+            outputTokens: usage.outputTokens,
+            estimatedCost,
+            usageEstimated: usage.usageEstimated,
             flagged: outputBlocked,
             clientRequestId: continueChat ? `continue-${input.requestId || crypto.randomUUID()}` : undefined
           });
@@ -255,6 +280,7 @@ export async function POST(request: Request, context: Context) {
               route: "chat",
               inputTokens: usage.inputTokens,
               outputTokens: usage.outputTokens,
+              estimatedCost,
               status: outputBlocked ? "blocked_output" : usage.fallbackTriggered ? "ok_fallback" : "ok",
               error: usage.fallbackTriggered ? `fallback attempts: ${(usage.attempts ?? []).join(" -> ")}`.slice(0, 2000) : null,
               latencyMs: Date.now() - started
@@ -279,12 +305,23 @@ export async function POST(request: Request, context: Context) {
           console.error(error);
           const errorMessage = error instanceof Error ? error.message : "The model stream failed.";
           if (assistantText.trim() && !assistantPersisted) {
+            const estimatedCost = estimateModelCost({
+              provider: usage.provider,
+              model: usage.model,
+              inputTokens: usage.inputTokens,
+              outputTokens: usage.outputTokens
+            });
             const assistant = await createMessageWithNextSequence({
               chatId: chat.id,
               role: MessageRole.ASSISTANT,
               content: assistantText,
               model: usage.model,
               tokens: usage.outputTokens,
+              provider: usage.provider,
+              inputTokens: usage.inputTokens,
+              outputTokens: usage.outputTokens,
+              estimatedCost,
+              usageEstimated: usage.usageEstimated,
               flagged: true
             });
             assistantPersisted = true;
@@ -334,6 +371,12 @@ export async function POST(request: Request, context: Context) {
               route: "chat",
               inputTokens: usage.inputTokens,
               outputTokens: usage.outputTokens,
+              estimatedCost: estimateModelCost({
+                provider: usage.provider,
+                model: usage.model,
+                inputTokens: usage.inputTokens,
+                outputTokens: usage.outputTokens
+              }),
               status: assistantPersisted ? "partial_error" : "error",
               error: errorMessage.slice(0, 2000),
               latencyMs: Date.now() - started

@@ -16,6 +16,8 @@ export type ProviderKey = {
   defaultModel?: string | null;
   label?: string | null;
   isDefault?: boolean;
+  fallbackEnabled?: boolean;
+  fallbackPriority?: number | null;
 };
 
 export type ProviderKeys = ProviderKey[];
@@ -85,7 +87,7 @@ export async function saveUserApiKey(input: {
 export async function listUserApiKeys(userId: string) {
   return prisma.userApiKey.findMany({
     where: { userId },
-    orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }, { provider: "asc" }],
+    orderBy: [{ isDefault: "desc" }, { fallbackPriority: "asc" }, { updatedAt: "desc" }, { provider: "asc" }],
     select: {
       id: true,
       provider: true,
@@ -96,6 +98,8 @@ export async function listUserApiKeys(userId: string) {
       label: true,
       last4: true,
       isDefault: true,
+      fallbackEnabled: true,
+      fallbackPriority: true,
       createdAt: true,
       updatedAt: true
     }
@@ -105,7 +109,7 @@ export async function listUserApiKeys(userId: string) {
 export async function getDecryptedProviderKeys(userId: string): Promise<ProviderKeys> {
   const rows = await prisma.userApiKey.findMany({
     where: { userId },
-    orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }],
+    orderBy: [{ isDefault: "desc" }, { fallbackPriority: "asc" }, { updatedAt: "desc" }],
     select: {
       provider: true,
       displayName: true,
@@ -114,6 +118,8 @@ export async function getDecryptedProviderKeys(userId: string): Promise<Provider
       defaultModel: true,
       label: true,
       isDefault: true,
+      fallbackEnabled: true,
+      fallbackPriority: true,
       encryptedKey: true
     }
   });
@@ -126,8 +132,49 @@ export async function getDecryptedProviderKeys(userId: string): Promise<Provider
     baseUrl: row.baseUrl,
     defaultModel: row.defaultModel,
     label: row.label,
-    isDefault: row.isDefault
+    isDefault: row.isDefault,
+    fallbackEnabled: row.fallbackEnabled,
+    fallbackPriority: row.fallbackPriority
   }));
+}
+
+export async function updateUserProviderFallbacks(input: {
+  userId: string;
+  providers: Array<{ provider: string; enabled: boolean }>;
+}) {
+  const normalized = input.providers.map((item) => ({
+    provider: normalizeProviderId(item.provider),
+    enabled: item.enabled
+  }));
+  const uniqueProviders = new Set(normalized.map((item) => item.provider));
+  if (uniqueProviders.size !== normalized.length || normalized.some((item) => !item.provider)) {
+    throw new Error("Fallback providers must be unique and valid.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.userApiKey.findMany({
+      where: { userId: input.userId },
+      select: { id: true, provider: true }
+    });
+    const byProvider = new Map(existing.map((key) => [key.provider, key]));
+    if (normalized.some((item) => !byProvider.has(item.provider))) {
+      throw new Error("Fallback chain contains an unknown provider.");
+    }
+
+    await Promise.all(
+      normalized.map((item, index) =>
+        tx.userApiKey.update({
+          where: { id: byProvider.get(item.provider)!.id },
+          data: {
+            fallbackEnabled: item.enabled,
+            fallbackPriority: item.enabled ? index : null
+          }
+        })
+      )
+    );
+  });
+
+  return listUserApiKeys(input.userId);
 }
 
 export async function getEffectiveProviderKeys(userId: string): Promise<ProviderKeys> {
@@ -235,7 +282,8 @@ function providerToDisplayName(provider: string) {
     deepseek: "DeepSeek",
     groq: "Groq",
     together: "Together AI",
-    mistral: "Mistral"
+    mistral: "Mistral",
+    xai: "xAI (Grok)"
   };
 
   return (

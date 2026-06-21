@@ -15,6 +15,12 @@ type MessageBubbleProps = {
   characterName: string;
   characterAvatarUrl?: string | null;
   isPinned?: boolean;
+  model?: string | null;
+  provider?: string | null;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  estimatedCost?: number | string | null;
+  usageEstimated?: boolean | null;
   onEdit?: (messageId: string, content: string) => void | Promise<void>;
   onDelete?: (messageId: string) => void;
   onRegenerate?: (messageId: string) => void;
@@ -35,6 +41,12 @@ export function MessageBubble({
   characterName,
   characterAvatarUrl,
   isPinned,
+  model,
+  provider,
+  inputTokens,
+  outputTokens,
+  estimatedCost,
+  usageEstimated,
   onEdit,
   onDelete,
   onRegenerate,
@@ -222,6 +234,17 @@ export function MessageBubble({
             )}
           </div>
 
+          {!isUser && content && (inputTokens !== null && inputTokens !== undefined || outputTokens !== null && outputTokens !== undefined) ? (
+            <p
+              className="mt-1 px-1 text-[10px] text-[var(--text-muted)]"
+              title={estimatedCost !== null && estimatedCost !== undefined ? "Estimated cost in USD based on public provider pricing" : "Token usage"}
+            >
+              {provider ? `${provider}${model ? ` · ${model}` : ""} · ` : ""}
+              {usageEstimated ? "~" : ""}{inputTokens ?? 0} in / {outputTokens ?? 0} out
+              {estimatedCost !== null && estimatedCost !== undefined ? ` · ${formatEstimatedCost(estimatedCost)}` : ""}
+            </p>
+          ) : null}
+
           {content && !isEditing ? (
             <div
               className={cn(
@@ -301,6 +324,17 @@ export function MessageBubble({
       )}
     </div>
   );
+}
+
+function formatEstimatedCost(value: number | string) {
+  const cost = Number(value);
+  if (!Number.isFinite(cost)) {
+    return "Cost unavailable";
+  }
+  if (cost > 0 && cost < 0.0001) {
+    return "<$0.0001";
+  }
+  return `$${cost.toFixed(4)}`;
 }
 
 function ActionButton({

@@ -13,7 +13,7 @@ export function classifyProviderError(error: unknown): ProviderErrorClassificati
     return { code: "invalid_api_key", message: "The selected provider rejected the API key. Check the key in Settings.", status: status ?? 401, retryable: false };
   }
   if (status === 429) {
-    return { code: "rate_limit", message: "The selected provider's rate limit was reached. Wait a moment and try again.", status, retryable: false };
+    return { code: "rate_limit", message: "The selected provider's rate limit was reached. Wait a moment and try again.", status, retryable: true };
   }
   if (status === 404 || message.includes("model") && message.includes("not found")) {
     return { code: "model_unavailable", message: "The selected model is unavailable. Choose another model in Settings.", status, retryable: false };

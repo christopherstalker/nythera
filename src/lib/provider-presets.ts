@@ -41,6 +41,30 @@ export const FIRST_CLASS_PROVIDER_PRESETS: ProviderPreset[] = [
     baseUrl: "https://api.deepseek.com",
     defaultModel: "deepseek-chat",
     placeholder: "sk-..."
+  },
+  {
+    provider: "mistral",
+    displayName: "Mistral",
+    apiFormat: "OPENAI_COMPATIBLE",
+    baseUrl: "https://api.mistral.ai/v1",
+    defaultModel: "mistral-small-latest",
+    placeholder: "..."
+  },
+  {
+    provider: "groq",
+    displayName: "Groq",
+    apiFormat: "OPENAI_COMPATIBLE",
+    baseUrl: "https://api.groq.com/openai/v1",
+    defaultModel: "llama-3.3-70b-versatile",
+    placeholder: "gsk_..."
+  },
+  {
+    provider: "xai",
+    displayName: "xAI (Grok)",
+    apiFormat: "OPENAI_COMPATIBLE",
+    baseUrl: "https://api.x.ai/v1",
+    defaultModel: "grok-4.3-latest",
+    placeholder: "xai-..."
   }
 ];
 

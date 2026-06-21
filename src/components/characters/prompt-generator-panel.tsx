@@ -38,7 +38,8 @@ const MODEL_SUGGESTIONS: Record<string, string[]> = {
   openrouter: ["openai/gpt-4o-mini", "anthropic/claude-3.5-sonnet", "google/gemini-2.5-flash"],
   groq: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"],
   together: ["meta-llama/Llama-3.3-70B-Instruct-Turbo"],
-  mistral: ["mistral-large-latest", "mistral-small-latest"]
+  mistral: ["mistral-large-latest", "mistral-small-latest"],
+  xai: ["grok-4.3-latest"]
 };
 
 export function PromptGeneratorPanel({

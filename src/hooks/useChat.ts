@@ -10,6 +10,12 @@ export type ChatMessage = {
   createdAt?: string;
   clientRequestId?: string | null;
   pinned?: boolean;
+  model?: string | null;
+  provider?: string | null;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  estimatedCost?: number | string | null;
+  usageEstimated?: boolean | null;
 };
 
 type SendOptions = {
