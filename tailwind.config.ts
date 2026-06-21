@@ -1,6 +1,8 @@
 import type { Config } from "tailwindcss";
 import tailwindcssAnimate from "tailwindcss-animate";
 
+const tokenColor = (token: string) => `oklch(var(--color-${token}) / <alpha-value>)`;
+
 const config: Config = {
   darkMode: ["class"],
   content: ["./src/**/*.{ts,tsx}"],
@@ -31,49 +33,103 @@ const config: Config = {
         content: "var(--content-max-width)"
       },
       colors: {
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
+        canvas: tokenColor("canvas"),
+        surface: tokenColor("surface"),
+        elevated: tokenColor("elevated"),
+        content: {
+          primary: tokenColor("text-primary"),
+          secondary: tokenColor("text-secondary"),
+          muted: tokenColor("text-muted"),
+          disabled: tokenColor("text-disabled")
+        },
+        outline: {
+          subtle: tokenColor("border-subtle"),
+          DEFAULT: tokenColor("border-default"),
+          strong: tokenColor("border-strong"),
+          disabled: tokenColor("border-disabled")
+        },
+        brand: {
+          DEFAULT: tokenColor("accent-primary"),
+          strong: tokenColor("accent-strong"),
+          secondary: tokenColor("accent-secondary"),
+          soft: "oklch(var(--color-accent-primary) / .16)"
+        },
+        warning: tokenColor("warning"),
+        danger: tokenColor("danger"),
+        border: tokenColor("border-default"),
+        input: tokenColor("surface"),
+        ring: tokenColor("focus-ring"),
+        background: tokenColor("canvas"),
+        foreground: tokenColor("text-primary"),
         primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))"
+          DEFAULT: tokenColor("accent-primary"),
+          foreground: tokenColor("on-accent")
         },
         secondary: {
-          DEFAULT: "hsl(var(--secondary))",
-          foreground: "hsl(var(--secondary-foreground))"
+          DEFAULT: tokenColor("elevated"),
+          foreground: tokenColor("text-primary")
         },
         destructive: {
-          DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))"
+          DEFAULT: tokenColor("danger"),
+          foreground: tokenColor("on-danger")
         },
         muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))"
+          DEFAULT: tokenColor("surface"),
+          foreground: tokenColor("text-secondary")
         },
         accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))"
+          DEFAULT: tokenColor("accent-primary"),
+          foreground: tokenColor("on-accent")
         },
         card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))"
+          DEFAULT: tokenColor("surface"),
+          foreground: tokenColor("text-primary")
         }
       },
+      fontFamily: {
+        sans: ["var(--font-space-grotesk)", "Segoe UI", "Roboto", "Arial", "sans-serif"]
+      },
+      fontSize: {
+        display: ["var(--type-display)", { lineHeight: ".98", letterSpacing: "-.052em" }],
+        "heading-1": ["var(--type-heading-1)", { lineHeight: "1.02", letterSpacing: "-.045em" }],
+        "heading-2": ["var(--type-heading-2)", { lineHeight: "1.08", letterSpacing: "-.035em" }],
+        "heading-3": ["var(--type-heading-3)", { lineHeight: "1.15", letterSpacing: "-.025em" }],
+        body: ["var(--type-body)", { lineHeight: "1.6" }]
+      },
+      opacity: {
+        40: ".4",
+        56: ".56",
+        60: ".6",
+        72: ".72",
+        80: ".8",
+        88: ".88"
+      },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)"
+        compact: "var(--radius-compact)",
+        control: "var(--radius-control)",
+        card: "var(--radius-card)",
+        surface: "var(--radius-surface)",
+        panel: "var(--radius-panel)",
+        full: "var(--radius-full)",
+        lg: "var(--radius-card)",
+        md: "var(--radius-control)",
+        sm: "var(--radius-compact)"
+      },
+      backgroundImage: {
+        "aurora-primary": "var(--gradient-aurora-primary)",
+        "aurora-ambient": "var(--gradient-aurora-ambient)"
       },
       boxShadow: {
-        soft: "0 22px 70px rgba(0, 0, 0, 0.38)",
-        "card-glow": "0 18px 60px rgba(7, 5, 14, 0.42)",
-        "violet-hover": "0 18px 55px rgba(255, 122, 24, 0.16)",
-        "violet-strong": "0 0 44px rgba(255, 122, 24, 0.26)",
-        "brand-hover": "0 18px 55px rgba(255, 122, 24, 0.16)",
-        "brand-strong": "0 0 44px rgba(255, 122, 24, 0.26)",
-        inset: "inset 0 1px 0 rgba(255, 255, 255, 0.05)"
+        raised: "var(--elevation-raised)",
+        floating: "var(--elevation-floating)",
+        glow: "var(--elevation-glow)",
+        soft: "var(--shadow-soft)",
+        "card-glow": "var(--shadow-card)",
+        "violet-hover": "var(--shadow-glow-soft)",
+        "violet-strong": "var(--shadow-glow)",
+        "brand-hover": "var(--shadow-glow-soft)",
+        "brand-strong": "var(--shadow-glow)",
+        inset: "var(--glass-highlight)"
       }
     }
   },

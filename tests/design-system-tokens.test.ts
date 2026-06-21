@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import postcss, { type AtRule, type Rule } from "postcss";
+import postcss, { type AnyNode, type AtRule, type Rule } from "postcss";
 
 const tokenFile = new URL("../src/styles/design-tokens.css", import.meta.url);
 const contractSelectors = [":root", ":root, .dark", ".light"] as const;
@@ -17,7 +17,7 @@ function parseTokenContract(css: string) {
   assert.equal(layer.parent?.type, "root", "@layer base must be top-level");
 
   ast.walkRules((rule) => {
-    let parent = rule.parent;
+    let parent: AnyNode | undefined = rule.parent;
     while (parent && parent !== layer) parent = parent.parent;
     assert.equal(parent, layer, `unexpected active style rule outside @layer base: ${rule.selector}`);
   });
@@ -402,4 +402,60 @@ test("PostCSS contract parsing ignores comments and rejects active overrides", (
 
 test("contrast conversion rejects out-of-gamut OKLCH instead of clamping", () => {
   assert.throws(() => luminance([0.7, 0.5, 30]), /outside linear sRGB gamut/);
+});
+
+test("Tailwind and global CSS consume the semantic token contract", async () => {
+  const [tailwindConfig, globals] = await Promise.all([
+    readFile(new URL("../tailwind.config.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/app/globals.css", import.meta.url), "utf8")
+  ]);
+
+  assert.match(
+    tailwindConfig,
+    /const tokenColor = \(token: string\) => `oklch\(var\(--color-\$\{token\}\) \/ <alpha-value>\)`;/
+  );
+  for (const mapping of [
+    'canvas: tokenColor("canvas")',
+    'primary: tokenColor("text-primary")',
+    'secondary: tokenColor("text-secondary")',
+    'muted: tokenColor("text-muted")',
+    'disabled: tokenColor("text-disabled")',
+    'subtle: tokenColor("border-subtle")',
+    'DEFAULT: tokenColor("border-default")',
+    'strong: tokenColor("border-strong")',
+    'disabled: tokenColor("border-disabled")',
+    'foreground: tokenColor("on-accent")',
+    'foreground: tokenColor("on-danger")'
+  ]) {
+    assert.ok(tailwindConfig.includes(mapping), `missing Tailwind token mapping: ${mapping}`);
+  }
+  assert.match(tailwindConfig, /content:\s*\{[\s\S]*?primary:[\s\S]*?secondary:[\s\S]*?muted:[\s\S]*?disabled:/);
+  assert.match(tailwindConfig, /outline:\s*\{[\s\S]*?subtle:[\s\S]*?DEFAULT:[\s\S]*?strong:[\s\S]*?disabled:/);
+  assert.match(tailwindConfig, /"aurora-primary":\s*"var\(--gradient-aurora-primary\)"/);
+  assert.doesNotMatch(tailwindConfig, /hsl\(var\(--/);
+
+  assert.ok(
+    globals.startsWith('@import "../styles/design-tokens.css";\n'),
+    "globals.css must import design-tokens.css on its first line"
+  );
+  assert.ok(
+    globals.indexOf('@import "../styles/design-tokens.css";') < globals.indexOf("@tailwind base;"),
+    "the token import must precede Tailwind directives"
+  );
+  assert.doesNotMatch(globals, /--background:\s*240 24% 6%/);
+  assert.doesNotMatch(globals, /--color-[\w-]+\s*:/, "globals.css must not redeclare design tokens");
+
+  const globalsAst = postcss.parse(globals);
+  const activeThemeSources: string[] = [];
+  globalsAst.walkAtRules("layer", (layer) => {
+    if (layer.params.trim() !== "base") return;
+    for (const node of layer.nodes ?? []) {
+      if (node.type === "rule" && [":root", ".dark", ".light"].includes(node.selector.trim())) {
+        activeThemeSources.push(node.selector.trim());
+      }
+    }
+  });
+  assert.deepEqual(activeThemeSources, [], "design-tokens.css must remain the only design token source");
+  assert.match(globals, /@apply min-h-screen bg-canvas text-content-primary antialiased;/);
+  assert.match(globals, /color:\s*oklch\(var\(--color-text-primary\)\);/);
 });
