@@ -1,12 +1,12 @@
 @layer base {
-  :root, .dark {
+  :root {
     /* Primitive color channels */
-    --color-violet-500: 0.67 0.17 286;
-    --color-violet-600: 0.59 0.19 286;
-    --color-mint-400: 0.87 0.12 170;
-    --color-mint-500: 0.78 0.13 170;
-    --color-warning-500: 0.78 0.15 80;
-    --color-danger-500: 0.65 0.2 25;
+    --primitive-violet-500: 0.67 0.17 286;
+    --primitive-violet-600: 0.59 0.19 286;
+    --primitive-mint-400: 0.87 0.12 170;
+    --primitive-mint-500: 0.78 0.13 170;
+    --primitive-warning-500: 0.78 0.15 80;
+    --primitive-danger-500: 0.65 0.2 25;
 
     /* Spacing */
     --space-1: 4px;
@@ -63,71 +63,36 @@
     --sidebar-width: 260px;
     --sidebar-collapsed: 64px;
 
-    /* Dark semantic color channels */
-    --color-canvas: 0.115 0.027 276;
-    --color-surface: 0.165 0.035 276;
-    --color-elevated: 0.215 0.042 276;
-    --color-text-primary: 0.96 0.012 270;
-    --color-text-secondary: 0.78 0.035 270;
-    --color-text-muted: 0.64 0.035 270;
-    --color-text-disabled: 0.49 0.026 270;
-    --color-border-subtle: 0.35 0.04 276;
-    --color-border-default: 0.45 0.04 276;
-    --color-border-strong: 0.6 0.04 276;
-    --color-border-disabled: 0.28 0.025 276;
-    --color-accent-primary: var(--color-violet-500);
-    --color-accent-strong: var(--color-violet-600);
-    --color-accent-secondary: var(--color-mint-400);
-    --color-focus-ring: var(--color-mint-400);
-    --color-warning: var(--color-warning-500);
-    --color-danger: var(--color-danger-500);
-
     /* Aurora gradients */
-    --gradient-aurora-primary: linear-gradient(
-      135deg,
-      oklch(var(--color-accent-primary)),
-      oklch(var(--color-accent-secondary))
-    );
+    --gradient-aurora-primary: linear-gradient(90deg, oklch(var(--color-accent-primary)), oklch(var(--color-accent-secondary)));
     --gradient-aurora-ambient:
-      radial-gradient(
-        circle at 18% 0%,
-        oklch(var(--color-accent-primary) / 0.18),
-        oklch(var(--color-accent-primary) / 0) 42%
-      ),
-      linear-gradient(
-        145deg,
-        oklch(var(--color-canvas)) 0%,
-        oklch(var(--color-surface)) 48%,
-        oklch(var(--color-canvas)) 100%
-      );
-
-    /* Dark elevation */
-    --elevation-raised: 0 14px 40px oklch(0.04 0.02 276 / 0.32);
-    --elevation-floating: 0 24px 80px oklch(0.04 0.02 276 / 0.46);
-    --elevation-glow: 0 0 48px oklch(var(--color-accent-primary) / 0.22);
+      radial-gradient(circle at 82% 0%, oklch(var(--color-accent-primary) / 0.18), transparent 40%),
+      linear-gradient(145deg, oklch(var(--color-canvas)), oklch(var(--color-surface)) 68%, oklch(var(--color-canvas)));
 
     /* Existing component aliases */
     --bg-base: oklch(var(--color-canvas));
-    --bg-surface: oklch(var(--color-surface) / var(--glass-surface-standard));
-    --bg-elevated: oklch(var(--color-elevated) / var(--glass-surface-strong));
-    --bg-input: oklch(var(--color-surface) / var(--glass-surface-strong));
+    --bg-surface: oklch(var(--color-surface) / .72);
+    --bg-elevated: oklch(var(--color-elevated) / .76);
+    --bg-input: oklch(var(--color-surface) / .82);
     --text-primary: oklch(var(--color-text-primary));
     --text-secondary: oklch(var(--color-text-secondary));
     --text-muted: oklch(var(--color-text-muted));
-    --border-default: oklch(var(--color-border-default) / var(--glass-border-standard));
-    --border-subtle: oklch(var(--color-border-subtle) / var(--glass-border-subtle));
+    --border-default: oklch(var(--color-border-default));
+    --border-subtle: oklch(var(--color-border-subtle));
     --brand-primary: oklch(var(--color-accent-primary));
     --brand-primary-hover: oklch(var(--color-accent-strong));
     --brand-secondary: oklch(var(--color-accent-secondary));
-    --brand-secondary-deep: oklch(var(--color-mint-500));
+    --brand-secondary-deep: oklch(var(--primitive-violet-600));
+    --brand-glow: oklch(var(--color-accent-primary) / .15);
+    --brand-glow-strong: oklch(var(--color-accent-primary) / .28);
     --accent-purple: oklch(var(--color-accent-primary));
     --accent-purple-hover: oklch(var(--color-accent-strong));
-    --accent-purple-soft: oklch(var(--color-accent-primary) / 0.16);
+    --accent-purple-soft: oklch(var(--color-accent-primary) / .16);
     --accent-secondary: oklch(var(--color-accent-secondary));
-    --accent-teal: oklch(var(--color-mint-500));
+    --accent-teal: oklch(var(--primitive-mint-500));
     --accent-rgb: 143 129 247;
-    --bubble-user: oklch(var(--color-accent-primary) / 0.26);
-    --bubble-char: oklch(var(--color-surface) / var(--glass-surface-standard));
+    --bubble-user: oklch(var(--color-accent-primary) / .24);
+    --bubble-char: oklch(var(--color-surface) / .72);
 
     /* Existing radius and type aliases */
     --radius-sm: var(--radius-compact);
@@ -136,10 +101,10 @@
     --radius-xl: var(--radius-surface);
     --radius-bubble: var(--radius-card);
     --radius-pill: var(--radius-full);
-    --radius: var(--radius-control);
+    --radius: var(--radius-card);
     --text-display: var(--type-display);
     --text-title: var(--type-heading-2);
-    --text-subtitle: var(--type-heading-3);
+    --text-subtitle: var(--type-body);
     --text-body: var(--type-body);
 
     /* shadcn channel aliases */
@@ -154,46 +119,48 @@
     --secondary: var(--color-elevated);
     --secondary-foreground: var(--color-text-primary);
     --muted: var(--color-surface);
-    --muted-foreground: var(--color-text-muted);
+    --muted-foreground: var(--color-text-secondary);
     --accent: var(--color-accent-primary);
     --accent-foreground: var(--color-canvas);
     --destructive: var(--color-danger);
-    --destructive-foreground: var(--color-elevated);
+    --destructive-foreground: var(--color-text-primary);
     --border: var(--color-border-default);
-    --input: var(--color-border-default);
+    --input: var(--color-surface);
     --ring: var(--color-focus-ring);
+  }
 
-    /* Existing dark shadow and backdrop aliases */
+  :root, .dark {
+    /* Dark semantic color channels */
+    --color-canvas: 0.115 0.027 276;
+    --color-surface: 0.165 0.035 276;
+    --color-elevated: 0.215 0.042 276;
+    --color-text-primary: 0.96 0.012 270;
+    --color-text-secondary: 0.78 0.035 270;
+    --color-text-muted: 0.64 0.035 270;
+    --color-text-disabled: 0.49 0.026 270;
+    --color-border-subtle: 0.35 0.04 276;
+    --color-border-default: 0.45 0.04 276;
+    --color-border-strong: 0.6 0.04 276;
+    --color-border-disabled: 0.28 0.025 276;
+    --color-accent-primary: var(--primitive-violet-500);
+    --color-accent-strong: var(--primitive-violet-600);
+    --color-accent-secondary: var(--primitive-mint-400);
+    --color-focus-ring: var(--primitive-mint-400);
+    --color-warning: var(--primitive-warning-500);
+    --color-danger: var(--primitive-danger-500);
+
+    /* Dark elevation and backdrop aliases */
+    --elevation-raised: 0 14px 45px oklch(0 0 0 / .28);
+    --elevation-floating: 0 24px 80px oklch(0 0 0 / .38);
+    --elevation-glow: 0 0 42px oklch(var(--color-accent-primary) / .2);
     --shadow-card: var(--elevation-floating);
     --shadow-soft: var(--elevation-raised);
     --shadow-glow: var(--elevation-glow);
-    --shadow-glow-soft: 0 0 84px oklch(var(--color-accent-primary) / 0.11);
-    --glass-highlight: inset 0 1px 0 oklch(var(--color-text-primary) / 0.08);
+    --shadow-glow-soft: 0 0 84px oklch(var(--color-accent-primary) / .11);
+    --glass-highlight: inset 0 1px 0 oklch(var(--color-text-primary) / .08);
     --app-body-gradient: var(--gradient-aurora-ambient);
-    --app-shell-gradient:
-      linear-gradient(
-        180deg,
-        oklch(var(--color-accent-primary) / 0.055),
-        oklch(var(--color-accent-primary) / 0) 32%
-      ),
-      linear-gradient(
-        150deg,
-        oklch(var(--color-canvas)),
-        oklch(var(--color-surface)) 48%,
-        oklch(var(--color-canvas))
-      );
-    --chat-overlay:
-      linear-gradient(
-        180deg,
-        oklch(var(--color-canvas) / 0.66),
-        oklch(var(--color-canvas) / 0.9) 34%,
-        oklch(var(--color-canvas))
-      ),
-      linear-gradient(
-        135deg,
-        oklch(var(--color-accent-primary) / 0.13),
-        oklch(var(--color-accent-primary) / 0) 44%
-      );
+    --app-shell-gradient: var(--gradient-aurora-ambient);
+    --chat-overlay: linear-gradient(180deg, oklch(var(--color-canvas) / .66), oklch(var(--color-canvas) / .9) 34%, oklch(var(--color-canvas)));
   }
 
   .light {
@@ -209,49 +176,25 @@
     --color-border-default: 0.72 0.035 275;
     --color-border-strong: 0.55 0.04 275;
     --color-border-disabled: 0.88 0.015 275;
-    --color-accent-primary: var(--color-violet-500);
-    --color-accent-strong: var(--color-violet-600);
-    --color-accent-secondary: var(--color-mint-400);
-    --color-focus-ring: var(--color-violet-600);
-    --color-warning: var(--color-warning-500);
-    --color-danger: var(--color-danger-500);
+    --color-accent-primary: var(--primitive-violet-500);
+    --color-accent-strong: var(--primitive-violet-600);
+    --color-accent-secondary: var(--primitive-mint-400);
+    --color-focus-ring: var(--primitive-violet-600);
+    --color-warning: var(--primitive-warning-500);
+    --color-danger: var(--primitive-danger-500);
     --glass-noise-opacity: 2.5%;
 
-    /* Light elevation */
-    --elevation-raised: 0 12px 36px oklch(0.34 0.05 275 / 0.1);
-    --elevation-floating: 0 18px 60px oklch(0.34 0.05 275 / 0.13);
-    --elevation-glow: 0 0 36px oklch(var(--color-accent-primary) / 0.16);
-
-    /* Existing light shadow and backdrop aliases */
+    /* Light elevation and backdrop aliases */
+    --elevation-raised: 0 12px 36px oklch(.35 .04 275 / .1);
+    --elevation-floating: 0 18px 60px oklch(.35 .04 275 / .12);
+    --elevation-glow: 0 0 34px oklch(var(--color-accent-primary) / .16);
     --shadow-card: var(--elevation-floating);
     --shadow-soft: var(--elevation-raised);
     --shadow-glow: var(--elevation-glow);
-    --shadow-glow-soft: 0 0 74px oklch(var(--color-accent-primary) / 0.1);
-    --glass-highlight: inset 0 1px 0 oklch(var(--color-elevated) / 0.8);
+    --shadow-glow-soft: 0 0 74px oklch(var(--color-accent-primary) / .1);
+    --glass-highlight: inset 0 1px 0 oklch(var(--color-elevated) / .72);
     --app-body-gradient: var(--gradient-aurora-ambient);
-    --app-shell-gradient:
-      linear-gradient(
-        180deg,
-        oklch(var(--color-accent-primary) / 0.07),
-        oklch(var(--color-accent-primary) / 0) 34%
-      ),
-      linear-gradient(
-        150deg,
-        oklch(var(--color-elevated)),
-        oklch(var(--color-surface)) 48%,
-        oklch(var(--color-elevated))
-      );
-    --chat-overlay:
-      linear-gradient(
-        180deg,
-        oklch(var(--color-canvas) / 0.7),
-        oklch(var(--color-canvas) / 0.9) 34%,
-        oklch(var(--color-canvas))
-      ),
-      linear-gradient(
-        135deg,
-        oklch(var(--color-accent-primary) / 0.08),
-        oklch(var(--color-accent-primary) / 0) 44%
-      );
+    --app-shell-gradient: var(--gradient-aurora-ambient);
+    --chat-overlay: linear-gradient(180deg, oklch(var(--color-canvas) / .7), oklch(var(--color-canvas) / .9) 34%, oklch(var(--color-canvas)));
   }
 }
