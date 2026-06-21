@@ -8,6 +8,10 @@
     --primitive-warning-500: 0.78 0.15 80;
     --primitive-danger-500: 0.65 0.2 25;
 
+    /* Theme-independent action foreground channels */
+    --color-on-accent: 0.115 0.027 276;
+    --color-on-danger: 0.115 0.027 276;
+
     /* Spacing */
     --space-1: 4px;
     --space-2: 8px;
@@ -115,15 +119,15 @@
     --popover: var(--color-elevated);
     --popover-foreground: var(--color-text-primary);
     --primary: var(--color-accent-primary);
-    --primary-foreground: var(--color-canvas);
+    --primary-foreground: var(--color-on-accent);
     --secondary: var(--color-elevated);
     --secondary-foreground: var(--color-text-primary);
     --muted: var(--color-surface);
     --muted-foreground: var(--color-text-secondary);
     --accent: var(--color-accent-primary);
-    --accent-foreground: var(--color-canvas);
+    --accent-foreground: var(--color-on-accent);
     --destructive: var(--color-danger);
-    --destructive-foreground: var(--color-text-primary);
+    --destructive-foreground: var(--color-on-danger);
     --border: var(--color-border-default);
     --input: var(--color-surface);
     --ring: var(--color-focus-ring);

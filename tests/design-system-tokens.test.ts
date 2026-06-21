@@ -1,50 +1,52 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import postcss, { type AtRule, type Rule } from "postcss";
 
 const tokenFile = new URL("../src/styles/design-tokens.css", import.meta.url);
+const contractSelectors = [":root", ":root, .dark", ".light"] as const;
 
-function declarationsFor(body: string) {
-  return new Map(
-    [...body.matchAll(/--([\w-]+)\s*:\s*([^;]+);/g)].map((declaration) => [
-      declaration[1],
-      declaration[2].trim()
-    ])
-  );
-}
+function parseTokenContract(css: string) {
+  const ast = postcss.parse(css);
+  const baseLayers: AtRule[] = [];
+  ast.walkAtRules("layer", (atRule) => {
+    if (atRule.params.trim() === "base") baseLayers.push(atRule);
+  });
+  assert.equal(baseLayers.length, 1, "expected exactly one active @layer base");
+  const layer = baseLayers[0];
+  assert.equal(layer.parent?.type, "root", "@layer base must be top-level");
 
-function closingBraceFor(css: string, openingBrace: number) {
-  let depth = 0;
-  for (let index = openingBrace; index < css.length; index += 1) {
-    if (css[index] === "{") depth += 1;
-    if (css[index] === "}") depth -= 1;
-    if (depth === 0) return index;
-  }
-  assert.fail("unclosed CSS block");
-}
+  ast.walkRules((rule) => {
+    let parent = rule.parent;
+    while (parent && parent !== layer) parent = parent.parent;
+    assert.equal(parent, layer, `unexpected active style rule outside @layer base: ${rule.selector}`);
+  });
 
-function layerRuleBlocks(css: string) {
-  const layer = /@layer\s+base\s*\{/.exec(css);
-  assert.ok(layer, "missing @layer base block");
-  const layerOpeningBrace = layer.index + layer[0].lastIndexOf("{");
-  const layerBody = css.slice(layerOpeningBrace + 1, closingBraceFor(css, layerOpeningBrace));
-  const rules = new Map<string, string>();
-  let cursor = 0;
-
-  while (cursor < layerBody.length) {
-    const ignored = layerBody.slice(cursor).match(/^(?:\s|\/\*[\s\S]*?\*\/)+/);
-    if (ignored) cursor += ignored[0].length;
-    if (cursor >= layerBody.length) break;
-
-    const openingBrace = layerBody.indexOf("{", cursor);
-    assert.notEqual(openingBrace, -1, "expected a CSS rule block");
-    const selector = layerBody.slice(cursor, openingBrace).trim();
-    const closingBrace = closingBraceFor(layerBody, openingBrace);
+  const rules = new Map<string, Map<string, string>>();
+  for (const node of layer.nodes ?? []) {
+    if (node.type === "comment") continue;
+    assert.equal(node.type, "rule", `unexpected active ${node.type} inside @layer base`);
+    const rule = node as Rule;
+    const selector = rule.selector.trim();
+    assert.ok(
+      contractSelectors.includes(selector as (typeof contractSelectors)[number]),
+      `unexpected selector in @layer base: ${selector}`
+    );
     assert.ok(!rules.has(selector), `duplicate ${selector} block`);
-    rules.set(selector, layerBody.slice(openingBrace + 1, closingBrace));
-    cursor = closingBrace + 1;
+
+    const declarations = new Map<string, string>();
+    for (const child of rule.nodes ?? []) {
+      if (child.type === "comment") continue;
+      assert.equal(child.type, "decl", `unexpected active ${child.type} inside ${selector}`);
+      assert.match(child.prop, /^--/, `non-token declaration in ${selector}: ${child.prop}`);
+      const name = child.prop.slice(2);
+      assert.ok(!declarations.has(name), `duplicate --${name} in ${selector}`);
+      declarations.set(name, child.value.trim());
+    }
+    rules.set(selector, declarations);
   }
 
+  assert.deepEqual([...rules.keys()], contractSelectors);
   return rules;
 }
 
@@ -76,11 +78,18 @@ function linearSrgb([lightness, chroma, hue]: [number, number, number]) {
     4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
     -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
     -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s
-  ].map((channel) => Math.min(1, Math.max(0, channel))) as [number, number, number];
+  ] as [number, number, number];
 }
 
 function luminance(channels: [number, number, number]) {
-  const [red, green, blue] = linearSrgb(channels);
+  const linearChannels = linearSrgb(channels);
+  linearChannels.forEach((channel, index) => {
+    assert.ok(
+      channel >= 0 && channel <= 1,
+      `OKLCH ${channels.join(" ")} converts outside linear sRGB gamut at channel ${index}: ${channel}`
+    );
+  });
+  const [red, green, blue] = linearChannels;
   return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
 }
 
@@ -91,13 +100,27 @@ function contrast(first: [number, number, number], second: [number, number, numb
     (Math.min(firstLuminance, secondLuminance) + 0.05);
 }
 
+function resolveChannels(name: string, ...scopes: Map<string, string>[]) {
+  const visited = new Set<string>();
+  let currentName = name;
+
+  while (true) {
+    assert.ok(!visited.has(currentName), `circular token reference at --${currentName}`);
+    visited.add(currentName);
+    const value = scopes.find((scope) => scope.has(currentName))?.get(currentName);
+    assert.ok(value, `missing --${currentName}`);
+    const reference = value.match(/^var\(--([\w-]+)\)$/);
+    if (!reference) return parseOklchChannels(value);
+    currentName = reference[1];
+  }
+}
+
 test("Aurora Ink tokens define the complete OKLCH design-system contract", async () => {
   const css = await readFile(tokenFile, "utf8");
-  const rules = layerRuleBlocks(css);
-  assert.deepEqual([...rules.keys()], [":root", ":root, .dark", ".light"]);
-  const root = declarationsFor(rules.get(":root")!);
-  const dark = declarationsFor(rules.get(":root, .dark")!);
-  const light = declarationsFor(rules.get(".light")!);
+  const rules = parseTokenContract(css);
+  const root = rules.get(":root")!;
+  const dark = rules.get(":root, .dark")!;
+  const light = rules.get(".light")!;
 
   assert.doesNotMatch(css, /#[\da-f]{3,8}\b|\b(?:rgb|rgba|hsl|hsla)\s*\(/i);
 
@@ -253,20 +276,22 @@ test("Aurora Ink tokens define the complete OKLCH design-system contract", async
     popover: "var(--color-elevated)",
     "popover-foreground": "var(--color-text-primary)",
     primary: "var(--color-accent-primary)",
-    "primary-foreground": "var(--color-canvas)",
+    "primary-foreground": "var(--color-on-accent)",
     secondary: "var(--color-elevated)",
     "secondary-foreground": "var(--color-text-primary)",
     muted: "var(--color-surface)",
     "muted-foreground": "var(--color-text-secondary)",
     accent: "var(--color-accent-primary)",
-    "accent-foreground": "var(--color-canvas)",
+    "accent-foreground": "var(--color-on-accent)",
     destructive: "var(--color-danger)",
-    "destructive-foreground": "var(--color-text-primary)",
+    "destructive-foreground": "var(--color-on-danger)",
     border: "var(--color-border-default)",
     input: "var(--color-surface)",
     ring: "var(--color-focus-ring)"
   };
   for (const [name, value] of Object.entries(compatibilityAliases)) assertToken(root, name, value);
+  assertToken(root, "color-on-accent", "0.115 0.027 276");
+  assertToken(root, "color-on-danger", "0.115 0.027 276");
 
   const darkThemeAliases = {
     "elevation-raised": "0 14px 45px oklch(0 0 0 / .28)",
@@ -300,10 +325,10 @@ test("Aurora Ink tokens define the complete OKLCH design-system contract", async
 
 test("primary, secondary, and muted text maintain WCAG AA contrast on every theme surface", async () => {
   const css = await readFile(tokenFile, "utf8");
-  const rules = layerRuleBlocks(css);
+  const rules = parseTokenContract(css);
 
   for (const [theme, selector] of [["dark", ":root, .dark"], ["light", ".light"]] as const) {
-    const tokens = declarationsFor(rules.get(selector)!);
+    const tokens = rules.get(selector)!;
     for (const textToken of ["color-text-primary", "color-text-secondary", "color-text-muted"]) {
       const textChannels = parseOklchChannels(tokens.get(textToken)!);
       for (const surfaceToken of ["color-canvas", "color-surface", "color-elevated"]) {
@@ -316,4 +341,65 @@ test("primary, secondary, and muted text maintain WCAG AA contrast on every them
       }
     }
   }
+});
+
+test("action foregrounds maintain WCAG AA contrast against accent and danger colors", async () => {
+  const css = await readFile(tokenFile, "utf8");
+  const rules = parseTokenContract(css);
+  const root = rules.get(":root")!;
+
+  for (const [theme, selector] of [["dark", ":root, .dark"], ["light", ".light"]] as const) {
+    const themed = rules.get(selector)!;
+    for (const foreground of ["primary-foreground", "accent-foreground"]) {
+      const foregroundChannels = resolveChannels(foreground, themed, root);
+      for (const background of ["color-accent-primary", "color-accent-secondary"]) {
+        const ratio = contrast(foregroundChannels, resolveChannels(background, themed, root));
+        assert.ok(
+          ratio >= 4.5,
+          `${theme} --${foreground} is ${ratio.toFixed(2)}:1 against --${background}; expected at least 4.5:1`
+        );
+      }
+    }
+
+    const dangerRatio = contrast(
+      resolveChannels("destructive-foreground", themed, root),
+      resolveChannels("color-danger", themed, root)
+    );
+    assert.ok(
+      dangerRatio >= 4.5,
+      `${theme} --destructive-foreground is ${dangerRatio.toFixed(2)}:1 against --color-danger; expected at least 4.5:1`
+    );
+  }
+});
+
+test("PostCSS contract parsing ignores comments and rejects active overrides", () => {
+  const fixture = `
+    /* @layer base { :root { --fixture: commented-rule; } } */
+    @layer base {
+      :root {
+        /* --fixture: commented-declaration; */
+        --fixture: active;
+      }
+      :root, .dark { --theme: dark; }
+      .light { --theme: light; }
+    }
+  `;
+  const parsed = parseTokenContract(fixture);
+  assert.deepEqual([...parsed.get(":root")!.entries()], [["fixture", "active"]]);
+  assert.throws(
+    () => parseTokenContract(fixture.replace("--fixture: active;", "--fixture: active; --fixture: duplicate;")),
+    /duplicate --fixture in :root/
+  );
+  assert.throws(
+    () => parseTokenContract(`${fixture} .light { --theme: outer-override; }`),
+    /unexpected active style rule outside @layer base/
+  );
+  assert.throws(
+    () => parseTokenContract(`${fixture} @layer base {}`),
+    /expected exactly one active @layer base/
+  );
+});
+
+test("contrast conversion rejects out-of-gamut OKLCH instead of clamping", () => {
+  assert.throws(() => luminance([0.7, 0.5, 30]), /outside linear sRGB gamut/);
 });
