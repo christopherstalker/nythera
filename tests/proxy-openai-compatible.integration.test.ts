@@ -14,12 +14,13 @@ test("custom providers use the direct OpenAI-compatible chat-completions endpoin
     writeSuccessfulOpenAIStream(response, "direct response");
   });
   const upstreamUrl = await listen(upstream);
-  const proxy = await startProxy();
+  let proxy: Awaited<ReturnType<typeof startProxy>> | undefined;
 
   context.after(async () => {
-    await Promise.allSettled([stopProcess(proxy), closeServer(upstream)]);
+    await Promise.allSettled([proxy ? stopProcess(proxy) : undefined, closeServer(upstream)]);
   });
 
+  proxy = await startProxy();
   const body = await requestProxy(proxy.port, [providerKey("local-vllm", upstreamUrl, 0)]);
   assert.match(body, /direct response/);
   assert.equal(requestedPath, "/chat/completions");
@@ -40,12 +41,17 @@ test("a retryable 429 advances to the next enabled provider", async (context) =>
     writeSuccessfulOpenAIStream(response, "fallback response");
   });
   const [primaryUrl, fallbackUrl] = await Promise.all([listen(primary), listen(fallback)]);
-  const proxy = await startProxy();
+  let proxy: Awaited<ReturnType<typeof startProxy>> | undefined;
 
   context.after(async () => {
-    await Promise.allSettled([stopProcess(proxy), closeServer(primary), closeServer(fallback)]);
+    await Promise.allSettled([
+      proxy ? stopProcess(proxy) : undefined,
+      closeServer(primary),
+      closeServer(fallback)
+    ]);
   });
 
+  proxy = await startProxy();
   const body = await requestProxy(proxy.port, [
     providerKey("primary-local", primaryUrl, 0),
     providerKey("fallback-local", fallbackUrl, 1)
