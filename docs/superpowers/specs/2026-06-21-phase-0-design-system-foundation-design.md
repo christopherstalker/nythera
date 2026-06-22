@@ -1,7 +1,7 @@
 # Nythera Phase 0 Design System Foundation
 
-Date: 2026-06-21  
-Status: Approved design  
+Date: 2026-06-21
+Status: Approved design
 Scope: Visual and interaction foundation only
 
 ## Context
