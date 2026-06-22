@@ -4,25 +4,25 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "focus-ring inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius-pill)] text-sm font-semibold no-underline transition-all duration-200 active:scale-95 disabled:pointer-events-none disabled:opacity-40",
+  "focus-ring inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold no-underline transition-all duration-200 active:scale-95 disabled:pointer-events-none disabled:border-outline-disabled disabled:text-content-disabled disabled:opacity-100",
   {
     variants: {
       variant: {
         primary:
-          "border border-white/10 bg-gradient-to-br from-[var(--brand-secondary)] via-[var(--accent-purple)] to-[var(--accent-secondary)] text-white shadow-[0_18px_42px_rgb(0_0_0_/_0.24)] hover:-translate-y-0.5 hover:shadow-[var(--shadow-glow)]",
+          "border border-outline-subtle bg-aurora-primary text-primary-foreground shadow-glow hover:-translate-y-0.5 hover:shadow-glow",
         secondary:
-          "border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-[var(--glass-highlight)] backdrop-blur-xl hover:-translate-y-0.5 hover:border-[rgb(var(--accent-rgb)_/_0.24)] hover:bg-white/[0.07]",
+          "border border-outline bg-elevated text-content-primary shadow-raised backdrop-blur-xl hover:-translate-y-0.5 hover:border-outline-strong",
         ghost:
-          "text-[var(--text-secondary)] hover:bg-white/[0.055] hover:text-[var(--text-primary)]",
+          "text-content-secondary hover:bg-surface/56 hover:text-content-primary",
         outline:
-          "border border-[var(--border-default)] bg-[var(--bg-input)] text-[var(--text-primary)] shadow-[var(--glass-highlight)] backdrop-blur-xl hover:-translate-y-0.5 hover:border-[rgb(var(--accent-rgb)_/_0.22)] hover:bg-white/[0.055]",
+          "border border-outline bg-surface text-content-primary shadow-raised backdrop-blur-xl hover:-translate-y-0.5 hover:border-outline-strong",
         destructive:
-          "border border-red-300/20 bg-red-500/15 text-red-100 hover:-translate-y-0.5 hover:bg-red-500/24"
+          "border border-danger/30 bg-danger/15 text-destructive-foreground hover:-translate-y-0.5 hover:bg-danger/25"
       },
       size: {
-        sm: "h-9 px-3.5 text-xs",
+        sm: "h-11 px-3 text-xs",
         md: "h-11 px-5",
-        lg: "h-12 px-7 text-base",
+        lg: "h-12 px-8 text-base",
         icon: "h-11 w-11 px-0"
       }
     },

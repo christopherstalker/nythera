@@ -14,7 +14,7 @@ const connection = env.REDIS_URL && !isProductionBuild
     })
   : null;
 
-connection?.on("error", (error) => {
+connection?.on("error", (error: Error) => {
   console.warn("Redis background queue connection failed.", error.message);
 });
 

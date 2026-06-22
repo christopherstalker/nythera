@@ -2,8 +2,9 @@
 
 import { useEffect } from "react";
 import { useTheme } from "next-themes";
+import { formatOklchChannels, hexToOklch } from "@/lib/color/oklch";
 
-export const DEFAULT_ACCENT_COLOR = "#FF7A18";
+export const DEFAULT_ACCENT_COLOR = "#8F81F7";
 export const APPEARANCE_STORAGE_KEY = "nythera.appearance";
 const LEGACY_APPEARANCE_STORAGE_KEY = "nythera.appearance";
 const APPEARANCE_UPDATED_EVENT = "nythera:appearance-updated";
@@ -102,27 +103,25 @@ export function applyAccentColor(hexColor: string) {
   }
 
   const rgb = hexToRgb(hexColor);
-  const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
   const hover = mixWith(rgb, 0, 0, 0, 0.14);
-  const secondary = mixWith(rgb, 255, 179, 71, 0.42);
-  const deep = mixWith(rgb, 0, 0, 0, 0.28);
+  const primaryChannels = formatOklchChannels(hexToOklch(hexColor));
+  const strongChannels = formatOklchChannels(hexToOklch(rgbToHex(hover)));
   const root = document.documentElement;
 
-  root.style.setProperty("--brand-primary", hexColor);
-  root.style.setProperty("--brand-primary-hover", rgbToHex(hover));
-  root.style.setProperty("--brand-secondary", rgbToHex(secondary));
-  root.style.setProperty("--brand-secondary-deep", rgbToHex(deep));
-  root.style.setProperty("--brand-glow", `rgb(${rgb.r} ${rgb.g} ${rgb.b} / 0.15)`);
-  root.style.setProperty("--brand-glow-strong", `rgb(${rgb.r} ${rgb.g} ${rgb.b} / 0.28)`);
-  root.style.setProperty("--accent-purple", hexColor);
-  root.style.setProperty("--accent-purple-hover", rgbToHex(hover));
-  root.style.setProperty("--accent-purple-soft", `rgb(${rgb.r} ${rgb.g} ${rgb.b} / 0.16)`);
-  root.style.setProperty("--accent-secondary", rgbToHex(deep));
+  root.style.setProperty("--color-accent-primary", primaryChannels);
+  root.style.setProperty("--color-accent-strong", strongChannels);
+  root.style.setProperty("--primary", primaryChannels);
+  root.style.setProperty("--accent", primaryChannels);
+  root.style.setProperty("--ring", primaryChannels);
+  root.style.setProperty("--brand-primary", `oklch(${primaryChannels})`);
+  root.style.setProperty("--brand-primary-hover", `oklch(${strongChannels})`);
+  root.style.setProperty("--brand-glow", `oklch(${primaryChannels} / .15)`);
+  root.style.setProperty("--brand-glow-strong", `oklch(${primaryChannels} / .28)`);
+  root.style.setProperty("--accent-purple", `oklch(${primaryChannels})`);
+  root.style.setProperty("--accent-purple-hover", `oklch(${strongChannels})`);
+  root.style.setProperty("--accent-purple-soft", `oklch(${primaryChannels} / .16)`);
   root.style.setProperty("--accent-rgb", `${rgb.r} ${rgb.g} ${rgb.b}`);
-  root.style.setProperty("--bubble-user", `rgb(${rgb.r} ${rgb.g} ${rgb.b} / 0.24)`);
-  root.style.setProperty("--primary", `${Math.round(hsl.h)} ${Math.round(hsl.s)}% ${Math.round(hsl.l)}%`);
-  root.style.setProperty("--accent", `${Math.round(hsl.h)} ${Math.round(hsl.s)}% ${Math.round(hsl.l)}%`);
-  root.style.setProperty("--ring", `${Math.round(hsl.h)} ${Math.round(hsl.s)}% ${Math.round(hsl.l)}%`);
+  root.style.setProperty("--bubble-user", `oklch(${primaryChannels} / .24)`);
   updateDynamicFavicon(hexColor);
 }
 
@@ -211,37 +210,6 @@ function mixWith(rgb: { r: number; g: number; b: number }, r: number, g: number,
   };
 }
 
-function rgbToHsl(r: number, g: number, b: number) {
-  const red = r / 255;
-  const green = g / 255;
-  const blue = b / 255;
-  const max = Math.max(red, green, blue);
-  const min = Math.min(red, green, blue);
-  const lightness = (max + min) / 2;
-
-  if (max === min) {
-    return { h: 0, s: 0, l: lightness * 100 };
-  }
-
-  const delta = max - min;
-  const saturation = lightness > 0.5 ? delta / (2 - max - min) : delta / (max + min);
-  let hue: number;
-
-  if (max === red) {
-    hue = (green - blue) / delta + (green < blue ? 6 : 0);
-  } else if (max === green) {
-    hue = (blue - red) / delta + 2;
-  } else {
-    hue = (red - green) / delta + 4;
-  }
-
-  return {
-    h: (hue / 6) * 360,
-    s: saturation * 100,
-    l: lightness * 100
-  };
-}
-
 function updateDynamicFavicon(hexColor: string, glowIntensity = 0.56) {
   if (typeof document === "undefined" || !isHexColor(hexColor)) {
     return;
@@ -259,7 +227,7 @@ function updateDynamicFavicon(hexColor: string, glowIntensity = 0.56) {
 
   const themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
   if (themeColor) {
-    themeColor.content = document.documentElement.classList.contains("light") ? "#f5f6ff" : "#0B0B12";
+    themeColor.content = document.documentElement.classList.contains("light") ? "#F0F3FC" : "#03040F";
   }
 }
 

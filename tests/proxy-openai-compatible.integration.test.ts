@@ -3,9 +3,18 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { createServer, type Server } from "node:http";
 import { once } from "node:events";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 
-test("custom providers use the direct OpenAI-compatible chat-completions endpoint", async (context) => {
+const STARTUP_FAILURE_FIXTURE_ENV = "PROXY_STARTUP_FAILURE_FIXTURE";
+const isStartupFailureFixture = process.env[STARTUP_FAILURE_FIXTURE_ENV] === "1";
+
+function integrationTest(name: string, run: (context: TestContext) => void | Promise<void>) {
+  if (!isStartupFailureFixture) {
+    test(name, run);
+  }
+}
+
+integrationTest("custom providers use the direct OpenAI-compatible chat-completions endpoint", async (context) => {
   let requestedPath = "";
   let authorization = "";
   const upstream = createServer((request, response) => {
@@ -14,12 +23,7 @@ test("custom providers use the direct OpenAI-compatible chat-completions endpoin
     writeSuccessfulOpenAIStream(response, "direct response");
   });
   const upstreamUrl = await listen(upstream);
-  const proxy = await startProxy();
-
-  context.after(async () => {
-    await Promise.allSettled([stopProcess(proxy), closeServer(upstream)]);
-  });
-
+  const proxy = await startProxyWithCleanup(context, [upstream]);
   const body = await requestProxy(proxy.port, [providerKey("local-vllm", upstreamUrl, 0)]);
   assert.match(body, /direct response/);
   assert.equal(requestedPath, "/chat/completions");
@@ -27,7 +31,7 @@ test("custom providers use the direct OpenAI-compatible chat-completions endpoin
   assert.doesNotMatch(body, /openrouter/i);
 });
 
-test("a retryable 429 advances to the next enabled provider", async (context) => {
+integrationTest("a retryable 429 advances to the next enabled provider", async (context) => {
   let primaryAttempts = 0;
   let fallbackAttempts = 0;
   const primary = createServer((_request, response) => {
@@ -40,12 +44,7 @@ test("a retryable 429 advances to the next enabled provider", async (context) =>
     writeSuccessfulOpenAIStream(response, "fallback response");
   });
   const [primaryUrl, fallbackUrl] = await Promise.all([listen(primary), listen(fallback)]);
-  const proxy = await startProxy();
-
-  context.after(async () => {
-    await Promise.allSettled([stopProcess(proxy), closeServer(primary), closeServer(fallback)]);
-  });
-
+  const proxy = await startProxyWithCleanup(context, [primary, fallback]);
   const body = await requestProxy(proxy.port, [
     providerKey("primary-local", primaryUrl, 0),
     providerKey("fallback-local", fallbackUrl, 1)
@@ -57,6 +56,79 @@ test("a retryable 429 advances to the next enabled provider", async (context) =>
   assert.match(body, /"fallbackTriggered":true/);
   assert.match(body, /"provider":"fallback-local"/);
 });
+
+integrationTest("proxy readiness allows a slow cold start", async (context) => {
+  let child: ChildProcess | undefined;
+  context.after(async () => {
+    if (child) {
+      await stopProcess(child);
+    }
+  });
+
+  const started = Date.now();
+  const proxy = await startProxy({
+    nodeArgs: delayedHealthServerArgs(2_500),
+    onSpawn(spawned) {
+      child = spawned;
+    }
+  });
+
+  assert.equal(proxy, child);
+  assert.ok(Date.now() - started >= 2_500);
+});
+
+integrationTest("proxy startup reports signal termination", async (context) => {
+  let child: ChildProcess | undefined;
+  context.after(async () => {
+    if (child) {
+      await stopProcess(child);
+    }
+  });
+
+  await assert.rejects(
+    startProxy({
+      nodeArgs: ["--eval", "setInterval(() => {}, 1_000)"],
+      onSpawn(spawned) {
+        child = spawned;
+        spawned.kill("SIGTERM");
+      }
+    }),
+    /signal SIGTERM/
+  );
+  assert.equal(child?.signalCode, "SIGTERM");
+});
+
+integrationTest("startup failure cleanup lets the test subprocess exit", async () => {
+  const fixture = spawn(
+    process.execPath,
+    ["--import", "tsx", path.join(process.cwd(), "tests/proxy-openai-compatible.integration.test.ts")],
+    {
+      cwd: process.cwd(),
+      env: { ...process.env, [STARTUP_FAILURE_FIXTURE_ENV]: "1" },
+      stdio: ["ignore", "pipe", "pipe"]
+    }
+  );
+  let output = "";
+  for (const stream of [fixture.stdout, fixture.stderr]) {
+    stream?.setEncoding("utf8");
+    stream?.on("data", (chunk: string) => {
+      output += chunk;
+    });
+  }
+
+  const result = await waitForProcessExit(fixture, 4_000);
+  assert.equal(result.signal, null);
+  assert.equal(result.code, 1);
+  assert.match(output, /Proxy exited before becoming ready with code 23\./);
+});
+
+if (isStartupFailureFixture) {
+  test("forced startup failure closes its mock server", async (context) => {
+    const upstream = createServer();
+    await listen(upstream);
+    await startProxyWithCleanup(context, [upstream], { nodeArgs: ["--eval", "process.exit(23)"] });
+  });
+}
 
 function providerKey(provider: string, baseUrl: string, fallbackPriority: number) {
   return {
@@ -89,9 +161,32 @@ async function requestProxy(port: number, providerKeys: ReturnType<typeof provid
   return response.text();
 }
 
-async function startProxy() {
+type StartProxyOptions = {
+  nodeArgs?: string[];
+  onSpawn?: (child: ChildProcess) => void;
+};
+
+const PROXY_STARTUP_TIMEOUT_MS = 10_000;
+const PROXY_READINESS_POLL_MS = 25;
+
+async function startProxyWithCleanup(context: TestContext, servers: Server[], options: StartProxyOptions = {}) {
+  let proxy: Awaited<ReturnType<typeof startProxy>> | undefined;
+  context.after(async () => {
+    const cleanup = servers.map((server) => closeServer(server));
+    if (proxy) {
+      cleanup.push(stopProcess(proxy));
+    }
+    await Promise.allSettled(cleanup);
+  });
+
+  proxy = await startProxy(options);
+  return proxy;
+}
+
+async function startProxy(options: StartProxyOptions = {}) {
   const port = await reservePort();
-  const child = spawn(process.execPath, ["--import", "tsx", path.join(process.cwd(), "proxy-service/src/server.ts")], {
+  const nodeArgs = options.nodeArgs ?? ["--import", "tsx", path.join(process.cwd(), "proxy-service/src/server.ts")];
+  const child = spawn(process.execPath, nodeArgs, {
     cwd: process.cwd(),
     env: {
       ...process.env,
@@ -104,8 +199,13 @@ async function startProxy() {
     },
     stdio: "ignore"
   });
+  options.onSpawn?.(child);
 
-  for (let attempt = 0; attempt < 80; attempt += 1) {
+  const deadline = Date.now() + PROXY_STARTUP_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    if (child.signalCode !== null) {
+      throw new Error(`Proxy exited before becoming ready with signal ${child.signalCode}.`);
+    }
     if (child.exitCode !== null) {
       throw new Error(`Proxy exited before becoming ready with code ${child.exitCode}.`);
     }
@@ -114,12 +214,15 @@ async function startProxy() {
       if (response.ok) {
         return Object.assign(child, { port });
       }
-    } catch {
-      await new Promise((resolve) => setTimeout(resolve, 25));
+    } catch {}
+
+    const remainingMs = deadline - Date.now();
+    if (remainingMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, Math.min(PROXY_READINESS_POLL_MS, remainingMs)));
     }
   }
 
-  child.kill();
+  await stopProcess(child);
   throw new Error("Proxy did not become ready.");
 }
 
@@ -150,6 +253,16 @@ async function stopProcess(child: ChildProcess) {
   await exited;
 }
 
+async function waitForProcessExit(child: ChildProcess, timeoutMs: number) {
+  try {
+    const [code, signal] = await once(child, "close", { signal: AbortSignal.timeout(timeoutMs) });
+    return { code: code as number | null, signal: signal as NodeJS.Signals | null };
+  } catch {
+    await stopProcess(child);
+    throw new Error(`Startup-failure fixture did not exit within ${timeoutMs}ms.`);
+  }
+}
+
 async function closeServer(server: Server) {
   if (!server.listening) {
     return;
@@ -177,4 +290,21 @@ function writeSuccessfulOpenAIStream(response: import("node:http").ServerRespons
     usage: { prompt_tokens: 3, completion_tokens: 2, total_tokens: 5 }
   })}\n\n`);
   response.end("data: [DONE]\n\n");
+}
+
+function delayedHealthServerArgs(delayMs: number) {
+  return [
+    "--eval",
+    `const { createServer } = require("node:http");
+setTimeout(() => {
+  createServer((request, response) => {
+    if (request.url !== "/health") {
+      response.writeHead(404).end();
+      return;
+    }
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end('{"ok":true}');
+  }).listen(Number(process.env.PORT), "127.0.0.1");
+}, ${delayMs});`
+  ];
 }
