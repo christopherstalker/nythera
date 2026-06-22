@@ -545,3 +545,24 @@ test("Tailwind and global CSS consume the semantic token contract", async () => 
   assert.match(globals, /@apply min-h-screen bg-canvas text-content-primary antialiased;/);
   assert.match(globals, /color:\s*oklch\(var\(--color-text-primary\)\);/);
 });
+
+test("the design-system reference documents every foundation contract", async () => {
+  const docs = await readFile(new URL("../docs/design-system.md", import.meta.url), "utf8");
+
+  for (const heading of [
+    "Aurora Ink colors",
+    "Spacing and Cloud Soft radii",
+    "Space Grotesk typography",
+    "Glass composition",
+    "Motion presets",
+    "Reduced motion",
+    "Usage rules"
+  ]) {
+    assert.match(docs, new RegExp(`## ${heading}`));
+  }
+
+  assert.match(docs, /6 \/ 12 \/ 20 \/ 28 \/ 36 \/ full/);
+  assert.match(docs, /surface\/72/);
+  assert.match(docs, /springSnappy/);
+  assert.match(docs, /WCAG AA/);
+});
