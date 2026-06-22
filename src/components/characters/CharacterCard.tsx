@@ -23,9 +23,10 @@ export type CharacterSummary = {
 type CharacterCardProps = {
   character: CharacterSummary;
   className?: string;
+  fill?: boolean;
 };
 
-export function CharacterCard({ character, className }: CharacterCardProps) {
+export function CharacterCard({ character, className, fill = false }: CharacterCardProps) {
   const router = useRouter();
 
   function openProfile() {
@@ -37,7 +38,8 @@ export function CharacterCard({ character, className }: CharacterCardProps) {
       type="button"
       onClick={openProfile}
       className={cn(
-        "group glass-card glass-card-hover glass-depth-card relative flex h-[var(--card-height)] w-full min-w-0 shrink-0 text-left active:scale-[0.98]",
+        "group glass-card glass-card-hover glass-depth-card relative flex w-full min-w-0 shrink-0 text-left active:scale-[0.98]",
+        fill ? "h-full min-h-[var(--card-height)]" : "h-[var(--card-height)]",
         className
       )}
       aria-label={`Open ${character.name}`}
