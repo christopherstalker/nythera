@@ -1,12 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "@/app/globals.css";
 import { AppShell } from "@/components/layout/AppShell";
 import { SessionProvider } from "@/components/providers/session-provider";
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter"
+const spaceGrotesk = localFont({
+  src: "../assets/fonts/SpaceGrotesk-Variable.woff2",
+  variable: "--font-space-grotesk",
+  weight: "300 700",
+  style: "normal",
+  display: "swap",
+  fallback: ["Segoe UI", "Roboto", "Arial", "sans-serif"]
 });
 
 const siteUrl = process.env.NEXTAUTH_URL ?? "https://nythera-christopherstalkers-projects.vercel.app";
@@ -63,15 +67,15 @@ export const viewport: Viewport = {
   maximumScale: 5,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#0B0B12" },
-    { media: "(prefers-color-scheme: light)", color: "#f5f6ff" }
+    { media: "(prefers-color-scheme: dark)", color: "#03040F" },
+    { media: "(prefers-color-scheme: light)", color: "#F0F3FC" }
   ]
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
-      <body className={`${inter.className} min-h-screen overflow-x-hidden`}>
+      <body className={`${spaceGrotesk.className} ${spaceGrotesk.variable} min-h-screen overflow-x-hidden`}>
         <SessionProvider>
           <AppShell>{children}</AppShell>
         </SessionProvider>

@@ -227,7 +227,7 @@ function updateDynamicFavicon(hexColor: string, glowIntensity = 0.56) {
 
   const themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
   if (themeColor) {
-    themeColor.content = document.documentElement.classList.contains("light") ? "#f5f6ff" : "#0B0B12";
+    themeColor.content = document.documentElement.classList.contains("light") ? "#F0F3FC" : "#03040F";
   }
 }
 
