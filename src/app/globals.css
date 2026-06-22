@@ -173,9 +173,9 @@
 
   .focus-ring:focus-visible {
     box-shadow:
-      0 0 0 2px var(--bg-base),
-      0 0 0 4px rgb(var(--accent-rgb) / 0.54),
-      var(--shadow-glow);
+      0 0 0 2px oklch(var(--color-canvas)),
+      0 0 0 4px oklch(var(--ring) / var(--focus-ring-opacity)),
+      var(--elevation-glow);
   }
 
   .app-surface {
@@ -213,8 +213,11 @@
   }
 
   .glass-input {
-    @apply border border-[var(--border-default)] bg-[var(--bg-input)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] backdrop-blur-xl transition duration-200;
+    @apply border text-content-primary placeholder:text-content-muted transition duration-200;
+    border-color: oklch(var(--color-border-default) / var(--glass-border-standard));
+    background: oklch(var(--color-surface) / var(--glass-surface-strong));
     box-shadow: var(--glass-highlight);
+    backdrop-filter: blur(var(--glass-blur-md));
   }
 
   .hero-gradient {
