@@ -4,8 +4,8 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Search } from "lucide-react";
+import { CharacterBentoGrid } from "@/components/characters/CharacterBentoGrid";
 import { CharacterGrid } from "@/components/characters/CharacterGrid";
-import { CharacterRow } from "@/components/characters/CharacterRow";
 import type { CharacterSummary } from "@/components/characters/CharacterCard";
 import { Button } from "@/components/ui/button";
 import { CategoryPill } from "@/components/ui/category-pill";
@@ -253,7 +253,7 @@ function ExplorePageContent() {
               ))}
             </div>
           </div>
-          <CharacterRow title={activeFeedTab.label} characters={activeFeedCharacters} loading={loading} />
+          <CharacterBentoGrid title={activeFeedTab.label} characters={activeFeedCharacters} loading={loading} />
         </section>
       ) : null}
 
