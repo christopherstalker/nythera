@@ -419,7 +419,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
   }
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,680px)_minmax(300px,1fr)] lg:items-start">
+    <div className="character-editor-surfaces grid gap-8 lg:grid-cols-[minmax(0,680px)_minmax(300px,1fr)] lg:items-start">
       <form onSubmit={onSubmit} className="grid min-w-0 gap-5">
         {mode === "create" ? (
           <div className="glass-panel grid grid-cols-3 gap-2 p-2">

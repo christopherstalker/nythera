@@ -212,6 +212,50 @@
     box-shadow: var(--shadow-card), var(--shadow-glow-soft), var(--glass-highlight);
   }
 
+  .glass-depth-panel,
+  .character-editor-surfaces .glass-panel,
+  .glass-depth-card {
+    position: relative;
+    isolation: isolate;
+    border-color: oklch(var(--color-border-default) / var(--glass-border-subtle));
+    background: oklch(var(--color-surface) / var(--glass-surface-standard));
+    box-shadow: var(--shadow-card), var(--glass-highlight);
+    -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturation));
+    backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturation));
+  }
+
+  .glass-depth-panel::after,
+  .character-editor-surfaces .glass-panel::after,
+  .glass-depth-card::after {
+    position: absolute;
+    z-index: 2;
+    inset: 0;
+    border-radius: inherit;
+    background-image: url("/textures/noise.svg");
+    background-size: var(--glass-noise-size) var(--glass-noise-size);
+    content: "";
+    opacity: var(--glass-noise-opacity);
+    pointer-events: none;
+    mix-blend-mode: soft-light;
+  }
+
+  .glass-depth-panel > *,
+  .character-editor-surfaces .glass-panel > *,
+  .glass-depth-card > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  @media (max-width: 1024px) {
+    .glass-depth-panel,
+    .character-editor-surfaces .glass-panel,
+    .glass-depth-card {
+      background: oklch(var(--color-surface) / var(--glass-surface-strong));
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+  }
+
   .glass-input {
     @apply border text-content-primary placeholder:text-content-muted transition duration-200;
     border-color: oklch(var(--color-border-default) / var(--glass-border-standard));

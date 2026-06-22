@@ -51,6 +51,7 @@
     --glass-blur-lg: 28px;
     --glass-saturation: 115%;
     --glass-noise-opacity: 3.5%;
+    --glass-noise-size: 128px;
     --focus-ring-opacity: 54%;
 
     /* Shared responsive layout */
