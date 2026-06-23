@@ -4,12 +4,9 @@ import { usePathname } from "next/navigation";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { MobileGuestBar } from "@/components/layout/MobileGuestBar";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { useUiStore } from "@/stores/use-ui-store";
-import { cn } from "@/lib/utils";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const sidebarCollapsed = useUiStore((state) => state.sidebarCollapsed);
   const hideChrome =
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
@@ -26,12 +23,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-80 bg-gradient-to-b from-primary/[0.08] to-transparent" />
       <Sidebar />
       <MobileGuestBar />
-      <main
-        className={cn(
-          "min-h-dvh transition-[padding] duration-200 max-md:pb-[env(safe-area-inset-bottom)] md:pl-[var(--sidebar-collapsed)] lg:pl-[var(--sidebar-width)]",
-          sidebarCollapsed && "lg:pl-[var(--sidebar-collapsed)]"
-        )}
-      >
+      <main className="min-h-dvh max-md:pb-[env(safe-area-inset-bottom)] md:pl-[96px]">
         {children}
       </main>
       {isChatRoute ? null : <BottomNav />}

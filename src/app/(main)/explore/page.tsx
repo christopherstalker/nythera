@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Search } from "lucide-react";
 import { CharacterBentoGrid } from "@/components/characters/CharacterBentoGrid";
-import { CharacterGrid } from "@/components/characters/CharacterGrid";
 import type { CharacterSummary } from "@/components/characters/CharacterCard";
 import { Button } from "@/components/ui/button";
 import { CategoryPill } from "@/components/ui/category-pill";
@@ -257,7 +256,9 @@ function ExplorePageContent() {
         </section>
       ) : null}
 
-      {!showFeedSections && (loading || characters.length > 0) ? <CharacterGrid characters={characters} loading={loading} /> : null}
+      {!showFeedSections && (loading || characters.length > 0) ? (
+        <CharacterBentoGrid characters={characters} loading={loading} />
+      ) : null}
 
       {!loading && isCatalogEmpty ? (
         <EmptyState

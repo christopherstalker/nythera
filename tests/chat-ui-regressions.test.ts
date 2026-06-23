@@ -12,11 +12,11 @@ test("message toolbar uses distinct continue, regenerate, and rewind actions", a
   assert.doesNotMatch(source, /RefreshCcw className="[^"]*rotate-90/);
 });
 
-test("tablet message frames retain a circular avatar", async () => {
+test("tablet message frames keep the character avatar visible beside editorial dialogue", async () => {
   const source = await readFile(new URL("../src/components/chat/MessageBubble.tsx", import.meta.url), "utf8");
   assert.match(source, /CharacterAvatar/);
-  assert.match(source, /rounded-full/);
-  assert.match(source, /xl:hidden/);
+  assert.match(source, /h-11 w-11 shrink-0 rounded-\[16px\]/);
+  assert.doesNotMatch(source, /CharacterAvatar[^\n]+xl:hidden/);
 });
 
 test("tablet quick panel can stack above its blur overlay", async () => {

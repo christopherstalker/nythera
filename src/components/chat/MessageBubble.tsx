@@ -170,15 +170,16 @@ export function MessageBubble({
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchEnd}
     >
-      <div className={cn("flex max-w-[92%] items-start gap-2 sm:max-w-[85%] xl:max-w-[75%]", isUser && "flex-row-reverse")}>
+      <div className={cn("flex max-w-[94%] items-start gap-3 sm:max-w-[84%] xl:max-w-[78%]", isUser && "flex-row-reverse")}>
         {isUser ? (
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--bg-elevated)] text-[var(--text-secondary)] xl:hidden">
+          <span className="hidden h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--bg-elevated)] text-[var(--text-secondary)] sm:grid">
             <User className="h-4 w-4" />
           </span>
         ) : (
-          <CharacterAvatar name={characterName} avatarUrl={characterAvatarUrl} size="sm" className="h-9 w-9 shrink-0 rounded-full xl:hidden" />
+          <CharacterAvatar name={characterName} avatarUrl={characterAvatarUrl} size="sm" className="h-11 w-11 shrink-0 rounded-[16px] border border-white/10 shadow-[var(--shadow-soft)]" />
         )}
         <div className={cn("flex flex-col", isUser ? "items-end" : "items-start", "w-full max-w-full")}>
+          {!isUser ? <p className="mb-2 px-1 text-xs font-semibold tracking-wide text-[var(--accent-secondary)]">{characterName}</p> : null}
           <div
             className={cn(
               "bubble-char relative w-full max-w-full",

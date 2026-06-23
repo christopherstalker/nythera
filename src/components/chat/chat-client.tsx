@@ -227,10 +227,11 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
         <img
           src={characterAvatarUrl}
           alt=""
-          className="pointer-events-none absolute inset-0 -z-20 h-full w-full scale-110 object-cover opacity-24 blur-3xl"
+          className="chat-scene-art pointer-events-none absolute inset-y-0 right-0 -z-20 h-full w-[72%] object-cover object-top opacity-40"
         />
       ) : null}
       <div className="pointer-events-none absolute inset-0 -z-10" style={{ background: "var(--chat-overlay)" }} />
+      <div aria-hidden="true" className="glass-grain pointer-events-none absolute inset-0 -z-10" />
       <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-52 bg-gradient-to-b from-primary/[0.11] to-transparent" />
       <div className="shrink-0 px-2 pt-2 sm:px-3 sm:pt-3">
         <TopBar
@@ -251,7 +252,7 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
         />
       ) : null}
       <div className="relative flex min-h-0 flex-1 flex-col gap-2 px-2 pb-0 sm:gap-3 md:flex-row md:px-3 md:pb-3">
-        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <section className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <MessageList
             messages={messages}
             characterName={characterName}

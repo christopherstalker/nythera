@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("Recent sidebar rows clip long one-line descriptions inside their rounded container", async () => {
+test("Recent chat utility drawer clips long one-line descriptions inside its rounded rows", async () => {
   const source = await readFile(new URL("../src/components/layout/Sidebar.tsx", import.meta.url), "utf8");
 
-  assert.match(source, /className=\{cn\("nav-item !h-12 overflow-hidden px-2"/);
-  assert.match(source, /<p className="block truncate text-xs font-normal/);
+  assert.match(source, /Recent chats/);
+  assert.match(source, /rounded-\[18px\] p-2\.5/);
+  assert.match(source, /block truncate text-xs text-\[var\(--text-muted\)\]/);
 });
 
 test("Chats-tab rows clip and sanitize last-message previews", async () => {

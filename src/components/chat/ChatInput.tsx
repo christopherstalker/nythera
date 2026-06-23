@@ -139,8 +139,9 @@ export function ChatInput({
           {apiStatus ? <p className="px-1 text-xs text-[var(--text-muted)] sm:col-span-2">{apiStatus}</p> : null}
         </div>
       ) : null}
-      <div className="nythera-chat-column flex items-end gap-2">
-        <div className="composer-glass flex min-w-0 flex-1 items-end gap-2 rounded-[28px] border border-[var(--border-default)] px-2 py-2 backdrop-blur-2xl transition-colors duration-200 focus-within:border-[var(--accent-purple)] sm:rounded-[26px] sm:px-3 sm:py-2.5">
+      <div className="nythera-chat-column composer-dock relative flex items-end gap-2 rounded-[30px] border border-white/[.12] p-2 shadow-[var(--shadow-card),var(--shadow-glow-soft)] backdrop-blur-2xl transition-colors duration-200 focus-within:border-[rgb(var(--accent-rgb)_/.58)] sm:p-2.5">
+        <div aria-hidden="true" className="glass-grain pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]" />
+        <div className="relative flex min-w-0 flex-1 items-end gap-2 rounded-[22px] border border-white/[.09] bg-black/[.12] px-2 py-2 sm:px-3 sm:py-2.5">
           {onOpenComposer ? (
             <button
               type="button"
@@ -158,7 +159,7 @@ export function ChatInput({
             onChange={(event) => onChange(event.target.value)}
             onInput={resize}
             onKeyDown={handleKeyDown}
-            placeholder="Message..."
+            placeholder="Message character..."
             className="max-h-[132px] min-h-9 flex-1 resize-none overflow-y-auto bg-transparent px-1 text-base leading-6 text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] sm:max-h-[160px] sm:px-0 sm:text-sm"
             disabled={disabled}
           />
@@ -168,9 +169,10 @@ export function ChatInput({
               aria-label="API settings"
               title="API settings"
               onClick={() => setApiOpen((current) => !current)}
-              className="focus-ring mb-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/10 bg-[var(--bg-elevated)] text-[var(--text-secondary)] transition hover:border-[rgb(var(--accent-rgb)_/_0.45)] hover:text-[var(--text-primary)] active:scale-95"
+              className="focus-ring mb-0.5 flex h-9 shrink-0 items-center gap-2 rounded-full border border-white/10 bg-[var(--bg-elevated)] px-2.5 text-[var(--text-secondary)] transition hover:border-[rgb(var(--accent-rgb)_/_0.45)] hover:text-[var(--text-primary)] active:scale-95"
             >
               <SlidersHorizontal className="h-4 w-4" />
+              <span className="hidden max-w-28 truncate text-[11px] sm:block">{model || "Model"}</span>
             </button>
           ) : null}
         </div>
@@ -179,7 +181,7 @@ export function ChatInput({
           onClick={onSubmit}
           disabled={!canSend}
           aria-label="Send message"
-          className="focus-ring mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-[var(--shadow-soft)] transition-all duration-100 hover:bg-white/[0.06] active:scale-90 disabled:opacity-35 md:hidden"
+          className="focus-ring relative mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[var(--gradient-aurora-primary)] text-[color:oklch(var(--color-on-accent))] shadow-[var(--shadow-glow)] transition-all duration-100 hover:brightness-110 active:scale-90 disabled:opacity-35 md:hidden"
         >
           <ChevronsRight className="h-5 w-5" />
         </button>
@@ -188,7 +190,7 @@ export function ChatInput({
           onClick={onSubmit}
           disabled={!canSend}
           aria-label="Send message"
-          className="focus-ring mb-0.5 hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-gradient-to-br from-[var(--brand-secondary)] via-[var(--accent-purple)] to-[var(--accent-secondary)] text-white shadow-[var(--shadow-glow)] transition-all duration-100 hover:brightness-110 active:scale-90 disabled:opacity-40 md:flex"
+          className="focus-ring relative mb-0.5 hidden h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/15 bg-[var(--gradient-aurora-primary)] text-[color:oklch(var(--color-on-accent))] shadow-[var(--shadow-glow)] transition-all duration-100 hover:brightness-110 active:scale-90 disabled:opacity-40 md:flex"
         >
           <ArrowUp className="h-4 w-4" />
         </button>

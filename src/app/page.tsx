@@ -208,50 +208,92 @@ export default function HomePage() {
   }
 
   return (
-    <PageShell className="space-y-8">
-      <section className="app-surface relative isolate min-h-[330px] overflow-hidden px-6 py-8 sm:px-8 lg:px-10">
-        {featured.avatarUrl ? (
-          <img src={featured.avatarUrl} alt="" className="pointer-events-none absolute inset-0 -z-20 h-full w-full scale-110 object-cover opacity-20 blur-2xl" />
-        ) : null}
-        <div className="pointer-events-none absolute inset-0 -z-10 hero-gradient opacity-90" />
-        <div className="flex min-h-[270px] flex-col items-start justify-end text-left">
-          <p className="text-xs font-medium uppercase tracking-[0.22em] text-[var(--text-muted)]">Featured character</p>
-          <h1 className="text-display mt-3 max-w-3xl font-semibold tracking-tight text-[var(--text-primary)]">
-            {featured.name}
+    <>
+      <FeaturedCharacterHero character={featured} onStartChat={startFeaturedChat} />
+      <PageShell className="space-y-8">
+        <section className="space-y-4">
+          <div className="scrollbar-none overflow-x-auto">
+            <div className="inline-flex min-w-max gap-2 rounded-[var(--radius-pill)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-1 shadow-[var(--glass-highlight)] backdrop-blur-xl">
+              {feedTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveFeed(tab.id)}
+                  className={cn(
+                    "focus-ring h-10 rounded-[var(--radius-pill)] px-4 text-sm font-semibold transition-colors",
+                    activeFeed === tab.id
+                      ? "bg-[var(--accent-purple-soft)] text-[var(--text-primary)]"
+                      : "text-[var(--text-secondary)] hover:bg-white/[0.045] hover:text-[var(--text-primary)]"
+                  )}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <CharacterRow title={activeFeedTab.label} characters={activeCharacters} />
+        </section>
+      </PageShell>
+    </>
+  );
+}
+
+function FeaturedCharacterHero({
+  character,
+  onStartChat
+}: {
+  character: CharacterSummary;
+  onStartChat: () => void;
+}) {
+  const auroraMask = "linear-gradient(90deg, black 0%, rgb(0 0 0 / 0.76) 46%, transparent 88%)";
+
+  return (
+    <section
+      aria-labelledby="featured-character-title"
+      className="relative isolate flex min-h-[clamp(32rem,70svh,48rem)] w-full overflow-hidden md:min-h-[clamp(34rem,64svh,48rem)]"
+    >
+      {character.avatarUrl ? (
+        <img
+          src={character.avatarUrl}
+          alt=""
+          className="pointer-events-none absolute inset-0 -z-30 h-full w-full object-cover object-[center_24%]"
+        />
+      ) : (
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-30 bg-aurora-ambient" />
+      )}
+
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-20 bg-aurora-primary opacity-35"
+        style={{ WebkitMaskImage: auroraMask, maskImage: auroraMask }}
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10"
+        style={{
+          background:
+            "linear-gradient(90deg, oklch(var(--color-canvas) / 0.96) 0%, oklch(var(--color-canvas) / 0.76) 38%, oklch(var(--color-canvas) / 0.18) 72%, transparent 100%), linear-gradient(0deg, oklch(var(--color-canvas) / 0.94) 0%, oklch(var(--color-canvas) / 0.34) 42%, transparent 76%)"
+        }}
+      />
+
+      <div className="mx-auto flex min-h-full w-full max-w-[var(--page-max-width)] items-end px-[var(--page-padding-x)] pb-12 pt-28 sm:pb-16 md:px-6 md:pb-20 lg:px-10 lg:pb-24">
+        <div className="max-w-2xl text-left">
+          <h1
+            id="featured-character-title"
+            className="text-display font-semibold tracking-[-0.035em] text-content-primary drop-shadow-[0_2px_24px_oklch(var(--color-canvas)/0.55)]"
+          >
+            {character.name}
           </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--text-secondary)] sm:text-base">
-            {featured.description || "Start a new character chat and settle into the first scene."}
+          <p className="mt-4 max-w-xl text-sm leading-7 text-content-secondary sm:text-base sm:leading-8">
+            {character.description || "Start a new character chat and settle into the first scene."}
           </p>
-          <Button type="button" onClick={startFeaturedChat} className="mt-6">
+          <Button type="button" size="lg" onClick={onStartChat} className="mt-7">
             <MessageCircle className="h-4 w-4" />
             Start Chat
           </Button>
         </div>
-      </section>
-
-      <section className="space-y-4">
-        <div className="scrollbar-none overflow-x-auto">
-          <div className="inline-flex min-w-max gap-2 rounded-[var(--radius-pill)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-1 shadow-[var(--glass-highlight)] backdrop-blur-xl">
-            {feedTabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveFeed(tab.id)}
-                className={cn(
-                  "focus-ring h-10 rounded-[var(--radius-pill)] px-4 text-sm font-semibold transition-colors",
-                  activeFeed === tab.id
-                    ? "bg-[var(--accent-purple-soft)] text-[var(--text-primary)]"
-                    : "text-[var(--text-secondary)] hover:bg-white/[0.045] hover:text-[var(--text-primary)]"
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <CharacterRow title={activeFeedTab.label} characters={activeCharacters} />
-      </section>
-    </PageShell>
+      </div>
+    </section>
   );
 }
 
