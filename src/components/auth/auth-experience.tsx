@@ -105,7 +105,7 @@ export function AuthExperience({ mode, children, footer }: AuthExperienceProps) 
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute bottom-0 right-0 h-96 w-96 rounded-full bg-[#ffb347]/10 blur-3xl"
+        className="pointer-events-none absolute bottom-0 right-0 h-96 w-96 rounded-full bg-[var(--accent-secondary)]/10 blur-3xl"
       />
 
       <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[1240px] flex-col px-[var(--page-padding-x)] py-5 sm:py-6 lg:grid lg:min-h-dvh lg:grid-cols-[minmax(0,1.05fr)_minmax(300px,420px)] lg:items-center lg:gap-8 lg:px-10 lg:py-10 xl:max-w-[1400px] 2xl:max-w-[1520px]">

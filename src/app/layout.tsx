@@ -32,10 +32,10 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: "/icon.svg", type: "image/svg+xml" },
-      { url: "/icons/nythera-n-v2-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/nythera-n-v2-512.png", sizes: "512x512", type: "image/png" }
+      { url: "/icons/velora-aurora-v3-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/velora-aurora-v3-512.png", sizes: "512x512", type: "image/png" }
     ],
-    apple: [{ url: "/icons/nythera-n-v2-apple-180.png", sizes: "180x180", type: "image/png" }]
+    apple: [{ url: "/icons/velora-aurora-v3-apple-180.png", sizes: "180x180", type: "image/png" }]
   },
   openGraph: {
     type: "website",
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
     description: "AI roleplay platform with persona, memory, and secure model access.",
     images: [
       {
-        url: "/og-image-v2.png",
+        url: "/og-image-v3.png",
         width: 1200,
         height: 630,
         alt: "Nythera N logo"
@@ -57,7 +57,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Nythera",
     description: "AI roleplay platform with persona, memory, and secure model access.",
-    images: ["/og-image-v2.png"]
+    images: ["/og-image-v3.png"]
   }
 };
 

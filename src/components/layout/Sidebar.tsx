@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
@@ -116,7 +117,9 @@ export function Sidebar() {
         <div aria-hidden="true" className="glass-grain pointer-events-none absolute inset-0" />
         <div className="relative flex min-w-[234px] flex-1 flex-col p-2.5">
           <Link href="/" aria-label="Nythera home" className="focus-ring mb-4 flex h-12 items-center gap-3 rounded-[20px] px-2 no-underline">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[17px] border border-[rgb(var(--accent-rgb)_/.34)] bg-[var(--accent-purple-soft)] font-semibold text-[var(--text-primary)] shadow-[var(--shadow-glow)]">N</span>
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[17px] border border-[rgb(var(--accent-rgb)_/.34)] bg-[var(--accent-purple-soft)] shadow-[var(--shadow-glow)]">
+              <Image src="/icon.svg" alt="" width={28} height={28} className="h-7 w-7" />
+            </span>
             <span className="whitespace-nowrap text-sm font-semibold tracking-[.16em] text-[var(--text-primary)] opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 motion-reduce:transition-none">NYTHERA</span>
           </Link>
 

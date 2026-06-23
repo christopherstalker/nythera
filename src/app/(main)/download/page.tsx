@@ -77,7 +77,7 @@ export default function DownloadPage() {
         <Surface className="p-5 sm:p-6">
           <div className="flex items-start gap-4">
             <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl border border-primary/25 bg-primary/10 shadow-[var(--shadow-glow-soft)]">
-              <Image src="/icons/nythera-n-v2-192.png" alt="" width={42} height={42} className="h-10 w-10" />
+              <Image src="/icons/velora-aurora-v3-192.png" alt="" width={42} height={42} className="h-10 w-10" />
             </div>
             <div className="min-w-0 flex-1">
               <h2 className="text-lg font-semibold text-[var(--text-primary)]">Recommended install</h2>

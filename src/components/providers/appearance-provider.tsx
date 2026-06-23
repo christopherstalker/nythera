@@ -9,13 +9,16 @@ export const APPEARANCE_STORAGE_KEY = "nythera.appearance";
 const LEGACY_APPEARANCE_STORAGE_KEY = "nythera.appearance";
 const APPEARANCE_UPDATED_EVENT = "nythera:appearance-updated";
 const BRAND_STATE_EVENT = "nythera:brand-state";
+const BRAND_LOGO_PRIMARY = "#8F81F7";
+const BRAND_LOGO_MID = "#A78BFA";
+const BRAND_LOGO_SECONDARY = "#6EE7D8";
 
 export type StoredAppearance = {
   accentColor?: string;
   theme?: "dark" | "light" | "system";
 };
 
-export const ACCENT_PRESETS = ["#FF7A18", "#FFB347", "#A78BFA", "#2DD4BF", "#EF476F", "#38BDF8", "#F472B6", "#64748B"];
+export const ACCENT_PRESETS = ["#8F81F7", "#6EE7D8", "#A78BFA", "#2DD4BF", "#EF476F", "#38BDF8", "#F472B6", "#64748B"];
 
 export function AppearanceProvider() {
   const { setTheme } = useTheme();
@@ -40,8 +43,7 @@ export function AppearanceProvider() {
 
     const onBrandState = (event: Event) => {
       const detail = (event as CustomEvent<{ glowIntensity?: number }>).detail;
-      const accentColor = readStoredAppearance().accentColor || DEFAULT_ACCENT_COLOR;
-      updateDynamicFavicon(accentColor, detail?.glowIntensity ?? 0.56);
+      updateDynamicFavicon(detail?.glowIntensity ?? 0.56);
     };
 
     window.addEventListener("storage", onStorage);
@@ -122,7 +124,7 @@ export function applyAccentColor(hexColor: string) {
   root.style.setProperty("--accent-purple-soft", `oklch(${primaryChannels} / .16)`);
   root.style.setProperty("--accent-rgb", `${rgb.r} ${rgb.g} ${rgb.b}`);
   root.style.setProperty("--bubble-user", `oklch(${primaryChannels} / .24)`);
-  updateDynamicFavicon(hexColor);
+  updateDynamicFavicon();
 }
 
 function applyStoredAppearance(setTheme?: (theme: string) => void) {
@@ -210,16 +212,15 @@ function mixWith(rgb: { r: number; g: number; b: number }, r: number, g: number,
   };
 }
 
-function updateDynamicFavicon(hexColor: string, glowIntensity = 0.56) {
-  if (typeof document === "undefined" || !isHexColor(hexColor)) {
+function updateDynamicFavicon(glowIntensity = 0.56) {
+  if (typeof document === "undefined") {
     return;
   }
 
-  // Runtime branding keeps the SVG favicon aligned with the selected theme accent and chat glow state.
-  const rgb = hexToRgb(hexColor);
-  const secondary = mixWith(rgb, 255, 179, 71, 0.45);
+  // Runtime branding keeps the favicon on the fixed Velora aurora mark while allowing chat glow state to breathe.
+  const rgb = hexToRgb(BRAND_LOGO_PRIMARY);
   const glow = Math.max(0.14, Math.min(glowIntensity, 0.9));
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><linearGradient id="b" x1="80" y1="60" x2="430" y2="470"><stop stop-color="#18151E"/><stop offset=".58" stop-color="#0B0B12"/><stop offset="1" stop-color="#050509"/></linearGradient><linearGradient id="e" x1="112" y1="104" x2="392" y2="414"><stop stop-color="${rgbToHex(secondary)}"/><stop offset=".5" stop-color="${hexColor}"/><stop offset="1" stop-color="${rgbToHex(mixWith(rgb, 0, 0, 0, 0.26))}"/></linearGradient><filter id="g" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="18" result="blur"/><feColorMatrix in="blur" type="matrix" values="1 0 0 0 ${rgb.r / 255} 0 1 0 0 ${rgb.g / 255} 0 0 1 0 ${rgb.b / 255} 0 0 0 ${glow} 0"/></filter></defs><rect width="512" height="512" rx="92" fill="url(#b)"/><path d="M112 104L326 282V148L392 198V414L178 236V370L112 320Z" fill="url(#e)" filter="url(#g)" opacity=".5"/><path d="M112 104L326 282V148L392 198V414L178 236V370L112 320Z" fill="url(#e)"/></svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><radialGradient id="b" cx="46%" cy="38%" r="76%"><stop stop-color="#15142A"/><stop offset=".58" stop-color="#090A18"/><stop offset="1" stop-color="#03040F"/></radialGradient><linearGradient id="e" x1="112" y1="104" x2="392" y2="414" gradientUnits="userSpaceOnUse"><stop stop-color="${BRAND_LOGO_PRIMARY}"/><stop offset=".52" stop-color="${BRAND_LOGO_MID}"/><stop offset="1" stop-color="${BRAND_LOGO_SECONDARY}"/></linearGradient><filter id="g" x="-28%" y="-28%" width="156%" height="156%"><feGaussianBlur stdDeviation="16" result="blur"/><feColorMatrix in="blur" type="matrix" values="1 0 0 0 ${rgb.r / 255} 0 1 0 0 ${rgb.g / 255} 0 0 1 0 ${rgb.b / 255} 0 0 0 ${glow} 0"/></filter></defs><rect width="512" height="512" rx="92" fill="url(#b)"/><circle cx="372" cy="130" r="132" fill="${BRAND_LOGO_PRIMARY}" opacity=".12"/><circle cx="156" cy="386" r="118" fill="${BRAND_LOGO_SECONDARY}" opacity=".1"/><path d="M112 104L326 282V148L392 198V414L178 236V370L112 320Z" fill="${BRAND_LOGO_PRIMARY}" filter="url(#g)" opacity=".42"/><path d="M112 104L326 282V148L392 198V414L178 236V370L112 320Z" fill="url(#e)"/></svg>`;
   const href = `data:image/svg+xml,${encodeURIComponent(svg)}`;
   const link = getOrCreateIconLink();
   link.href = href;

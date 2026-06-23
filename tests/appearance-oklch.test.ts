@@ -80,7 +80,7 @@ test("appearance provider retains custom accent compatibility and synchronizatio
   );
 
   assert.match(source, /export const DEFAULT_ACCENT_COLOR = ["']#8F81F7["'];/);
-  for (const preset of ["#FF7A18", "#FFB347", "#A78BFA", "#2DD4BF", "#EF476F", "#38BDF8", "#F472B6", "#64748B"]) {
+  for (const preset of ["#8F81F7", "#6EE7D8", "#A78BFA", "#2DD4BF", "#EF476F", "#38BDF8", "#F472B6", "#64748B"]) {
     assert.ok(source.includes(`"${preset}"`), `missing existing accent preset ${preset}`);
   }
   for (const retained of [
@@ -98,9 +98,12 @@ test("appearance provider retains custom accent compatibility and synchronizatio
   }
 
   assert.match(source, /const hover = mixWith\(rgb, 0, 0, 0, 0\.14\);/);
-  assert.ok(source.includes("updateDynamicFavicon(accentColor, detail?.glowIntensity ?? 0.56);"));
-  assert.ok(source.includes("updateDynamicFavicon(hexColor);"));
-  assert.match(source, /function updateDynamicFavicon\(hexColor: string, glowIntensity = 0\.56\)/);
+  assert.ok(source.includes("updateDynamicFavicon(detail?.glowIntensity ?? 0.56);"));
+  assert.ok(source.includes("updateDynamicFavicon();"));
+  assert.match(source, /function updateDynamicFavicon\(glowIntensity = 0\.56\)/);
+  assert.match(source, /const BRAND_LOGO_PRIMARY = ["']#8F81F7["'];/);
+  assert.match(source, /const BRAND_LOGO_SECONDARY = ["']#6EE7D8["'];/);
+  assert.doesNotMatch(source, /updateDynamicFavicon\(hexColor|BRAND_LOGO_PRIMARY = ["']#FF7A18|BRAND_LOGO_SECONDARY = ["']#FFB347/);
   assert.match(source, /root\.style\.setProperty\(["']--accent-rgb["'], `\$\{rgb\.r\} \$\{rgb\.g\} \$\{rgb\.b\}`\);/);
   assert.doesNotMatch(source, /console\.(?:debug|info|log|warn|error)/);
 });

@@ -19,19 +19,19 @@ export default function manifest(): MetadataRoute.Manifest {
     prefer_related_applications: false,
     icons: [
       {
-        src: "/icons/nythera-n-v2-192.png",
+        src: "/icons/velora-aurora-v3-192.png",
         sizes: "192x192",
         type: "image/png",
         purpose: "any"
       },
       {
-        src: "/icons/nythera-n-v2-512.png",
+        src: "/icons/velora-aurora-v3-512.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "any"
       },
       {
-        src: "/icons/nythera-n-v2-maskable-512.png",
+        src: "/icons/velora-aurora-v3-maskable-512.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable"
@@ -48,19 +48,19 @@ export default function manifest(): MetadataRoute.Manifest {
         name: "Explore characters",
         short_name: "Explore",
         url: "/explore?source=shortcut",
-        icons: [{ src: "/icons/nythera-n-v2-192.png", sizes: "192x192", type: "image/png" }]
+        icons: [{ src: "/icons/velora-aurora-v3-192.png", sizes: "192x192", type: "image/png" }]
       },
       {
         name: "Continue chats",
         short_name: "Chats",
         url: "/chats?source=shortcut",
-        icons: [{ src: "/icons/nythera-n-v2-192.png", sizes: "192x192", type: "image/png" }]
+        icons: [{ src: "/icons/velora-aurora-v3-192.png", sizes: "192x192", type: "image/png" }]
       },
       {
         name: "Create character",
         short_name: "Create",
         url: "/create-character?source=shortcut",
-        icons: [{ src: "/icons/nythera-n-v2-192.png", sizes: "192x192", type: "image/png" }]
+        icons: [{ src: "/icons/velora-aurora-v3-192.png", sizes: "192x192", type: "image/png" }]
       }
     ]
   };

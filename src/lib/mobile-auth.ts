@@ -239,6 +239,6 @@ export function publicMobileUser(user: {
     compactMode: user.compactMode ?? false,
     notificationsEnabled: user.notificationsEnabled ?? false,
     preferredTheme: user.preferredTheme ?? "dark",
-    accentColor: user.accentColor ?? "#FF7A18"
+    accentColor: user.accentColor ?? "#8F81F7"
   };
 }

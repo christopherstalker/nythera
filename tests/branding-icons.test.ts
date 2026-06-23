@@ -9,10 +9,10 @@ function pngSize(buffer: Buffer) {
 
 test("favicon and PWA raster icons use their declared square dimensions", async () => {
   const fixtures = [
-    ["../public/icons/icon-192.png", 192],
-    ["../public/icons/icon-512.png", 512],
-    ["../public/icons/maskable-512.png", 512],
-    ["../public/icons/apple-touch-icon.png", 180]
+    ["../public/icons/velora-aurora-v3-192.png", 192],
+    ["../public/icons/velora-aurora-v3-512.png", 512],
+    ["../public/icons/velora-aurora-v3-maskable-512.png", 512],
+    ["../public/icons/velora-aurora-v3-apple-180.png", 180]
   ] as const;
 
   for (const [path, expectedSize] of fixtures) {
@@ -30,7 +30,12 @@ test("static and dynamic favicons use the supplied geometric N mark without a wo
   assert.match(publicIcon, new RegExp(markPath));
   assert.match(appIcon, new RegExp(markPath));
   assert.match(appearance, new RegExp(markPath));
+  assert.match(publicIcon, /#8F81F7/);
+  assert.match(publicIcon, /#6EE7D8/);
+  assert.match(appearance, /BRAND_LOGO_PRIMARY = "#8F81F7"/);
+  assert.match(appearance, /BRAND_LOGO_SECONDARY = "#6EE7D8"/);
   assert.doesNotMatch(publicIcon, /<text|AI ROLEPLAY PLATFORM/i);
+  assert.doesNotMatch([publicIcon, appIcon, appearance].join("\n"), /#FF5A0A|#FF7A18|#FFB52E|#FFB347/i);
 });
 
 test("install icons use cache-busting URLs and a fresh service-worker cache", async () => {
@@ -46,36 +51,52 @@ test("install icons use cache-busting URLs and a fresh service-worker cache", as
   const serviceWorker = await readFile(new URL("../public/sw.js", import.meta.url), "utf8");
   const combined = sources.join("\n");
 
-  assert.match(combined, /\/icons\/nythera-n-v2-192\.png/);
-  assert.match(combined, /\/icons\/nythera-n-v2-512\.png/);
-  assert.match(combined, /\/icons\/nythera-n-v2-apple-180\.png/);
-  assert.doesNotMatch(combined, /\/icons\/(?:icon-192|icon-512|apple-touch-icon)\.png/);
-  assert.match(serviceWorker, /nythera-v8/);
-  assert.match(serviceWorker, /\/icons\/nythera-n-v2-maskable-512\.png/);
+  assert.match(combined, /\/icons\/velora-aurora-v3-192\.png/);
+  assert.match(combined, /\/icons\/velora-aurora-v3-512\.png/);
+  assert.match(combined, /\/icons\/velora-aurora-v3-apple-180\.png/);
+  assert.doesNotMatch(combined, /\/icons\/(?:icon-192|icon-512|apple-touch-icon|nythera-n-v2-[^"')]+)\.png/);
+  assert.match(serviceWorker, /nythera-v9/);
+  assert.match(serviceWorker, /\/icons\/velora-aurora-v3-maskable-512\.png/);
+  assert.doesNotMatch(serviceWorker, /nythera-n-v2|icon-192|icon-512|apple-touch-icon/);
 
   const fixtures = [
-    ["../public/icons/nythera-n-v2-192.png", 192],
-    ["../public/icons/nythera-n-v2-512.png", 512],
-    ["../public/icons/nythera-n-v2-maskable-512.png", 512],
-    ["../public/icons/nythera-n-v2-apple-180.png", 180]
+    ["../public/icons/velora-aurora-v3-192.png", 192],
+    ["../public/icons/velora-aurora-v3-512.png", 512],
+    ["../public/icons/velora-aurora-v3-maskable-512.png", 512],
+    ["../public/icons/velora-aurora-v3-apple-180.png", 180]
   ] as const;
 
   for (const [path, expectedSize] of fixtures) {
     const image = await readFile(new URL(path, import.meta.url));
     assert.deepEqual(pngSize(image), { width: expectedSize, height: expectedSize });
   }
+
+  for (const oldPath of [
+    "../public/icons/icon-192.png",
+    "../public/icons/icon-512.png",
+    "../public/icons/maskable-512.png",
+    "../public/icons/apple-touch-icon.png",
+    "../public/icons/nythera-n-v2-192.png",
+    "../public/icons/nythera-n-v2-512.png",
+    "../public/icons/nythera-n-v2-maskable-512.png",
+    "../public/icons/nythera-n-v2-apple-180.png"
+  ]) {
+    await assert.rejects(() => readFile(new URL(oldPath, import.meta.url)));
+  }
 });
 
-test("social previews use the N-focused landscape image and a versioned public URL", async () => {
+test("social previews use the aurora N landscape image and a versioned public URL", async () => {
   const layout = await readFile(new URL("../src/app/layout.tsx", import.meta.url), "utf8");
 
-  assert.match(layout, /\/og-image-v2\.png/);
-  assert.doesNotMatch(layout, /["']\/og-image\.png["']/);
+  assert.match(layout, /\/og-image-v3\.png/);
+  assert.doesNotMatch(layout, /["']\/og-image(?:-v2)?\.png["']/);
 
-  const publicImage = await readFile(new URL("../public/og-image-v2.png", import.meta.url));
+  const publicImage = await readFile(new URL("../public/og-image-v3.png", import.meta.url));
   const appImage = await readFile(new URL("../src/app/opengraph-image.png", import.meta.url));
 
   assert.deepEqual(pngSize(publicImage), { width: 1200, height: 630 });
   assert.deepEqual(pngSize(appImage), { width: 1200, height: 630 });
   assert.ok(publicImage.equals(appImage));
+  await assert.rejects(() => readFile(new URL("../public/og-image.png", import.meta.url)));
+  await assert.rejects(() => readFile(new URL("../public/og-image-v2.png", import.meta.url)));
 });
