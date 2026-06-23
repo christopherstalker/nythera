@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ChatComposerSheet } from "@/components/chat/chat-composer-sheet";
 import { MessageList } from "@/components/chat/MessageList";
@@ -8,6 +8,7 @@ import { ChatQuickPanel } from "@/components/chat/chat-quick-panel";
 import { TopBar } from "@/components/layout/TopBar";
 import { useChat, type ChatMessage } from "@/hooks/useChat";
 import { useChatQuickPanel } from "@/hooks/use-chat-quick-panel";
+import { buildProviderModelGroups, inferProviderModelValue, type ProviderModelGroup, type SavedProviderSummary } from "@/lib/provider-model-options";
 import { useUiStore } from "@/stores/use-ui-store";
 import { PanelRightOpen } from "lucide-react";
 
@@ -23,37 +24,27 @@ type ChatClientProps = {
   initialMessages: ChatMessage[];
 };
 
-type SavedProviderKey = {
-  provider: string;
-  defaultModel?: string | null;
-  isDefault?: boolean;
-};
-
-const APP_DEFAULT_MODELS = new Set(["gpt-4o-mini", "gpt-3.5-turbo"]);
-
 export function ChatClient({ chatId, characterId, characterName, characterAvatarUrl, summary, model: initialModel, temperature: initialTemperature, responsePrompt: initialResponsePrompt, initialMessages }: ChatClientProps) {
   const [draft, setDraft] = useState("");
   const [model, setModel] = useState(initialModel || "gpt-4o-mini");
-  const [activeRouteModel, setActiveRouteModel] = useState<string | null>(null);
-  const [manualModelOverride, setManualModelOverride] = useState(false);
   const [temperature, setTemperature] = useState(initialTemperature ?? 0.7);
   const [responsePrompt, setResponsePrompt] = useState(initialResponsePrompt ?? "");
   const [apiSaveStatus, setApiSaveStatus] = useState<string | null>(null);
+  const [providerKeys, setProviderKeys] = useState<SavedProviderSummary[]>([]);
+  const [providerKeysLoading, setProviderKeysLoading] = useState(true);
   const [quickPanelOpen, setQuickPanelOpen] = useState(false);
   const [composerSheetOpen, setComposerSheetOpen] = useState(false);
   const persistedApiRef = useRef({ model: initialModel || "gpt-4o-mini", temperature: initialTemperature ?? 0.7, responsePrompt: initialResponsePrompt ?? "" });
   const quickPanel = useChatQuickPanel({ chatId, characterId, enabled: true });
   const { messages, send, editMessage, deleteMessage, rewindToMessage, branchFromMessage, pinMessage, unpinMessage, isStreaming, error } = useChat(chatId, initialMessages);
   const setActiveChatId = useUiStore((state) => state.setActiveChatId);
-  const usesAutoModel = !manualModelOverride && APP_DEFAULT_MODELS.has(model.trim().toLowerCase());
-  const visibleModel = usesAutoModel && activeRouteModel ? activeRouteModel : model;
+  const providerModelGroups: ProviderModelGroup[] = useMemo(() => buildProviderModelGroups(providerKeys), [providerKeys]);
+  const selectedProviderModel = inferProviderModelValue(model, providerModelGroups);
 
   useEffect(() => {
     setModel(initialModel || "gpt-4o-mini");
     setTemperature(initialTemperature ?? 0.7);
     setResponsePrompt(initialResponsePrompt ?? "");
-    setManualModelOverride(false);
-    setActiveRouteModel(null);
     setApiSaveStatus(null);
     persistedApiRef.current = { model: initialModel || "gpt-4o-mini", temperature: initialTemperature ?? 0.7, responsePrompt: initialResponsePrompt ?? "" };
   }, [chatId, initialModel, initialResponsePrompt, initialTemperature]);
@@ -114,34 +105,56 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
   }, [isStreaming]);
 
   useEffect(() => {
-    if (!APP_DEFAULT_MODELS.has(model.trim().toLowerCase())) {
-      setActiveRouteModel(null);
-      return;
-    }
-
+    let cancelled = false;
     const controller = new AbortController();
     fetch("/api/keys", { signal: controller.signal })
       .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then((body: { keys?: SavedProviderKey[] }) => {
-        const activeKey = body.keys?.find((key) => key.isDefault) ?? body.keys?.[0];
-        if (activeKey?.provider) {
-          setActiveRouteModel(`${activeKey.provider}:${activeKey.defaultModel || model}`);
-        } else {
-          setActiveRouteModel(null);
+      .then((body: { keys?: SavedProviderSummary[] }) => {
+        if (!cancelled) {
+          setProviderKeys(Array.isArray(body.keys) ? body.keys : []);
         }
       })
       .catch((error) => {
         if (!(error instanceof DOMException && error.name === "AbortError")) {
-          setActiveRouteModel(null);
+          setProviderKeys([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setProviderKeysLoading(false);
         }
       });
 
-    return () => controller.abort();
-  }, [model]);
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [chatId]);
+
+  useEffect(() => {
+    if (providerKeysLoading) {
+      return;
+    }
+
+    if (providerModelGroups.length === 0) {
+      return;
+    }
+
+    const inferredSelection = inferProviderModelValue(model, providerModelGroups);
+    if (inferredSelection && inferredSelection !== model) {
+      setModel(inferredSelection);
+      return;
+    }
+
+    if (!inferredSelection) {
+      const fallback = providerModelGroups.find((group) => group.isDefault)?.options[0] ?? providerModelGroups[0]?.options[0];
+      if (fallback) {
+        setModel(fallback.value);
+      }
+    }
+  }, [model, providerKeysLoading, providerModelGroups]);
 
   function handleModelChange(value: string) {
-    setManualModelOverride(true);
-    setActiveRouteModel(null);
     setModel(value);
   }
 
@@ -272,7 +285,9 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
             onChange={setDraft}
             onSubmit={submitMessage}
             disabled={isStreaming}
-            model={visibleModel}
+            model={selectedProviderModel || model}
+            modelGroups={providerModelGroups}
+            modelLoading={providerKeysLoading}
             temperature={temperature}
             onModelChange={handleModelChange}
             onTemperatureChange={setTemperature}

@@ -3,6 +3,7 @@
 import { KeyboardEvent, useEffect, useRef, useState } from "react";
 import { ArrowUp, ChevronsRight, SlidersHorizontal } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
+import type { ProviderModelGroup } from "@/lib/provider-model-options";
 import { RESPONSE_PROMPT_EXAMPLES } from "@/lib/response-prompt";
 
 type ChatInputProps = {
@@ -11,6 +12,8 @@ type ChatInputProps = {
   onSubmit: () => void;
   disabled?: boolean;
   model?: string;
+  modelGroups?: ProviderModelGroup[];
+  modelLoading?: boolean;
   temperature?: number;
   onModelChange?: (value: string) => void;
   onTemperatureChange?: (value: number) => void;
@@ -28,6 +31,8 @@ export function ChatInput({
   onSubmit,
   disabled = false,
   model,
+  modelGroups = [],
+  modelLoading = false,
   temperature,
   onModelChange,
   onTemperatureChange,
@@ -65,6 +70,9 @@ export function ChatInput({
   const canSend = !disabled && Boolean(value.trim());
   const hasApiControls = Boolean(onModelChange || onTemperatureChange || onResponsePromptChange);
   const currentTemperature = temperature ?? 0.7;
+  const modelOptions = modelGroups.flatMap((group) => group.options);
+  const hasModelOptions = modelOptions.length > 0;
+  const currentModelIsKnown = Boolean(model && modelOptions.some((option) => option.value === model));
 
   return (
     <div className="relative z-20 shrink-0 bg-gradient-to-t from-[var(--bg-base)] via-[var(--bg-base)] to-transparent px-3 pb-[calc(0.9rem+env(safe-area-inset-bottom))] pt-3 sm:px-4 md:pb-5">
@@ -73,12 +81,39 @@ export function ChatInput({
           {onModelChange ? (
             <label className="grid gap-1">
               <span className="px-1 text-[11px] font-medium uppercase text-[var(--text-muted)]">Model</span>
-              <input
+              <select
                 value={model ?? ""}
                 onChange={(event) => onModelChange(event.target.value)}
-                placeholder="provider:model"
-                className="focus-ring glass-input h-10 rounded-[var(--radius-md)] px-3 text-xs focus:border-[var(--accent-purple)]"
-              />
+                disabled={modelLoading || !hasModelOptions}
+                className="focus-ring glass-input h-10 rounded-[var(--radius-md)] px-3 text-xs focus:border-[var(--accent-purple)] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {modelLoading ? <option value="">Loading saved providers...</option> : null}
+                {!modelLoading && !hasModelOptions ? <option value="">No saved providers</option> : null}
+                {!modelLoading && model && !currentModelIsKnown ? (
+                  <option value={model} disabled>
+                    Current model unavailable: {model}
+                  </option>
+                ) : null}
+                {modelGroups.map((group) => (
+                  <optgroup
+                    key={group.provider}
+                    label={`${group.displayName}${group.last4 ? ` · key ••••${group.last4}` : ""}${group.isDefault ? " · primary" : ""}`}
+                  >
+                    {group.options.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              {!modelLoading && !hasModelOptions ? (
+                <a href="/settings#api-keys" className="px-1 text-xs font-medium text-[var(--accent-purple)] hover:underline">
+                  Add a provider key in Settings
+                </a>
+              ) : (
+                <span className="px-1 text-[11px] text-[var(--text-muted)]">Per-message override; saved as this conversation&apos;s default.</span>
+              )}
             </label>
           ) : null}
           {onTemperatureChange ? (

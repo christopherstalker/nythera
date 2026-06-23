@@ -25,6 +25,14 @@ type SavedKey = {
 type ApiFormat = ProviderApiFormat;
 
 const providers = FIRST_CLASS_PROVIDER_PRESETS;
+const blankCustomProvider = {
+  provider: "",
+  displayName: "",
+  apiFormat: "OPENAI_COMPATIBLE" as ApiFormat,
+  baseUrl: "",
+  defaultModel: "",
+  apiKey: ""
+};
 
 export function KeySettingsClient() {
   const { status: sessionStatus } = useSession();
@@ -32,14 +40,7 @@ export function KeySettingsClient() {
   const [values, setValues] = useState<Record<string, string>>({});
   const [visible, setVisible] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
-  const [custom, setCustom] = useState({
-    provider: "openrouter",
-    displayName: "OpenRouter",
-    apiFormat: "OPENAI_COMPATIBLE" as ApiFormat,
-    baseUrl: "https://openrouter.ai/api/v1",
-    defaultModel: "openai/gpt-4o-mini",
-    apiKey: ""
-  });
+  const [custom, setCustom] = useState(blankCustomProvider);
   const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
@@ -138,8 +139,8 @@ export function KeySettingsClient() {
       return;
     }
 
-    setCustom((current) => ({ ...current, apiKey: "" }));
-    setStatus("Custom provider saved.");
+    setCustom(blankCustomProvider);
+    setStatus("Custom provider endpoint saved.");
     await refresh();
   }
 
@@ -264,12 +265,15 @@ export function KeySettingsClient() {
 
       {keys.filter((key) => !providers.some((provider) => provider.provider === key.provider)).length > 0 ? (
         <div className="glass-card p-4">
-          <h3 className="text-sm font-semibold text-[var(--text-primary)]">Saved custom providers</h3>
+          <h3 className="text-sm font-semibold text-[var(--text-primary)]">Saved custom provider endpoints</h3>
+          <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
+            Each named endpoint appears as its own provider group in the chat model switcher.
+          </p>
           <div className="mt-3 grid gap-2">
             {keys
               .filter((key) => !providers.some((provider) => provider.provider === key.provider))
               .map((key) => (
-                <div key={key.provider} className="flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] p-3 shadow-[var(--glass-highlight)]">
+                <div key={key.id} className="flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] p-3 shadow-[var(--glass-highlight)]">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-[var(--text-primary)]">{key.displayName}</p>
                     <p className="mt-1 truncate text-xs text-[var(--text-muted)]">{key.provider} · {key.defaultModel || "no default model"} · ending in {key.last4}</p>
@@ -329,11 +333,13 @@ export function KeySettingsClient() {
       ) : null}
 
       <form onSubmit={saveCustom} className="glass-card p-4">
-        <h3 className="text-sm font-semibold text-[var(--text-primary)]">Custom provider</h3>
-        <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">Connect an OpenAI-compatible endpoint such as Ollama, LM Studio, vLLM, OpenRouter, or Together.</p>
+        <h3 className="text-sm font-semibold text-[var(--text-primary)]">Add custom provider endpoint</h3>
+        <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
+          Save multiple named endpoints such as My Ollama, Personal OpenRouter, LM Studio, or vLLM. After setup, chats pick them from the model switcher without raw URL typing.
+        </p>
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          <Input value={custom.provider} onChange={(event) => setCustom((current) => ({ ...current, provider: event.target.value }))} placeholder="provider id" />
-          <Input value={custom.displayName} onChange={(event) => setCustom((current) => ({ ...current, displayName: event.target.value }))} placeholder="Display name" />
+          <Input value={custom.provider} onChange={(event) => setCustom((current) => ({ ...current, provider: event.target.value }))} placeholder="Unique provider ID, e.g. my-ollama" />
+          <Input value={custom.displayName} onChange={(event) => setCustom((current) => ({ ...current, displayName: event.target.value }))} placeholder="Display name, e.g. My Ollama" />
           <select
             value={custom.apiFormat}
             onChange={(event) => setCustom((current) => ({ ...current, apiFormat: event.target.value as ApiFormat }))}
@@ -344,13 +350,13 @@ export function KeySettingsClient() {
             <option value="ANTHROPIC">Anthropic native</option>
             <option value="GEMINI">Gemini native</option>
           </select>
-          <Input value={custom.defaultModel} onChange={(event) => setCustom((current) => ({ ...current, defaultModel: event.target.value }))} placeholder="Default model" />
-          <Input value={custom.baseUrl} onChange={(event) => setCustom((current) => ({ ...current, baseUrl: event.target.value }))} placeholder="Base URL" className="sm:col-span-2" />
+          <Input value={custom.defaultModel} onChange={(event) => setCustom((current) => ({ ...current, defaultModel: event.target.value }))} placeholder="Default model, e.g. llama3.1" />
+          <Input value={custom.baseUrl} onChange={(event) => setCustom((current) => ({ ...current, baseUrl: event.target.value }))} placeholder="Base URL, e.g. http://localhost:11434/v1" className="sm:col-span-2" />
           <Input value={custom.apiKey} onChange={(event) => setCustom((current) => ({ ...current, apiKey: event.target.value }))} type="password" placeholder="API key" className="sm:col-span-2" autoComplete="off" />
         </div>
         <Button type="submit" className="mt-3" disabled={!custom.provider.trim() || !custom.apiKey.trim()}>
           <Save className="h-4 w-4" />
-          Save custom provider
+          Save custom endpoint
         </Button>
       </form>
 

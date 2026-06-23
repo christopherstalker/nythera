@@ -80,6 +80,30 @@ test("falls back to the chatting user's global model when the character provider
   assert.equal(result.fellBackToGlobalProvider, true);
 });
 
+test("explicit per-message provider model overrides the character preferred provider", () => {
+  const result = resolveCharacterModelSettings({
+    character: {
+      preferredProvider: "groq",
+      preferredModel: "llama-3.3-70b-versatile",
+      temperature: 0.9,
+      topP: null,
+      frequencyPenalty: null,
+      presencePenalty: null,
+      maxTokens: null,
+      systemPromptOverride: null
+    },
+    providerKeys,
+    globalModel: "openai:gpt-4o-mini",
+    chatTemperature: 0.65
+  });
+
+  assert.equal(result.model, "openai:gpt-4o-mini");
+  assert.equal(result.provider, "openai");
+  assert.equal(result.temperature, 0.9);
+  assert.equal(result.usedCharacterProvider, false);
+  assert.equal(result.fellBackToGlobalProvider, false);
+});
+
 test("validates optional sampler ranges on character input", () => {
   const valid = characterCreateSchema.safeParse({
     creationMode: "custom",

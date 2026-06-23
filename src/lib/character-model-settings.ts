@@ -32,21 +32,22 @@ export function resolveCharacterModelSettings(input: {
 }): EffectiveCharacterModelSettings {
   const requestedProvider = input.character.preferredProvider?.trim().toLowerCase() || null;
   const requestedModel = input.character.preferredModel?.trim() || null;
+  const explicitGlobalProvider = explicitProviderFromModel(input.globalModel, input.providerKeys);
   const matchingKey = requestedProvider
     ? input.providerKeys.find((key) => key.provider === requestedProvider)
     : null;
   const defaultKey = input.providerKeys.find((key) => key.isDefault) ?? input.providerKeys[0] ?? null;
-  const useCharacterProvider = Boolean(matchingKey && (requestedModel || matchingKey?.defaultModel));
+  const useCharacterProvider = Boolean(!explicitGlobalProvider && matchingKey && (requestedModel || matchingKey?.defaultModel));
   const fellBackToGlobalProvider = Boolean(requestedProvider && !matchingKey);
   const model = useCharacterProvider
     ? `${matchingKey!.provider}:${requestedModel || matchingKey!.defaultModel}`
-    : requestedModel && !requestedProvider
+    : !explicitGlobalProvider && requestedModel && !requestedProvider
       ? requestedModel
       : input.globalModel;
 
   return {
     model,
-    provider: useCharacterProvider ? matchingKey!.provider : defaultKey?.provider ?? null,
+    provider: explicitGlobalProvider ?? (useCharacterProvider ? matchingKey!.provider : defaultKey?.provider ?? null),
     temperature: input.character.temperature ?? input.chatTemperature,
     topP: input.character.topP ?? null,
     frequencyPenalty: input.character.frequencyPenalty ?? null,
@@ -56,6 +57,21 @@ export function resolveCharacterModelSettings(input: {
     usedCharacterProvider: useCharacterProvider,
     fellBackToGlobalProvider
   };
+}
+
+function explicitProviderFromModel(value: string, providerKeys: ProviderKeys) {
+  const separatorIndex = value.indexOf(":");
+  if (separatorIndex <= 0) {
+    return null;
+  }
+
+  const provider = value.slice(0, separatorIndex).trim().toLowerCase();
+  const model = value.slice(separatorIndex + 1).trim();
+  if (!provider || !model) {
+    return null;
+  }
+
+  return providerKeys.some((key) => key.provider === provider) ? provider : null;
 }
 
 export function redactCharacterModelSettings<

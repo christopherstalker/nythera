@@ -2,6 +2,8 @@ import { MessageRole } from "@prisma/client";
 import { json, parseJson, routeError, HttpError, getRequestIp } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireMobileUser } from "@/lib/mobile-auth";
+import { resolveCharacterModelSettings } from "@/lib/character-model-settings";
+import { getEffectiveProviderKeys } from "@/lib/user-keys";
 import { chatCreateSchema } from "@/lib/validation";
 import { enforceRateLimit } from "@/lib/rate-limit";
 
@@ -71,7 +73,14 @@ export async function POST(request: Request) {
       throw new HttpError(404, "Character not found.");
     }
 
-    const model = input.model ?? user.preferredModel;
+    const providerKeys = await getEffectiveProviderKeys(user.id);
+    const effectiveSettings = resolveCharacterModelSettings({
+      character,
+      providerKeys,
+      globalModel: input.model ?? user.preferredModel,
+      chatTemperature: input.temperature
+    });
+    const model = input.model ?? effectiveSettings.model;
 
     const chat = await prisma.$transaction(async (tx) => {
       const created = await tx.chat.create({
