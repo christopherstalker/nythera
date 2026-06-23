@@ -9,10 +9,10 @@ function pngSize(buffer: Buffer) {
 
 test("favicon and PWA raster icons use their declared square dimensions", async () => {
   const fixtures = [
-    ["../public/icons/velora-aurora-v3-192.png", 192],
-    ["../public/icons/velora-aurora-v3-512.png", 512],
-    ["../public/icons/velora-aurora-v3-maskable-512.png", 512],
-    ["../public/icons/velora-aurora-v3-apple-180.png", 180]
+    ["../public/icons/velora-aurora-v4-192.png", 192],
+    ["../public/icons/velora-aurora-v4-512.png", 512],
+    ["../public/icons/velora-aurora-v4-maskable-512.png", 512],
+    ["../public/icons/velora-aurora-v4-apple-180.png", 180]
   ] as const;
 
   for (const [path, expectedSize] of fixtures) {
@@ -51,19 +51,19 @@ test("install icons use cache-busting URLs and a fresh service-worker cache", as
   const serviceWorker = await readFile(new URL("../public/sw.js", import.meta.url), "utf8");
   const combined = sources.join("\n");
 
-  assert.match(combined, /\/icons\/velora-aurora-v3-192\.png/);
-  assert.match(combined, /\/icons\/velora-aurora-v3-512\.png/);
-  assert.match(combined, /\/icons\/velora-aurora-v3-apple-180\.png/);
-  assert.doesNotMatch(combined, /\/icons\/(?:icon-192|icon-512|apple-touch-icon|nythera-n-v2-[^"')]+)\.png/);
-  assert.match(serviceWorker, /nythera-v9/);
-  assert.match(serviceWorker, /\/icons\/velora-aurora-v3-maskable-512\.png/);
-  assert.doesNotMatch(serviceWorker, /nythera-n-v2|icon-192|icon-512|apple-touch-icon/);
+  assert.match(combined, /\/icons\/velora-aurora-v4-192\.png/);
+  assert.match(combined, /\/icons\/velora-aurora-v4-512\.png/);
+  assert.match(combined, /\/icons\/velora-aurora-v4-apple-180\.png/);
+  assert.doesNotMatch(combined, /\/icons\/(?:icon-192|icon-512|apple-touch-icon|nythera-n-v2-[^"')]+|velora-aurora-v3-[^"')]+)\.png/);
+  assert.match(serviceWorker, /velora-brand-v10/);
+  assert.match(serviceWorker, /\/icons\/velora-aurora-v4-maskable-512\.png/);
+  assert.doesNotMatch(serviceWorker, /nythera-v9|nythera-n-v2|icon-192|icon-512|apple-touch-icon|velora-aurora-v3/);
 
   const fixtures = [
-    ["../public/icons/velora-aurora-v3-192.png", 192],
-    ["../public/icons/velora-aurora-v3-512.png", 512],
-    ["../public/icons/velora-aurora-v3-maskable-512.png", 512],
-    ["../public/icons/velora-aurora-v3-apple-180.png", 180]
+    ["../public/icons/velora-aurora-v4-192.png", 192],
+    ["../public/icons/velora-aurora-v4-512.png", 512],
+    ["../public/icons/velora-aurora-v4-maskable-512.png", 512],
+    ["../public/icons/velora-aurora-v4-apple-180.png", 180]
   ] as const;
 
   for (const [path, expectedSize] of fixtures) {
@@ -79,7 +79,11 @@ test("install icons use cache-busting URLs and a fresh service-worker cache", as
     "../public/icons/nythera-n-v2-192.png",
     "../public/icons/nythera-n-v2-512.png",
     "../public/icons/nythera-n-v2-maskable-512.png",
-    "../public/icons/nythera-n-v2-apple-180.png"
+    "../public/icons/nythera-n-v2-apple-180.png",
+    "../public/icons/velora-aurora-v3-192.png",
+    "../public/icons/velora-aurora-v3-512.png",
+    "../public/icons/velora-aurora-v3-maskable-512.png",
+    "../public/icons/velora-aurora-v3-apple-180.png"
   ]) {
     await assert.rejects(() => readFile(new URL(oldPath, import.meta.url)));
   }

@@ -38,7 +38,7 @@ export function MobileInstallPrompt() {
 
             <div className="relative flex items-start gap-3 pr-8">
               <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl border border-primary/25 bg-primary/10 shadow-[var(--shadow-glow-soft)]">
-                <Image src="/icons/velora-aurora-v3-192.png" alt="" width={40} height={40} className="h-10 w-10" />
+                <Image src="/icons/velora-aurora-v4-192.png" alt="" width={40} height={40} className="h-10 w-10" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-base font-semibold text-[var(--text-primary)]">Install Nythera on your phone</p>
@@ -89,7 +89,7 @@ export function MobileInstallPrompt() {
                 </span>
               </li>
               <li className="flex items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.03] px-3 py-3">
-                <Image src="/icons/velora-aurora-v3-192.png" alt="" width={20} height={20} className="h-5 w-5 shrink-0 rounded-md" />
+                <Image src="/icons/velora-aurora-v4-192.png" alt="" width={20} height={20} className="h-5 w-5 shrink-0 rounded-md" />
                 <span>
                   Confirm <strong>Nythera</strong> and tap Add
                 </span>

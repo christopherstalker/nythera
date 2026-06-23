@@ -32,10 +32,10 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: "/icon.svg", type: "image/svg+xml" },
-      { url: "/icons/velora-aurora-v3-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/velora-aurora-v3-512.png", sizes: "512x512", type: "image/png" }
+      { url: "/icons/velora-aurora-v4-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/velora-aurora-v4-512.png", sizes: "512x512", type: "image/png" }
     ],
-    apple: [{ url: "/icons/velora-aurora-v3-apple-180.png", sizes: "180x180", type: "image/png" }]
+    apple: [{ url: "/icons/velora-aurora-v4-apple-180.png", sizes: "180x180", type: "image/png" }]
   },
   openGraph: {
     type: "website",
