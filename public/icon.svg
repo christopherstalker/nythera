@@ -1,28 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Nythera H logo">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Nythera N logo">
   <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8F81F7"/>
+      <stop offset="1" stop-color="#3EA8FF"/>
+    </linearGradient>
     <radialGradient id="bg" cx="35%" cy="25%" r="80%">
       <stop offset="0" stop-color="#0B0B12"/>
       <stop offset="1" stop-color="#03040F"/>
     </radialGradient>
-    <linearGradient id="mark" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#8F81F7"/>
-      <stop offset="1" stop-color="#3EA8FF"/>
-    </linearGradient>
-    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="12" result="b"/>
-      <feMerge>
-        <feMergeNode in="b"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="8" stdDeviation="18" flood-color="#000" flood-opacity="0.45"/>
     </filter>
   </defs>
 
-  <rect width="512" height="512" rx="92" fill="url(#bg)"/>
-  <circle cx="380" cy="120" r="120" fill="#8F81F7" opacity="0.08"/>
+  <rect width="512" height="512" rx="88" fill="url(#bg)" />
 
-  <g fill="url(#mark)" filter="url(#glow)">
-    <rect x="120" y="92" width="64" height="328" rx="14"/>
-    <rect x="328" y="92" width="64" height="328" rx="14"/>
-    <rect x="120" y="228" width="272" height="64" rx="14"/>
+  <g filter="url(#shadow)">
+    <path d="M132 110 L210 110 L360 376 L360 110 L438 110 L438 402 L360 402 L210 136 L210 402 L132 402 Z" fill="url(#g)" />
   </g>
+
+  <circle cx="380" cy="110" r="96" fill="#8F81F7" opacity="0.06" />
 </svg>

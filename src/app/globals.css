@@ -350,15 +350,14 @@
   .bubble-char {
     max-width: min(100%, var(--chat-max-width));
     min-width: 0;
-    border: 0;
-    border-left: 1px solid oklch(var(--color-accent-primary) / .42);
-    border-radius: 0;
-    background: linear-gradient(90deg, oklch(var(--color-accent-primary) / .08), transparent 55%);
-    box-shadow: none;
-    padding: 2px 4px 4px 18px;
+    border: 1px solid oklch(var(--color-border-default) / .36);
+    border-radius: var(--radius-bubble);
+    background: linear-gradient(180deg, oklch(var(--color-elevated) / .90), oklch(var(--color-surface) / .72));
+    box-shadow: 0 10px 30px oklch(var(--color-accent-primary) / .06), var(--glass-highlight);
+    padding: 14px 18px;
     color: var(--text-primary);
     font-size: 16px;
-    line-height: 1.78;
+    line-height: 1.6;
     overflow-wrap: break-word;
     word-break: break-word;
     white-space: pre-wrap;
@@ -368,17 +367,14 @@
     max-width: min(75%, var(--chat-max-width));
     min-width: 0;
     align-self: flex-end;
-    border: 1px solid oklch(var(--color-accent-secondary) / .28);
-    border-radius: var(--radius-bubble) 8px var(--radius-bubble) var(--radius-bubble);
-    background:
-      linear-gradient(135deg, oklch(var(--color-accent-primary) / .12), transparent 52%),
-      oklch(var(--color-elevated) / .72);
-    box-shadow: var(--shadow-soft), 7px 7px 26px oklch(var(--color-accent-secondary) / .07), var(--glass-highlight);
-    backdrop-filter: blur(20px);
-    padding: 14px 18px;
+    border-radius: var(--radius-bubble);
+    border: 1px solid oklch(var(--color-accent-primary) / .34);
+    background: linear-gradient(135deg, oklch(var(--color-accent-primary) / .18), oklch(var(--color-accent-secondary) / .06));
+    box-shadow: 0 12px 40px oklch(var(--color-accent-primary) / .12), var(--glass-highlight);
+    padding: 16px 20px;
     color: var(--text-primary);
     font-size: 15px;
-    line-height: 1.68;
+    line-height: 1.7;
     overflow-wrap: break-word;
     word-break: break-word;
     white-space: pre-wrap;
@@ -418,7 +414,9 @@
   }
 
   .brand-mark-shell {
-    @apply grid shrink-0 place-items-center overflow-hidden rounded-full border border-white/10 bg-[var(--bg-elevated)] shadow-[var(--shadow-glow)] backdrop-blur-xl;
+    @apply grid shrink-0 place-items-center overflow-hidden rounded-full shadow-[var(--shadow-glow)] backdrop-blur-xl;
+    background: linear-gradient(135deg, oklch(var(--color-accent-primary) / .18), oklch(var(--color-accent-secondary) / .08));
+    border: 1px solid oklch(var(--color-border-default) / .16);
   }
 
   .composer-glass {
