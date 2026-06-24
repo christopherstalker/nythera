@@ -191,6 +191,11 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
 
     if (!response.ok) {
       const body = await response.json().catch(() => null);
+      if (response.status === 404) {
+        setMessages((current) => current.filter((message) => message.id !== messageId));
+        setError(null);
+        return;
+      }
       setError(body?.error ?? "Could not edit message.");
       return;
     }
@@ -208,14 +213,45 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
   }, [send]);
 
   const deleteMessage = useCallback(async (messageId: string) => {
-    const response = await fetch(`/api/messages?id=${encodeURIComponent(messageId)}`, { method: "DELETE" });
-    if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      setError(body?.error ?? "Could not delete message.");
+    let removedMessage: ChatMessage | null = null;
+    let removedIndex = -1;
+
+    setError(null);
+    setMessages((current) => {
+      removedIndex = current.findIndex((message) => message.id === messageId);
+      if (removedIndex === -1) {
+        return current;
+      }
+
+      removedMessage = current[removedIndex];
+      return current.filter((message) => message.id !== messageId);
+    });
+
+    if (!removedMessage || messageId.startsWith("local-")) {
       return;
     }
 
-    setMessages((current) => current.filter((message) => message.id !== messageId));
+    const response = await fetch(`/api/messages?id=${encodeURIComponent(messageId)}`, { method: "DELETE" });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      if (response.status === 404) {
+        return;
+      }
+
+      const messageToRestore = removedMessage;
+      const indexToRestore = removedIndex;
+      setMessages((current) => {
+        if (current.some((message) => message.id === messageId)) {
+          return current;
+        }
+
+        const next = [...current];
+        next.splice(Math.max(0, Math.min(indexToRestore, next.length)), 0, messageToRestore);
+        return next;
+      });
+      setError(body?.error ?? "Could not delete message.");
+      return;
+    }
   }, []);
 
   const rewindToMessage = useCallback(
@@ -230,11 +266,13 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
 
       try {
         const responses = await Promise.all(
-          toDelete.map((message) =>
-            fetch(`/api/messages?id=${encodeURIComponent(message.id)}`, { method: "DELETE" })
+          toDelete
+            .filter((message) => !message.id.startsWith("local-"))
+            .map((message) =>
+              fetch(`/api/messages?id=${encodeURIComponent(message.id)}`, { method: "DELETE" })
           )
         );
-        if (responses.some((response) => !response.ok)) {
+        if (responses.some((response) => !response.ok && response.status !== 404)) {
           throw new Error("One or more messages could not be deleted.");
         }
       } catch (caught) {

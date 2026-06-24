@@ -5,17 +5,17 @@ import test from "node:test";
 test("message toolbar uses distinct continue, regenerate, and rewind actions", async () => {
   const source = await readFile(new URL("../src/components/chat/MessageBubble.tsx", import.meta.url), "utf8");
 
-  assert.match(source, /ChevronsRight/);
-  assert.match(source, /ActionButton label="Continue"[\s\S]*?<ChevronsRight/);
-  assert.match(source, /ActionButton label="Regenerate"[\s\S]*?<RefreshCcw/);
+  assert.match(source, /SendHorizontal/);
+  assert.match(source, /ActionButton label="Continue"[\s\S]*?<SendHorizontal/);
+  assert.match(source, /ActionButton label="Regenerate"[\s\S]*?<RefreshCw/);
   assert.match(source, /ActionButton label="Rewind"[\s\S]*?<History/);
-  assert.doesNotMatch(source, /RefreshCcw className="[^"]*rotate-90/);
+  assert.doesNotMatch(source, /RefreshCw className="[^"]*rotate-90/);
 });
 
 test("tablet message frames keep the character avatar visible beside editorial dialogue", async () => {
   const source = await readFile(new URL("../src/components/chat/MessageBubble.tsx", import.meta.url), "utf8");
   assert.match(source, /CharacterAvatar/);
-  assert.match(source, /h-11 w-11 shrink-0 rounded-\[16px\]/);
+  assert.match(source, /h-10 w-10 shrink-0 rounded-\[14px\]/);
   assert.doesNotMatch(source, /CharacterAvatar[^\n]+xl:hidden/);
 });
 
@@ -36,6 +36,25 @@ test("editing a user message truncates later messages atomically", async () => {
   assert.match(source, /prisma\.\$transaction/);
   assert.match(source, /deleteMany/);
   assert.match(source, /deletedMessageIds/);
+});
+
+test("message delete removes stale local ghosts and keeps chat counts fresh", async () => {
+  const [hookSource, apiSource] = await Promise.all([
+    readFile(new URL("../src/hooks/useChat.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/app/api/messages/route.ts", import.meta.url), "utf8")
+  ]);
+
+  assert.match(hookSource, /response\.status === 404/);
+  assert.match(hookSource, /current\.filter\(\(message\) => message\.id !== messageId\)/);
+  assert.match(apiSource, /messageCount: actualMessageCount/);
+});
+
+test("message patch route persists pinned state separately from text edits", async () => {
+  const source = await readFile(new URL("../src/app/api/messages/route.ts", import.meta.url), "utf8");
+
+  assert.match(source, /pinned: z\.boolean\(\)\.optional\(\)/);
+  assert.match(source, /input\.content !== undefined/);
+  assert.match(source, /input\.pinned !== undefined \? \{ pinned: input\.pinned \}/);
 });
 
 test("character previews expose and open the most recent existing chat", async () => {

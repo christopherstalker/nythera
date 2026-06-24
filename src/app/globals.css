@@ -20,7 +20,7 @@
   @media (min-width: 768px) {
     :root {
       --card-min-width: 11rem;
-      --chat-max-width: min(920px, calc(100vw - var(--sidebar-collapsed) - 2.5rem));
+      --chat-max-width: min(1040px, calc(100vw - var(--sidebar-collapsed) - 2rem));
     }
   }
 
@@ -28,7 +28,7 @@
     :root {
       --page-max-width: 80rem;
       --card-min-width: 11.5rem;
-      --chat-max-width: min(920px, calc(100vw - 8rem));
+      --chat-max-width: min(1080px, calc(100vw - 7rem));
     }
   }
 
@@ -41,7 +41,7 @@
   @media (min-width: 1536px) {
     :root {
       --page-max-width: 96rem;
-      --chat-max-width: 980px;
+      --chat-max-width: 1120px;
       --card-min-width: 12.5rem;
     }
   }
@@ -49,7 +49,7 @@
   @media (min-width: 1920px) {
     :root {
       --page-max-width: 104rem;
-      --chat-max-width: 1040px;
+      --chat-max-width: 1180px;
     }
   }
 
@@ -350,17 +350,19 @@
   .bubble-char {
     max-width: min(100%, var(--chat-max-width));
     min-width: 0;
-    border: 1px solid oklch(var(--color-border-default) / .36);
-    border-radius: var(--radius-bubble);
-    background: linear-gradient(180deg, oklch(var(--color-elevated) / .90), oklch(var(--color-surface) / .72));
-    box-shadow: 0 10px 30px oklch(var(--color-accent-primary) / .06), var(--glass-highlight);
-    padding: 14px 18px;
+    border: 1px solid oklch(var(--color-border-default) / .24);
+    border-radius: 22px;
+    background:
+      linear-gradient(180deg, oklch(var(--color-elevated) / .82), oklch(var(--color-surface) / .58));
+    box-shadow: 0 14px 44px oklch(0 0 0 / .16), var(--glass-highlight);
+    padding: 13px 17px;
     color: var(--text-primary);
     font-size: 16px;
     line-height: 1.6;
     overflow-wrap: break-word;
     word-break: break-word;
     white-space: pre-wrap;
+    transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
   }
 
   .bubble-user {
@@ -368,16 +370,44 @@
     min-width: 0;
     align-self: flex-end;
     border-radius: var(--radius-bubble);
-    border: 1px solid oklch(var(--color-accent-primary) / .34);
-    background: linear-gradient(135deg, oklch(var(--color-accent-primary) / .18), oklch(var(--color-accent-secondary) / .06));
-    box-shadow: 0 12px 40px oklch(var(--color-accent-primary) / .12), var(--glass-highlight);
-    padding: 16px 20px;
+    border: 1px solid oklch(var(--color-accent-secondary) / .24);
+    background:
+      linear-gradient(135deg, oklch(var(--color-accent-primary) / .16), oklch(var(--color-accent-secondary) / .08));
+    box-shadow: 0 12px 40px oklch(var(--color-accent-primary) / .10), var(--glass-highlight);
+    padding: 13px 17px;
     color: var(--text-primary);
     font-size: 15px;
     line-height: 1.7;
     overflow-wrap: break-word;
     word-break: break-word;
     white-space: pre-wrap;
+    transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .group:hover .bubble-char {
+      transform: translateY(-1px);
+      border-color: oklch(var(--color-accent-secondary) / .3);
+      box-shadow: 0 18px 52px oklch(0 0 0 / .19), var(--glass-highlight);
+    }
+
+    .group:hover .bubble-user {
+      transform: translateY(-1px);
+      border-color: oklch(var(--color-accent-secondary) / .38);
+      box-shadow: 0 18px 52px oklch(var(--color-accent-primary) / .13), var(--glass-highlight);
+    }
+  }
+
+  @media (hover: none), (pointer: coarse) {
+    .bubble-char,
+    .bubble-user {
+      transition-duration: 120ms;
+    }
+
+    .group:active .bubble-char,
+    .group:active .bubble-user {
+      transform: scale(.992);
+    }
   }
 
   .chat-scroll {
@@ -430,14 +460,75 @@
     background:
       linear-gradient(120deg, oklch(var(--color-accent-primary) / .16), transparent 36%, oklch(var(--color-accent-secondary) / .08)),
       oklch(var(--color-surface) / .72);
+    transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  }
+
+  .composer-dock:focus-within {
+    transform: translateY(-1px);
+    box-shadow: 0 22px 76px oklch(0 0 0 / .32), 0 0 52px oklch(var(--color-accent-secondary) / .12), var(--glass-highlight);
+  }
+
+  @media (hover: none), (pointer: coarse) {
+    .composer-dock:focus-within {
+      transform: translateY(-2px);
+    }
   }
 
   .chat-scene-art {
     mask-image: linear-gradient(90deg, transparent 0%, black 34%, black 100%);
   }
 
+  @media (max-width: 640px) {
+    .bubble-char,
+    .bubble-user {
+      border-radius: 18px;
+      padding: 11px 13px;
+      font-size: 15px;
+      line-height: 1.58;
+    }
+
+    .bubble-user {
+      max-width: min(88%, var(--chat-max-width));
+    }
+  }
+
   .message-enter {
     animation: nythera-message-in 240ms ease-out both;
+  }
+
+  .message-exit {
+    animation: nythera-message-out 150ms ease-in both;
+  }
+
+  .api-panel-enter {
+    animation: nythera-panel-rise 180ms ease-out both;
+    transform-origin: bottom center;
+  }
+
+  .mobile-nav-shell {
+    animation: nythera-mobile-nav-in 260ms ease-out both;
+  }
+
+  .mobile-nav-item {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .mobile-nav-item::after {
+    position: absolute;
+    inset: 8px 10px;
+    z-index: -1;
+    border-radius: 16px;
+    background: oklch(var(--color-accent-secondary) / .14);
+    content: "";
+    opacity: 0;
+    transform: scale(.84);
+    transition: opacity 160ms ease, transform 160ms ease;
+  }
+
+  .mobile-nav-item:active::after {
+    opacity: 1;
+    transform: scale(1);
   }
 
   .nythera-loading-mark {
@@ -482,6 +573,41 @@
   from {
     opacity: 0;
     transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes nythera-message-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    max-height: 320px;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-6px) scale(.985);
+    max-height: 0;
+  }
+}
+
+@keyframes nythera-panel-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes nythera-mobile-nav-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(.985);
   }
   to {
     opacity: 1;

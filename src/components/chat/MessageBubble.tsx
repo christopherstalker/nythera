@@ -5,8 +5,9 @@ import { RichMessageText } from "@/components/chat/rich-message-text";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
 import { MessageContextMenu } from "@/components/chat/MessageContextMenu";
 import { CharacterAvatar } from "@/components/character/character-avatar";
+import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, ChevronsRight, GitBranch, History, Pencil, RefreshCcw, Trash2, Flag, User } from "lucide-react";
+import { ChevronLeft, ChevronRight, GitFork, History, PenLine, Pin, RefreshCw, SendHorizontal, ShieldAlert, Trash2, User } from "lucide-react";
 
 type MessageBubbleProps = {
   id: string;
@@ -14,6 +15,8 @@ type MessageBubbleProps = {
   content: string;
   characterName: string;
   characterAvatarUrl?: string | null;
+  personaName?: string | null;
+  personaAvatarUrl?: string | null;
   isPinned?: boolean;
   model?: string | null;
   provider?: string | null;
@@ -22,7 +25,7 @@ type MessageBubbleProps = {
   estimatedCost?: number | string | null;
   usageEstimated?: boolean | null;
   onEdit?: (messageId: string, content: string) => void | Promise<void>;
-  onDelete?: (messageId: string) => void;
+  onDelete?: (messageId: string) => void | Promise<void>;
   onRegenerate?: (messageId: string) => void;
   onContinue?: () => void;
   onRewind?: (messageId: string) => void;
@@ -40,6 +43,8 @@ export function MessageBubble({
   content,
   characterName,
   characterAvatarUrl,
+  personaName,
+  personaAvatarUrl,
   isPinned,
   model,
   provider,
@@ -63,6 +68,7 @@ export function MessageBubble({
   const [isEditing, setIsEditing] = useState(false);
   const [editDraft, setEditDraft] = useState(content);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const touchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isUser = role === "USER";
   const hasVariants = !isUser && variantCount !== undefined && variantCount > 1 && variantIndex !== undefined;
@@ -162,24 +168,49 @@ export function MessageBubble({
     }
   };
 
+  function deleteWithMotion() {
+    if (isDeleting) {
+      return;
+    }
+
+    setMenuPosition(null);
+    setIsDeleting(true);
+    window.setTimeout(() => {
+      void onDelete?.(id);
+    }, 140);
+  }
+
   return (
     <div
-      className={cn("group flex message-enter relative w-full", isUser ? "justify-end" : "justify-start")}
+      className={cn(
+        "group flex message-enter relative w-full",
+        isUser ? "justify-end" : "justify-start",
+        isDeleting && "message-exit pointer-events-none"
+      )}
       onContextMenu={handleContextMenu}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchEnd}
     >
-      <div className={cn("flex max-w-[94%] items-start gap-3 sm:max-w-[84%] xl:max-w-[78%]", isUser && "flex-row-reverse")}>
+      <div className={cn("flex max-w-[100%] items-start gap-2.5 sm:max-w-[92%] sm:gap-3 xl:max-w-[86%]", isUser && "flex-row-reverse")}>
         {isUser ? (
-          <span className="hidden h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--bg-elevated)] text-[var(--text-secondary)] sm:grid">
-            <User className="h-4 w-4" />
-          </span>
+          personaAvatarUrl || personaName ? (
+            <Avatar
+              name={personaName ?? "You"}
+              src={personaAvatarUrl}
+              size="sm"
+              className="h-9 w-9 shrink-0 border-0 bg-[var(--bg-elevated)] shadow-[0_0_28px_oklch(var(--color-accent-secondary)/.14)]"
+            />
+          ) : (
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--bg-elevated)] text-[var(--text-secondary)]">
+              <User className="h-4 w-4" />
+            </span>
+          )
         ) : (
-          <CharacterAvatar name={characterName} avatarUrl={characterAvatarUrl} size="sm" className="h-11 w-11 shrink-0 rounded-[16px] border border-white/10 shadow-[var(--shadow-soft)]" />
+          <CharacterAvatar name={characterName} avatarUrl={characterAvatarUrl} size="sm" className="mt-1 hidden h-10 w-10 shrink-0 rounded-[14px] shadow-[var(--shadow-soft)] sm:inline-grid" />
         )}
         <div className={cn("flex flex-col", isUser ? "items-end" : "items-start", "w-full max-w-full")}>
-          {!isUser ? <p className="mb-2 px-1 text-xs font-semibold tracking-wide text-[var(--accent-secondary)]">{characterName}</p> : null}
+          {!isUser ? <p className="mb-1.5 hidden px-1 text-[11px] font-semibold tracking-wide text-[var(--accent-secondary)] sm:block">{characterName}</p> : null}
           <div
             className={cn(
               "bubble-char relative w-full max-w-full",
@@ -187,8 +218,8 @@ export function MessageBubble({
             )}
           >
             {isPinned && (
-              <span className="absolute -top-2 -right-2 text-[var(--accent-purple)] text-xs">
-                📌
+              <span className="absolute -right-2 -top-2 grid h-5 w-5 place-items-center rounded-full border border-[color:oklch(var(--color-accent-primary)/.35)] bg-[var(--bg-elevated)] text-[0px] text-[var(--accent-purple)] shadow-[var(--shadow-glow-soft)]">
+                <Pin className="h-3 w-3" />
               </span>
             )}
             {isEditing ? (
@@ -254,15 +285,15 @@ export function MessageBubble({
               )}
             >
               <ActionButton label="Edit" onClick={edit}>
-                <Pencil className="h-3.5 w-3.5" />
+                <PenLine className="h-3.5 w-3.5" />
               </ActionButton>
               {!isUser ? (
                 <>
                   <ActionButton label="Continue" onClick={() => onContinue?.()}>
-                    <ChevronsRight className="h-3.5 w-3.5" />
+                    <SendHorizontal className="h-3.5 w-3.5" />
                   </ActionButton>
                   <ActionButton label="Regenerate" onClick={() => onRegenerate?.(id)}>
-                    <RefreshCcw className="h-3.5 w-3.5" />
+                    <RefreshCw className="h-3.5 w-3.5" />
                   </ActionButton>
                 </>
               ) : null}
@@ -293,12 +324,12 @@ export function MessageBubble({
                 </span>
               )}
               <ActionButton label="Branch" onClick={() => onBranch?.(id)}>
-                <GitBranch className="h-3.5 w-3.5" />
+                <GitFork className="h-3.5 w-3.5" />
               </ActionButton>
               <ActionButton label="Report" onClick={report}>
-                <Flag className="h-3.5 w-3.5" />
+                <ShieldAlert className="h-3.5 w-3.5" />
               </ActionButton>
-              <ActionButton label="Delete" onClick={() => onDelete?.(id)} destructive>
+              <ActionButton label="Delete" onClick={deleteWithMotion} disabled={isDeleting} destructive>
                 <Trash2 className="h-3.5 w-3.5" />
               </ActionButton>
             </div>
@@ -306,7 +337,7 @@ export function MessageBubble({
         </div>
       </div>
 
-      <span className="sr-only">{isUser ? "You" : characterName}</span>
+      <span className="sr-only">{isUser ? personaName || "You" : characterName}</span>
 
       {menuPosition && (
         <MessageContextMenu
@@ -318,7 +349,7 @@ export function MessageBubble({
           onRegenerate={!isUser ? () => onRegenerate?.(id) : undefined}
           onRewind={() => onRewind?.(id)}
           onPin={onPin ? () => onPin(id) : undefined}
-          onDelete={() => onDelete?.(id)}
+          onDelete={deleteWithMotion}
           isUserMessage={isUser}
           isPinned={isPinned}
         />
@@ -364,7 +395,7 @@ function ActionButton({
         "focus-ring grid place-items-center rounded-full text-[var(--text-secondary)] transition-all duration-150 hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-35",
         compact
           ? "h-5 w-5 border-0 bg-transparent"
-          : "h-9 w-9 border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--glass-highlight)] backdrop-blur-xl",
+          : "h-8 w-8 border border-white/[0.08] bg-[color:oklch(var(--color-surface)/.58)] shadow-[var(--glass-highlight)] backdrop-blur-xl hover:border-[color:oklch(var(--color-accent-secondary)/.32)]",
         destructive && "hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-200 focus:ring-red-400/30"
       )}
     >

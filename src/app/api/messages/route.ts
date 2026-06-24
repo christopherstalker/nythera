@@ -4,7 +4,10 @@ import { z } from "zod";
 import { canEditMessageRole, shouldRegenerateAfterMessageEdit } from "@/lib/message-actions";
 
 const messageUpdateSchema = z.object({
-  content: z.string().trim().min(1).max(4000)
+  content: z.string().trim().min(1).max(4000).optional(),
+  pinned: z.boolean().optional()
+}).refine((input) => input.content !== undefined || input.pinned !== undefined, {
+  message: "content or pinned is required."
 });
 
 export async function GET(request: Request) {
@@ -55,7 +58,7 @@ export async function DELETE(request: Request) {
       where: { id: messageId },
       include: {
         chat: {
-          select: { userId: true }
+          select: { userId: true, id: true }
         }
       }
     });
@@ -64,8 +67,21 @@ export async function DELETE(request: Request) {
       throw new HttpError(404, "Message not found.");
     }
 
-    await prisma.message.delete({ where: { id: messageId } });
-    return json({ ok: true });
+    const actualMessageCount = await prisma.$transaction(async (tx) => {
+      await tx.message.delete({ where: { id: messageId } });
+      const count = await tx.message.count({ where: { chatId: message.chat.id } });
+      await tx.chat.update({
+        where: { id: message.chat.id },
+        data: {
+          messageCount: count,
+          updatedAt: new Date(),
+          lastActiveAt: new Date()
+        }
+      });
+      return count;
+    });
+
+    return json({ ok: true, messageId, messageCount: actualMessageCount });
   } catch (error) {
     return routeError(error);
   }
@@ -94,13 +110,13 @@ export async function PATCH(request: Request) {
       throw new HttpError(404, "Message not found.");
     }
 
-    if (!canEditMessageRole(message.role)) {
+    if (input.content !== undefined && !canEditMessageRole(message.role)) {
       throw new HttpError(400, "System messages cannot be edited.");
     }
 
     let retainedMessageCount: number | undefined;
     let deletedMessageIds: string[] = [];
-    if (shouldRegenerateAfterMessageEdit(message.role)) {
+    if (input.content !== undefined && shouldRegenerateAfterMessageEdit(message.role)) {
       const ordered = await prisma.message.findMany({
         where: { chatId: message.chat.id },
         orderBy: [{ createdAt: "asc" }, { sequence: "asc" }, { id: "asc" }],
@@ -117,7 +133,10 @@ export async function PATCH(request: Request) {
     const updated = await prisma.$transaction(async (tx) => {
       const nextMessage = await tx.message.update({
         where: { id: message.id },
-        data: { content: input.content }
+        data: {
+          ...(input.content !== undefined ? { content: input.content } : {}),
+          ...(input.pinned !== undefined ? { pinned: input.pinned } : {})
+        }
       });
       if (deletedMessageIds.length > 0) {
         await tx.message.deleteMany({ where: { id: { in: deletedMessageIds } } });
