@@ -333,10 +333,12 @@
     transition: opacity 180ms ease, transform 180ms ease;
   }
 
-  .nythera-rail:not(.rail-locked):hover .rail-label,
-  .nythera-rail:not(.rail-locked):focus-within .rail-label {
-    opacity: 1;
-    transform: translateX(0);
+  .nythera-rail .rail-label {
+    display: none;
+  }
+
+  .nythera-rail {
+    width: 72px;
   }
 
   .glass-grain {

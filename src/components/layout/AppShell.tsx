@@ -23,7 +23,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-80 bg-gradient-to-b from-primary/[0.08] to-transparent" />
       <Sidebar />
       <MobileGuestBar />
-      <main className="min-h-dvh max-md:pb-[env(safe-area-inset-bottom)] md:pl-[96px]">
+      <main className="min-h-dvh max-md:pb-[env(safe-area-inset-bottom)] md:pl-[80px]">
         {children}
       </main>
       {isChatRoute ? null : <BottomNav />}

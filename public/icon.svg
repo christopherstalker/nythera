@@ -1,22 +1,28 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Velora">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Nythera H logo">
   <defs>
-    <radialGradient id="background" cx="46%" cy="38%" r="76%">
-      <stop stop-color="#15142A"/>
-      <stop offset="0.58" stop-color="#090A18"/>
+    <radialGradient id="bg" cx="35%" cy="25%" r="80%">
+      <stop offset="0" stop-color="#0B0B12"/>
       <stop offset="1" stop-color="#03040F"/>
     </radialGradient>
-    <linearGradient id="mark" x1="112" y1="104" x2="392" y2="414" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#8F81F7"/>
-      <stop offset="0.52" stop-color="#A78BFA"/>
-      <stop offset="1" stop-color="#6EE7D8"/>
+    <linearGradient id="mark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8F81F7"/>
+      <stop offset="1" stop-color="#3EA8FF"/>
     </linearGradient>
-    <filter id="glow" x="-28%" y="-28%" width="156%" height="156%">
-      <feGaussianBlur stdDeviation="16"/>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="12" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
     </filter>
   </defs>
-  <rect width="512" height="512" rx="92" fill="url(#background)"/>
-  <circle cx="372" cy="130" r="132" fill="#8F81F7" opacity="0.12"/>
-  <circle cx="156" cy="386" r="118" fill="#6EE7D8" opacity="0.1"/>
-  <path d="M112 104L326 282V148L392 198V414L178 236V370L112 320Z" fill="#8F81F7" opacity="0.42" filter="url(#glow)"/>
-  <path d="M112 104L326 282V148L392 198V414L178 236V370L112 320Z" fill="url(#mark)"/>
+
+  <rect width="512" height="512" rx="92" fill="url(#bg)"/>
+  <circle cx="380" cy="120" r="120" fill="#8F81F7" opacity="0.08"/>
+
+  <g fill="url(#mark)" filter="url(#glow)">
+    <rect x="120" y="92" width="64" height="328" rx="14"/>
+    <rect x="328" y="92" width="64" height="328" rx="14"/>
+    <rect x="120" y="228" width="272" height="64" rx="14"/>
+  </g>
 </svg>

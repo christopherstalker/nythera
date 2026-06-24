@@ -7,7 +7,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import {
   BookMarked,
-  ChevronRight,
   Compass,
   Home,
   LogOut,
@@ -113,62 +112,56 @@ export function Sidebar() {
 
   return (
     <>
-      <aside className={cn("nythera-rail group fixed bottom-4 left-4 top-4 z-40 hidden w-[72px] overflow-hidden rounded-[30px] border border-white/10 bg-[color:oklch(var(--color-surface)/.68)] shadow-[var(--shadow-card)] backdrop-blur-2xl transition-[width] duration-300 md:flex motion-reduce:transition-none", utilityView ? "rail-locked" : "hover:w-[236px] focus-within:w-[236px]")}>
+      <aside className={cn("nythera-rail group fixed left-0 top-0 bottom-0 z-40 hidden w-[72px] overflow-hidden border-r border-white/6 bg-transparent md:flex motion-reduce:transition-none")}>
         <div aria-hidden="true" className="glass-grain pointer-events-none absolute inset-0" />
-        <div className="relative flex min-w-[234px] flex-1 flex-col p-2.5">
-          <Link href="/" aria-label="Nythera home" className="focus-ring mb-4 flex h-12 items-center gap-3 rounded-[20px] px-2 no-underline">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[17px] border border-[rgb(var(--accent-rgb)_/.34)] bg-[var(--accent-purple-soft)] shadow-[var(--shadow-glow)]">
+        <div className="relative flex flex-1 flex-col p-2.5 items-center">
+          <Link href="/" aria-label="Nythera home" className="focus-ring mb-4 flex h-12 w-full items-center justify-center px-0 no-underline">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[8px] border border-[rgb(var(--accent-rgb)_/.34)] bg-[var(--accent-purple-soft)] shadow-[var(--shadow-glow)]">
               <Image src="/icon.svg" alt="" width={28} height={28} className="h-7 w-7" />
             </span>
-            <span className="whitespace-nowrap text-sm font-semibold tracking-[.16em] text-[var(--text-primary)] opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 motion-reduce:transition-none">NYTHERA</span>
           </Link>
 
-          <nav aria-label="Primary navigation" className="grid gap-1">
+          <nav aria-label="Primary navigation" className="grid gap-1 w-full">
             {navItems.map((item) => {
               const Icon = item.icon;
               const active = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (
-                <Link key={item.href} href={item.href} title={item.label} className={cn("rail-action", active && "rail-action-active")}>
-                  <Icon className="h-[19px] w-[19px] shrink-0" />
-                  <span className="rail-label">{item.label}</span>
+                <Link key={item.href} href={item.href} title={item.label} className={cn("rail-action justify-center", active && "rail-action-active")}>
+                  <Icon className="h-[19px] w-[19px]" />
                 </Link>
               );
             })}
           </nav>
 
-          <div className="my-3 h-px bg-white/[.08]" />
-          <button type="button" onClick={() => toggleUtility("search")} aria-expanded={utilityView === "search"} className={cn("rail-action", utilityView === "search" && "rail-action-active")}>
-            <Search className="h-[19px] w-[19px] shrink-0" />
-            <span className="rail-label">Search</span>
+          <div className="my-3 h-px w-10 bg-white/[.08]" />
+          <button type="button" onClick={() => toggleUtility("search")} aria-expanded={utilityView === "search"} className={cn("rail-action justify-center", utilityView === "search" && "rail-action-active")}>
+            <Search className="h-[19px] w-[19px]" />
           </button>
-          <button type="button" onClick={() => toggleUtility("chats")} aria-expanded={utilityView === "chats"} className={cn("rail-action", utilityView === "chats" && "rail-action-active")}>
-            <MessageCircle className="h-[19px] w-[19px] shrink-0" />
-            <span className="rail-label">Chats</span>
+          <button type="button" onClick={() => toggleUtility("chats")} aria-expanded={utilityView === "chats"} className={cn("rail-action justify-center", utilityView === "chats" && "rail-action-active")}>
+            <MessageCircle className="h-[19px] w-[19px]" />
           </button>
 
-          <div className="relative mt-auto">
+          <div className="relative mt-auto w-full flex items-center justify-center">
             {accountOpen ? (
-              <div className="absolute bottom-14 left-1 w-[212px] rounded-[22px] border border-white/10 bg-[color:oklch(var(--color-elevated)/.94)] p-1.5 shadow-[var(--shadow-card)] backdrop-blur-2xl">
+              <div className="absolute bottom-14 left-[80px] w-[212px] rounded-[22px] border border-white/10 bg-[color:oklch(var(--color-elevated)/.94)] p-1.5 shadow-[var(--shadow-card)] backdrop-blur-2xl">
                 <DesktopAppLink collapsed={false} className="mb-1" />
                 <Link href="/settings" className="nav-item"><Settings className="h-4 w-4" />Settings</Link>
                 {isAuthenticated ? <button type="button" onClick={() => void signOut({ callbackUrl: "/" })} className="nav-item w-full"><LogOut className="h-4 w-4" />Logout</button> : null}
               </div>
             ) : null}
             {isAuthenticated ? (
-              <button type="button" onClick={() => { setUtilityView(null); setAccountOpen((current) => !current); }} className="focus-ring flex h-12 w-full items-center gap-3 rounded-[20px] px-2 text-left hover:bg-white/[.05]">
+              <button type="button" onClick={() => { setUtilityView(null); setAccountOpen((current) => !current); }} className="focus-ring flex h-12 w-full items-center justify-center rounded-[12px] px-2 hover:bg-white/[.03]">
                 <Avatar name={displayName} src={avatarUrl} size="xs" />
-                <span className="rail-label min-w-0 flex-1 truncate text-[var(--text-primary)]">{displayName}</span>
-                <ChevronRight className="rail-label h-4 w-4" />
               </button>
             ) : (
-              <Link href="/login" className="rail-action"><Avatar name="N" size="xs" /><span className="rail-label">Sign in</span></Link>
+              <Link href="/login" className="rail-action justify-center"><Avatar name="N" size="xs" /></Link>
             )}
           </div>
         </div>
       </aside>
 
       {utilityView ? (
-        <section className="fixed bottom-4 left-[100px] top-4 z-30 hidden w-[300px] flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[color:oklch(var(--color-surface)/.82)] shadow-[var(--shadow-card)] backdrop-blur-2xl md:flex">
+        <section className="fixed bottom-4 left-[80px] top-4 z-30 hidden w-[300px] flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[color:oklch(var(--color-surface)/.82)] shadow-[var(--shadow-card)] backdrop-blur-2xl md:flex">
           <div aria-hidden="true" className="glass-grain pointer-events-none absolute inset-0" />
           <header className="relative flex h-16 shrink-0 items-center border-b border-white/[.08] px-4">
             <h2 className="text-base font-semibold text-[var(--text-primary)]">{utilityView === "search" ? "Search" : "Recent chats"}</h2>

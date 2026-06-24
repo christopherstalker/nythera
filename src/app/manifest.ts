@@ -19,28 +19,16 @@ export default function manifest(): MetadataRoute.Manifest {
     prefer_related_applications: false,
     icons: [
       {
-        src: "/icons/velora-aurora-v4-192.png",
-        sizes: "192x192",
-        type: "image/png",
+        src: "/icon.svg",
+        sizes: "any",
+        type: "image/svg+xml",
         purpose: "any"
-      },
-      {
-        src: "/icons/velora-aurora-v4-512.png",
-        sizes: "512x512",
-        type: "image/png",
-        purpose: "any"
-      },
-      {
-        src: "/icons/velora-aurora-v4-maskable-512.png",
-        sizes: "512x512",
-        type: "image/png",
-        purpose: "maskable"
       },
       {
         src: "/icon.svg",
         sizes: "any",
         type: "image/svg+xml",
-        purpose: "any"
+        purpose: "maskable"
       }
     ],
     shortcuts: [
@@ -48,19 +36,19 @@ export default function manifest(): MetadataRoute.Manifest {
         name: "Explore characters",
         short_name: "Explore",
         url: "/explore?source=shortcut",
-        icons: [{ src: "/icons/velora-aurora-v4-192.png", sizes: "192x192", type: "image/png" }]
+        icons: [{ src: "/icon.svg", sizes: "any", type: "image/svg+xml" }]
       },
       {
         name: "Continue chats",
         short_name: "Chats",
         url: "/chats?source=shortcut",
-        icons: [{ src: "/icons/velora-aurora-v4-192.png", sizes: "192x192", type: "image/png" }]
+        icons: [{ src: "/icon.svg", sizes: "any", type: "image/svg+xml" }]
       },
       {
         name: "Create character",
         short_name: "Create",
         url: "/create-character?source=shortcut",
-        icons: [{ src: "/icons/velora-aurora-v4-192.png", sizes: "192x192", type: "image/png" }]
+        icons: [{ src: "/icon.svg", sizes: "any", type: "image/svg+xml" }]
       }
     ]
   };
