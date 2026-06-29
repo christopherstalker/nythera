@@ -19,11 +19,11 @@ export function CharacterAvatar({ name, avatarUrl, size = "md", className }: Cha
   const s = sizes[size];
 
   return (
-    <span className={cn("inline-grid rounded-full p-[2px]", s.box, className, "bg-gradient-to-br from-[#8F81F7] to-[#3EA8FF] shadow-[0_10px_30px_rgba(143,129,247,0.12)]")}> 
+    <span className={cn("inline-grid rounded-full", s.box, className, "shadow-[0_10px_30px_rgba(143,129,247,0.12)]")}>
       <Avatar
         name={name}
         src={avatarUrl}
-        className={cn("h-full w-full rounded-full border border-[var(--border-default)] bg-[var(--bg-elevated)]", s.text)}
+        className={cn("h-full w-full rounded-full border-0 bg-[var(--bg-elevated)]", s.text)}
       />
     </span>
   );

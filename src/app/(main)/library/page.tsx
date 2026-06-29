@@ -84,7 +84,7 @@ export default function LibraryPage() {
                   <Link key={chat.id} href={`/chat/${chat.id}`} className="glass-card glass-card-hover flex items-center gap-3 p-4 no-underline">
                     <Avatar name={chat.character.name} src={chat.character.avatarUrl} size="sm" />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{chat.title || chat.character.name}</p>
+                      <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{chat.character.name}</p>
                       <p className="mt-1 line-clamp-1 text-xs text-[var(--text-secondary)]">{chat.character.description || "No description yet"}</p>
                     </div>
                     <MessageCircle className="h-4 w-4 text-[var(--accent-purple)]" />

@@ -67,3 +67,12 @@ export function moderateText(input: {
 export function sanitizeUserText(text: string, maxLength = 4000) {
   return text.replace(/\u0000/g, "").trim().slice(0, maxLength);
 }
+
+export function isMinorBirthDate(birthDate: Date | null | undefined) {
+  if (!birthDate) {
+    return false;
+  }
+
+  const ageMs = Date.now() - birthDate.getTime();
+  return ageMs < 18 * 365.25 * 24 * 60 * 60 * 1000;
+}

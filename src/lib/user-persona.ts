@@ -1,17 +1,14 @@
 import "server-only";
 
 import type { UserPersona } from "@prisma/client";
-import { normalizePersonaProfiles } from "@/lib/user-persona-profiles";
+import { personaToProfile } from "@/lib/user-persona-profiles";
 
 export function formatUserPersonaForPrompt(persona?: UserPersona | null) {
   if (!persona) {
     return null;
   }
 
-  const activePersona = normalizePersonaProfiles(persona).activeProfile;
-  if (!activePersona) {
-    return null;
-  }
+  const activePersona = personaToProfile(persona);
 
   const lines = [
     `Active user persona: ${activePersona.label}`,

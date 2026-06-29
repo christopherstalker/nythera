@@ -61,7 +61,7 @@ export default function ChatsPage() {
             <div className="glass-grain pointer-events-none absolute inset-0" />
             <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8">
               <p className="mb-2 text-xs font-semibold uppercase tracking-[.16em] text-[var(--accent-secondary)]">Continue your latest scene</p>
-              <div className="flex items-end gap-4"><div className="min-w-0 flex-1"><h2 className="truncate text-3xl font-semibold tracking-tight text-white sm:text-4xl">{chats[0].title || chats[0].character.name}</h2><p className="mt-3 line-clamp-2 max-w-xl text-sm leading-6 text-white/70">{toChatPreview(chats[0].messages[0]?.content || chats[0].character.description || "The story is waiting.")}</p></div><span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[var(--gradient-aurora-primary)] text-[color:oklch(var(--color-on-accent))] shadow-[var(--shadow-glow)]"><ArrowUpRight className="h-5 w-5" /></span></div>
+              <div className="flex items-end gap-4"><div className="min-w-0 flex-1"><h2 className="truncate text-3xl font-semibold tracking-tight text-white sm:text-4xl">{chats[0].character.name}</h2><p className="mt-3 line-clamp-2 max-w-xl text-sm leading-6 text-white/70">{toChatPreview(chats[0].messages[0]?.content || chats[0].character.description || "The story is waiting.")}</p></div><span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[var(--gradient-aurora-primary)] text-[color:oklch(var(--color-on-accent))] shadow-[var(--shadow-glow)]"><ArrowUpRight className="h-5 w-5" /></span></div>
             </div>
           </Link>
           <section aria-label="Earlier conversations" className="min-w-0">
@@ -70,7 +70,7 @@ export default function ChatsPage() {
               {chats.slice(1).map((chat) => (
                 <Link key={chat.id} href={`/chat/${chat.id}`} className="group flex items-center gap-4 py-4 no-underline">
                   <Avatar name={chat.character.name} src={chat.character.avatarUrl} size="sm" className="h-14 w-14 rounded-[18px]" />
-                  <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-[var(--text-primary)] group-hover:text-[var(--accent-secondary)]">{chat.title || chat.character.name}</p><p className="mt-1 truncate text-[13px] leading-5 text-[var(--text-secondary)]">{toChatPreview(chat.messages[0]?.content || chat.character.description || "No messages yet")}</p></div>
+                  <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-[var(--text-primary)] group-hover:text-[var(--accent-secondary)]">{chat.character.name}</p><p className="mt-1 truncate text-[13px] leading-5 text-[var(--text-secondary)]">{toChatPreview(chat.messages[0]?.content || chat.character.description || "No messages yet")}</p></div>
                   <ArrowUpRight className="h-4 w-4 shrink-0 text-[var(--text-muted)] transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:transition-none" />
                 </Link>
               ))}

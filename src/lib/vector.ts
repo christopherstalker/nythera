@@ -84,17 +84,21 @@ export async function createMemory(input: {
   });
 
   try {
-    const embedding = await createEmbedding(content, input.providerKeys);
-    await prisma.$executeRawUnsafe(
-      `UPDATE "Memory" SET embedding = $1::vector WHERE id = $2`,
-      toVectorLiteral(embedding),
-      memory.id
-    );
+    await writeMemoryEmbedding(memory.id, content, input.providerKeys);
   } catch (error) {
     console.error("Memory embedding write failed.", error);
   }
 
   return memory;
+}
+
+export async function writeMemoryEmbedding(memoryId: string, content: string, providerKeys?: ProviderKeys) {
+  const embedding = await createEmbedding(content, providerKeys);
+  await prisma.$executeRawUnsafe(
+    `UPDATE "Memory" SET embedding = $1::vector WHERE id = $2`,
+    toVectorLiteral(embedding),
+    memoryId
+  );
 }
 
 export function toVectorLiteral(vector: number[]) {

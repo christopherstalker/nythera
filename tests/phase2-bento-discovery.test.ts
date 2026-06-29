@@ -14,16 +14,20 @@ function rulesFor(root: postcss.Root, selector: string) {
 }
 
 test("the default discovery feed uses a dedicated bento component", async () => {
-  const [explore, bento] = await Promise.all([
+  const [explore, card, bento] = await Promise.all([
     read("../src/app/(main)/explore/page.tsx"),
+    read("../src/components/characters/CharacterCard.tsx"),
     read("../src/components/characters/CharacterBentoGrid.tsx")
   ]);
 
   assert.match(explore, /import \{ CharacterBentoGrid \}/);
   assert.match(explore, /<CharacterBentoGrid/);
   assert.doesNotMatch(explore, /<CharacterRow/);
+  assert.match(card, /discoveryPlacement\?: "STANDARD" \| "FEATURED" \| "WIDE"/);
   assert.match(bento, /nythera-bento-featured/);
   assert.match(bento, /nythera-bento-wide/);
+  assert.match(bento, /bentoCellClass\(character\.discoveryPlacement\)/);
+  assert.doesNotMatch(bento, /bentoCellClass\(index/);
   assert.match(bento, /SkeletonCard/);
   assert.match(bento, /CharacterCard/);
 });

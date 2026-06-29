@@ -25,6 +25,7 @@ type PersonaDraft = {
 
 type PersonaProfile = PersonaDraft & {
   id: string;
+  isDefault: boolean;
 };
 
 type FormMode = "simple" | "advanced";
@@ -281,6 +282,7 @@ export function UserPersonaSettingsClient() {
             >
               <Avatar name={profile.displayName} src={profile.avatarUrl} size="xs" />
               <span className="max-w-36 truncate">{profile.label || profile.displayName}</span>
+              {profile.isDefault ? <span className="text-[10px] uppercase tracking-[0.12em] opacity-75">Default</span> : null}
               {activeProfileId === profile.id ? <Check className="h-4 w-4" /> : null}
             </button>
           ))}
@@ -444,6 +446,7 @@ function profileFromApi(profile: Record<string, unknown>): PersonaProfile {
     likes: Array.isArray(profile.likes) ? profile.likes.join("\n") : "",
     dislikes: Array.isArray(profile.dislikes) ? profile.dislikes.join("\n") : "",
     boundaries: Array.isArray(profile.boundaries) ? profile.boundaries.join("\n") : "",
+    isDefault: profile.isDefault === true,
     visibility: profile.visibility === "PUBLIC" || profile.visibility === "UNLISTED" ? profile.visibility : "PRIVATE"
   };
 }

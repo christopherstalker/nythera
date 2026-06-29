@@ -29,7 +29,7 @@ export function ChatQuickPanel({ chatId, open, onClose, panel, onNewChat }: Chat
   }
 
   return (
-    <aside className="quick-panel glass-depth-panel relative fixed inset-x-3 bottom-3 top-20 z-40 flex flex-col overflow-hidden rounded-[30px] border border-white/[.12] bg-[color:oklch(var(--color-surface)/.66)] shadow-[var(--shadow-card),0_0_70px_oklch(var(--color-accent-primary)/.12)] backdrop-blur-[28px] md:bottom-4 md:left-auto md:right-4 md:top-24 md:w-[390px] xl:static xl:h-full xl:w-[370px] xl:shrink-0">
+    <aside className="quick-panel glass-depth-panel relative fixed inset-x-2 bottom-2 top-16 z-40 flex flex-col overflow-hidden rounded-[26px] border border-white/[.1] bg-[color:oklch(var(--color-surface)/.66)] shadow-[var(--shadow-card),0_0_70px_oklch(var(--color-accent-primary)/.12)] backdrop-blur-[28px] sm:inset-x-3 sm:bottom-3 sm:top-20 sm:rounded-[30px] md:bottom-4 md:left-auto md:right-4 md:top-24 md:w-[390px] xl:static xl:h-full xl:w-[370px] xl:shrink-0">
       <div aria-hidden="true" className="glass-grain pointer-events-none absolute inset-0" />
       <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-[color:oklch(var(--color-accent-primary)/.15)] blur-3xl" />
       <header className="relative flex h-16 shrink-0 items-center gap-3 border-b border-white/[.08] px-4">

@@ -13,6 +13,7 @@ export type PersonaProfile = {
   likes: string[];
   dislikes: string[];
   boundaries: string[];
+  isDefault: boolean;
   visibility: "PRIVATE" | "PUBLIC" | "UNLISTED";
 };
 
@@ -93,7 +94,7 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
       }
 
       const [personaResponse, memoriesResponse, chatsResponse] = await Promise.allSettled([
-        fetch("/api/user-persona", { cache: "no-store", signal }),
+        fetch(`/api/user-persona?${new URLSearchParams({ chatId }).toString()}`, { cache: "no-store", signal }),
         fetch(`/api/memories?${memoryParams.toString()}`, { cache: "no-store", signal }),
         fetch("/api/chats", { cache: "no-store", signal })
       ]);
@@ -167,7 +168,7 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     const response = await fetch("/api/user-persona", {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ activeProfileId: profile.id })
+      body: JSON.stringify({ activeProfileId: profile.id, chatId })
     });
 
     setPersonaStatus(response.ok ? "Active persona updated." : "Could not switch persona.");
@@ -196,7 +197,8 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
         likes: parseLines(draft.likes),
         dislikes: parseLines(draft.dislikes),
         boundaries: parseLines(draft.boundaries),
-        visibility: "PRIVATE"
+        visibility: "PRIVATE",
+        chatId
       })
     });
 
@@ -289,6 +291,7 @@ export function profileFromApi(profile: Record<string, unknown>): PersonaProfile
     likes: Array.isArray(profile.likes) ? profile.likes.filter((item): item is string => typeof item === "string") : [],
     dislikes: Array.isArray(profile.dislikes) ? profile.dislikes.filter((item): item is string => typeof item === "string") : [],
     boundaries: Array.isArray(profile.boundaries) ? profile.boundaries.filter((item): item is string => typeof item === "string") : [],
+    isDefault: profile.isDefault === true,
     visibility: profile.visibility === "PUBLIC" || profile.visibility === "UNLISTED" ? profile.visibility : "PRIVATE"
   };
 }

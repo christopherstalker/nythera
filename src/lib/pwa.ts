@@ -6,7 +6,7 @@ export type BeforeInstallPromptEvent = Event & {
 export const PWA_MOBILE_DISMISS_KEY = "nythera:pwa-mobile-install-dismissed";
 export const PWA_SW_URL = "/sw.js";
 
-export const NYTHERA_SITE_URL = "https://nythera-christopherstalkers-projects.vercel.app";
+export const NYTHERA_SITE_URL = "https://nythera-ai-character-platform.vercel.app";
 
 export function isStandaloneDisplay() {
   if (typeof window === "undefined") {

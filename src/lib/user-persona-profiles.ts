@@ -11,6 +11,7 @@ export type UserPersonaProfile = {
   likes: string[];
   dislikes: string[];
   boundaries: string[];
+  isDefault: boolean;
   visibility: Visibility;
 };
 
@@ -18,6 +19,12 @@ type PersonaLike = Pick<
   UserPersona,
   "displayName" | "avatarUrl" | "summary" | "background" | "traits" | "likes" | "dislikes" | "boundaries" | "visibility" | "metadata"
 >;
+
+type PersonaRowLike = Omit<PersonaLike, "metadata"> & {
+  id: string;
+  label?: string | null;
+  isDefault?: boolean;
+};
 
 type PersonaMetadata = {
   activeProfileId?: string;
@@ -47,8 +54,8 @@ export function normalizePersonaProfiles(persona?: PersonaLike | null) {
 
 export function personaToProfile(persona: Omit<PersonaLike, "metadata">): UserPersonaProfile {
   return {
-    id: "default",
-    label: persona.displayName || "Default",
+    id: "id" in persona && typeof persona.id === "string" ? persona.id : "default",
+    label: "label" in persona && typeof persona.label === "string" && persona.label.trim() ? persona.label.trim() : persona.displayName || "Default",
     displayName: persona.displayName,
     avatarUrl: persona.avatarUrl ?? null,
     summary: persona.summary,
@@ -57,7 +64,21 @@ export function personaToProfile(persona: Omit<PersonaLike, "metadata">): UserPe
     likes: persona.likes ?? [],
     dislikes: persona.dislikes ?? [],
     boundaries: persona.boundaries ?? [],
+    isDefault: "isDefault" in persona ? persona.isDefault === true : true,
     visibility: persona.visibility
+  };
+}
+
+export function normalizePersonaRows(personas: PersonaRowLike[], activePersonaId?: string | null) {
+  const profiles = personas.map(personaToProfile);
+  const defaultProfile = profiles.find((profile) => profile.isDefault) ?? profiles[0] ?? null;
+  const activeProfile =
+    (activePersonaId ? profiles.find((profile) => profile.id === activePersonaId) : null) ?? defaultProfile;
+
+  return {
+    profiles,
+    activeProfileId: activeProfile?.id ?? null,
+    activeProfile: activeProfile ?? null
   };
 }
 
@@ -66,7 +87,7 @@ export function buildPersonaMetadata(profiles: UserPersonaProfile[], activeProfi
     activeProfileId,
     profiles: mergeProfiles(profiles).map((profile) => ({
       ...profile,
-      label: profile.label.trim() || profile.displayName
+    label: profile.label.trim() || profile.displayName
     }))
   };
 }
@@ -114,6 +135,7 @@ function parseProfile(value: unknown): UserPersonaProfile | null {
     likes: parseList(record.likes),
     dislikes: parseList(record.dislikes),
     boundaries: parseList(record.boundaries),
+    isDefault: record.isDefault === true,
     visibility: isVisibility(record.visibility) ? record.visibility : "PRIVATE"
   };
 }

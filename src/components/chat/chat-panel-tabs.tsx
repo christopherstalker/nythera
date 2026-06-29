@@ -151,7 +151,7 @@ export function HistoryTabContent({
         >
           <Avatar name={chat.character.name} src={chat.character.avatarUrl} size="xs" />
           <div className="min-w-0 flex-1">
-            <p className="block truncate text-sm font-medium text-[var(--text-primary)]">{chat.title || chat.character.name}</p>
+            <p className="block truncate text-sm font-medium text-[var(--text-primary)]">{chat.character.name}</p>
             <p className="mt-0.5 block truncate text-xs text-[var(--text-muted)]">{toChatPreview(chat.messages[0]?.content || chat.character.description || "Continue chat")}</p>
           </div>
         </Link>

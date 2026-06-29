@@ -13,9 +13,20 @@ test("Explore uses one bento component for default and filtered discovery result
 });
 
 test("Discovery bento provides featured and wide desktop spans with responsive collapse", async () => {
-  const bento = await read("../src/components/characters/CharacterBentoGrid.tsx");
+  const [schema, migration, bento] = await Promise.all([
+    read("../prisma/schema.prisma"),
+    read("../prisma/migrations/20260628190000_character_discovery_placement/migration.sql"),
+    read("../src/components/characters/CharacterBentoGrid.tsx")
+  ]);
 
-  assert.match(bento, /characters\.length >= 4/);
+  assert.match(schema, /discoveryPlacement\s+DiscoveryPlacement\s+@default\(STANDARD\)/);
+  assert.match(schema, /enum DiscoveryPlacement/);
+  assert.match(migration, /CREATE TYPE "DiscoveryPlacement"/);
+  assert.match(migration, /ranked_public_characters/);
+  assert.doesNotMatch(bento, /characters\.length >= 4/);
+  assert.doesNotMatch(bento, /featured=\{[^}]*index\s*===/);
+  assert.match(bento, /featured=\{character\.discoveryPlacement === "FEATURED"\}/);
+  assert.match(bento, /bentoCellClass\(character\.discoveryPlacement\)/);
   assert.match(bento, /xl:col-span-2 xl:row-span-2/);
   assert.match(bento, /xl:col-span-2/);
   assert.match(bento, /grid-cols-1[\s\S]*sm:grid-cols-2[\s\S]*xl:grid-cols-4/);

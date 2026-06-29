@@ -22,20 +22,19 @@ test("favicon and PWA raster icons use their declared square dimensions", async 
 });
 
 test("static and dynamic favicons use the supplied geometric N mark without a wordmark", async () => {
-  const publicIcon = await readFile(new URL("../public/icon.svg", import.meta.url), "utf8");
   const appIcon = await readFile(new URL("../src/app/icon.svg", import.meta.url), "utf8");
   const appearance = await readFile(new URL("../src/components/providers/appearance-provider.tsx", import.meta.url), "utf8");
   const markPath = "M112 104L326 282V148L392 198V414L178 236V370L112 320Z";
 
-  assert.match(publicIcon, new RegExp(markPath));
   assert.match(appIcon, new RegExp(markPath));
   assert.match(appearance, new RegExp(markPath));
-  assert.match(publicIcon, /#8F81F7/);
-  assert.match(publicIcon, /#6EE7D8/);
+  assert.match(appIcon, /#8F81F7/);
+  assert.match(appIcon, /#6EE7D8/);
   assert.match(appearance, /BRAND_LOGO_PRIMARY = "#8F81F7"/);
   assert.match(appearance, /BRAND_LOGO_SECONDARY = "#6EE7D8"/);
-  assert.doesNotMatch(publicIcon, /<text|AI ROLEPLAY PLATFORM/i);
-  assert.doesNotMatch([publicIcon, appIcon, appearance].join("\n"), /#FF5A0A|#FF7A18|#FFB52E|#FFB347/i);
+  assert.doesNotMatch(appIcon, /<text|AI ROLEPLAY PLATFORM/i);
+  assert.doesNotMatch([appIcon, appearance].join("\n"), /#FF5A0A|#FF7A18|#FFB52E|#FFB347/i);
+  await assert.rejects(() => readFile(new URL("../public/icon.svg", import.meta.url)));
 });
 
 test("install icons use cache-busting URLs and a fresh service-worker cache", async () => {

@@ -10,6 +10,7 @@ export type CharacterSummary = {
   name: string;
   avatarUrl?: string | null;
   description?: string | null;
+  discoveryPlacement?: "STANDARD" | "FEATURED" | "WIDE";
   tags?: string[];
   likes?: number;
   ratingAverage?: number;

@@ -1,4 +1,3 @@
-import { titleFromMessage } from "@/lib/utils";
 import { json, parseJson, routeError, HttpError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireMobileUser } from "@/lib/mobile-auth";
@@ -22,6 +21,7 @@ export async function GET(request: Request, context: Context) {
       },
       include: {
         character: true,
+        persona: true,
         messages: {
           orderBy: [{ createdAt: "asc" }, { sequence: "asc" }, { id: "asc" }]
         }
@@ -62,7 +62,7 @@ export async function PATCH(request: Request, context: Context) {
     const updated = await prisma.chat.update({
       where: { id: chat.id },
       data: {
-        title: input.title ?? (chat.title || titleFromMessage(chat.messages[0]?.content ?? "Untitled chat")),
+        title: input.title,
         archivedAt: input.archived === undefined ? undefined : input.archived ? new Date() : null,
         temperature: input.temperature,
         model: input.model,

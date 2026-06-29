@@ -12,6 +12,7 @@ type PersonaProfile = {
   displayName: string;
   avatarUrl?: string | null;
   summary: string;
+  isDefault: boolean;
 };
 
 type PersonaSwitcherProps = {
@@ -137,6 +138,7 @@ function profileFromApi(profile: Record<string, unknown>): PersonaProfile {
     label: String(profile.label ?? profile.displayName ?? "Persona"),
     displayName: String(profile.displayName ?? "Persona"),
     avatarUrl: typeof profile.avatarUrl === "string" ? profile.avatarUrl : null,
-    summary: String(profile.summary ?? "")
+    summary: String(profile.summary ?? ""),
+    isDefault: profile.isDefault === true
   };
 }

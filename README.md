@@ -25,7 +25,7 @@ npm run prisma:migrate
 npm run dev
 ```
 
-The app works without platform-wide AI keys. Users add their own provider keys in Settings. Production: https://nythera-christopherstalkers-projects.vercel.app
+The app works without platform-wide AI keys. Users add their own provider keys in Settings. Production: https://nythera-ai-character-platform.vercel.app
 
 ## Universal providers
 

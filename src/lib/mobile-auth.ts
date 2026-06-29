@@ -111,6 +111,7 @@ export async function requireMobileUser(request: Request) {
       notificationsEnabled: true,
       preferredTheme: true,
       accentColor: true,
+      preferredProvider: true,
       preferredModel: true,
       bannedAt: true
     }

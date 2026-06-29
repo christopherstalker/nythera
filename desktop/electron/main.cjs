@@ -1,7 +1,7 @@
 const { app, BrowserWindow, Menu, shell } = require("electron");
 const path = require("path");
 
-const SITE_URL = process.env.NYTHERA_SITE_URL || "https://nythera-christopherstalkers-projects.vercel.app";
+const SITE_URL = process.env.NYTHERA_SITE_URL || "https://nythera-ai-character-platform.vercel.app";
 const isMac = process.platform === "darwin";
 
 function createWindow() {

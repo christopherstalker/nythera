@@ -85,7 +85,16 @@ export async function POST(request: Request) {
     }
 
     const moderation = moderateText({
-      text: [input.name, input.description, input.personality, input.scenario, input.greeting, input.systemPromptOverride, JSON.stringify(input.persona ?? {})]
+      text: [
+        input.name,
+        input.description,
+        input.personality,
+        input.scenario,
+        input.greeting,
+        input.systemPromptOverride,
+        JSON.stringify(input.persona ?? {}),
+        JSON.stringify(input.lorebook ?? {})
+      ]
         .filter(Boolean)
         .join("\n"),
       userIsMinor: isMinor(user.birthDate),
@@ -108,6 +117,8 @@ export async function POST(request: Request) {
         greeting: input.greeting,
         communicationStyle: input.communicationStyle ?? Prisma.JsonNull,
         persona: input.persona ?? Prisma.JsonNull,
+        lorebook: input.lorebook ?? Prisma.JsonNull,
+        visualIdentity: input.visualIdentity ?? Prisma.JsonNull,
         preferredProvider: input.preferredProvider,
         preferredModel: input.preferredModel,
         temperature: input.temperature,

@@ -246,7 +246,7 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
       <div className="pointer-events-none absolute inset-0 -z-10" style={{ background: "var(--chat-overlay)" }} />
       <div aria-hidden="true" className="glass-grain pointer-events-none absolute inset-0 -z-10" />
       <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-52 bg-gradient-to-b from-primary/[0.11] to-transparent" />
-      <div className="shrink-0 px-2 pt-2 sm:px-3 sm:pt-3">
+      <div className="shrink-0 px-1.5 pt-1.5 sm:px-3 sm:pt-3">
         <TopBar
           chatId={chatId}
           characterId={characterId}
@@ -264,12 +264,14 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
           className="fixed inset-0 z-30 bg-black/35 backdrop-blur-[2px] xl:hidden"
         />
       ) : null}
-      <div className="relative flex min-h-0 flex-1 flex-col gap-2 px-2 pb-0 sm:gap-3 md:flex-row md:px-3 md:pb-3">
+      <div className="relative flex min-h-0 flex-1 flex-col gap-1.5 px-1.5 pb-0 sm:gap-3 md:flex-row md:px-3 md:pb-3">
         <section className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <MessageList
             messages={messages}
             characterName={characterName}
             characterAvatarUrl={characterAvatarUrl}
+            personaName={quickPanel.activePersona?.displayName}
+            personaAvatarUrl={quickPanel.activePersona?.avatarUrl}
             summary={summary}
             error={error}
             onEdit={editMessage}

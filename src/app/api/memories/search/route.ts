@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
 import { searchMemories } from "@/lib/vector";
+import { getEffectiveProviderKeys } from "@/lib/user-keys";
 
 const memorySearchSchema = z.object({
   query: z.string().min(1).max(2000),
@@ -17,11 +18,13 @@ export async function POST(request: Request) {
       throw new HttpError(400, "query is required.");
     }
 
+    const providerKeys = await getEffectiveProviderKeys(user.id);
     const memories = await searchMemories({
       userId: user.id,
       characterId: input.characterId,
       query: input.query,
-      limit: input.limit
+      limit: input.limit,
+      providerKeys
     });
 
     return json({ memories });

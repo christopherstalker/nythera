@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { getRequestIp, HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
 import { resolveCharacterModelSettings } from "@/lib/character-model-settings";
+import { userPreferredModelValue } from "@/lib/provider-model-options";
 import { getEffectiveProviderKeys } from "@/lib/user-keys";
 import { chatCreateSchema } from "@/lib/validation";
 
@@ -72,10 +73,14 @@ export async function POST(request: Request) {
     }
 
     const providerKeys = await getEffectiveProviderKeys(user.id);
+    const defaultPersona = await prisma.userPersona.findFirst({
+      where: { userId: user.id, isDefault: true },
+      select: { id: true }
+    });
     const effectiveSettings = resolveCharacterModelSettings({
       character,
       providerKeys,
-      globalModel: input.model ?? user.preferredModel,
+      globalModel: input.model ?? userPreferredModelValue(user),
       chatTemperature: input.temperature
     });
     const model = input.model ?? effectiveSettings.model;
@@ -84,6 +89,7 @@ export async function POST(request: Request) {
         data: {
           userId: user.id,
           characterId: character.id,
+          personaId: defaultPersona?.id ?? null,
           title: input.title ?? null,
           temperature: input.temperature,
           model,

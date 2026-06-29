@@ -14,6 +14,11 @@ type CharacterPreviewPanelProps = {
   tags: string[];
   generated?: boolean;
   className?: string;
+  visualIdentity?: {
+    accentColor?: string;
+    gradientFrom?: string;
+    gradientTo?: string;
+  };
 };
 
 export function CharacterPreviewPanel({
@@ -23,12 +28,15 @@ export function CharacterPreviewPanel({
   avatarUrl,
   tags,
   generated = false,
-  className
+  className,
+  visualIdentity
 }: CharacterPreviewPanelProps) {
   const previewName = name.trim() || "Character name";
   const previewDescription = description.trim() || "Short description will appear here.";
   const previewGreeting = greeting.trim() || "Your greeting appears here.";
   const previewTags = tags.length > 0 ? tags : ["roleplay"];
+  const gradientFrom = visualIdentity?.gradientFrom || visualIdentity?.accentColor || "#8F81F7";
+  const gradientTo = visualIdentity?.gradientTo || "#6FE7D2";
 
   return (
     <aside className={cn("lg:sticky lg:top-6", className)}>
@@ -45,7 +53,7 @@ export function CharacterPreviewPanel({
             {avatarUrl ? (
               <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
             ) : (
-              <div className="grid h-full w-full place-items-center bg-[linear-gradient(145deg,rgb(var(--accent-rgb)_/_0.24),rgb(20_20_35))]">
+              <div className="grid h-full w-full place-items-center" style={{ background: `linear-gradient(145deg, ${gradientFrom}, ${gradientTo})` }}>
                 <Avatar name={previewName} size="xl" className="h-28 w-28 bg-[var(--accent-purple-soft)]" />
               </div>
             )}

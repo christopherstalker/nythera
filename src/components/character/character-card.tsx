@@ -54,7 +54,7 @@ export function CharacterCard({ character }: CharacterCardProps) {
             name={character.name}
             avatarUrl={character.avatarUrl}
             size="xl"
-            className="relative h-28 w-28 border-[3px] border-white/[0.045] bg-[#15111f] text-3xl shadow-violet-hover"
+            className="relative h-28 w-28 bg-[#15111f] text-3xl shadow-violet-hover"
           />
         </div>
 

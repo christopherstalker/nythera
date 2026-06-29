@@ -14,6 +14,7 @@ import {
   Plus,
   Search,
   Settings,
+  UsersRound,
   X
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
@@ -34,6 +35,7 @@ type UtilityView = "search" | "chats" | null;
 const navItems = [
   { href: "/", label: "Home", icon: Home },
   { href: "/explore", label: "Explore", icon: Compass },
+  { href: "/rooms", label: "Rooms", icon: UsersRound },
   { href: "/library", label: "Library", icon: BookMarked },
   { href: "/create-character", label: "Create", icon: Plus },
   { href: "/settings", label: "Settings", icon: Settings }
@@ -98,7 +100,7 @@ export function Sidebar() {
     const unique = Array.from(new Map(recentChats.map((chat) => [chat.character.id ?? chat.id, chat])).values());
     const normalized = query.trim().toLowerCase();
     if (!normalized) return unique;
-    return unique.filter((chat) => [chat.title, chat.character.name, chat.character.description].filter(Boolean).join(" ").toLowerCase().includes(normalized));
+    return unique.filter((chat) => [chat.character.name, chat.character.description, chat.messages[0]?.content].filter(Boolean).join(" ").toLowerCase().includes(normalized));
   }, [query, recentChats]);
 
   function onSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -112,7 +114,12 @@ export function Sidebar() {
 
   return (
     <>
-      <aside className={cn("nythera-rail group fixed left-0 top-0 bottom-0 z-40 hidden w-[72px] overflow-hidden border-r border-white/6 bg-transparent md:flex motion-reduce:transition-none")}>
+      <aside
+        className={cn(
+          "nythera-rail group fixed bottom-4 left-4 top-4 z-40 hidden w-[72px] overflow-hidden rounded-[28px] border border-white/10 bg-[color:oklch(var(--color-surface)/.82)] shadow-[var(--shadow-card)] backdrop-blur-2xl transition-[width] duration-200 hover:w-[236px] md:flex motion-reduce:transition-none",
+          utilityView ? "rail-locked" : ""
+        )}
+      >
         <div aria-hidden="true" className="glass-grain pointer-events-none absolute inset-0" />
         <div className="relative flex flex-1 flex-col p-2.5 items-center">
           <Link href="/" aria-label="Nythera home" className="focus-ring mb-4 flex h-12 w-full items-center justify-center px-0 no-underline">
@@ -126,24 +133,27 @@ export function Sidebar() {
               const Icon = item.icon;
               const active = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (
-                <Link key={item.href} href={item.href} title={item.label} className={cn("rail-action justify-center", active && "rail-action-active")}>
-                  <Icon className="h-[19px] w-[19px]" />
+                <Link key={item.href} href={item.href} title={item.label} className={cn("rail-action", active && "rail-action-active")}>
+                  <Icon className="h-[19px] w-[19px] shrink-0" />
+                  <span className="rail-label">{item.label}</span>
                 </Link>
               );
             })}
           </nav>
 
           <div className="my-3 h-px w-10 bg-white/[.08]" />
-          <button type="button" onClick={() => toggleUtility("search")} aria-expanded={utilityView === "search"} className={cn("rail-action justify-center", utilityView === "search" && "rail-action-active")}>
-            <Search className="h-[19px] w-[19px]" />
+          <button type="button" onClick={() => toggleUtility("search")} aria-expanded={utilityView === "search"} className={cn("rail-action", utilityView === "search" && "rail-action-active")}>
+            <Search className="h-[19px] w-[19px] shrink-0" />
+            <span className="rail-label">Search</span>
           </button>
-          <button type="button" onClick={() => toggleUtility("chats")} aria-expanded={utilityView === "chats"} className={cn("rail-action justify-center", utilityView === "chats" && "rail-action-active")}>
-            <MessageCircle className="h-[19px] w-[19px]" />
+          <button type="button" onClick={() => toggleUtility("chats")} aria-expanded={utilityView === "chats"} className={cn("rail-action", utilityView === "chats" && "rail-action-active")}>
+            <MessageCircle className="h-[19px] w-[19px] shrink-0" />
+            <span className="rail-label">Chats</span>
           </button>
 
           <div className="relative mt-auto w-full flex items-center justify-center">
             {accountOpen ? (
-              <div className="absolute bottom-14 left-[80px] w-[212px] rounded-[22px] border border-white/10 bg-[color:oklch(var(--color-elevated)/.94)] p-1.5 shadow-[var(--shadow-card)] backdrop-blur-2xl">
+              <div className="absolute bottom-14 left-[100px] w-[212px] rounded-[22px] border border-white/10 bg-[color:oklch(var(--color-elevated)/.94)] p-1.5 shadow-[var(--shadow-card)] backdrop-blur-2xl">
                 <DesktopAppLink collapsed={false} className="mb-1" />
                 <Link href="/settings" className="nav-item"><Settings className="h-4 w-4" />Settings</Link>
                 {isAuthenticated ? <button type="button" onClick={() => void signOut({ callbackUrl: "/" })} className="nav-item w-full"><LogOut className="h-4 w-4" />Logout</button> : null}
@@ -154,14 +164,14 @@ export function Sidebar() {
                 <Avatar name={displayName} src={avatarUrl} size="xs" />
               </button>
             ) : (
-              <Link href="/login" className="rail-action justify-center"><Avatar name="N" size="xs" /></Link>
+              <Link href="/login" className="rail-action"><Avatar name="N" size="xs" /><span className="rail-label">Login</span></Link>
             )}
           </div>
         </div>
       </aside>
 
       {utilityView ? (
-        <section className="fixed bottom-4 left-[80px] top-4 z-30 hidden w-[300px] flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[color:oklch(var(--color-surface)/.82)] shadow-[var(--shadow-card)] backdrop-blur-2xl md:flex">
+        <section className="fixed bottom-4 left-[100px] top-4 z-30 hidden w-[300px] flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[color:oklch(var(--color-surface)/.82)] shadow-[var(--shadow-card)] backdrop-blur-2xl md:flex">
           <div aria-hidden="true" className="glass-grain pointer-events-none absolute inset-0" />
           <header className="relative flex h-16 shrink-0 items-center border-b border-white/[.08] px-4">
             <h2 className="text-base font-semibold text-[var(--text-primary)]">{utilityView === "search" ? "Search" : "Recent chats"}</h2>
@@ -176,7 +186,7 @@ export function Sidebar() {
               {filteredChats.map((chat) => (
                 <Link key={chat.id} href={`/chat/${chat.id}`} className={cn("flex items-center gap-3 rounded-[18px] p-2.5 no-underline transition-colors hover:bg-white/[.055]", (activeChatId === chat.id || pathname === `/chat/${chat.id}`) && "bg-[var(--accent-purple-soft)]")}>
                   <Avatar name={chat.character.name} src={chat.character.avatarUrl} size="xs" />
-                  <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium text-[var(--text-primary)]">{chat.character.name}</span><span className="mt-0.5 block truncate text-xs text-[var(--text-muted)]">{chat.title || chat.character.description || "Continue chat"}</span></span>
+                  <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium text-[var(--text-primary)]">{chat.character.name}</span><span className="mt-0.5 block truncate text-xs text-[var(--text-muted)]">{chat.messages[0]?.content || chat.character.description || "Continue chat"}</span></span>
                 </Link>
               ))}
               {filteredChats.length === 0 ? <p className="px-3 py-8 text-center text-sm leading-6 text-[var(--text-muted)]">No matching chats. Press Enter to explore characters.</p> : null}

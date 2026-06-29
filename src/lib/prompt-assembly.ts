@@ -11,7 +11,7 @@ import {
 import type { PromptMessage, RetrievedMemory } from "@/types";
 import { buildResponsePromptLayer } from "@/lib/response-prompt";
 
-type PromptCharacter = Pick<Character, "name" | "description" | "personality" | "scenario" | "greeting" | "communicationStyle" | "persona" | "systemPromptOverride">;
+type PromptCharacter = Pick<Character, "name" | "description" | "personality" | "scenario" | "greeting" | "communicationStyle" | "persona" | "lorebook" | "systemPromptOverride">;
 
 export function assembleNytheraPrompt(input: {
   character: PromptCharacter;
@@ -30,6 +30,7 @@ export function assembleNytheraPrompt(input: {
   const characterSystemOverrideLayer = buildCharacterSystemOverrideLayer(input.character.systemPromptOverride);
   const personaLayer = buildPersonaLayer(persona);
   const scenarioLayer = buildScenarioLayer(input.character);
+  const lorebookLayer = buildLorebookLayer(input.character.lorebook, input.currentMessage, input.recentMessages);
   const responsePromptLayer = input.responsePrompt?.trim() ? buildResponsePromptLayer(input.responsePrompt) : null;
   const memoryLayer = buildLongTermMemoryLayer(input.memories, input.userPersona, input.memoryLimit ?? 8);
   const summaryLayer = buildSummaryLayer(input.summary);
@@ -52,6 +53,7 @@ export function assembleNytheraPrompt(input: {
     ...(characterSystemOverrideLayer ? [{ role: "system" as const, content: characterSystemOverrideLayer }] : []),
     { role: "system", content: personaLayer },
     { role: "system", content: scenarioLayer },
+    ...(lorebookLayer ? [{ role: "system" as const, content: lorebookLayer }] : []),
     ...(responsePromptLayer ? [{ role: "system" as const, content: responsePromptLayer }] : []),
     { role: "system", content: memoryLayer },
     { role: "system", content: summaryLayer },
@@ -111,6 +113,50 @@ function buildScenarioLayer(character: PromptCharacter) {
     "Character foundation prompt:",
     sanitizePromptContext(character.personality, 2200)
   ].join("\n");
+}
+
+function buildLorebookLayer(value: unknown, currentMessage: string, recentMessages: Pick<Message, "role" | "content">[]) {
+  const entries = parseLorebookEntries(value);
+  if (entries.length === 0) {
+    return null;
+  }
+
+  const lookupText = [currentMessage, ...recentMessages.slice(-10).map((message) => message.content)].join("\n").toLowerCase();
+  const matched = entries
+    .filter((entry) => entry.keywords.some((keyword) => lookupText.includes(keyword.toLowerCase())))
+    .slice(0, 8);
+
+  if (matched.length === 0) {
+    return null;
+  }
+
+  return [
+    "CHARACTER LOREBOOK (KEYWORD MATCHED)",
+    "- These are canonical facts triggered by recent conversation keywords.",
+    ...matched.map((entry, index) => `${index + 1}. ${sanitizePromptContext(entry.text, 700)}`)
+  ].join("\n");
+}
+
+function parseLorebookEntries(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return [];
+  }
+
+  const entries = Array.isArray((value as { entries?: unknown }).entries) ? (value as { entries: unknown[] }).entries : [];
+  return entries
+    .map((entry) => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+        return null;
+      }
+      const record = entry as Record<string, unknown>;
+      const keywords = Array.isArray(record.keywords)
+        ? record.keywords.map((keyword) => String(keyword).trim()).filter(Boolean).slice(0, 12)
+        : [];
+      const text = typeof record.text === "string" ? record.text.trim() : "";
+      return keywords.length && text ? { keywords, text } : null;
+    })
+    .filter((entry): entry is { keywords: string[]; text: string } => Boolean(entry))
+    .slice(0, 24);
 }
 
 function buildLongTermMemoryLayer(memories: RetrievedMemory[], userPersona: string | null | undefined, limit: number) {

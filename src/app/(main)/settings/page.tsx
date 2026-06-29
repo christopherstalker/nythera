@@ -7,6 +7,7 @@ import { KeySettingsClient } from "@/components/settings/key-settings-client";
 import { MemorySettingsClient } from "@/components/settings/memory-settings-client";
 import { ProfileSettingsClient } from "@/components/settings/profile-settings-client";
 import { UserPersonaSettingsClient } from "@/components/settings/user-persona-settings-client";
+import { VoiceKeySettingsClient } from "@/components/settings/voice-key-settings-client";
 import { PageShell } from "@/components/ui/page";
 import { cn } from "@/lib/utils";
 
@@ -94,7 +95,10 @@ export default function SettingsPage() {
           </SettingsCard>
 
           <SettingsCard id="api-keys" icon={KeyRound} title="API Keys">
-            <KeySettingsClient />
+            <div className="grid gap-4">
+              <KeySettingsClient />
+              <VoiceKeySettingsClient />
+            </div>
           </SettingsCard>
 
           <SettingsCard id="memory" icon={Brain} title="Memory">

@@ -10,7 +10,6 @@ import { assembleNytheraPrompt } from "@/lib/prompt-assembly";
 import { streamLlmResponse } from "@/lib/proxy";
 import { searchMemories } from "@/lib/vector";
 import { schedulePostMessageJobs } from "@/lib/memory";
-import { generateChatTitle } from "@/lib/chat-history";
 import { getEffectiveProviderKeys } from "@/lib/user-keys";
 import { formatUserPersonaForPrompt } from "@/lib/user-persona";
 import { createMessageWithNextSequence } from "@/lib/message-sequence";
@@ -61,6 +60,7 @@ export async function POST(request: Request, context: Context) {
       },
       include: {
         character: true,
+        persona: true,
         messages: {
           orderBy: [{ createdAt: "desc" }, { sequence: "desc" }, { id: "desc" }],
           take: 40
@@ -92,7 +92,6 @@ export async function POST(request: Request, context: Context) {
     });
     const model = effectiveSettings.model;
     const temperature = effectiveSettings.temperature;
-    const latestHistoryContent = chat.messages[0]?.content ?? message;
     let recentMessages = [...chat.messages].reverse();
 
     if (input.regenerate) {
@@ -121,7 +120,7 @@ export async function POST(request: Request, context: Context) {
       });
     }
 
-    const [memories, userPersona] = await Promise.all([
+    const [memories, defaultUserPersona] = await Promise.all([
       user.memoryEnabled
         ? searchMemories({
             userId: user.id,
@@ -131,10 +130,11 @@ export async function POST(request: Request, context: Context) {
             providerKeys
           })
         : Promise.resolve([]),
-      prisma.userPersona.findUnique({
-        where: { userId: user.id }
+      prisma.userPersona.findFirst({
+        where: { userId: user.id, isDefault: true }
       })
     ]);
+    const userPersona = chat.persona ?? defaultUserPersona;
 
     const prompt = assembleNytheraPrompt({
       character: chat.character,
@@ -246,22 +246,11 @@ export async function POST(request: Request, context: Context) {
             clientRequestId: continueChat ? `continue-${input.requestId || crypto.randomUUID()}` : undefined
           });
           assistantPersisted = true;
-          const nextTitle =
-            chat.title && chat.title !== chat.character.name
-              ? chat.title
-              : await generateChatTitle({
-                  userMessage: continueChat ? latestHistoryContent : message,
-                  assistantMessage: assistantText,
-                  model: usage.model || model,
-                  providerKeys
-                });
-
           const actualMessageCount = await prisma.message.count({ where: { chatId: chat.id } });
           const updated = await prisma.chat.update({
             where: { id: chat.id },
             data: {
               messageCount: actualMessageCount,
-              title: nextTitle,
               model,
               temperature,
               responsePrompt: input.responsePrompt === undefined ? undefined : input.responsePrompt || null,
@@ -325,21 +314,11 @@ export async function POST(request: Request, context: Context) {
               flagged: true
             });
             assistantPersisted = true;
-            const nextTitle =
-              chat.title && chat.title !== chat.character.name
-                ? chat.title
-                : await generateChatTitle({
-                    userMessage: continueChat ? latestHistoryContent : message,
-                    assistantMessage: assistantText,
-                    model: usage.model || model,
-                    providerKeys
-                  });
             const actualMessageCount = await prisma.message.count({ where: { chatId: chat.id } });
             await prisma.chat.update({
               where: { id: chat.id },
               data: {
                 messageCount: actualMessageCount,
-                title: nextTitle,
                 model,
                 temperature,
                 lastActiveAt: new Date(),
@@ -353,7 +332,6 @@ export async function POST(request: Request, context: Context) {
               where: { id: chat.id },
               data: {
                 messageCount: actualMessageCount,
-                title: chat.title && chat.title !== chat.character.name ? chat.title : latestHistoryContent.slice(0, 54),
                 model,
                 temperature,
                 lastActiveAt: new Date(),

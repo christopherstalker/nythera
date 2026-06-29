@@ -37,6 +37,40 @@ export function providerModelValue(provider: string, model: string) {
   return `${provider.trim().toLowerCase()}:${model.trim()}`;
 }
 
+export function splitProviderModelValue(value?: string | null) {
+  const raw = value?.trim();
+  if (!raw) {
+    return null;
+  }
+
+  const separator = raw.indexOf(":");
+  if (separator <= 0) {
+    return null;
+  }
+
+  const provider = raw.slice(0, separator).trim().toLowerCase();
+  const model = raw.slice(separator + 1).trim();
+  if (!provider || !model) {
+    return null;
+  }
+
+  return { provider, model };
+}
+
+export function userPreferredModelValue(user: {
+  preferredProvider?: string | null;
+  preferredModel?: string | null;
+}) {
+  const model = user.preferredModel?.trim() || "gpt-4o-mini";
+  const explicit = splitProviderModelValue(model);
+  if (explicit) {
+    return providerModelValue(explicit.provider, explicit.model);
+  }
+
+  const provider = user.preferredProvider?.trim();
+  return provider ? providerModelValue(provider, model) : model;
+}
+
 export function modelSuggestionsForProvider(provider: string, defaultModel?: string | null) {
   const normalizedProvider = provider.trim().toLowerCase();
   return Array.from(new Set([defaultModel?.trim(), ...(MODEL_SUGGESTIONS[normalizedProvider] ?? [])].filter(Boolean) as string[]));

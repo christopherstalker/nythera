@@ -29,6 +29,13 @@ type Character = {
   visibility?: string;
   communicationStyle?: Record<string, unknown> | null;
   persona?: CharacterPersona | null;
+  lorebook?: { entries?: Array<{ id?: string; keywords?: string[]; text?: string }> } | null;
+  visualIdentity?: {
+    accentColor?: string;
+    gradientFrom?: string;
+    gradientTo?: string;
+    chatBackground?: string;
+  } | null;
   creator?: {
     username?: string | null;
   } | null;
@@ -85,6 +92,16 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
       .filter(([, value]) => value !== null && value !== undefined && value !== "")
       .slice(0, 7);
   }, [character]);
+  const loreEntries = useMemo(() => {
+    return Array.isArray(character?.lorebook?.entries)
+      ? character.lorebook.entries.filter((entry) => entry.text?.trim()).slice(0, 8)
+      : [];
+  }, [character]);
+  const heroStyle = character?.visualIdentity
+    ? {
+        background: `linear-gradient(135deg, ${character.visualIdentity.gradientFrom ?? character.visualIdentity.accentColor ?? "#8F81F7"}, ${character.visualIdentity.gradientTo ?? "#6FE7D2"})`
+      }
+    : undefined;
 
   async function updateVisibility(nextVisibility: "PRIVATE" | "PUBLIC" | "UNLISTED") {
     if (!character) {
@@ -306,10 +323,10 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
     <PageShell>
       <Surface className="overflow-hidden">
         <div className="relative isolate px-6 py-9 sm:px-9 sm:py-11">
-          <div className="pointer-events-none absolute inset-0 -z-10 hero-gradient opacity-90" />
+          <div className="pointer-events-none absolute inset-0 -z-10 hero-gradient opacity-90" style={heroStyle} />
           <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-end">
-              <CharacterAvatar name={character.name} avatarUrl={character.avatarUrl} size="xl" className="h-32 w-32 border-2 border-white/[0.045] shadow-violet-hover" />
+              <CharacterAvatar name={character.name} avatarUrl={character.avatarUrl} size="xl" className="h-32 w-32 shadow-violet-hover" />
               <div className="min-w-0">
                 <h1 className="max-w-3xl text-[2.3rem] font-semibold leading-tight tracking-tight text-white sm:text-[3.3rem]">
                   {character.name}
@@ -410,7 +427,11 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
               <span className="block rounded-[24px] bg-primary/[0.065] px-4 py-3 text-foreground/90 shadow-inset">{character.greeting}</span>
             </ProfileSection>
             <ProfileSection title="Memory and lore">
-              {character.scenario ? "This persona is configured with a scene foundation and can retrieve relevant saved memories during chat." : "No extra lore notes are available yet."}
+              {loreEntries.length
+                ? loreEntries.map((entry) => `${entry.keywords?.join(", ") || "Lore"}: ${entry.text}`).join("\n\n")
+                : character.scenario
+                  ? "This persona is configured with a scene foundation and can retrieve relevant saved memories during chat."
+                  : "No extra lore notes are available yet."}
             </ProfileSection>
           </main>
 

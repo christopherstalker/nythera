@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { BookMarked, Compass, Home, LogIn, Plus, Settings } from "lucide-react";
+import { Compass, Home, LogIn, Plus, Settings, UsersRound } from "lucide-react";
 import { loginUrl } from "@/lib/auth-routes";
 import { cn } from "@/lib/utils";
 
 const links = [
   { href: "/", label: "Home", icon: Home, auth: "any" as const },
   { href: "/explore", label: "Explore", icon: Compass, auth: "any" as const },
-  { href: "/library", label: "Library", icon: BookMarked, auth: "required" as const },
+  { href: "/rooms", label: "Rooms", icon: UsersRound, auth: "required" as const },
   { href: "/create-character", label: "Create", icon: Plus, auth: "required" as const },
   { href: "/settings", label: "Settings", icon: Settings, auth: "required" as const }
 ];

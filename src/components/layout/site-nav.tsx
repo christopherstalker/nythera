@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { ChevronDown, Compass, Home, KeyRound, LogOut, MessageSquare, Plus, Search, Settings, ShieldCheck, User } from "lucide-react";
+import { ChevronDown, Compass, Home, KeyRound, LogOut, MessageSquare, Plus, Search, Settings, ShieldCheck, User, UsersRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isPlatformAdminEmail } from "@/lib/admin";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { ThemeToggle } from "@/components/layout/theme-toggle";
 const baseLinks = [
   { href: "/explore", label: "Explore", icon: Compass },
   { href: "/chats", label: "Chats", icon: MessageSquare },
+  { href: "/rooms", label: "Rooms", icon: UsersRound },
   { href: "/settings", label: "Settings", icon: KeyRound }
 ];
 
@@ -21,7 +22,7 @@ const mobileLinks = [
   { href: "/", label: "Home", icon: Home },
   { href: "/explore", label: "Explore", icon: Compass },
   { href: "/chats", label: "Chats", icon: MessageSquare },
-  { href: "/create-character", label: "Create", icon: Plus },
+  { href: "/rooms", label: "Rooms", icon: UsersRound },
   { href: "/settings", label: "Settings", icon: KeyRound }
 ];
 
@@ -157,6 +158,7 @@ export function SiteNav() {
                   </div>
                   <MenuLink href="/settings" icon={Settings} label="Settings" onClick={() => setOpen(false)} />
                   <MenuLink href="/chats" icon={MessageSquare} label="Chats" onClick={() => setOpen(false)} />
+                  <MenuLink href="/rooms" icon={UsersRound} label="Rooms" onClick={() => setOpen(false)} />
                   {canUseAdmin ? <MenuLink href="/admin" icon={ShieldCheck} label="Admin" onClick={() => setOpen(false)} /> : null}
                   <button
                     type="button"

@@ -30,6 +30,27 @@ export const communicationStyleSchema = z.object({
 
 const personaListSchema = z.array(z.string().trim().min(1).max(160)).max(16);
 
+const hexColorSchema = z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Use a 6-digit hex color.");
+
+export const characterLorebookSchema = z.object({
+  entries: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1).max(80),
+        keywords: z.array(z.string().trim().min(1).max(80)).min(1).max(12),
+        text: z.string().trim().min(1).max(2000)
+      })
+    )
+    .max(24)
+});
+
+export const characterVisualIdentitySchema = z.object({
+  accentColor: hexColorSchema.optional(),
+  gradientFrom: hexColorSchema.optional(),
+  gradientTo: hexColorSchema.optional(),
+  chatBackground: z.string().trim().max(500).optional()
+});
+
 export const characterPersonaSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   role: z.string().trim().min(1).max(120).optional(),
@@ -57,6 +78,8 @@ export const characterCreateSchema = z.object({
   greeting: z.string().min(2).max(2000),
   communicationStyle: communicationStyleSchema.optional(),
   persona: characterPersonaSchema.optional(),
+  lorebook: characterLorebookSchema.optional(),
+  visualIdentity: characterVisualIdentitySchema.optional(),
   visibility: z.enum(["PRIVATE", "PUBLIC", "UNLISTED"]).default("PRIVATE"),
   tags: z.array(z.string().min(1).max(32)).max(12).default([]),
   isNSFW: z.boolean().default(false),
@@ -76,14 +99,14 @@ export const chatCreateSchema = z.object({
   characterId: z.string().min(1),
   title: z.string().max(120).optional(),
   temperature: z.coerce.number().min(0).max(2).default(0.7),
-  model: z.string().max(160).optional()
+  model: z.string().trim().min(1).max(160).optional()
 });
 
 export const chatUpdateSchema = z.object({
   title: z.string().max(120).optional(),
   archived: z.boolean().optional(),
   temperature: z.coerce.number().min(0).max(2).optional(),
-  model: z.string().max(160).optional(),
+  model: z.string().trim().min(1).max(160).optional(),
   responsePrompt: z.string().trim().max(2000).optional()
 });
 
@@ -91,7 +114,7 @@ export const streamMessageSchema = z
   .object({
     message: z.string().max(4000).optional().default(""),
     temperature: z.coerce.number().min(0).max(2).optional(),
-    model: z.string().max(160).optional(),
+    model: z.string().trim().min(1).max(160).optional(),
     responsePrompt: z.string().trim().max(2000).optional(),
     requestId: z.string().min(8).max(120).optional(),
     regenerate: z.boolean().optional(),
@@ -164,4 +187,41 @@ export const memoryUpdateSchema = z.object({
   importance: z.coerce.number().min(0).max(5).optional(),
   pinned: z.boolean().optional(),
   category: memoryCreateSchema.shape.category.optional()
+});
+
+export const roomCreateSchema = z.object({
+  title: z.string().trim().min(2).max(120).optional(),
+  characterIds: z.array(z.string().trim().min(1)).min(2).max(6),
+  model: z.string().trim().min(1).max(120).optional(),
+  temperature: z.coerce.number().min(0).max(2).default(0.7),
+  responsePrompt: z.string().trim().max(2000).optional().or(z.literal(""))
+});
+
+export const roomPatchSchema = z.object({
+  title: z.string().trim().min(2).max(120).optional(),
+  responsePrompt: z.string().trim().max(2000).optional().or(z.literal("")),
+  archived: z.boolean().optional()
+});
+
+export const roomMessageSchema = z.object({
+  message: z.string().trim().min(1).max(4000),
+  requestId: z.string().trim().min(8).max(120).optional(),
+  characterId: z.string().trim().min(1).optional(),
+  model: z.string().trim().min(1).max(120).optional(),
+  temperature: z.coerce.number().min(0).max(2).optional()
+});
+
+export const voiceKeySchema = z.object({
+  provider: z.enum(["elevenlabs", "playht"]),
+  apiKey: z.string().trim().min(6).max(1200),
+  authId: z.string().trim().max(160).optional().or(z.literal("")),
+  defaultVoiceId: z.string().trim().max(160).optional().or(z.literal("")),
+  baseUrl: z.string().url().max(240).optional().or(z.literal(""))
+});
+
+export const voiceSynthesisSchema = z.object({
+  provider: z.enum(["elevenlabs", "playht"]).default("elevenlabs"),
+  text: z.string().trim().min(1).max(2500),
+  voiceId: z.string().trim().max(160).optional().or(z.literal("")),
+  format: z.enum(["mp3", "wav"]).default("mp3")
 });

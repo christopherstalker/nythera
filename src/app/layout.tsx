@@ -13,7 +13,7 @@ const spaceGrotesk = localFont({
   fallback: ["Segoe UI", "Roboto", "Arial", "sans-serif"]
 });
 
-const siteUrl = process.env.NEXTAUTH_URL ?? "https://nythera-christopherstalkers-projects.vercel.app";
+const siteUrl = process.env.AUTH_URL || process.env.NEXTAUTH_URL || "https://nythera-ai-character-platform.vercel.app";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -30,8 +30,12 @@ export const metadata: Metadata = {
     telephone: false
   },
   icons: {
-    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/icon.svg", sizes: "180x180", type: "image/svg+xml" }]
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icons/velora-aurora-v4-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/velora-aurora-v4-512.png", sizes: "512x512", type: "image/png" }
+    ],
+    apple: [{ url: "/icons/velora-aurora-v4-apple-180.png", sizes: "180x180", type: "image/png" }]
   },
   openGraph: {
     type: "website",
@@ -42,7 +46,7 @@ export const metadata: Metadata = {
     description: "AI roleplay platform with persona, memory, and secure model access.",
     images: [
       {
-        url: "/icon.svg",
+        url: "/og-image-v3.png",
         width: 1200,
         height: 630,
         alt: "Nythera N logo"
@@ -53,7 +57,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Nythera",
     description: "AI roleplay platform with persona, memory, and secure model access.",
-    images: ["/icon.svg"]
+    images: ["/og-image-v3.png"]
   }
 };
 

@@ -11,7 +11,6 @@ import { assembleNytheraPrompt } from "@/lib/prompt-assembly";
 import { streamLlmResponse } from "@/lib/proxy";
 import { searchMemories } from "@/lib/vector";
 import { schedulePostMessageJobs } from "@/lib/memory";
-import { generateChatTitle } from "@/lib/chat-history";
 import { getEffectiveProviderKeys } from "@/lib/user-keys";
 import { formatUserPersonaForPrompt } from "@/lib/user-persona";
 import { createMessageWithNextSequence } from "@/lib/message-sequence";
@@ -63,6 +62,7 @@ export async function POST(request: Request, context: Context) {
       },
       include: {
         character: true,
+        persona: true,
         messages: {
           orderBy: [{ createdAt: "desc" }, { sequence: "desc" }, { id: "desc" }],
           take: 40
@@ -94,8 +94,6 @@ export async function POST(request: Request, context: Context) {
     });
     const model = effectiveSettings.model;
     const temperature = effectiveSettings.temperature;
-    const latestHistoryContent = chat.messages[0]?.content ?? message;
-
     const userMessage = continueChat
       ? null
       : await createMessageWithNextSequence({
@@ -105,7 +103,7 @@ export async function POST(request: Request, context: Context) {
           clientRequestId: input.requestId
         });
 
-    const [memories, userPersona] = await Promise.all([
+    const [memories, defaultUserPersona] = await Promise.all([
       user.memoryEnabled
         ? searchMemories({
             userId: user.id,
@@ -115,10 +113,11 @@ export async function POST(request: Request, context: Context) {
             providerKeys
           })
         : Promise.resolve([]),
-      prisma.userPersona.findUnique({
-        where: { userId: user.id }
+      prisma.userPersona.findFirst({
+        where: { userId: user.id, isDefault: true }
       })
     ]);
+    const userPersona = chat.persona ?? defaultUserPersona;
 
     const prompt = assembleNytheraPrompt({
       character: chat.character,
@@ -215,21 +214,10 @@ export async function POST(request: Request, context: Context) {
       clientRequestId: continueChat ? `continue-${input.requestId || crypto.randomUUID()}` : undefined
     });
 
-    const nextTitle =
-      chat.title && chat.title !== chat.character.name
-        ? chat.title
-        : await generateChatTitle({
-            userMessage: continueChat ? latestHistoryContent : message,
-            assistantMessage: assistantText,
-            model: usage.model || model,
-            providerKeys
-          });
-
     const updated = await prisma.chat.update({
       where: { id: chat.id },
       data: {
         messageCount: await prisma.message.count({ where: { chatId: chat.id } }),
-        title: nextTitle,
         model,
         temperature,
         lastActiveAt: new Date(),

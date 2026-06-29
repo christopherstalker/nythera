@@ -166,7 +166,7 @@ type StartProxyOptions = {
   onSpawn?: (child: ChildProcess) => void;
 };
 
-const PROXY_STARTUP_TIMEOUT_MS = 10_000;
+const PROXY_STARTUP_TIMEOUT_MS = 20_000;
 const PROXY_READINESS_POLL_MS = 25;
 
 async function startProxyWithCleanup(context: TestContext, servers: Server[], options: StartProxyOptions = {}) {

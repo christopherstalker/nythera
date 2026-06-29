@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { titleFromMessage } from "@/lib/utils";
 import { HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
+import { splitProviderModelValue } from "@/lib/provider-model-options";
 import { chatUpdateSchema } from "@/lib/validation";
 
 type Context = {
@@ -19,6 +19,7 @@ export async function GET(_request: Request, context: Context) {
       },
       include: {
         character: true,
+        persona: true,
         messages: {
           orderBy: [{ createdAt: "asc" }, { sequence: "asc" }, { id: "asc" }]
         }
@@ -56,23 +57,33 @@ export async function PATCH(request: Request, context: Context) {
       throw new HttpError(404, "Chat not found.");
     }
 
-    const [updated] = await prisma.$transaction([
-      prisma.chat.update({
-        where: { id: chat.id },
-        data: {
-          title: input.title ?? (chat.title || titleFromMessage(chat.messages[0]?.content ?? "Untitled chat")),
-          archivedAt: input.archived === undefined ? undefined : input.archived ? new Date() : null,
-          temperature: input.temperature,
-          model: input.model,
-          responsePrompt: input.responsePrompt === undefined ? undefined : input.responsePrompt || null,
-          lastActiveAt: new Date()
-        }
-      }),
-      prisma.user.update({
-        where: { id: user.id },
-        data: { preferredModel: input.model }
-      })
-    ]);
+    const selectedModel = input.model?.trim();
+    const selectedProviderModel = splitProviderModelValue(selectedModel);
+    const chatUpdate = prisma.chat.update({
+      where: { id: chat.id },
+      data: {
+        title: input.title,
+        archivedAt: input.archived === undefined ? undefined : input.archived ? new Date() : null,
+        temperature: input.temperature,
+        model: selectedModel,
+        responsePrompt: input.responsePrompt === undefined ? undefined : input.responsePrompt || null,
+        lastActiveAt: new Date()
+      }
+    });
+
+    const [updated] =
+      selectedModel === undefined
+        ? [await chatUpdate]
+        : await prisma.$transaction([
+            chatUpdate,
+            prisma.user.update({
+              where: { id: user.id },
+              data: {
+                preferredProvider: selectedProviderModel?.provider ?? null,
+                preferredModel: selectedProviderModel?.model ?? selectedModel
+              }
+            })
+          ]);
 
     return json({ chat: updated });
   } catch (error) {

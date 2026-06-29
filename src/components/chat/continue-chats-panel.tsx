@@ -125,7 +125,7 @@ export function ContinueChatsPanel() {
                 >
                   <CharacterAvatar name={characterName} avatarUrl={chat.character?.avatarUrl} size="sm" />
                   <div className="min-w-0 flex-1">
-                    <p className="block truncate text-sm font-semibold text-foreground">{chat.title || characterName}</p>
+                    <p className="block truncate text-sm font-semibold text-foreground">{characterName}</p>
                     <p className="mt-1 block line-clamp-2 text-xs leading-5 text-muted-foreground">{toChatPreview(chat.messages[0]?.content || chat.character?.description || "No messages yet")}</p>
                   </div>
                   <span className="shrink-0 text-xs text-muted-foreground">{formatChatTime(chat.lastActiveAt ?? chat.updatedAt)}</span>

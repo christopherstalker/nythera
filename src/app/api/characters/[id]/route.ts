@@ -106,6 +106,8 @@ export async function PATCH(request: Request, context: Context) {
         avatarUrl: true,
         visibility: true,
         persona: true,
+        lorebook: true,
+        visualIdentity: true,
         systemPromptOverride: true
       }
     });
@@ -150,7 +152,8 @@ export async function PATCH(request: Request, context: Context) {
         input.scenario ?? character.scenario,
         input.greeting ?? character.greeting,
         input.systemPromptOverride === undefined ? character.systemPromptOverride : input.systemPromptOverride,
-        JSON.stringify(input.persona ?? character.persona ?? {})
+        JSON.stringify(input.persona ?? character.persona ?? {}),
+        JSON.stringify(input.lorebook ?? character.lorebook ?? {})
       ]
         .filter(Boolean)
         .join("\n"),
@@ -170,6 +173,8 @@ export async function PATCH(request: Request, context: Context) {
         avatarUrl: input.avatarUrl === "" ? null : input.avatarUrl,
         communicationStyle: input.communicationStyle === undefined ? undefined : input.communicationStyle ?? Prisma.JsonNull,
         persona: input.persona === undefined ? undefined : input.persona ?? Prisma.JsonNull,
+        lorebook: input.lorebook === undefined ? undefined : input.lorebook ?? Prisma.JsonNull,
+        visualIdentity: input.visualIdentity === undefined ? undefined : input.visualIdentity ?? Prisma.JsonNull,
         // Edits and visibility changes are re-approved only after the merged character text passes moderation.
         moderationStatus: "APPROVED"
       }
@@ -228,6 +233,8 @@ export async function POST(_request: Request, context: Context) {
         greeting: source.greeting,
         communicationStyle: source.communicationStyle ?? Prisma.JsonNull,
         persona: source.persona ?? Prisma.JsonNull,
+        lorebook: source.lorebook ?? Prisma.JsonNull,
+        visualIdentity: source.visualIdentity ?? Prisma.JsonNull,
         visibility: "PRIVATE",
         moderationStatus: "APPROVED",
         tags: source.tags,

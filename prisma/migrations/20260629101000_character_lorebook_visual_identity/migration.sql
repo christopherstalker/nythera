@@ -1,0 +1,3 @@
+ALTER TABLE "Character"
+ADD COLUMN IF NOT EXISTS "lorebook" JSONB,
+ADD COLUMN IF NOT EXISTS "visualIdentity" JSONB;

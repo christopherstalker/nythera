@@ -5,6 +5,8 @@ const envSchema = z.object({
   DIRECT_URL: z.string().optional(),
   NEXTAUTH_SECRET: z.string().optional(),
   NEXTAUTH_URL: z.string().optional(),
+  AUTH_URL: z.string().optional(),
+  AUTH_SECRET: z.string().optional(),
   MOBILE_AUTH_SECRET: z.string().optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),

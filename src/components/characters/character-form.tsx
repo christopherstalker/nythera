@@ -7,6 +7,8 @@ import {
   Bot,
   Globe,
   ImagePlus,
+  Download,
+  FileJson,
   Lock,
   MessageSquare,
   MessagesSquare,
@@ -34,6 +36,7 @@ import {
   creationModeForEditor,
   creationModeForNewCharacter,
   firstValidationIssue,
+  lorebookToText,
   normalizeInitialCharacterValue,
   promptPreviewFromGeneration,
   validateCharacterCreatePayload
@@ -66,8 +69,10 @@ const sectionIcons = {
   basics: Bot,
   personality: MessageSquare,
   scenario: BookOpen,
+  lorebook: BookOpen,
   greeting: MessagesSquare,
   speaking: Palette,
+  visual: Sparkles,
   advanced: ShieldCheck
 } as const;
 
@@ -85,8 +90,10 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
     basics: true,
     personality: false,
     scenario: false,
+    lorebook: false,
     greeting: false,
     speaking: false,
+    visual: false,
     advanced: false
   });
   const [generatedPreview, setGeneratedPreview] = useState<GeneratedCharacterPreview | null>(null);
@@ -159,8 +166,10 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
         basics: true,
         personality: true,
         scenario: true,
+        lorebook: true,
         greeting: true,
         speaking: true,
+        visual: true,
         advanced: false
       });
     }
@@ -227,6 +236,68 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
 
   function toggleSection(section: CustomSectionId) {
     setOpenSections((current) => ({ ...current, [section]: !current[section] }));
+  }
+
+  function exportCharacterCard() {
+    const payload = buildCharacterCreatePayload({
+      draft,
+      generated: generatedPreview,
+      isSimpleMode: false,
+      creationMode: mode === "edit" ? creationModeForEditor(initialValue?.creationMode) : creationModeForNewCharacter(formMode)
+    });
+    const card = {
+      spec: "chara_card_v2",
+      spec_version: "2.0",
+      data: {
+        name: payload.name,
+        description: payload.description,
+        personality: payload.personality,
+        scenario: payload.scenario,
+        first_mes: payload.greeting,
+        avatar: payload.avatarUrl,
+        tags: payload.tags,
+        creator_notes: JSON.stringify({
+          persona: payload.persona ?? null,
+          communicationStyle: payload.communicationStyle ?? null,
+          lorebook: payload.lorebook ?? null,
+          visualIdentity: payload.visualIdentity ?? null
+        })
+      }
+    };
+
+    update("characterCardJson", JSON.stringify(card, null, 2));
+    setError(null);
+  }
+
+  function importCharacterCard() {
+    try {
+      const parsed = JSON.parse(draft.characterCardJson);
+      const data = parsed?.data && typeof parsed.data === "object" ? parsed.data : parsed;
+      const notes = parseCreatorNotes(data?.creator_notes);
+      setDraft((current) => ({
+        ...current,
+        name: textFromCard(data?.name, current.name),
+        description: textFromCard(data?.description, current.description),
+        personality: textFromCard(data?.personality, current.personality),
+        scenario: textFromCard(data?.scenario, current.scenario),
+        greeting: textFromCard(data?.first_mes ?? data?.mes_example, current.greeting),
+        avatarUrl: textFromCard(data?.avatar, current.avatarUrl),
+        tags: Array.isArray(data?.tags) ? data.tags.map(String).filter(Boolean).slice(0, 12) : current.tags,
+        personaRole: textFromCard(notes.persona?.role, current.personaRole),
+        archetype: textFromCard(notes.persona?.archetype, current.archetype),
+        personaTraits: Array.isArray(notes.persona?.personalityTraits) ? notes.persona.personalityTraits.join("\n") : current.personaTraits,
+        speakingStyle: textFromCard(notes.persona?.speakingStyle, current.speakingStyle),
+        emotionalTone: textFromCard(notes.persona?.emotionalTone, current.emotionalTone),
+        lorebookText: notes.lorebook ? lorebookToText(notes.lorebook) : current.lorebookText,
+        visualAccentColor: textFromCard(notes.visualIdentity?.accentColor, current.visualAccentColor),
+        visualGradientFrom: textFromCard(notes.visualIdentity?.gradientFrom, current.visualGradientFrom),
+        visualGradientTo: textFromCard(notes.visualIdentity?.gradientTo, current.visualGradientTo),
+        visualChatBackground: textFromCard(notes.visualIdentity?.chatBackground, current.visualChatBackground)
+      }));
+      setError(null);
+    } catch {
+      setError("Paste valid Character Card V2 JSON before importing.");
+    }
   }
 
   async function generatePreview() {
@@ -629,6 +700,17 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
                     </Field>
                   ) : null}
 
+                  {section.id === "lorebook" ? (
+                    <Field label="Keyword lorebook" hint="Use blocks like: keyword, alias => canonical fact. Entries trigger only when a keyword appears in recent chat.">
+                      <Textarea
+                        value={draft.lorebookText}
+                        onChange={(event) => update("lorebookText", event.target.value)}
+                        placeholder={"silver gate, moon gate => The Silver Gate only opens under a full moon.\n\nArchivist oath => Archivists cannot knowingly destroy a true record."}
+                        className="min-h-44"
+                      />
+                    </Field>
+                  ) : null}
+
                   {section.id === "greeting" ? (
                     <>
                       <Field
@@ -668,8 +750,62 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
                     </>
                   ) : null}
 
+                  {section.id === "visual" ? (
+                    <>
+                      <div className="grid gap-4 sm:grid-cols-3">
+                        <Field label="Accent color">
+                          <Input type="color" value={draft.visualAccentColor} onChange={(event) => update("visualAccentColor", event.target.value)} />
+                        </Field>
+                        <Field label="Gradient start">
+                          <Input type="color" value={draft.visualGradientFrom} onChange={(event) => update("visualGradientFrom", event.target.value)} />
+                        </Field>
+                        <Field label="Gradient end">
+                          <Input type="color" value={draft.visualGradientTo} onChange={(event) => update("visualGradientTo", event.target.value)} />
+                        </Field>
+                      </div>
+                      <Field label="Chat background cue">
+                        <Input
+                          value={draft.visualChatBackground}
+                          onChange={(event) => update("visualChatBackground", event.target.value)}
+                          placeholder="moonlit archive, neon rain, warm cabin..."
+                        />
+                      </Field>
+                      <div
+                        className="rounded-[var(--radius-lg)] border border-[var(--border-default)] p-4 shadow-[var(--glass-highlight)]"
+                        style={{
+                          background: `linear-gradient(135deg, ${draft.visualGradientFrom}, ${draft.visualGradientTo})`
+                        }}
+                      >
+                        <div className="rounded-[var(--radius-md)] bg-black/35 p-4 text-white backdrop-blur-sm">
+                          <p className="text-sm font-semibold">{draft.name.trim() || "Character visual identity"}</p>
+                          <p className="mt-1 text-xs opacity-85">{draft.visualChatBackground.trim() || "Background cue appears in chat theming."}</p>
+                        </div>
+                      </div>
+                    </>
+                  ) : null}
+
                   {section.id === "advanced" ? (
                     <>
+                      <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4">
+                        <p className="text-sm font-semibold text-[var(--text-primary)]">Character Card V2</p>
+                        <p className="mt-1 text-xs text-[var(--text-muted)]">Import or export the current draft as JSON.</p>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <Button type="button" variant="outline" onClick={exportCharacterCard}>
+                            <Download className="h-4 w-4" />
+                            Export Card V2
+                          </Button>
+                          <Button type="button" variant="outline" onClick={importCharacterCard}>
+                            <FileJson className="h-4 w-4" />
+                            Import JSON
+                          </Button>
+                        </div>
+                        <Textarea
+                          value={draft.characterCardJson}
+                          onChange={(event) => update("characterCardJson", event.target.value)}
+                          placeholder="Paste Character Card V2 JSON here, or export the current draft."
+                          className="mt-4 min-h-32 font-mono text-xs"
+                        />
+                      </div>
                       <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4">
                         <p className="text-sm font-semibold text-[var(--text-primary)]">Model configuration</p>
                         <p className="mt-1 text-xs text-[var(--text-muted)]">Leave fields blank to use the chatting user&apos;s global defaults.</p>
@@ -796,6 +932,11 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
         avatarUrl={previewDraft.avatarUrl}
         tags={previewDraft.tags}
         generated={Boolean(generatedPreview)}
+        visualIdentity={{
+          accentColor: previewDraft.visualAccentColor,
+          gradientFrom: previewDraft.visualGradientFrom,
+          gradientTo: previewDraft.visualGradientTo
+        }}
       />
     </div>
   );
@@ -837,7 +978,9 @@ function buildAssistContext(draft: CharacterFormValue) {
     boundaries: draft.boundaries,
     behavioralRules: draft.behavioralRules,
     forbiddenBehaviors: draft.forbiddenBehaviors,
-    tone: draft.tone
+    tone: draft.tone,
+    lorebookText: draft.lorebookText,
+    visualChatBackground: draft.visualChatBackground
   };
 }
 
@@ -857,8 +1000,35 @@ function applyAssistSuggestions(draft: CharacterFormValue, suggestions: Record<s
     boundaries: suggestions.boundaries?.trim() || draft.boundaries,
     behavioralRules: suggestions.behavioralRules?.trim() || draft.behavioralRules,
     forbiddenBehaviors: suggestions.forbiddenBehaviors?.trim() || draft.forbiddenBehaviors,
-    tone: suggestions.tone?.trim() || draft.tone
+    tone: suggestions.tone?.trim() || draft.tone,
+    lorebookText: suggestions.lorebookText?.trim() || draft.lorebookText,
+    visualChatBackground: suggestions.visualChatBackground?.trim() || draft.visualChatBackground
   };
+}
+
+function parseCreatorNotes(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) {
+    return {} as {
+      persona?: Record<string, unknown>;
+      lorebook?: Record<string, unknown>;
+      visualIdentity?: Record<string, unknown>;
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as {
+      persona?: Record<string, unknown>;
+      lorebook?: Record<string, unknown>;
+      visualIdentity?: Record<string, unknown>;
+    } : {};
+  } catch {
+    return {};
+  }
+}
+
+function textFromCard(value: unknown, fallback: string) {
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
 
 function GeneratedPreviewCard({ preview }: { preview: GeneratedCharacterPreview }) {

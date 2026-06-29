@@ -39,6 +39,7 @@ export function normalizeInitialCharacterValue(value?: CharacterFormInitialValue
 
   const style = value.communicationStyle ?? {};
   const persona = value.persona ?? {};
+  const visualIdentity = value.visualIdentity ?? {};
 
   return {
     ...emptyCharacterDraft,
@@ -72,7 +73,13 @@ export function normalizeInitialCharacterValue(value?: CharacterFormInitialValue
     frequencyPenalty: nullableNumberValue(value.frequencyPenalty),
     presencePenalty: nullableNumberValue(value.presencePenalty),
     maxTokens: nullableNumberValue(value.maxTokens),
-    systemPromptOverride: textValue(value.systemPromptOverride)
+    systemPromptOverride: textValue(value.systemPromptOverride),
+    lorebookText: lorebookToText(value.lorebook),
+    visualAccentColor: hexColorValue(visualIdentity.accentColor, emptyCharacterDraft.visualAccentColor),
+    visualGradientFrom: hexColorValue(visualIdentity.gradientFrom, emptyCharacterDraft.visualGradientFrom),
+    visualGradientTo: hexColorValue(visualIdentity.gradientTo, emptyCharacterDraft.visualGradientTo),
+    visualChatBackground: textValue(visualIdentity.chatBackground ?? value.visualChatBackground),
+    characterCardJson: ""
   };
 }
 
@@ -166,6 +173,13 @@ export function buildCharacterCreatePayload({
     messageLength: normalizeEnum(merged.messageLength, MESSAGE_LENGTH_OPTIONS),
     roleplayIntensity: clampNumber(merged.roleplayIntensity, 0, 10)
   });
+  const lorebook = parseLorebookText(merged.lorebookText);
+  const visualIdentity = compactRecord({
+    accentColor: hexColorValue(merged.visualAccentColor, emptyCharacterDraft.visualAccentColor),
+    gradientFrom: hexColorValue(merged.visualGradientFrom, emptyCharacterDraft.visualGradientFrom),
+    gradientTo: hexColorValue(merged.visualGradientTo, emptyCharacterDraft.visualGradientTo),
+    chatBackground: limitText(merged.visualChatBackground, 500)
+  });
 
   const payload: CharacterCreatePayload = {
     creationMode,
@@ -187,7 +201,9 @@ export function buildCharacterCreatePayload({
     maxTokens: merged.maxTokens,
     systemPromptOverride: merged.systemPromptOverride.trim() || null,
     ...(Object.keys(persona).length > 0 ? { persona } : {}),
-    ...(Object.keys(communicationStyle).length > 0 ? { communicationStyle } : {})
+    ...(Object.keys(communicationStyle).length > 0 ? { communicationStyle } : {}),
+    ...(lorebook.entries.length > 0 ? { lorebook } : {}),
+    ...(Object.keys(visualIdentity).length > 0 ? { visualIdentity } : {})
   };
 
   return payload;
@@ -330,6 +346,58 @@ function numberValue(value: unknown, fallback: number) {
 
 function nullableNumberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+export function parseLorebookText(value: string) {
+  const entries = value
+    .split(/\n{2,}/)
+    .map((block, index) => {
+      const [rawKeywords, ...textParts] = block.split(/=>|::/);
+      const text = textParts.join("=>").trim();
+      const keywords = rawKeywords
+        .split(/[,;\n]+/)
+        .map((keyword) => limitText(keyword, 80))
+        .filter(Boolean)
+        .slice(0, 12);
+
+      if (keywords.length === 0 || !text) {
+        return null;
+      }
+
+      return {
+        id: `entry-${index + 1}`,
+        keywords,
+        text: limitText(text, 2000)
+      };
+    })
+    .filter((entry): entry is { id: string; keywords: string[]; text: string } => Boolean(entry))
+    .slice(0, 24);
+
+  return { entries };
+}
+
+export function lorebookToText(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return "";
+  }
+
+  const entries = Array.isArray((value as { entries?: unknown }).entries) ? (value as { entries: unknown[] }).entries : [];
+  return entries
+    .map((entry) => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+        return null;
+      }
+      const record = entry as Record<string, unknown>;
+      const keywords = Array.isArray(record.keywords) ? record.keywords.map((keyword) => String(keyword).trim()).filter(Boolean) : [];
+      const text = typeof record.text === "string" ? record.text.trim() : "";
+      return keywords.length && text ? `${keywords.join(", ")} => ${text}` : null;
+    })
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function hexColorValue(value: unknown, fallback: string) {
+  return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value.trim()) ? value.trim() : fallback;
 }
 
 function normalizeEnum<T extends string>(value: string, options: readonly T[]) {

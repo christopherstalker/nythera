@@ -1,6 +1,6 @@
 import "server-only";
 
-import { Prisma, type Message } from "@prisma/client";
+import { Prisma, type Message, type RoomMessage } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { sleep } from "@/lib/utils";
 
@@ -41,6 +41,39 @@ export async function createMessageWithNextSequence(
   throw new Error("Could not allocate message sequence.");
 }
 
+export async function createRoomMessageWithNextSequence(
+  data: Omit<Prisma.RoomMessageUncheckedCreateInput, "sequence">
+): Promise<RoomMessage> {
+  for (let attempt = 0; attempt < MAX_SEQUENCE_RETRIES; attempt += 1) {
+    try {
+      return await prisma.$transaction(
+        async (tx) => {
+          const last = await tx.roomMessage.aggregate({
+            where: { roomId: data.roomId },
+            _max: { sequence: true }
+          });
+
+          const createData: Prisma.RoomMessageUncheckedCreateInput = {
+            ...data,
+            sequence: (last._max.sequence ?? 0) + 1
+          };
+
+          return tx.roomMessage.create({ data: createData });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+      );
+    } catch (error) {
+      if (!isRetryableRoomSequenceConflict(error) || attempt === MAX_SEQUENCE_RETRIES - 1) {
+        throw error;
+      }
+
+      await sleep(15 * (attempt + 1));
+    }
+  }
+
+  throw new Error("Could not allocate room message sequence.");
+}
+
 function isRetryableSequenceConflict(error: unknown) {
   if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
     return false;
@@ -56,4 +89,21 @@ function isRetryableSequenceConflict(error: unknown) {
 
   const target = error.meta?.target;
   return Array.isArray(target) && target.includes("chatId") && target.includes("sequence");
+}
+
+function isRetryableRoomSequenceConflict(error: unknown) {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
+    return false;
+  }
+
+  if (error.code === "P2034") {
+    return true;
+  }
+
+  if (error.code !== "P2002") {
+    return false;
+  }
+
+  const target = error.meta?.target;
+  return Array.isArray(target) && target.includes("roomId") && target.includes("sequence");
 }

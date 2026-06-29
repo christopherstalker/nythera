@@ -51,7 +51,7 @@ export async function POST(_request: Request, context: Context) {
       data: {
         chatId: chat.id,
         userId: user.id,
-        title: chat.title || chat.character.name,
+        title: chat.character.name,
         characterSnapshot: chat.character,
         messagesSnapshot: chat.messages
       }

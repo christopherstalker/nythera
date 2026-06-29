@@ -67,6 +67,8 @@ export async function PATCH(request: Request, context: Context) {
         avatarUrl: true,
         visibility: true,
         persona: true,
+        lorebook: true,
+        visualIdentity: true,
         systemPromptOverride: true
       }
     });
@@ -98,7 +100,8 @@ export async function PATCH(request: Request, context: Context) {
         input.scenario ?? character.scenario,
         input.greeting ?? character.greeting,
         input.systemPromptOverride === undefined ? character.systemPromptOverride : input.systemPromptOverride,
-        JSON.stringify(input.persona ?? character.persona ?? {})
+        JSON.stringify(input.persona ?? character.persona ?? {}),
+        JSON.stringify(input.lorebook ?? character.lorebook ?? {})
       ]
         .filter(Boolean)
         .join("\n"),
@@ -117,6 +120,8 @@ export async function PATCH(request: Request, context: Context) {
         avatarUrl: input.avatarUrl === "" ? null : input.avatarUrl,
         communicationStyle: input.communicationStyle === undefined ? undefined : input.communicationStyle ?? Prisma.JsonNull,
         persona: input.persona === undefined ? undefined : input.persona ?? Prisma.JsonNull,
+        lorebook: input.lorebook === undefined ? undefined : input.lorebook ?? Prisma.JsonNull,
+        visualIdentity: input.visualIdentity === undefined ? undefined : input.visualIdentity ?? Prisma.JsonNull,
         // Mobile edits follow the same public visibility contract as the web app.
         moderationStatus: "APPROVED"
       }

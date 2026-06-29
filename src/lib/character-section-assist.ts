@@ -20,6 +20,8 @@ const assistSchema = z.object({
   behavioralRules: z.string().min(5).max(1200).optional(),
   forbiddenBehaviors: z.string().min(5).max(1200).optional(),
   tone: z.string().min(2).max(80).optional(),
+  lorebookText: z.string().min(5).max(5000).optional(),
+  visualChatBackground: z.string().min(2).max(500).optional(),
   description: z.string().min(10).max(5000).optional()
 });
 
@@ -28,8 +30,12 @@ const sectionPrompts: Record<CustomSectionId, string> = {
   personality:
     "Expand personality traits, emotional tone, motivation, and archetype. Return JSON with personality, personaTraits, emotionalTone, motivation, archetype, and personaRole only.",
   scenario: "Write immersive scenario lore and world context. Return JSON with scenario only.",
+  lorebook:
+    "Create keyword-triggered lorebook entries. Return JSON with lorebookText only, formatted as blocks like: keyword, alias => canonical fact.",
   greeting: "Write a cinematic first message the character sends when a chat begins. Return JSON with greeting only.",
   speaking: "Refine speaking style, tone, and emotional delivery. Return JSON with speakingStyle, tone, and emotionalTone only.",
+  visual:
+    "Suggest a concise chat background cue for the character visual identity. Return JSON with visualChatBackground only.",
   advanced:
     "Suggest respectful boundaries, behavioral rules, and forbidden behaviors. Return JSON with boundaries, behavioralRules, and forbiddenBehaviors only."
 };
@@ -110,6 +116,13 @@ function buildFallback(section: CustomSectionId, name: string, description: stri
       return {
         scenario: generated.scenario
       };
+    case "lorebook":
+      return {
+        lorebookText: [
+          `${name}, ${generated.archetype} => ${generated.personaRole} with traits: ${generated.personaTraits.replace(/\n/g, ", ")}.`,
+          `opening scene, first meeting => ${generated.scenario}`
+        ].join("\n\n")
+      };
     case "greeting":
       return {
         greeting: context?.greeting?.trim() || generated.greeting
@@ -119,6 +132,10 @@ function buildFallback(section: CustomSectionId, name: string, description: stri
         speakingStyle: generated.speakingStyle,
         tone: generated.tone,
         emotionalTone: generated.emotionalTone
+      };
+    case "visual":
+      return {
+        visualChatBackground: `${generated.archetype || "character"} atmosphere shaped by ${generated.emotionalTone || "immersive"} tone`
       };
     case "advanced":
       return {

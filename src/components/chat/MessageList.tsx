@@ -8,6 +8,8 @@ type MessageListProps = {
   messages: ChatMessage[];
   characterName: string;
   characterAvatarUrl?: string | null;
+  personaName?: string | null;
+  personaAvatarUrl?: string | null;
   summary?: string | null;
   error?: string | null;
   onEdit?: (messageId: string, content: string) => void;
@@ -19,7 +21,7 @@ type MessageListProps = {
   onPin?: (messageId: string) => void;
 };
 
-export function MessageList({ messages, characterName, characterAvatarUrl, summary, error, onEdit, onDelete, onRegenerate, onContinue, onRewind, onBranch, onPin }: MessageListProps) {
+export function MessageList({ messages, characterName, characterAvatarUrl, personaName, personaAvatarUrl, summary, error, onEdit, onDelete, onRegenerate, onContinue, onRewind, onBranch, onPin }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const nearBottomRef = useRef(true);
@@ -59,7 +61,7 @@ export function MessageList({ messages, characterName, characterAvatarUrl, summa
   }
 
   return (
-    <div ref={scrollRef} onScroll={handleScroll} className="chat-scroll relative z-10 flex-1 overflow-y-auto px-3 py-4 sm:px-4 sm:py-5 md:px-6" aria-live="polite">
+    <div ref={scrollRef} onScroll={handleScroll} className="chat-scroll relative z-10 flex-1 overflow-y-auto px-2 py-3 sm:px-4 sm:py-5 md:px-6" aria-live="polite">
       <div className="nythera-chat-column flex min-h-full flex-col gap-3 sm:gap-4">
         {summary ? (
           <div className="mx-auto mb-2 max-w-2xl rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-center shadow-[var(--glass-highlight)] backdrop-blur-xl">
@@ -83,6 +85,8 @@ return (
                content={item.message.content}
                characterName={characterName}
                characterAvatarUrl={characterAvatarUrl}
+               personaName={personaName}
+               personaAvatarUrl={personaAvatarUrl}
                isPinned={item.message.pinned}
                model={item.message.model}
                provider={item.message.provider}
@@ -112,6 +116,8 @@ return (
                 content={selected.content}
                 characterName={characterName}
                 characterAvatarUrl={characterAvatarUrl}
+                personaName={personaName}
+                personaAvatarUrl={personaAvatarUrl}
                 isPinned={selected.pinned}
                 model={selected.model}
                 provider={selected.provider}

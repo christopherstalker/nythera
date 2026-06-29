@@ -6,7 +6,7 @@ import { WebView } from "react-native-webview";
 const SITE_URL =
   process.env.EXPO_PUBLIC_SITE_URL ??
   process.env.EXPO_PUBLIC_API_URL ??
-  "https://nythera-christopherstalkers-projects.vercel.app";
+  "https://nythera-ai-character-platform.vercel.app";
 
 export default function App() {
   const webViewRef = useRef<WebView>(null);
