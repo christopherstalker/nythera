@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { parsePersonaLines } from "@/lib/user-persona-profiles";
 
 export type PersonaProfile = {
   id: string;
@@ -201,10 +202,10 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
         avatarUrl: draft.avatarUrl,
         summary: draft.summary,
         background: draft.background,
-        traits: parseLines(draft.traits),
-        likes: parseLines(draft.likes),
-        dislikes: parseLines(draft.dislikes),
-        boundaries: parseLines(draft.boundaries),
+        traits: parsePersonaLines(draft.traits),
+        likes: parsePersonaLines(draft.likes),
+        dislikes: parsePersonaLines(draft.dislikes),
+        boundaries: parsePersonaLines(draft.boundaries),
         visibility: "PRIVATE",
         ...(chatId ? { chatId } : {})
       })
@@ -318,12 +319,4 @@ export function profileToDraft(profile: Record<string, unknown>): PersonaDraft {
     dislikes: parsed.dislikes.join("\n"),
     boundaries: parsed.boundaries.join("\n")
   };
-}
-
-function parseLines(value: string) {
-  return value
-    .split(/[\n,;]+/)
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .slice(0, 24);
 }

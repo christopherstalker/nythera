@@ -27,10 +27,22 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/admin/reports")
-      .then((response) => (response.ok ? response.json() : Promise.reject(response)))
-      .then((body) => setReports(body.reports ?? []))
-      .catch(() => setError("Admin access is limited to chrisstalker@gmail.com."));
+    async function loadReports() {
+      try {
+        const response = await fetch("/api/admin/reports");
+        if (!response.ok) {
+          setError("Admin access is limited to chrisstalker@gmail.com.");
+          return;
+        }
+
+        const body = await response.json();
+        setReports(body.reports ?? []);
+      } catch {
+        setError("Admin access is limited to chrisstalker@gmail.com.");
+      }
+    }
+
+    void loadReports();
   }, []);
 
   async function updateReport(id: string, status: string, extras?: { blockCharacter?: boolean; banUser?: boolean }) {

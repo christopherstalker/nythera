@@ -63,24 +63,43 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/characters/${params.id}`)
-      .then((response) => (response.ok ? response.json() : Promise.reject(response)))
-      .then((body) => {
+    async function loadCharacter() {
+      try {
+        const response = await fetch(`/api/characters/${params.id}`);
+        if (!response.ok) {
+          setError("Character not found or unavailable.");
+          return;
+        }
+
+        const body = await response.json();
         setCharacter(body.character);
         setRecentChat(body.recentChat ?? null);
         setViewer(body.viewer ?? { canEdit: false, liked: false, rating: null });
         setLiked(Boolean(body.viewer?.liked));
         setRatingValue(Number(body.viewer?.rating?.value ?? 0));
         setReviewText(body.viewer?.rating?.review ?? "");
-      })
-      .catch(() => setError("Character not found or unavailable."));
+      } catch {
+        setError("Character not found or unavailable.");
+      }
+    }
+
+    void loadCharacter();
   }, [params.id]);
 
   useEffect(() => {
-    fetch(`/api/characters/${params.id}/rating`, { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((body) => setReviews(Array.isArray(body?.reviews) ? body.reviews : []))
-      .catch(() => undefined);
+    async function loadReviews() {
+      try {
+        const response = await fetch(`/api/characters/${params.id}/rating`, { cache: "no-store" });
+        if (!response.ok) {
+          return;
+        }
+
+        const body = await response.json();
+        setReviews(Array.isArray(body?.reviews) ? body.reviews : []);
+      } catch {}
+    }
+
+    void loadReviews();
   }, [params.id, viewer.rating]);
 
   const styleEntries = useMemo(() => {

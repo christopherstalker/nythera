@@ -17,6 +17,8 @@ type Profile = {
   ageVerified: boolean;
 };
 
+const MAX_AVATAR_BYTES = 1_500_000;
+
 export function ProfileSettingsClient() {
   const { status: sessionStatus } = useSession();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -33,10 +35,22 @@ export function ProfileSettingsClient() {
       return;
     }
 
-    fetch("/api/profile")
-      .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then((body) => setProfile(body.profile))
-      .catch(() => setStatus("Sign in to edit profile settings."));
+    async function loadProfile() {
+      try {
+        const response = await fetch("/api/profile");
+        if (!response.ok) {
+          setStatus("Sign in to edit profile settings.");
+          return;
+        }
+
+        const body = await response.json();
+        setProfile(body.profile);
+      } catch {
+        setStatus("Sign in to edit profile settings.");
+      }
+    }
+
+    void loadProfile();
   }, [sessionStatus]);
 
   useEffect(() => {
@@ -54,7 +68,7 @@ export function ProfileSettingsClient() {
       return;
     }
 
-    if (file.size > 1_500_000) {
+    if (file.size > MAX_AVATAR_BYTES) {
       setStatus("Avatar image must be smaller than 1.5MB.");
       return;
     }

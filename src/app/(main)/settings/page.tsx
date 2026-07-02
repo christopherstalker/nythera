@@ -23,16 +23,22 @@ export default function SettingsPage() {
   const [memoryEnabled, setMemoryEnabled] = useState(true);
 
   useEffect(() => {
-    fetch("/api/profile", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((body) => {
-        if (!body?.profile) {
+    async function loadPreferences() {
+      try {
+        const response = await fetch("/api/profile", { cache: "no-store" });
+        if (!response.ok) {
           return;
         }
+
+        const body = await response.json();
+        if (!body?.profile) return;
+
         setCompactMode(Boolean(body.profile.compactMode));
         setMemoryEnabled(body.profile.memoryEnabled !== false);
-      })
-      .catch(() => undefined);
+      } catch {}
+    }
+
+    void loadPreferences();
   }, []);
 
   async function savePreference(next: Partial<{ compactMode: boolean; memoryEnabled: boolean }>) {

@@ -5,7 +5,7 @@ import { Plus, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { displayTagLabel } from "@/lib/character-tags";
+import { displayTagLabel, MAX_CHARACTER_TAGS } from "@/lib/character-tags";
 import { cn } from "@/lib/utils";
 
 type TagChipInputProps = {
@@ -32,7 +32,7 @@ export function TagChipInput({
     }
 
     const exists = value.some((tag) => tag.toLowerCase() === next.toLowerCase());
-    if (exists || value.length >= 12) {
+    if (exists || value.length >= MAX_CHARACTER_TAGS) {
       setInput("");
       return;
     }
@@ -76,12 +76,12 @@ export function TagChipInput({
           placeholder={placeholder}
           className="min-w-0 flex-1"
         />
-        <Button type="button" variant="outline" size="icon" onClick={() => addTag(input)} disabled={!input.trim() || value.length >= 12}>
+        <Button type="button" variant="outline" size="icon" onClick={() => addTag(input)} disabled={!input.trim() || value.length >= MAX_CHARACTER_TAGS}>
           <Plus className="h-4 w-4" />
         </Button>
       </div>
 
-      {presets.length > 0 ? (
+      {presets.length ? (
         <div className="flex flex-wrap gap-2">
           {presets.map((preset) => {
             const active = value.some((tag) => tag.toLowerCase() === preset.toLowerCase());

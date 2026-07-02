@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ImageFilePicker } from "@/components/ui/image-file-picker";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { parsePersonaLines } from "@/lib/user-persona-profiles";
 import { cn } from "@/lib/utils";
 
 type PersonaDraft = {
@@ -73,11 +74,11 @@ export function UserPersonaSettingsClient() {
     setActiveProfileId(body.activeProfileId ?? nextProfiles[0]?.id ?? null);
 
     if (body.activeProfile) {
-      const nextDraft = profileToDraft(body.activeProfile);
+      const nextDraft = profileFromApi(body.activeProfile);
       setDraft(nextDraft);
       setFreeform(buildFreeformFromDraft(nextDraft));
     } else if (body.persona) {
-      const nextDraft = profileToDraft({ ...body.persona, id: "default", label: body.persona.displayName });
+      const nextDraft = profileFromApi({ ...body.persona, id: "default", label: body.persona.displayName });
       setDraft(nextDraft);
       setFreeform(buildFreeformFromDraft(nextDraft));
     }
@@ -164,10 +165,10 @@ export function UserPersonaSettingsClient() {
           avatarUrl: draft.avatarUrl,
           summary: draft.summary,
           background: draft.background,
-          traits: parseLines(draft.traits),
-          likes: parseLines(draft.likes),
-          dislikes: parseLines(draft.dislikes),
-          boundaries: parseLines(draft.boundaries),
+          traits: parsePersonaLines(draft.traits),
+          likes: parsePersonaLines(draft.likes),
+          dislikes: parsePersonaLines(draft.dislikes),
+          boundaries: parsePersonaLines(draft.boundaries),
           visibility: draft.visibility
         };
 
@@ -187,7 +188,7 @@ export function UserPersonaSettingsClient() {
     setStatus("Persona saved.");
     const body = await response.json().catch(() => null);
     if (body?.activeProfile) {
-      const nextDraft = profileToDraft(body.activeProfile);
+      const nextDraft = profileFromApi(body.activeProfile);
       setDraft(nextDraft);
       setFreeform(buildFreeformFromDraft(nextDraft));
       setActiveProfileId(body.activeProfileId ?? body.activeProfile.id);
@@ -197,7 +198,7 @@ export function UserPersonaSettingsClient() {
   }
 
   async function switchProfile(profile: PersonaProfile) {
-    const nextDraft = profileToDraft(profile);
+    const nextDraft = profileFromApi(profile);
     setDraft(nextDraft);
     setFreeform(buildFreeformFromDraft(nextDraft));
     setActiveProfileId(profile.id);
@@ -243,7 +244,7 @@ export function UserPersonaSettingsClient() {
     setProfiles(nextProfiles);
     setActiveProfileId(body?.activeProfileId ?? nextProfiles[0]?.id ?? null);
     if (body?.activeProfile) {
-      const nextDraft = profileToDraft(body.activeProfile);
+      const nextDraft = profileFromApi(body.activeProfile);
       setDraft(nextDraft);
       setFreeform(buildFreeformFromDraft(nextDraft));
     } else {
@@ -449,16 +450,4 @@ function profileFromApi(profile: Record<string, unknown>): PersonaProfile {
     isDefault: profile.isDefault === true,
     visibility: profile.visibility === "PUBLIC" || profile.visibility === "UNLISTED" ? profile.visibility : "PRIVATE"
   };
-}
-
-function profileToDraft(profile: Record<string, unknown>): PersonaDraft {
-  return profileFromApi(profile);
-}
-
-function parseLines(value: string) {
-  return value
-    .split(/[\n,;]+/)
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .slice(0, 24);
 }

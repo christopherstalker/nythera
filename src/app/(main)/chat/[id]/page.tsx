@@ -30,14 +30,24 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     setChat(null);
     setError(null);
 
-    fetch(`/api/chats/${params.id}`, { signal: controller.signal })
-      .then((response) => (response.ok ? response.json() : Promise.reject(response)))
-      .then((body) => setChat(body.chat))
-      .catch((caught) => {
+    async function loadChat() {
+      try {
+        const response = await fetch(`/api/chats/${params.id}`, { signal: controller.signal });
+        if (!response.ok) {
+          setError("Chat not found or you are not signed in.");
+          return;
+        }
+
+        const body = await response.json();
+        setChat(body.chat);
+      } catch (caught) {
         if (!(caught instanceof DOMException && caught.name === "AbortError")) {
           setError("Chat not found or you are not signed in.");
         }
-      });
+      }
+    }
+
+    void loadChat();
 
     return () => controller.abort();
   }, [params.id]);

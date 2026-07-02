@@ -31,6 +31,9 @@ type PersonaMetadata = {
   profiles?: UserPersonaProfile[];
 };
 
+const MAX_PERSONA_PROFILES = 12;
+const MAX_PERSONA_LIST_ITEMS = 24;
+
 export function normalizePersonaProfiles(persona?: PersonaLike | null) {
   if (!persona) {
     return {
@@ -145,18 +148,26 @@ export function mergeProfiles(profiles: UserPersonaProfile[]) {
   for (const profile of profiles) {
     byId.set(profile.id, {
       ...profile,
-      traits: profile.traits.slice(0, 24),
-      likes: profile.likes.slice(0, 24),
-      dislikes: profile.dislikes.slice(0, 24),
-      boundaries: profile.boundaries.slice(0, 24)
+      traits: profile.traits.slice(0, MAX_PERSONA_LIST_ITEMS),
+      likes: profile.likes.slice(0, MAX_PERSONA_LIST_ITEMS),
+      dislikes: profile.dislikes.slice(0, MAX_PERSONA_LIST_ITEMS),
+      boundaries: profile.boundaries.slice(0, MAX_PERSONA_LIST_ITEMS)
     });
   }
 
-  return Array.from(byId.values()).slice(0, 12);
+  return Array.from(byId.values()).slice(0, MAX_PERSONA_PROFILES);
+}
+
+export function parsePersonaLines(value: string) {
+  return value
+    .split(/[\n,;]+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, MAX_PERSONA_LIST_ITEMS);
 }
 
 function parseList(value: unknown) {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string").slice(0, 24) : [];
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string").slice(0, MAX_PERSONA_LIST_ITEMS) : [];
 }
 
 function isVisibility(value: unknown): value is Visibility {

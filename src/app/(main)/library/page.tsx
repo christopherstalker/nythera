@@ -27,18 +27,22 @@ export default function LibraryPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/library", { cache: "no-store" })
-      .then((response) => {
+    async function loadLibrary() {
+      try {
+        const response = await fetch("/api/library", { cache: "no-store" });
         if (response.ok) {
-          return response.json();
+          const body = await response.json();
+          setLibrary(body);
+          return;
         }
 
         throw new Error(response.status === 401 ? "AUTH_REQUIRED" : "LIBRARY_UNAVAILABLE");
-      })
-      .then((body) => setLibrary(body))
-      .catch((caught) => {
+      } catch (caught) {
         setError(caught instanceof Error && caught.message === "AUTH_REQUIRED" ? "Sign in to view your library." : "Your library could not be loaded. Please try again.");
-      });
+      }
+    }
+
+    void loadLibrary();
   }, []);
 
   return (

@@ -73,9 +73,9 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    navigator.serviceWorker
-      .register(PWA_SW_URL)
-      .then((registration) => {
+    async function registerServiceWorker() {
+      try {
+        const registration = await navigator.serviceWorker.register(PWA_SW_URL);
         if (registration.waiting && navigator.serviceWorker.controller) {
           setUpdateReady(true);
         }
@@ -92,10 +92,12 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
             }
           });
         });
-      })
-      .catch((error) => {
+      } catch (error) {
         console.warn("Nythera service worker registration failed.", error);
-      });
+      }
+    }
+
+    void registerServiceWorker();
 
     const onControllerChange = () => setUpdateReady(false);
     navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
@@ -136,10 +138,9 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
     setIosGuideOpen(false);
   }, []);
 
-  const applyUpdate = useCallback(() => {
-    navigator.serviceWorker.getRegistration().then((registration) => {
-      registration?.waiting?.postMessage({ type: "SKIP_WAITING" });
-    });
+  const applyUpdate = useCallback(async () => {
+    const registration = await navigator.serviceWorker.getRegistration();
+    registration?.waiting?.postMessage({ type: "SKIP_WAITING" });
     window.location.reload();
   }, []);
 

@@ -8,6 +8,8 @@ import type { ProviderModelGroup } from "@/lib/provider-model-options";
 import { RESPONSE_PROMPT_EXAMPLES } from "@/lib/response-prompt";
 import { springSnappy, springSoft } from "@/lib/motion";
 
+const MAX_RESPONSE_PROMPT_LENGTH = 2000;
+
 type ChatInputProps = {
   value: string;
   onChange: (value: string) => void;
@@ -164,11 +166,11 @@ export function ChatInput({
             <label className="grid gap-1.5 sm:col-span-2">
               <span className="flex items-center justify-between gap-3 px-1 text-[11px] font-medium uppercase text-[var(--text-muted)]">
                 <span>Response instructions</span>
-                <span>{(responsePrompt ?? "").length}/2000</span>
+                <span>{(responsePrompt ?? "").length}/{MAX_RESPONSE_PROMPT_LENGTH}</span>
               </span>
               <textarea
                 value={responsePrompt ?? ""}
-                onChange={(event) => onResponsePromptChange(event.target.value.slice(0, 2000))}
+                onChange={(event) => onResponsePromptChange(event.target.value.slice(0, MAX_RESPONSE_PROMPT_LENGTH))}
                 placeholder="Example: Write 2–4 immersive paragraphs, lead with dialogue, and never narrate my actions."
                 rows={3}
                 className="focus-ring glass-input min-h-20 resize-y rounded-[var(--radius-md)] px-3 py-2 text-xs leading-5 focus:border-[var(--accent-purple)]"

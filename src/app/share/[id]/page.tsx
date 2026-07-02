@@ -34,10 +34,22 @@ export default function SharePage({ params }: { params: { id: string } }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`/api/shares/${params.id}`, { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : Promise.reject(response)))
-      .then((body) => setShare(body.share))
-      .catch(() => setError("This shared chat is unavailable."));
+    async function loadShare() {
+      try {
+        const response = await fetch(`/api/shares/${params.id}`, { cache: "no-store" });
+        if (!response.ok) {
+          setError("This shared chat is unavailable.");
+          return;
+        }
+
+        const body = await response.json();
+        setShare(body.share);
+      } catch {
+        setError("This shared chat is unavailable.");
+      }
+    }
+
+    void loadShare();
   }, [params.id]);
 
   if (error) {

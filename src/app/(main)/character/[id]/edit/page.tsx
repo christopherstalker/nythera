@@ -11,16 +11,27 @@ export default function EditCharacterPage({ params }: { params: { id: string } }
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`/api/characters/${params.id}`, { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : Promise.reject(response)))
-      .then((body) => {
+    async function loadCharacter() {
+      try {
+        const response = await fetch(`/api/characters/${params.id}`, { cache: "no-store" });
+        if (!response.ok) {
+          setError("Character not found or unavailable.");
+          return;
+        }
+
+        const body = await response.json();
         if (!body.viewer?.canEdit) {
           setError("You can edit only characters you created.");
           return;
         }
+
         setCharacter(body.character);
-      })
-      .catch(() => setError("Character not found or unavailable."));
+      } catch {
+        setError("Character not found or unavailable.");
+      }
+    }
+
+    void loadCharacter();
   }, [params.id]);
 
   if (error) {

@@ -24,6 +24,11 @@ type ChatPreview = {
   }>;
 };
 
+const RECENT_CHAT_LIMIT = 4;
+const MS_PER_MINUTE = 60_000;
+const MINUTES_PER_HOUR = 60;
+const HOURS_PER_DAY = 24;
+
 export function ContinueChatsPanel() {
   const { status } = useSession();
   const [chats, setChats] = useState<ChatPreview[]>([]);
@@ -41,32 +46,30 @@ export function ContinueChatsPanel() {
     }
 
     const controller = new AbortController();
-    fetch("/api/chats", { signal: controller.signal })
-      .then((response) => {
+
+    async function loadChats() {
+      try {
+        const response = await fetch("/api/chats", { signal: controller.signal });
         if (response.status === 401) {
           setState("signed-out");
-          return null;
+          return;
         }
 
         if (!response.ok) {
           throw new Error("Could not load chats.");
         }
 
-        return response.json();
-      })
-      .then((body) => {
-        if (!body) {
-          return;
-        }
-
-        setChats(Array.isArray(body.chats) ? body.chats.slice(0, 4) : []);
+        const body = await response.json();
+        setChats(Array.isArray(body.chats) ? body.chats.slice(0, RECENT_CHAT_LIMIT) : []);
         setState("ready");
-      })
-      .catch((error) => {
-        if (error?.name !== "AbortError") {
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
           setState("error");
         }
-      });
+      }
+    }
+
+    void loadChats();
 
     return () => controller.abort();
   }, [status]);
@@ -171,19 +174,20 @@ function formatChatTime(value?: string | null) {
   }
 
   const date = new Date(value);
-  const diffMinutes = Math.max(0, Math.round((Date.now() - date.getTime()) / 60000));
+  const diffMinutes = Math.max(0, Math.round((Date.now() - date.getTime()) / MS_PER_MINUTE));
 
   if (diffMinutes < 2) {
     return "now";
   }
 
-  if (diffMinutes < 60) {
+  if (diffMinutes < MINUTES_PER_HOUR) {
     return `${diffMinutes}m`;
   }
 
-  if (diffMinutes < 24 * 60) {
-    return `${Math.round(diffMinutes / 60)}h`;
+  const minutesPerDay = HOURS_PER_DAY * MINUTES_PER_HOUR;
+  if (diffMinutes < minutesPerDay) {
+    return `${Math.round(diffMinutes / MINUTES_PER_HOUR)}h`;
   }
 
-  return `${Math.round(diffMinutes / (24 * 60))}d`;
+  return `${Math.round(diffMinutes / minutesPerDay)}d`;
 }

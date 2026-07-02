@@ -5,6 +5,8 @@ export type DiscoveryTag = {
   aliases?: string[];
 };
 
+export const MAX_CHARACTER_TAGS = 12;
+
 export const DISCOVERY_TAGS: DiscoveryTag[] = [
   { label: "Adventure", slug: "adventure", group: "genre" },
   { label: "Anime", slug: "anime", group: "fandom" },
@@ -71,7 +73,7 @@ export function normalizeCharacterTags(values: string[]) {
     }
     seen.add(normalized);
     tags.push(normalized);
-    if (tags.length >= 12) {
+    if (tags.length >= MAX_CHARACTER_TAGS) {
       break;
     }
   }

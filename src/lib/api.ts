@@ -55,12 +55,8 @@ export function requireModerator(role: string) {
   }
 }
 
-export function isPlatformAdmin(email?: string | null) {
-  return isPlatformAdminEmail(email);
-}
-
 export function requirePlatformAdmin(user: { email: string }) {
-  if (!isPlatformAdmin(user.email)) {
+  if (!isPlatformAdminEmail(user.email)) {
     throw new HttpError(403, "Admin access required.");
   }
 }

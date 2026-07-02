@@ -52,9 +52,7 @@ async function decodeImageFile(file: File): Promise<DecodedImage> {
           bitmap.close();
         }
       };
-    } catch {
-      // Fall back to object URL decoding below.
-    }
+    } catch {}
   }
 
   const objectUrl = URL.createObjectURL(file);

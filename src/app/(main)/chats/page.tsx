@@ -27,11 +27,24 @@ export default function ChatsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/chats")
-      .then((response) => (response.ok ? response.json() : Promise.reject(response)))
-      .then((body) => setChats(body.chats ?? []))
-      .catch(() => setError("Sign in to view chats."))
-      .finally(() => setLoading(false));
+    async function loadChats() {
+      try {
+        const response = await fetch("/api/chats");
+        if (!response.ok) {
+          setError("Sign in to view chats.");
+          return;
+        }
+
+        const body = await response.json();
+        setChats(body.chats ?? []);
+      } catch {
+        setError("Sign in to view chats.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    void loadChats();
   }, []);
 
   return (

@@ -32,6 +32,9 @@ const feedTabs = [
   { id: "for-you", label: "For You" }
 ] as const;
 
+const CATALOG_TAKE = 50;
+const FEED_TAKE = 12;
+
 type FeedTabId = (typeof feedTabs)[number]["id"];
 
 async function fetchCharacters(params: URLSearchParams, signal?: AbortSignal) {
@@ -71,12 +74,12 @@ function ExplorePageContent() {
   const [ratingMin, setRatingMin] = useState(0);
   const [nsfwMode, setNsfwMode] = useState<(typeof nsfwOptions)[number]["id"]>("safe");
   const [loading, setLoading] = useState(true);
-  const hasActiveFilters = query.trim().length > 0 || selectedTags.length > 0 || sort !== "trending" || ratingMin > 0 || nsfwMode !== "safe";
+  const hasActiveFilters = Boolean(query.trim()) || Boolean(selectedTags.length) || sort !== "trending" || ratingMin > 0 || nsfwMode !== "safe";
   const showFeedSections = !hasActiveFilters;
   const isCatalogEmpty = !loading && characters.length === 0 && trending.length === 0 && recommended.length === 0;
   const activeFeedTab = feedTabs.find((tab) => tab.id === activeFeed) ?? feedTabs[0];
   const activeFeedCharacters =
-    activeFeed === "recommended" ? recommended : activeFeed === "for-you" ? characters.slice(0, 12) : trending;
+    activeFeed === "recommended" ? recommended : activeFeed === "for-you" ? characters.slice(0, FEED_TAKE) : trending;
 
   useEffect(() => {
     setQuery(initialQuery);
@@ -85,47 +88,59 @@ function ExplorePageContent() {
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
-    const params = buildCharacterParams({ query, selectedTags, sort, ratingMin, nsfwMode, take: "50" });
-    const tasks = [fetchCharacters(params, controller.signal).then(setCharacters)];
 
-    if (showFeedSections) {
-      tasks.push(
-        fetchCharacters(new URLSearchParams({ take: "12", sort: "trending", nsfw: "safe" }), controller.signal).then(setTrending),
-        fetchCharacters(new URLSearchParams({ take: "12", sort: "new", nsfw: "safe" }), controller.signal).then(setRecommended)
-      );
-    } else {
-      setTrending([]);
-      setRecommended([]);
-    }
+    async function loadCharacters() {
+      try {
+        const params = buildCharacterParams({ query, selectedTags, sort, ratingMin, nsfwMode, take: String(CATALOG_TAKE) });
+        const nextCharacters = await fetchCharacters(params, controller.signal);
+        setCharacters(nextCharacters);
 
-    Promise.all(tasks)
-      .catch(() => {
+        if (!showFeedSections) {
+          setTrending([]);
+          setRecommended([]);
+          return;
+        }
+
+        const [nextTrending, nextRecommended] = await Promise.all([
+          fetchCharacters(new URLSearchParams({ take: String(FEED_TAKE), sort: "trending", nsfw: "safe" }), controller.signal),
+          fetchCharacters(new URLSearchParams({ take: String(FEED_TAKE), sort: "new", nsfw: "safe" }), controller.signal)
+        ]);
+        setTrending(nextTrending);
+        setRecommended(nextRecommended);
+      } catch {
         if (!controller.signal.aborted) {
           setCharacters([]);
           setTrending([]);
           setRecommended([]);
         }
-      })
-      .finally(() => {
+      } finally {
         if (!controller.signal.aborted) {
           setLoading(false);
         }
-      });
+      }
+    }
+
+    void loadCharacters();
 
     return () => controller.abort();
   }, [nsfwMode, query, ratingMin, selectedTags, showFeedSections, sort]);
 
   useEffect(() => {
-    const refresh = () => {
-      void fetchCharacters(buildCharacterParams({ query, selectedTags, sort, ratingMin, nsfwMode, take: "50" })).then(setCharacters);
+    const refresh = async () => {
+      setCharacters(await fetchCharacters(buildCharacterParams({ query, selectedTags, sort, ratingMin, nsfwMode, take: String(CATALOG_TAKE) })));
       if (showFeedSections) {
-        void fetchCharacters(new URLSearchParams({ take: "12", sort: "trending", nsfw: "safe" })).then(setTrending);
-        void fetchCharacters(new URLSearchParams({ take: "12", sort: "new", nsfw: "safe" })).then(setRecommended);
+        const [nextTrending, nextRecommended] = await Promise.all([
+          fetchCharacters(new URLSearchParams({ take: String(FEED_TAKE), sort: "trending", nsfw: "safe" })),
+          fetchCharacters(new URLSearchParams({ take: String(FEED_TAKE), sort: "new", nsfw: "safe" }))
+        ]);
+        setTrending(nextTrending);
+        setRecommended(nextRecommended);
       }
     };
 
-    window.addEventListener("nythera:characters-updated", refresh);
-    return () => window.removeEventListener("nythera:characters-updated", refresh);
+    const onCharactersUpdated = () => void refresh();
+    window.addEventListener("nythera:characters-updated", onCharactersUpdated);
+    return () => window.removeEventListener("nythera:characters-updated", onCharactersUpdated);
   }, [nsfwMode, query, ratingMin, selectedTags, showFeedSections, sort]);
 
   function submitSearch(nextQuery: string) {

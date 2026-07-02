@@ -5,14 +5,14 @@ import test from "node:test";
 import { generateSimpleCharacterDraft } from "../src/lib/simple-character-generation";
 
 test("legacy characters with the deterministic Simple shape are inferred as simple", async () => {
-  const module = await import("../src/lib/character-creation-mode").catch(() => null);
-  assert.ok(module, "legacy character creation-mode inference is missing");
+  const creationMode = await import("../src/lib/character-creation-mode").catch(() => null);
+  assert.ok(creationMode, "legacy character creation-mode inference is missing");
 
   const description = "A reserved adventurer with a dry sense of humor.";
   const generated = generateSimpleCharacterDraft({ name: "Ryan", description });
 
   assert.equal(
-    module.inferLegacyCharacterCreationMode({
+    creationMode.inferLegacyCharacterCreationMode({
       name: "Ryan",
       description,
       personality: generated.personality,
@@ -24,14 +24,14 @@ test("legacy characters with the deterministic Simple shape are inferred as simp
 });
 
 test("legacy characters with a custom-shaped scenario remain custom", async () => {
-  const module = await import("../src/lib/character-creation-mode").catch(() => null);
-  assert.ok(module, "legacy character creation-mode inference is missing");
+  const creationMode = await import("../src/lib/character-creation-mode").catch(() => null);
+  assert.ok(creationMode, "legacy character creation-mode inference is missing");
 
   const description = "A reserved adventurer with a dry sense of humor.";
   const generated = generateSimpleCharacterDraft({ name: "Ryan", description });
 
   assert.equal(
-    module.inferLegacyCharacterCreationMode({
+    creationMode.inferLegacyCharacterCreationMode({
       name: "Ryan",
       description,
       personality: generated.personality,

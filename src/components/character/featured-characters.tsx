@@ -23,11 +23,25 @@ export function FeaturedCharacters() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch("/api/characters?take=4", { signal: controller.signal })
-      .then((response) => (response.ok ? response.json() : Promise.reject(response)))
-      .then((body) => setCharacters(Array.isArray(body.characters) ? body.characters : []))
-      .catch(() => setCharacters([]))
-      .finally(() => setLoading(false));
+
+    async function loadCharacters() {
+      try {
+        const response = await fetch("/api/characters?take=4", { signal: controller.signal });
+        if (!response.ok) {
+          setCharacters([]);
+          return;
+        }
+
+        const body = await response.json();
+        setCharacters(Array.isArray(body.characters) ? body.characters : []);
+      } catch {
+        setCharacters([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    void loadCharacters();
 
     return () => controller.abort();
   }, []);

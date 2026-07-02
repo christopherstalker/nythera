@@ -106,12 +106,18 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
   useEffect(() => {
     let cancelled = false;
 
-    void fetch("/api/keys", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((body) => {
+    async function loadKeys() {
+      try {
+        const response = await fetch("/api/keys", { cache: "no-store" });
+        if (!response.ok) {
+          return;
+        }
+
+        const body = await response.json();
         if (cancelled || !Array.isArray(body?.keys)) {
           return;
         }
+
         setSavedProviderOptions(
           body.keys.map((key: ProviderOption) => ({
             provider: key.provider,
@@ -119,8 +125,10 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
             defaultModel: key.defaultModel || ""
           }))
         );
-      })
-      .catch(() => undefined);
+      } catch {}
+    }
+
+    void loadKeys();
 
     return () => {
       cancelled = true;

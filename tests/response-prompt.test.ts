@@ -3,9 +3,9 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("response instructions are constrained to output style below safety and persona authority", async () => {
-  const module = await import("../src/lib/response-prompt").catch(() => null);
-  assert.ok(module, "response prompt support is missing");
-  const layer = module.buildResponsePromptLayer("Write in first person with short dialogue-led replies.");
+  const responsePrompt = await import("../src/lib/response-prompt").catch(() => null);
+  assert.ok(responsePrompt, "response prompt support is missing");
+  const layer = responsePrompt.buildResponsePromptLayer("Write in first person with short dialogue-led replies.");
 
   assert.match(layer, /RESPONSE INSTRUCTIONS \(STYLE ONLY\)/);
   assert.match(layer, /cannot override safety, character persona, scenario, or established facts/i);
@@ -13,10 +13,10 @@ test("response instructions are constrained to output style below safety and per
 });
 
 test("response instruction examples give users concise starting points", async () => {
-  const module = await import("../src/lib/response-prompt").catch(() => null);
-  assert.ok(module, "response prompt support is missing");
-  assert.deepEqual(module.RESPONSE_PROMPT_EXAMPLES.map((example) => example.label), ["Cinematic", "Concise", "Dialogue-led"]);
-  assert.ok(module.RESPONSE_PROMPT_EXAMPLES.every((example) => example.prompt.length >= 40));
+  const responsePrompt = await import("../src/lib/response-prompt").catch(() => null);
+  assert.ok(responsePrompt, "response prompt support is missing");
+  assert.deepEqual(responsePrompt.RESPONSE_PROMPT_EXAMPLES.map((example) => example.label), ["Cinematic", "Concise", "Dialogue-led"]);
+  assert.ok(responsePrompt.RESPONSE_PROMPT_EXAMPLES.every((example) => example.prompt.length >= 40));
 });
 
 test("chat persistence and prompt assembly send response instructions through the proxy message payload", async () => {

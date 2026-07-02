@@ -9,17 +9,16 @@ import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
 import { ChevronLeft, ChevronRight, GitFork, History, PenLine, Pin, RefreshCw, SendHorizontal, ShieldAlert, Trash2, Volume2 } from "lucide-react";
 
+const LONG_PRESS_DELAY_MS = 500;
+const DELETE_EXIT_DELAY_MS = 140;
+
 type MessageBubbleProps = {
   id: string;
   role: "USER" | "ASSISTANT" | "SYSTEM";
   content: string;
   characterName: string;
-  characterAvatarUrl?: string | null;
   personaName?: string | null;
-  personaAvatarUrl?: string | null;
   isPinned?: boolean;
-  model?: string | null;
-  provider?: string | null;
   inputTokens?: number | null;
   outputTokens?: number | null;
   estimatedCost?: number | string | null;
@@ -43,11 +42,8 @@ export function MessageBubble({
   role,
   content,
   characterName,
-  characterAvatarUrl,
   personaName,
   isPinned,
-  model,
-  provider,
   inputTokens,
   outputTokens,
   estimatedCost,
@@ -152,7 +148,7 @@ export function MessageBubble({
 
     touchTimerRef.current = setTimeout(() => {
       setMenuPosition({ x, y });
-    }, 500);
+    }, LONG_PRESS_DELAY_MS);
   };
 
   const handleTouchEnd = () => {
@@ -179,7 +175,7 @@ export function MessageBubble({
     setIsDeleting(true);
     window.setTimeout(() => {
       void onDelete?.(id);
-    }, 140);
+    }, DELETE_EXIT_DELAY_MS);
   }
 
   return (

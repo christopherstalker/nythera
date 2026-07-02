@@ -20,6 +20,8 @@ type ChatClientProps = {
   initialMessages: ChatMessage[];
 };
 
+const API_SETTINGS_SAVE_DEBOUNCE_MS = 500;
+
 export function ChatClient({ chatId, characterId, characterName, characterAvatarUrl, summary, model: initialModel, temperature: initialTemperature, responsePrompt: initialResponsePrompt, initialMessages }: ChatClientProps) {
   const [draft, setDraft] = useState("");
   const [model, setModel] = useState(initialModel || "gpt-4o-mini");
@@ -68,25 +70,30 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
     setApiSaveStatus("Saving API settings...");
     const controller = new AbortController();
     const timeout = window.setTimeout(() => {
-      fetch(`/api/chats/${chatId}`, {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ model: nextModel, temperature: nextTemperature, responsePrompt: nextResponsePrompt }),
-        signal: controller.signal
-      })
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error("Could not save API settings.");
-          }
-          persistedApiRef.current = { model: nextModel, temperature: nextTemperature, responsePrompt: nextResponsePrompt };
-          setApiSaveStatus("API settings saved.");
-        })
-        .catch((error) => {
-          if (!(error instanceof DOMException && error.name === "AbortError")) {
-            setApiSaveStatus("Could not save API settings.");
-          }
+      void saveApiSettings(controller);
+    }, API_SETTINGS_SAVE_DEBOUNCE_MS);
+
+    async function saveApiSettings(activeController: AbortController) {
+      try {
+        const response = await fetch(`/api/chats/${chatId}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ model: nextModel, temperature: nextTemperature, responsePrompt: nextResponsePrompt }),
+          signal: activeController.signal
         });
-    }, 500);
+
+        if (!response.ok) {
+          throw new Error("Could not save API settings.");
+        }
+
+        persistedApiRef.current = { model: nextModel, temperature: nextTemperature, responsePrompt: nextResponsePrompt };
+        setApiSaveStatus("API settings saved.");
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setApiSaveStatus("Could not save API settings.");
+        }
+      }
+    }
 
     return () => {
       window.clearTimeout(timeout);
@@ -105,23 +112,30 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
   useEffect(() => {
     let cancelled = false;
     const controller = new AbortController();
-    fetch("/api/keys", { signal: controller.signal })
-      .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then((body: { keys?: SavedProviderSummary[] }) => {
+
+    async function loadKeys() {
+      try {
+        const response = await fetch("/api/keys", { signal: controller.signal });
+        if (!response.ok) {
+          throw new Error("Could not load API keys.");
+        }
+
+        const body: { keys?: SavedProviderSummary[] } = await response.json();
         if (!cancelled) {
           setProviderKeys(Array.isArray(body.keys) ? body.keys : []);
         }
-      })
-      .catch((error) => {
+      } catch (error) {
         if (!(error instanceof DOMException && error.name === "AbortError")) {
           setProviderKeys([]);
         }
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) {
           setProviderKeysLoading(false);
         }
-      });
+      }
+    }
+
+    void loadKeys();
 
     return () => {
       cancelled = true;
@@ -264,9 +278,7 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
           <MessageList
             messages={messages}
             characterName={characterName}
-            characterAvatarUrl={characterAvatarUrl}
             personaName={activePersona?.displayName}
-            personaAvatarUrl={activePersona?.avatarUrl}
             summary={summary}
             error={error}
             onEdit={editMessage}

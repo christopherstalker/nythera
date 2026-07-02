@@ -4,12 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import type { ChatMessage } from "@/hooks/useChat";
 
+const NEAR_BOTTOM_THRESHOLD_PX = 120;
+
 type MessageListProps = {
   messages: ChatMessage[];
   characterName: string;
-  characterAvatarUrl?: string | null;
   personaName?: string | null;
-  personaAvatarUrl?: string | null;
   summary?: string | null;
   error?: string | null;
   onEdit?: (messageId: string, content: string) => void;
@@ -21,7 +21,7 @@ type MessageListProps = {
   onPin?: (messageId: string) => void;
 };
 
-export function MessageList({ messages, characterName, characterAvatarUrl, personaName, personaAvatarUrl, summary, error, onEdit, onDelete, onRegenerate, onContinue, onRewind, onBranch, onPin }: MessageListProps) {
+export function MessageList({ messages, characterName, personaName, summary, error, onEdit, onDelete, onRegenerate, onContinue, onRewind, onBranch, onPin }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const nearBottomRef = useRef(true);
@@ -37,9 +37,11 @@ export function MessageList({ messages, characterName, characterAvatarUrl, perso
   const [variantByGroup, setVariantByGroup] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    if (nearBottomRef.current) {
-      endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    if (!nearBottomRef.current) {
+      return;
     }
+
+    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages]);
 
   useEffect(() => {
@@ -65,7 +67,7 @@ export function MessageList({ messages, characterName, characterAvatarUrl, perso
     }
 
     const distance = element.scrollHeight - element.scrollTop - element.clientHeight;
-    nearBottomRef.current = distance < 120;
+    nearBottomRef.current = distance < NEAR_BOTTOM_THRESHOLD_PX;
   }
 
   return (
@@ -104,18 +106,14 @@ export function MessageList({ messages, characterName, characterAvatarUrl, perso
           displayItems.map((item) => {
             if (item.type === "single") {
               return (
-            <MessageBubble
+                <MessageBubble
                   key={item.message.id}
                   id={item.message.id}
                   role={item.message.role}
                   content={item.message.content}
                   characterName={characterName}
-                  characterAvatarUrl={characterAvatarUrl}
                   personaName={personaName}
-                  personaAvatarUrl={personaAvatarUrl}
                   isPinned={item.message.pinned}
-                  model={item.message.model}
-                  provider={item.message.provider}
                   inputTokens={item.message.inputTokens}
                   outputTokens={item.message.outputTokens}
                   estimatedCost={item.message.estimatedCost}
@@ -142,12 +140,8 @@ export function MessageList({ messages, characterName, characterAvatarUrl, perso
                 role={selected.role}
                 content={selected.content}
                 characterName={characterName}
-                characterAvatarUrl={characterAvatarUrl}
                 personaName={personaName}
-                personaAvatarUrl={personaAvatarUrl}
                 isPinned={selected.pinned}
-                model={selected.model}
-                provider={selected.provider}
                 inputTokens={selected.inputTokens}
                 outputTokens={selected.outputTokens}
                 estimatedCost={selected.estimatedCost}

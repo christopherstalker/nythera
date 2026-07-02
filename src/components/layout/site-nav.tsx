@@ -56,17 +56,25 @@ export function SiteNav() {
     }
 
     let cancelled = false;
-    fetch("/api/profile", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((body) => {
-        if (!cancelled && body?.profile) {
-          setProfilePreview({
-            username: body.profile.username,
-            avatarUrl: body.profile.avatarUrl
-          });
+
+    async function loadProfilePreview() {
+      try {
+        const response = await fetch("/api/profile", { cache: "no-store" });
+        if (!response.ok) {
+          return;
         }
-      })
-      .catch(() => undefined);
+
+        const body = await response.json();
+        if (cancelled || !body?.profile) return;
+
+        setProfilePreview({
+          username: body.profile.username,
+          avatarUrl: body.profile.avatarUrl
+        });
+      } catch {}
+    }
+
+    void loadProfilePreview();
 
     const onProfileUpdated = (event: Event) => {
       const detail = (event as CustomEvent<{ profile?: ProfilePreview }>).detail;
