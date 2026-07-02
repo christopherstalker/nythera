@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Copy, Ellipsis, Gem, PanelRightOpen, Plus, Share2, Trash2 } from "lucide-react";
+import { ArrowLeft, Copy, Ellipsis, Gem, PanelRightClose, PanelRightOpen, Plus, Share2, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -15,10 +15,11 @@ type ChatHeaderProps = {
   characterName: string;
   characterAvatarUrl?: string | null;
   personaName?: string | null;
+  contextOpen?: boolean;
   onOpenContext?: () => void;
 };
 
-export function ChatHeader({ chatId, characterId, characterName, characterAvatarUrl, personaName, onOpenContext }: ChatHeaderProps) {
+export function ChatHeader({ chatId, characterId, characterName, characterAvatarUrl, personaName, contextOpen = false, onOpenContext }: ChatHeaderProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
@@ -77,8 +78,8 @@ export function ChatHeader({ chatId, characterId, characterName, characterAvatar
         </motion.div>
 
         <div className="pointer-events-auto flex shrink-0 items-center gap-3">
-          <HeaderIconButton ariaLabel="Open story context" onClick={onOpenContext} elevated>
-            <PanelRightOpen className="h-5 w-5" />
+          <HeaderIconButton ariaLabel={contextOpen ? "Close story context" : "Open story context"} onClick={onOpenContext} elevated active={contextOpen}>
+            {contextOpen ? <PanelRightClose className="h-5 w-5" /> : <PanelRightOpen className="h-5 w-5" />}
           </HeaderIconButton>
 
           <div className="relative">
@@ -124,13 +125,15 @@ function HeaderIconButton({
   onClick,
   children,
   elevated = false,
-  subtle = false
+  subtle = false,
+  active = false
 }: {
   ariaLabel: string;
   onClick?: () => void;
   children: React.ReactNode;
   elevated?: boolean;
   subtle?: boolean;
+  active?: boolean;
 }) {
   return (
     <motion.button
@@ -142,12 +145,13 @@ function HeaderIconButton({
       className={cn(
         "focus-ring grid shrink-0 place-items-center rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
         elevated ? "h-14 w-14 border border-[var(--border-subtle)] shadow-[var(--shadow-soft)]" : "h-10 w-10",
+        active && "text-[var(--text-primary)]",
         subtle ? "hover:bg-[var(--color-overlay)]" : "bg-[var(--color-overlay)] hover:bg-[var(--bg-elevated)]"
       )}
       style={
         elevated
           ? {
-              background: "color-mix(in oklch, var(--bg-base) 55%, transparent)",
+              background: active ? "color-mix(in oklch, var(--bg-elevated) 88%, transparent)" : "color-mix(in oklch, var(--bg-base) 55%, transparent)",
               backdropFilter: "blur(18px) saturate(170%)",
               WebkitBackdropFilter: "blur(18px) saturate(170%)"
             }

@@ -28,11 +28,19 @@ test("chat uses immersive story cards, compact user pills, and a reference-style
   const composer = await read("../src/components/chat/ChatInput.tsx");
   const list = await read("../src/components/chat/MessageList.tsx");
   const client = await read("../src/components/chat/chat-client.tsx");
+  const store = await read("../src/stores/use-ui-store.ts");
 
   assert.match(header, /motion\.header/);
   assert.match(header, /max-w-\[min\(920px,calc\(100vw-2rem\)\)\]/);
   assert.match(header, /rounded-full[\s\S]*blur\(24px\) saturate\(185%\)/);
   assert.match(header, /personaName/);
+  assert.match(header, /contextOpen/);
+  assert.match(header, /Close story context/);
+  assert.match(header, /PanelRightClose/);
+  assert.match(client, /toggleSidePanel/);
+  assert.match(client, /onOpenContext=\{toggleSidePanel\}/);
+  assert.match(store, /toggleSidePanel:\s*\(\) => void/);
+  assert.match(store, /sidePanelOpen:\s*!state\.sidePanelOpen/);
   assert.doesNotMatch(bubble, /<CharacterAvatar/);
   assert.match(bubble, /w-full rounded-\[28px\]/);
   assert.match(bubble, /text-\[26px\] font-bold/);

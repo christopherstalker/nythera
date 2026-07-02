@@ -32,7 +32,9 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
   const { messages, send, editMessage, deleteMessage, rewindToMessage, branchFromMessage, pinMessage, unpinMessage, isStreaming, error } = useChat(chatId, initialMessages);
   const setActiveChatId = useUiStore((state) => state.setActiveChatId);
   const setActiveCharacterId = useUiStore((state) => state.setActiveCharacterId);
+  const sidePanelOpen = useUiStore((state) => state.sidePanelOpen);
   const setSidePanelOpen = useUiStore((state) => state.setSidePanelOpen);
+  const toggleSidePanel = useUiStore((state) => state.toggleSidePanel);
   const activePersona = useUiStore((state) => state.activePersona);
   const providerModelGroups: ProviderModelGroup[] = useMemo(() => buildProviderModelGroups(providerKeys), [providerKeys]);
   const selectedProviderModel = inferProviderModelValue(model, providerModelGroups);
@@ -254,7 +256,8 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
         characterName={characterName}
         characterAvatarUrl={characterAvatarUrl}
         personaName={activePersona?.displayName}
-        onOpenContext={() => setSidePanelOpen(true)}
+        contextOpen={sidePanelOpen}
+        onOpenContext={toggleSidePanel}
       />
       <div className="relative flex min-h-0 flex-1 flex-col">
         <section className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">

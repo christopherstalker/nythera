@@ -13,6 +13,7 @@ type UiState = {
   setActivePersona: (persona: { displayName: string; avatarUrl?: string | null } | null) => void;
   setMobileNavOpen: (open: boolean) => void;
   setSidePanelOpen: (open: boolean) => void;
+  toggleSidePanel: () => void;
 };
 
 export const useUiStore = create<UiState>((set) => ({
@@ -25,5 +26,6 @@ export const useUiStore = create<UiState>((set) => ({
   setActiveCharacterId: (characterId) => set({ activeCharacterId: characterId }),
   setActivePersona: (persona) => set({ activePersona: persona }),
   setMobileNavOpen: (open) => set({ mobileNavOpen: open }),
-  setSidePanelOpen: (open) => set({ sidePanelOpen: open })
+  setSidePanelOpen: (open) => set({ sidePanelOpen: open }),
+  toggleSidePanel: () => set((state) => ({ sidePanelOpen: !state.sidePanelOpen }))
 }));
