@@ -50,13 +50,12 @@ export function SidePanel() {
           type="button"
           aria-label="Close side panel overlay"
           onClick={() => setOpen(false)}
-          className={cn("fixed inset-0 z-40 bg-black/72", !isChatSurface && "xl:hidden")}
+          className="fixed inset-0 z-40 bg-black/72"
         />
       ) : null}
       <motion.aside
         className={cn(
           "side-panel fixed bottom-0 right-0 top-[var(--top-bar-height)] z-50 flex w-full max-w-[var(--side-panel-width)] translate-x-full flex-col overflow-hidden border-l border-[var(--border-subtle)] shadow-[var(--shadow-elevated)] md:top-0 xl:top-[var(--top-bar-height)] xl:h-[calc(100%-var(--top-bar-height))] xl:shrink-0",
-          !isChatSurface && "xl:translate-x-0",
           isChatSurface && "top-0 xl:top-0 xl:h-full",
           open && "translate-x-0"
         )}
@@ -82,10 +81,7 @@ export function SidePanel() {
               onClick={() => setOpen(false)}
               whileTap={{ scale: 0.94 }}
               transition={springSnappy}
-              className={cn(
-                "focus-ring grid h-9 w-9 place-items-center rounded-full text-[var(--text-secondary)] hover:bg-[var(--color-overlay)] hover:text-[var(--text-primary)]",
-                !isChatSurface && "xl:hidden"
-              )}
+              className="focus-ring grid h-9 w-9 place-items-center rounded-full text-[var(--text-secondary)] hover:bg-[var(--color-overlay)] hover:text-[var(--text-primary)]"
             >
               <PanelRightClose className="h-4 w-4" />
             </motion.button>

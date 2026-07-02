@@ -16,7 +16,8 @@ test("chat context is a glass side panel that becomes an overlay drawer on activ
   assert.match(panel, /<nav[\s\S]*?aria-label="Story context"/);
   assert.match(panel, /grid-cols-3/);
   assert.match(panel, /Persona[\s\S]*Memory[\s\S]*Chats/);
-  assert.match(panel, /!isChatSurface && "xl:translate-x-0"/);
+  assert.doesNotMatch(panel, /!isChatSurface && "xl:translate-x-0"/);
+  assert.doesNotMatch(panel, /!isChatSurface && "xl:hidden"/);
   assert.match(panel, /isChatSurface && "top-0 xl:top-0 xl:h-full"/);
   assert.doesNotMatch(panel, /xl:static/);
   assert.doesNotMatch(panel, /w-\[68px\][\s\S]*border-r/);

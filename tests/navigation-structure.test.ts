@@ -38,7 +38,7 @@ test("primary navigation uses desktop top island and mobile bottom island", asyn
   assert.doesNotMatch(shell, /BottomNav|AuroraWebglBackground|sidebarCollapsed/);
 });
 
-test("global story context lives in the right side panel", async () => {
+test("global story context is a closable right-side drawer", async () => {
   const panel = await read("../src/components/panel/SidePanel.tsx");
 
   assert.match(panel, /Story context/);
@@ -48,7 +48,11 @@ test("global story context lives in the right side panel", async () => {
   assert.match(panel, /max-w-\[var\(--side-panel-width\)\]/);
   assert.match(panel, /fixed bottom-0 right-0/);
   assert.match(panel, /xl:top-\[var\(--top-bar-height\)\]/);
-  assert.match(panel, /!isChatSurface && "xl:translate-x-0"/);
+  assert.match(panel, /open && "translate-x-0"/);
+  assert.match(panel, /Close side panel overlay/);
+  assert.match(panel, /Hide side panel/);
+  assert.doesNotMatch(panel, /!isChatSurface && "xl:translate-x-0"/);
+  assert.doesNotMatch(panel, /!isChatSurface && "xl:hidden"/);
   assert.match(panel, /isChatSurface && "top-0 xl:top-0 xl:h-full"/);
   assert.match(panel, /setActivePersona/);
   assert.doesNotMatch(panel, /xl:static/);
