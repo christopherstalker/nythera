@@ -60,17 +60,29 @@ export function MessageContextMenu({
   if (!isOpen) return null;
 
   const coords = getMenuCoords(position);
+  const useSheet = typeof window !== "undefined" && window.matchMedia("(max-width: 767px), (pointer: coarse)").matches;
 
   return createPortal(
-    <div
-      ref={menuRef}
-      style={{
-        position: "fixed",
-        top: coords.top,
-        left: coords.left,
-      }}
-      className="z-[9999] w-[200px] flex flex-col gap-0.5 rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-1.5 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-bottom-1 duration-150"
-    >
+    <div className={cn(useSheet && "fixed inset-0 z-[9999] flex items-end bg-black/72 p-3", !useSheet && "contents")}>
+      {useSheet ? <button type="button" aria-label="Close message actions" className="absolute inset-0" onClick={onClose} /> : null}
+      <div
+        ref={menuRef}
+        style={
+          useSheet
+            ? undefined
+            : {
+                position: "fixed",
+                top: coords.top,
+                left: coords.left,
+              }
+        }
+        className={cn(
+          "z-[9999] flex flex-col gap-0.5 border border-[var(--border-default)] bg-[var(--bg-elevated)] p-1.5 animate-in fade-in duration-150",
+          useSheet
+            ? "relative w-full rounded-t-[var(--radius-xl)] pb-[calc(0.75rem+env(safe-area-inset-bottom))] slide-in-from-bottom-4"
+            : "w-[200px] rounded-xl slide-in-from-bottom-1"
+        )}
+      >
       <MenuItem onClick={onCopy} icon={<Copy className="h-4 w-4" />}>
         Copy
       </MenuItem>
@@ -100,6 +112,7 @@ export function MessageContextMenu({
       <MenuItem onClick={onDelete} destructive icon={<Trash2 className="h-4 w-4" />}>
         Delete
       </MenuItem>
+      </div>
     </div>,
     document.body
   );

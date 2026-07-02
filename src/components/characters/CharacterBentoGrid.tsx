@@ -11,48 +11,85 @@ type CharacterBentoGridProps = {
 const skeletonCount = 8;
 
 export function CharacterBentoGrid({ characters, loading = false, title }: CharacterBentoGridProps) {
+  const orderedCharacters = [...characters].sort((a, b) => {
+    const placementDelta = placementWeight(b.discoveryPlacement) - placementWeight(a.discoveryPlacement);
+    if (placementDelta !== 0) {
+      return placementDelta;
+    }
+    return (b.featuredScore ?? 0) - (a.featuredScore ?? 0);
+  });
+  const count = loading ? skeletonCount : orderedCharacters.length;
+
   return (
-    <section className="space-y-3 sm:space-y-4">
-      {title ? <h2 className="text-title px-1 font-semibold tracking-tight text-content-primary">{title}</h2> : null}
-      <div className="nythera-bento-grid grid auto-rows-[var(--card-height)] grid-cols-1 gap-[var(--grid-gap)] sm:grid-cols-2 xl:grid-cols-4">
+    <section className="space-y-4">
+      {title ? <h2 className="text-2xl font-semibold text-content-primary">{title}</h2> : null}
+      <div className="nythera-bento-grid">
         {loading
-          ? Array.from({ length: skeletonCount }).map((_, index) => (
-              <SkeletonCard
-                key={index}
-                className={cn("nythera-bento-card !h-full min-h-[var(--card-height)]", skeletonBentoCellClass(index))}
-              />
-            ))
-          : characters.map((character) => (
-              <CharacterCard
-                key={character.id}
-                character={character}
-                fill
-                presentation="discovery"
-                featured={character.discoveryPlacement === "FEATURED"}
-                className={cn("nythera-bento-card", bentoCellClass(character.discoveryPlacement))}
-              />
-            ))}
+          ? Array.from({ length: skeletonCount }).map((_, index) => {
+              const placement = fallbackPlacement(index, count);
+              return (
+                <SkeletonCard
+                  key={index}
+                  className={cn("nythera-bento-card", bentoCellClass(placement))}
+                />
+              );
+            })
+          : orderedCharacters.map((character, index) => {
+              const explicitCellClass = bentoCellClass(character.discoveryPlacement);
+              const placement = resolvePlacement(character, index, count);
+
+              return (
+                <div
+                  key={character.id}
+                  className={cn("nythera-bento-card", explicitCellClass || bentoCellClass(placement))}
+                >
+                  <CharacterCard
+                    character={character}
+                    fill
+                    featured={placement === "FEATURED"}
+                    presentation="discovery"
+                  />
+                </div>
+              );
+            })}
       </div>
     </section>
   );
 }
 
-export function bentoCellClass(placement?: CharacterSummary["discoveryPlacement"]) {
-  if (placement === "FEATURED") {
-    return "nythera-bento-featured xl:col-span-2 xl:row-span-2";
+function resolvePlacement(character: CharacterSummary, index: number, count: number): NonNullable<CharacterSummary["discoveryPlacement"]> {
+  if (character.discoveryPlacement && character.discoveryPlacement !== "STANDARD") {
+    return character.discoveryPlacement;
   }
-  if (placement === "WIDE") {
-    return "nythera-bento-wide xl:col-span-2";
-  }
-  return undefined;
+  return fallbackPlacement(index, count);
 }
 
-function skeletonBentoCellClass(index: number) {
-  if (index === 0) {
-    return bentoCellClass("FEATURED");
+function fallbackPlacement(index: number, count: number): NonNullable<CharacterSummary["discoveryPlacement"]> {
+  if (count >= 3 && index === 0) {
+    return "FEATURED";
   }
-  if (index === 1) {
-    return bentoCellClass("WIDE");
+  if (count >= 4 && index === 3) {
+    return "WIDE";
   }
-  return undefined;
+  return "STANDARD";
+}
+
+function bentoCellClass(placement?: CharacterSummary["discoveryPlacement"]) {
+  if (placement === "FEATURED") {
+    return "nythera-bento-featured";
+  }
+  if (placement === "WIDE") {
+    return "nythera-bento-wide";
+  }
+  return "";
+}
+
+function placementWeight(placement?: CharacterSummary["discoveryPlacement"]) {
+  if (placement === "FEATURED") {
+    return 2;
+  }
+  if (placement === "WIDE") {
+    return 1;
+  }
+  return 0;
 }

@@ -77,16 +77,16 @@ test("voice BYOK is separate from model provider keys and never exposes encrypte
   assert.ok(settings.includes("Voice BYOK"));
 });
 
-test("rooms are discoverable from primary navigation and WebGL ambient is mounted", async () => {
-  const sidebar = await read("../src/components/layout/Sidebar.tsx");
-  const bottomNav = await read("../src/components/layout/BottomNav.tsx");
+test("rooms remain discoverable from the rebuilt primary navigation", async () => {
+  const navRail = await read("../src/components/nav/NavRail.tsx");
   const appShell = await read("../src/components/layout/AppShell.tsx");
   const ambient = await read("../src/components/ambient/aurora-webgl-background.tsx");
 
-  assert.ok(sidebar.includes('{ href: "/rooms", label: "Rooms"'));
-  assert.ok(bottomNav.includes('{ href: "/rooms", label: "Rooms"'));
-  assert.ok(appShell.includes("<AuroraWebglBackground />"));
-  assert.ok(appShell.includes('pathname.startsWith("/room/")'));
+  assert.ok(navRail.includes('{ href: "/rooms", label: "Rooms"'));
+  assert.ok(navRail.includes('top-nav-island'));
+  assert.ok(navRail.includes('aria-label="Primary navigation"'));
+  assert.ok(!navRail.includes('bottom-0'));
+  assert.doesNotMatch(appShell, /<AuroraWebglBackground \/>/);
   assert.ok(ambient.includes('getContext("webgl"'));
   assert.ok(ambient.includes('data-nythera-webgl-ambient="true"'));
   assert.ok(ambient.includes("preserveDrawingBuffer: true"));

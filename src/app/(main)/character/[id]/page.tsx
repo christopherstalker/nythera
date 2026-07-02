@@ -97,9 +97,9 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
       ? character.lorebook.entries.filter((entry) => entry.text?.trim()).slice(0, 8)
       : [];
   }, [character]);
-  const heroStyle = character?.visualIdentity
+  const heroStyle = character?.visualIdentity?.accentColor
     ? {
-        background: `linear-gradient(135deg, ${character.visualIdentity.gradientFrom ?? character.visualIdentity.accentColor ?? "#8F81F7"}, ${character.visualIdentity.gradientTo ?? "#6FE7D2"})`
+        borderColor: character.visualIdentity.accentColor
       }
     : undefined;
 
@@ -323,10 +323,10 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
     <PageShell>
       <Surface className="overflow-hidden">
         <div className="relative isolate px-6 py-9 sm:px-9 sm:py-11">
-          <div className="pointer-events-none absolute inset-0 -z-10 hero-gradient opacity-90" style={heroStyle} />
+          <div className="pointer-events-none absolute inset-0 -z-10 border-t-4 bg-transparent" style={heroStyle} />
           <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-end">
-              <CharacterAvatar name={character.name} avatarUrl={character.avatarUrl} size="xl" className="h-32 w-32 shadow-violet-hover" />
+              <CharacterAvatar name={character.name} avatarUrl={character.avatarUrl} size="xl" className="h-32 w-32 border border-[var(--border-default)]" />
               <div className="min-w-0">
                 <h1 className="max-w-3xl text-[2.3rem] font-semibold leading-tight tracking-tight text-white sm:text-[3.3rem]">
                   {character.name}
@@ -353,7 +353,7 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
                       Edit
                     </Link>
                   </Button>
-                  <div className="flex items-center gap-1 rounded-full border border-white/[0.06] bg-white/[0.03] p-1">
+                  <div className="flex items-center gap-1 rounded-full border border-[var(--border-default)] bg-[var(--bg-elevated)] p-1">
                     <Button
                       type="button"
                       variant={character.visibility === "PRIVATE" ? "primary" : "outline"}
@@ -484,9 +484,9 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
           </aside>
         </div>
       </Surface>
-      {status ? <p className="mt-4 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 text-sm text-[var(--text-secondary)] shadow-[var(--glass-highlight)] backdrop-blur-xl">{status}</p> : null}
+      {status ? <p className="mt-4 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 text-sm text-[var(--text-secondary)]">{status}</p> : null}
       {reportOpen ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/82 p-4">
           <div className="glass-panel w-full max-w-md p-5">
             <div className="flex items-center justify-between gap-4">
               <h2 className="text-lg font-semibold">Report character</h2>

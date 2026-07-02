@@ -100,7 +100,7 @@ export function PersonaSwitcher({ collapsed = false }: PersonaSwitcherProps) {
       </button>
 
       {open ? (
-        <div className={cn("absolute left-0 right-0 top-14 z-50 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-1 shadow-[var(--shadow-card)] backdrop-blur-xl md:hidden lg:block", collapsed && "lg:hidden")}>
+        <div className={cn("absolute left-0 right-0 top-14 z-50 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-1 md:hidden lg:block", collapsed && "lg:hidden")}>
           {profiles.length ? (
             <div className="max-h-72 overflow-y-auto chat-scroll">
               {profiles.map((profile) => (

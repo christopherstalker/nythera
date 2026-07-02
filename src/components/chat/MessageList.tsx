@@ -26,6 +26,14 @@ export function MessageList({ messages, characterName, characterAvatarUrl, perso
   const endRef = useRef<HTMLDivElement | null>(null);
   const nearBottomRef = useRef(true);
   const displayItems = useMemo(() => buildDisplayItems(messages), [messages]);
+  const latestAssistantId = useMemo(() => {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      if (messages[index].role === "ASSISTANT") {
+        return messages[index].id;
+      }
+    }
+    return null;
+  }, [messages]);
   const [variantByGroup, setVariantByGroup] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -61,48 +69,67 @@ export function MessageList({ messages, characterName, characterAvatarUrl, perso
   }
 
   return (
-    <div ref={scrollRef} onScroll={handleScroll} className="chat-scroll relative z-10 flex-1 overflow-y-auto px-2 py-3 sm:px-4 sm:py-5 md:px-6" aria-live="polite">
-      <div className="nythera-chat-column flex min-h-full flex-col gap-3 sm:gap-4">
+    <div
+      ref={scrollRef}
+      onScroll={handleScroll}
+      className="chat-scroll relative z-10 flex-1 overflow-y-auto px-4 pb-8 pt-[calc(96px+env(safe-area-inset-top))] sm:px-6 sm:pb-10 md:px-8 md:pt-[calc(92px+env(safe-area-inset-top))]"
+      aria-live="polite"
+    >
+      <div className="nythera-chat-column flex min-h-full flex-col justify-end gap-6 sm:gap-7">
         {summary ? (
-          <div className="mx-auto mb-2 max-w-2xl rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-center shadow-[var(--glass-highlight)] backdrop-blur-xl">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--accent-purple)]">Memory context</p>
+          <div
+            className="mx-auto mb-2 max-w-2xl rounded-[28px] border border-[var(--border-subtle)] px-5 py-4 text-center shadow-[var(--shadow-soft)]"
+            style={{
+              background: "color-mix(in oklch, var(--bg-base) 72%, transparent)",
+              backdropFilter: "blur(22px) saturate(175%)",
+              WebkitBackdropFilter: "blur(22px) saturate(175%)"
+            }}
+          >
             <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">{summary}</p>
           </div>
         ) : null}
         {messages.length === 0 ? (
-          <div className="app-surface m-auto max-w-sm px-7 py-8 text-center">
+          <div
+            className="m-auto max-w-sm rounded-[var(--radius-surface)] border border-[var(--border-subtle)] px-7 py-8 text-center shadow-[var(--shadow-soft)]"
+            style={{
+              background: "color-mix(in oklch, var(--bg-surface) 72%, transparent)",
+              backdropFilter: "blur(18px) saturate(160%)",
+              WebkitBackdropFilter: "blur(18px) saturate(160%)"
+            }}
+          >
             <p className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">Start a chat with {characterName}</p>
             <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">Send a first message or continue from the character greeting.</p>
           </div>
         ) : (
           displayItems.map((item) => {
             if (item.type === "single") {
-return (
-             <MessageBubble
-               key={item.message.id}
-               id={item.message.id}
-               role={item.message.role}
-               content={item.message.content}
-               characterName={characterName}
-               characterAvatarUrl={characterAvatarUrl}
-               personaName={personaName}
-               personaAvatarUrl={personaAvatarUrl}
-               isPinned={item.message.pinned}
-               model={item.message.model}
-               provider={item.message.provider}
-               inputTokens={item.message.inputTokens}
-               outputTokens={item.message.outputTokens}
-               estimatedCost={item.message.estimatedCost}
-               usageEstimated={item.message.usageEstimated}
-               onEdit={onEdit}
-               onDelete={onDelete}
-               onRegenerate={onRegenerate}
-               onContinue={onContinue}
-               onRewind={onRewind}
-               onBranch={onBranch}
-               onPin={onPin}
-             />
-           );
+              return (
+            <MessageBubble
+                  key={item.message.id}
+                  id={item.message.id}
+                  role={item.message.role}
+                  content={item.message.content}
+                  characterName={characterName}
+                  characterAvatarUrl={characterAvatarUrl}
+                  personaName={personaName}
+                  personaAvatarUrl={personaAvatarUrl}
+                  isPinned={item.message.pinned}
+                  model={item.message.model}
+                  provider={item.message.provider}
+                  inputTokens={item.message.inputTokens}
+                  outputTokens={item.message.outputTokens}
+                  estimatedCost={item.message.estimatedCost}
+                  usageEstimated={item.message.usageEstimated}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                  onRegenerate={onRegenerate}
+                  onContinue={onContinue}
+                  onRewind={onRewind}
+                  onBranch={onBranch}
+                  onPin={onPin}
+                  isLatestAssistant={item.message.id === latestAssistantId}
+                />
+              );
             }
 
             const selectedIndex = variantByGroup[item.key] ?? item.variants.length - 1;
@@ -132,6 +159,7 @@ return (
                 onRewind={onRewind}
                 onBranch={onBranch}
                 onPin={onPin}
+                isLatestAssistant={selected.id === latestAssistantId}
                 variantIndex={selectedIndex}
                 variantCount={item.variants.length}
                 onPreviousVariant={() =>

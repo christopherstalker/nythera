@@ -10,6 +10,11 @@ type SearchBarProps = {
   placeholder?: string;
   className?: string;
   showFilterIcon?: boolean;
+  onFilterClick?: () => void;
+  filterActive?: boolean;
+  filterExpanded?: boolean;
+  filterCount?: number;
+  filterControls?: string;
 };
 
 export function SearchBar({
@@ -18,10 +23,15 @@ export function SearchBar({
   onSubmit,
   placeholder = "Search characters...",
   className,
-  showFilterIcon = false
+  showFilterIcon = false,
+  onFilterClick,
+  filterActive = false,
+  filterExpanded = false,
+  filterCount = 0,
+  filterControls
 }: SearchBarProps) {
   return (
-    <label className={cn("relative block w-full", className)}>
+    <div className={cn("relative block w-full", className)}>
       <Search className="pointer-events-none absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
       <input
         aria-label={placeholder}
@@ -36,10 +46,33 @@ export function SearchBar({
         className="focus-ring glass-input h-12 w-full rounded-[var(--radius-pill)] px-12 text-sm focus:border-[var(--accent-purple)]"
       />
       {showFilterIcon ? (
-        <span className="pointer-events-none absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-secondary)]">
-          <SlidersHorizontal className="h-4 w-4" />
-        </span>
+        onFilterClick ? (
+          <button
+            type="button"
+            aria-label="Open search filters"
+            aria-controls={filterControls}
+            aria-expanded={filterExpanded}
+            onClick={onFilterClick}
+            className={cn(
+              "focus-ring absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full border text-[var(--text-secondary)] xl:hidden",
+              filterActive
+                ? "border-[var(--border-strong)] bg-aurora-primary text-[var(--text-primary)] shadow-glow-soft"
+                : "border-[var(--border-default)] bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+            )}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            {filterCount > 0 ? (
+              <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[var(--bg-base)] px-1 text-[10px] font-bold text-[var(--text-primary)]">
+                {filterCount}
+              </span>
+            ) : null}
+          </button>
+        ) : (
+          <span className="pointer-events-none absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] xl:hidden">
+            <SlidersHorizontal className="h-4 w-4" />
+          </span>
+        )
       ) : null}
-    </label>
+    </div>
   );
 }

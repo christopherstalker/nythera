@@ -25,8 +25,8 @@ export function MobileInstallPrompt() {
     <>
       {showMobilePrompt ? (
         <div className="fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-[65] px-3 md:hidden">
-          <div className="relative overflow-hidden rounded-[28px] border border-primary/30 bg-[rgb(14_14_24/0.96)] p-4 shadow-[var(--shadow-card),0_0_40px_rgb(255_122_24/0.18)] backdrop-blur-2xl">
-            <div aria-hidden="true" className="pointer-events-none absolute inset-0 hero-gradient opacity-50" />
+          <div className="relative overflow-hidden rounded-[28px] border border-primary/30 bg-[var(--bg-surface)] p-4">
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-transparent" />
             <button
               type="button"
               aria-label="Dismiss install prompt"
@@ -37,7 +37,7 @@ export function MobileInstallPrompt() {
             </button>
 
             <div className="relative flex items-start gap-3 pr-8">
-              <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl border border-primary/25 bg-primary/10 shadow-[var(--shadow-glow-soft)]">
+              <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl border border-primary/25 bg-primary/10">
                 <Image src="/icons/velora-aurora-v4-192.png" alt="" width={40} height={40} className="h-10 w-10" />
               </div>
               <div className="min-w-0 flex-1">
@@ -70,7 +70,7 @@ export function MobileInstallPrompt() {
 
       {iosGuideOpen ? (
         <div className="fixed inset-0 z-[80] md:hidden">
-          <button type="button" aria-label="Close install guide" className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeIosGuide} />
+          <button type="button" aria-label="Close install guide" className="absolute inset-0 bg-black/72" onClick={closeIosGuide} />
           <div className="absolute inset-x-0 bottom-0 rounded-t-[32px] border border-white/[0.08] bg-[rgb(14_14_24/0.98)] p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-[var(--shadow-card)]">
             <div className="mx-auto mb-4 h-1 w-12 rounded-full bg-white/15" />
             <h2 className="text-lg font-semibold text-[var(--text-primary)]">Add Nythera to Home Screen</h2>

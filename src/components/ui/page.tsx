@@ -40,11 +40,11 @@ export function PageHeader({
     <div className={cn("flex flex-col justify-between gap-4 sm:gap-5 md:flex-row md:items-end", className)}>
       <div className="min-w-0">
         {Icon ? (
-          <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-control border border-outline bg-brand-soft text-brand shadow-raised backdrop-blur-xl sm:mb-5">
+          <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-control border border-outline bg-brand-soft text-brand sm:mb-5">
             <Icon className="h-5 w-5" />
           </div>
         ) : null}
-        <h1 className="text-display max-w-4xl font-semibold text-content-primary">{title}</h1>
+        <h1 className="text-heading-1 max-w-4xl font-semibold tracking-tight text-content-primary">{title}</h1>
         {description ? <p className="text-body mt-2 max-w-2xl text-content-secondary sm:mt-3">{description}</p> : null}
       </div>
       {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}

@@ -62,7 +62,7 @@ export const emptyPersonaDraft: PersonaDraft = {
 };
 
 type UseChatQuickPanelOptions = {
-  chatId: string;
+  chatId?: string | null;
   characterId?: string | null;
   enabled?: boolean;
 };
@@ -93,8 +93,13 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
         memoryParams.set("characterId", characterId);
       }
 
+      const personaParams = new URLSearchParams();
+      if (chatId) {
+        personaParams.set("chatId", chatId);
+      }
+
       const [personaResponse, memoriesResponse, chatsResponse] = await Promise.allSettled([
-        fetch(`/api/user-persona?${new URLSearchParams({ chatId }).toString()}`, { cache: "no-store", signal }),
+        fetch(`/api/user-persona?${personaParams.toString()}`, { cache: "no-store", signal }),
         fetch(`/api/memories?${memoryParams.toString()}`, { cache: "no-store", signal }),
         fetch("/api/chats", { cache: "no-store", signal })
       ]);
@@ -168,7 +173,10 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     const response = await fetch("/api/user-persona", {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ activeProfileId: profile.id, chatId })
+        body: JSON.stringify({
+          activeProfileId: profile.id,
+          ...(chatId ? { chatId } : {})
+        })
     });
 
     setPersonaStatus(response.ok ? "Active persona updated." : "Could not switch persona.");
@@ -198,7 +206,7 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
         dislikes: parseLines(draft.dislikes),
         boundaries: parseLines(draft.boundaries),
         visibility: "PRIVATE",
-        chatId
+        ...(chatId ? { chatId } : {})
       })
     });
 

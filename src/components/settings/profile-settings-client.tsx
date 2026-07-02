@@ -98,7 +98,7 @@ export function ProfileSettingsClient() {
     <form key={profile?.email ?? "loading-profile"} onSubmit={onSubmit} className="grid gap-4 lg:grid-cols-2">
       <Input name="email" value={profile?.email ?? ""} disabled placeholder="Email" />
       <Input name="username" defaultValue={profile?.username ?? ""} placeholder="Username" />
-      <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4 shadow-[var(--glass-highlight)] backdrop-blur-xl lg:col-span-2">
+      <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4 lg:col-span-2">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <Avatar name={profile?.email ?? "N"} src={avatarValue} size="lg" />
           <div className="min-w-0 flex-1">
@@ -120,7 +120,7 @@ export function ProfileSettingsClient() {
           </div>
         </div>
       </div>
-      <label className="flex min-h-12 min-w-0 items-start gap-2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] px-4 py-3 text-sm leading-5 text-[var(--text-secondary)] shadow-[var(--glass-highlight)] backdrop-blur-xl sm:items-center sm:py-0">
+      <label className="flex min-h-12 min-w-0 items-start gap-2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] px-4 py-3 text-sm leading-5 text-[var(--text-secondary)] sm:items-center sm:py-0">
         <input name="ageVerified" type="checkbox" defaultChecked={profile?.ageVerified ?? false} className="accent-[var(--accent-purple)]" />
         <span className="min-w-0">I confirm I can access age-gated content settings</span>
       </label>

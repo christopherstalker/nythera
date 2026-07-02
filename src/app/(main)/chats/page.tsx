@@ -55,13 +55,13 @@ export default function ChatsPage() {
         <EmptyState icon={MessageCircle} title="Sign in required" description={error} action={<Button asChild><Link href="/login">Sign in</Link></Button>} />
       ) : chats.length > 0 ? (
         <div className="grid gap-8 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,.85fr)]">
-          <Link href={`/chat/${chats[0].id}`} className="group relative min-h-[430px] overflow-hidden rounded-[32px] border border-white/10 no-underline shadow-[var(--shadow-card)] sm:min-h-[540px]">
-            {chats[0].character.avatarUrl ? <img src={chats[0].character.avatarUrl} alt="" className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.025] motion-reduce:transition-none" /> : <div className="absolute inset-0 bg-[var(--gradient-aurora-ambient)]" />}
-            <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-base)] via-[color:oklch(var(--color-canvas)/.42)] to-transparent" />
+          <Link href={`/chat/${chats[0].id}`} className="group relative min-h-[430px] overflow-hidden rounded-[32px] border border-[var(--border-default)] bg-[var(--bg-surface)] no-underline sm:min-h-[540px]">
+            {chats[0].character.avatarUrl ? <img src={chats[0].character.avatarUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-38" /> : <div className="absolute inset-0 bg-[var(--bg-elevated)]" />}
+            <div className="absolute inset-0 bg-[color:oklch(var(--color-canvas)/.76)]" />
             <div className="glass-grain pointer-events-none absolute inset-0" />
             <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8">
               <p className="mb-2 text-xs font-semibold uppercase tracking-[.16em] text-[var(--accent-secondary)]">Continue your latest scene</p>
-              <div className="flex items-end gap-4"><div className="min-w-0 flex-1"><h2 className="truncate text-3xl font-semibold tracking-tight text-white sm:text-4xl">{chats[0].character.name}</h2><p className="mt-3 line-clamp-2 max-w-xl text-sm leading-6 text-white/70">{toChatPreview(chats[0].messages[0]?.content || chats[0].character.description || "The story is waiting.")}</p></div><span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[var(--gradient-aurora-primary)] text-[color:oklch(var(--color-on-accent))] shadow-[var(--shadow-glow)]"><ArrowUpRight className="h-5 w-5" /></span></div>
+              <div className="flex items-end gap-4"><div className="min-w-0 flex-1"><h2 className="truncate text-3xl font-semibold tracking-tight text-white sm:text-4xl">{chats[0].character.name}</h2><p className="mt-3 line-clamp-2 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">{toChatPreview(chats[0].messages[0]?.content || chats[0].character.description || "The story is waiting.")}</p></div><span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-[var(--border-strong)] bg-primary text-primary-foreground"><ArrowUpRight className="h-5 w-5" /></span></div>
             </div>
           </Link>
           <section aria-label="Earlier conversations" className="min-w-0">

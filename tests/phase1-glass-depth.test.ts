@@ -4,34 +4,45 @@ import test from "node:test";
 
 const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
-test("Phase 1 glass depth is scoped to the requested product surfaces", async () => {
-  const [globals, quickPanel, characterForm, characterCard] = await Promise.all([
+test("flat surface treatment is scoped to the product surfaces", async () => {
+  const [globals, sidePanel, characterForm, characterCard] = await Promise.all([
     read("../src/app/globals.css"),
-    read("../src/components/chat/chat-quick-panel.tsx"),
+    read("../src/components/panel/SidePanel.tsx"),
     read("../src/components/characters/character-form.tsx"),
     read("../src/components/characters/CharacterCard.tsx")
   ]);
 
-  assert.match(quickPanel, /glass-depth-panel/);
+  assert.match(sidePanel, /side-panel/);
+  assert.match(sidePanel, /glass-grain/);
   assert.match(characterForm, /character-editor-surfaces/);
-  assert.match(characterCard, /glass-depth-card/);
-  assert.match(globals, /\.glass-depth-panel/);
+  assert.match(characterCard, /absolute inset-0 h-full w-full object-cover/);
+  assert.doesNotMatch(characterCard, /glass-depth-card/);
+  assert.match(globals, /\.side-panel/);
   assert.match(globals, /\.character-editor-surfaces \.glass-panel/);
   assert.match(globals, /\.glass-depth-card/);
-  assert.doesNotMatch(globals, /\.glass-panel\s*\{[^}]*noise\.svg/s);
+  assert.doesNotMatch(globals, /\.glass-panel\s*\{[^}]*backdrop-filter:\s*blur/s);
+  assert.doesNotMatch(globals, /\.glass-depth-card::after[\s\S]*noise\.svg/s);
 });
 
-test("Phase 1 glass uses canonical effect tokens, grain, and a tablet fallback", async () => {
-  const [globals, noise] = await Promise.all([
-    read("../src/app/globals.css"),
-    read("../public/textures/noise.svg")
-  ]);
+test("flat accessibility surfaces avoid blur, grain, and glow effects", async () => {
+  const globals = await read("../src/app/globals.css");
 
-  assert.match(globals, /blur\(var\(--glass-blur-md\)\) saturate\(var\(--glass-saturation\)\)/);
-  assert.match(globals, /url\("\/textures\/noise\.svg"\)/);
-  assert.match(globals, /opacity:\s*var\(--glass-noise-opacity\)/);
-  assert.match(globals, /@media \(max-width:\s*1024px\)[\s\S]*backdrop-filter:\s*none/);
-  assert.match(globals, /@media \(max-width:\s*1024px\)[\s\S]*-webkit-backdrop-filter:\s*none/);
-  assert.match(noise, /feTurbulence/);
-  assert.match(noise, /stitchTiles="stitch"/);
+  for (const selector of [".glass-input", ".modal-backdrop"]) {
+    const block = globals.match(new RegExp(`${selector.replace(".", "\\.")}[\\s\\S]*?\\n  \\}`))?.[0] ?? "";
+    assert.ok(block, `missing ${selector} block`);
+    assert.match(block, /backdrop-filter:\s*none/);
+    assert.doesNotMatch(block, /backdrop-filter:\s*blur/);
+  }
+  assert.match(globals, /@media \(min-width:\s*768px\) and \(max-width:\s*1180px\)[\s\S]*\.quick-panel,[\s\S]*\.side-panel,[\s\S]*\.composer-dock[\s\S]*backdrop-filter:\s*none/);
+  assert.doesNotMatch(globals, /url\("\/textures\/noise\.svg"\)/);
+  assert.doesNotMatch(globals, /box-shadow:\s*0 0 (?:20|32|42|74|84)px/);
+});
+
+test("side panel uses a runtime tablet fallback before applying desktop blur", async () => {
+  const sidePanel = await read("../src/components/panel/SidePanel.tsx");
+
+  assert.match(sidePanel, /useTabletGlassFallback/);
+  assert.match(sidePanel, /\(min-width: 768px\) and \(max-width: 1024px\)/);
+  assert.match(sidePanel, /background:\s*isTablet \? "var\(--bg-surface\)" : "color-mix\(in oklch, var\(--bg-surface\) 72%, transparent\)"/);
+  assert.match(sidePanel, /backdropFilter:\s*isTablet \? "none" : "blur\(20px\) saturate\(180%\)"/);
 });

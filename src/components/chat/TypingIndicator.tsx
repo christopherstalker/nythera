@@ -1,7 +1,7 @@
 export function TypingIndicator() {
   return (
     <span className="flex items-center gap-1.5 py-1" aria-label="Typing">
-      <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--accent-purple)] shadow-[var(--shadow-glow)] [animation-delay:0ms]" />
+      <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--accent-purple)] [animation-delay:0ms]" />
       <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--brand-secondary)] opacity-85 [animation-delay:150ms]" />
       <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--accent-purple)] opacity-60 [animation-delay:300ms]" />
     </span>

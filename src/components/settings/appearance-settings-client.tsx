@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Moon, Palette, Sun } from "lucide-react";
+import { Palette } from "lucide-react";
 import { useTheme } from "next-themes";
 import {
   ACCENT_PRESETS,
@@ -22,7 +22,8 @@ export function AppearanceSettingsClient() {
     const storedAccent = readStoredAppearance().accentColor || DEFAULT_ACCENT_COLOR;
     setAccentColor(storedAccent);
     applyAccentColor(storedAccent);
-  }, []);
+    setTheme("dark");
+  }, [setTheme]);
 
   function updateAccent(nextColor: string) {
     setAccentColor(nextColor);
@@ -30,24 +31,16 @@ export function AppearanceSettingsClient() {
     saveStoredAppearance({ accentColor: nextColor });
   }
 
-  function updateTheme(nextTheme: "dark" | "light") {
-    setTheme(nextTheme);
-    saveStoredAppearance({ theme: nextTheme });
-  }
-
   const activeTheme = mounted ? resolvedTheme : "dark";
 
   return (
     <div className="grid gap-4">
-      <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4 shadow-[var(--glass-highlight)] backdrop-blur-xl">
+      <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4">
         <p className="text-sm font-medium text-[var(--text-primary)]">Theme</p>
-        <div className="mt-3 inline-flex rounded-[var(--radius-pill)] border border-[var(--border-default)] bg-[var(--bg-elevated)] p-1">
-          <ThemeButton active={activeTheme === "dark"} label="Dark" icon={Moon} onClick={() => updateTheme("dark")} />
-          <ThemeButton active={activeTheme === "light"} label="Light" icon={Sun} onClick={() => updateTheme("light")} />
-        </div>
+        <p className="mt-2 text-sm text-[var(--text-secondary)]">{activeTheme === "dark" ? "Dark" : "Dark"}</p>
       </div>
 
-      <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4 shadow-[var(--glass-highlight)] backdrop-blur-xl">
+      <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="min-w-0">
             <p className="text-sm font-medium text-[var(--text-primary)]">Accent color</p>
@@ -83,33 +76,5 @@ export function AppearanceSettingsClient() {
         </div>
       </div>
     </div>
-  );
-}
-
-function ThemeButton({
-  active,
-  label,
-  icon: Icon,
-  onClick
-}: {
-  active: boolean;
-  label: string;
-  icon: typeof Moon;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "focus-ring inline-flex h-9 items-center gap-2 rounded-[var(--radius-pill)] px-4 text-sm font-medium transition-colors",
-        active
-          ? "bg-gradient-to-br from-[var(--accent-purple)] to-[var(--accent-secondary)] text-white"
-          : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
-      )}
-    >
-      <Icon className="h-4 w-4" />
-      {label}
-    </button>
   );
 }

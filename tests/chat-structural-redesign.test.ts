@@ -4,27 +4,55 @@ import test from "node:test";
 
 const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
-test("chat context is a floating grain glass layer with a vertical tool rail", async () => {
-  const panel = await read("../src/components/chat/chat-quick-panel.tsx");
+test("chat context is a glass side panel that becomes an overlay drawer on active chat", async () => {
+  const panel = await read("../src/components/panel/SidePanel.tsx");
 
   assert.match(panel, /Story context/);
   assert.match(panel, /glass-grain/);
-  assert.match(panel, /backdrop-blur-\[28px\]/);
-  assert.match(panel, /<nav aria-label="Story context"/);
-  assert.match(panel, /w-\[74px\][\s\S]*border-r/);
+  assert.match(panel, /useTabletGlassFallback/);
+  assert.match(panel, /usePathname/);
+  assert.match(panel, /isChatSurface/);
+  assert.match(panel, /backdropFilter:\s*isTablet \? "none" : "blur\(20px\) saturate\(180%\)"/);
+  assert.match(panel, /<nav[\s\S]*?aria-label="Story context"/);
+  assert.match(panel, /grid-cols-3/);
+  assert.match(panel, /Persona[\s\S]*Memory[\s\S]*Chats/);
+  assert.match(panel, /!isChatSurface && "xl:translate-x-0"/);
+  assert.match(panel, /isChatSurface && "top-0 xl:top-0 xl:h-full"/);
+  assert.doesNotMatch(panel, /xl:static/);
+  assert.doesNotMatch(panel, /w-\[68px\][\s\S]*border-r/);
 });
 
-test("chat separates editorial character dialogue from compact user responses", async () => {
+test("chat uses immersive story cards, compact user pills, and a reference-style composer", async () => {
   const bubble = await read("../src/components/chat/MessageBubble.tsx");
-  const styles = await read("../src/app/globals.css");
+  const header = await read("../src/components/chat/ChatHeader.tsx");
   const composer = await read("../src/components/chat/ChatInput.tsx");
+  const list = await read("../src/components/chat/MessageList.tsx");
+  const client = await read("../src/components/chat/chat-client.tsx");
 
-  assert.match(bubble, /!isUser \? <p[\s\S]*\{characterName\}/);
-  assert.match(styles, /\.bubble-char[\s\S]*border-left:[\s\S]*background: linear-gradient\(90deg/);
-  assert.doesNotMatch(styles.match(/\.bubble-char[\s\S]*?\n  \}/)?.[0] ?? "", /255 122 24|backdrop-filter/);
+  assert.match(header, /motion\.header/);
+  assert.match(header, /max-w-\[min\(920px,calc\(100vw-2rem\)\)\]/);
+  assert.match(header, /rounded-full[\s\S]*blur\(24px\) saturate\(185%\)/);
+  assert.match(header, /personaName/);
+  assert.doesNotMatch(bubble, /<CharacterAvatar/);
+  assert.match(bubble, /w-full rounded-\[28px\]/);
+  assert.match(bubble, /text-\[26px\] font-bold/);
+  assert.match(bubble, /max-w-\[min\(74%,480px\)\]/);
+  assert.match(bubble, /color-mix\(in oklch, var\(--text-primary\) 92%, transparent\)/);
+  assert.match(bubble, /color-mix\(in oklch, var\(--bg-base\) 92%, transparent\)/);
+  assert.match(bubble, /isLatestAssistant/);
+  assert.match(bubble, /group-hover\/message:opacity-100/);
+  assert.match(list, /latestAssistantId/);
+  assert.doesNotMatch(list, /xl:pr-\[calc\(var\(--side-panel-width\)\+24px\)\]/);
+  assert.match(client, /chat-scene-art/);
   assert.match(composer, /composer-dock/);
-  assert.match(composer, /bg-\[var\(--gradient-aurora-primary\)\]/);
-  assert.match(composer, /Message character\.\.\./);
+  assert.match(composer, /sticky bottom-0/);
+  assert.match(composer, /rounded-\[36px\]/);
+  assert.match(composer, /shadow-\[var\(--shadow-elevated\)\]/);
+  assert.match(composer, /ArrowUp/);
+  assert.match(composer, /gradient-aurora-primary/);
+  assert.doesNotMatch(composer, /bg-primary/);
+  assert.match(composer, /Send a message/);
+  assert.match(composer, /max-h-\[220px\]/);
 });
 
 test("chat library uses a featured scene plus an earlier-conversation stream", async () => {

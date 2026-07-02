@@ -276,7 +276,7 @@ export function UserPersonaSettingsClient() {
               className={cn(
                 "focus-ring flex h-12 shrink-0 items-center gap-2 rounded-2xl border px-3 text-left text-sm font-medium transition-colors",
                 activeProfileId === profile.id
-                  ? "border-transparent bg-gradient-to-br from-[var(--accent-purple)] to-[var(--accent-secondary)] text-white"
+                  ? "border-[var(--border-strong)] bg-primary text-primary-foreground"
                   : "border-[var(--border-default)] bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               )}
             >
@@ -333,9 +333,9 @@ export function UserPersonaSettingsClient() {
               }}
               onError={(message) => setStatus(message)}
               onUploadingChange={setAvatarUploading}
-              className="focus-ring flex min-h-[210px] flex-col items-center justify-center rounded-[var(--radius-lg)] border border-dashed border-[var(--border-default)] bg-[var(--bg-input)] p-5 text-center shadow-[var(--glass-highlight)] backdrop-blur-xl transition hover:border-[var(--accent-purple)] hover:bg-white/[0.045]"
+              className="focus-ring flex min-h-[210px] flex-col items-center justify-center rounded-[var(--radius-lg)] border border-dashed border-[var(--border-default)] bg-[var(--bg-input)] p-5 text-center transition hover:border-[var(--accent-purple)]"
             >
-              <span className="grid h-28 w-28 place-items-center overflow-hidden rounded-full border border-white/10 bg-[var(--bg-elevated)] text-[var(--accent-purple)] shadow-[var(--shadow-glow)]">
+              <span className="grid h-28 w-28 place-items-center overflow-hidden rounded-full border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--accent-purple)]">
                 {draft.avatarUrl ? <img src={draft.avatarUrl} alt="" className="h-full w-full object-cover" /> : <Upload className="h-8 w-8" />}
               </span>
               <span className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]">
@@ -406,8 +406,8 @@ function ModeButton({
       className={cn(
         "focus-ring flex h-11 items-center justify-center gap-2 rounded-[var(--radius-pill)] text-sm font-semibold transition-colors duration-150",
         active
-          ? "bg-gradient-to-br from-[var(--accent-purple)] to-[var(--accent-secondary)] text-white shadow-[var(--shadow-glow)]"
-          : "text-[var(--text-secondary)] hover:bg-white/[0.055] hover:text-[var(--text-primary)]"
+          ? "bg-primary text-primary-foreground"
+          : "text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
       )}
     >
       <Icon className="h-4 w-4" />

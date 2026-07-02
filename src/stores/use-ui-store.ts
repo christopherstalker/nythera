@@ -3,21 +3,27 @@
 import { create } from "zustand";
 
 type UiState = {
-  sidebarCollapsed: boolean;
   activeChatId: string | null;
+  activeCharacterId: string | null;
+  activePersona: { displayName: string; avatarUrl?: string | null } | null;
   mobileNavOpen: boolean;
-  setSidebarCollapsed: (collapsed: boolean) => void;
-  toggleSidebar: () => void;
+  sidePanelOpen: boolean;
   setActiveChatId: (chatId: string | null) => void;
+  setActiveCharacterId: (characterId: string | null) => void;
+  setActivePersona: (persona: { displayName: string; avatarUrl?: string | null } | null) => void;
   setMobileNavOpen: (open: boolean) => void;
+  setSidePanelOpen: (open: boolean) => void;
 };
 
 export const useUiStore = create<UiState>((set) => ({
-  sidebarCollapsed: false,
   activeChatId: null,
+  activeCharacterId: null,
+  activePersona: null,
   mobileNavOpen: false,
-  setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
-  toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+  sidePanelOpen: false,
   setActiveChatId: (chatId) => set({ activeChatId: chatId }),
-  setMobileNavOpen: (open) => set({ mobileNavOpen: open })
+  setActiveCharacterId: (characterId) => set({ activeCharacterId: characterId }),
+  setActivePersona: (persona) => set({ activePersona: persona }),
+  setMobileNavOpen: (open) => set({ mobileNavOpen: open }),
+  setSidePanelOpen: (open) => set({ sidePanelOpen: open })
 }));

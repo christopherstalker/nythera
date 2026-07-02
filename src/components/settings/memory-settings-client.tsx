@@ -87,7 +87,7 @@ export function MemorySettingsClient() {
 
       <div className="grid gap-2">
         {memories.map((memory) => (
-          <div key={memory.id} className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4 shadow-[var(--glass-highlight)] backdrop-blur-xl">
+          <div key={memory.id} className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="whitespace-pre-wrap text-sm leading-6 text-[var(--text-primary)]">{memory.content}</p>

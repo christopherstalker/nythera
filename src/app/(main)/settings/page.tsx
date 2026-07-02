@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, Brain, Eye, KeyRound, Paintbrush, UserCog, UserRound } from "lucide-react";
+import { Brain, Eye, KeyRound, Paintbrush, Shield, UserCog, UserRound } from "lucide-react";
 import { AppearanceSettingsClient } from "@/components/settings/appearance-settings-client";
 import { KeySettingsClient } from "@/components/settings/key-settings-client";
 import { MemorySettingsClient } from "@/components/settings/memory-settings-client";
@@ -12,18 +12,15 @@ import { PageShell } from "@/components/ui/page";
 import { cn } from "@/lib/utils";
 
 const sections = [
-  { id: "account", label: "Account", icon: UserCog },
-  { id: "appearance", label: "Appearance", icon: Paintbrush },
-  { id: "persona", label: "Persona", icon: UserRound },
   { id: "api-keys", label: "API Keys", icon: KeyRound },
-  { id: "memory", label: "Memory", icon: Brain },
-  { id: "notifications", label: "Notifications", icon: Bell }
+  { id: "persona", label: "Persona", icon: UserRound },
+  { id: "appearance", label: "Appearance", icon: Paintbrush },
+  { id: "privacy", label: "Privacy", icon: Shield }
 ];
 
 export default function SettingsPage() {
   const [compactMode, setCompactMode] = useState(false);
   const [memoryEnabled, setMemoryEnabled] = useState(true);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
   useEffect(() => {
     fetch("/api/profile", { cache: "no-store" })
@@ -34,22 +31,17 @@ export default function SettingsPage() {
         }
         setCompactMode(Boolean(body.profile.compactMode));
         setMemoryEnabled(body.profile.memoryEnabled !== false);
-        setNotificationsEnabled(Boolean(body.profile.notificationsEnabled));
       })
       .catch(() => undefined);
   }, []);
 
-  async function savePreference(next: Partial<{ compactMode: boolean; memoryEnabled: boolean; notificationsEnabled: boolean }>) {
+  async function savePreference(next: Partial<{ compactMode: boolean; memoryEnabled: boolean }>) {
     if (next.compactMode !== undefined) {
       setCompactMode(next.compactMode);
     }
     if (next.memoryEnabled !== undefined) {
       setMemoryEnabled(next.memoryEnabled);
     }
-    if (next.notificationsEnabled !== undefined) {
-      setNotificationsEnabled(next.notificationsEnabled);
-    }
-
     await fetch("/api/profile", {
       method: "PATCH",
       headers: { "content-type": "application/json" },
@@ -59,16 +51,16 @@ export default function SettingsPage() {
 
   return (
     <PageShell>
-      <div className="grid min-w-0 gap-6 lg:grid-cols-[210px_minmax(0,1fr)]">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[220px_minmax(0,720px)] lg:justify-start">
         <aside className="min-w-0 lg:sticky lg:top-6 lg:self-start">
-          <nav className="glass-panel scrollbar-none flex w-full max-w-full gap-2 overflow-x-auto p-2 lg:grid" aria-label="Settings sections">
+          <nav className="scrollbar-none flex w-full max-w-full gap-2 overflow-x-auto rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-2 lg:grid" aria-label="Settings sections">
             {sections.map((section) => {
               const Icon = section.icon;
               return (
                 <a
                   key={section.id}
                   href={`#${section.id}`}
-                  className="focus-ring flex h-10 shrink-0 items-center gap-2 rounded-2xl px-3 text-sm font-medium text-[var(--text-secondary)] no-underline transition-colors duration-150 hover:bg-white/[0.055] hover:text-[var(--text-primary)]"
+                  className="focus-ring flex h-10 shrink-0 items-center gap-2 rounded-[var(--radius-sm)] px-3 text-sm font-medium text-[var(--text-secondary)] no-underline transition-colors duration-150 hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
                 >
                   <Icon className="h-4 w-4" />
                   {section.label}
@@ -79,8 +71,15 @@ export default function SettingsPage() {
         </aside>
 
         <div className="grid min-w-0 gap-5">
-          <SettingsCard id="account" icon={UserCog} title="Account">
-            <ProfileSettingsClient />
+          <SettingsCard id="api-keys" icon={KeyRound} title="API Keys">
+            <div className="grid gap-4">
+              <KeySettingsClient />
+              <VoiceKeySettingsClient />
+            </div>
+          </SettingsCard>
+
+          <SettingsCard id="persona" icon={UserRound} title="Persona">
+            <UserPersonaSettingsClient />
           </SettingsCard>
 
           <SettingsCard id="appearance" icon={Paintbrush} title="Appearance">
@@ -90,26 +89,12 @@ export default function SettingsPage() {
             </div>
           </SettingsCard>
 
-          <SettingsCard id="persona" icon={UserRound} title="User Persona">
-            <UserPersonaSettingsClient />
-          </SettingsCard>
-
-          <SettingsCard id="api-keys" icon={KeyRound} title="API Keys">
+          <SettingsCard id="privacy" icon={Shield} title="Privacy">
             <div className="grid gap-4">
-              <KeySettingsClient />
-              <VoiceKeySettingsClient />
-            </div>
-          </SettingsCard>
-
-          <SettingsCard id="memory" icon={Brain} title="Memory">
-            <div className="grid gap-4">
+              <ProfileSettingsClient />
               <SwitchRow icon={Brain} label="Use saved memories in character chats" enabled={memoryEnabled} onToggle={() => savePreference({ memoryEnabled: !memoryEnabled })} />
               <MemorySettingsClient />
             </div>
-          </SettingsCard>
-
-          <SettingsCard id="notifications" icon={Bell} title="Notifications">
-            <SwitchRow icon={Bell} label="Conversation and account notifications" enabled={notificationsEnabled} onToggle={() => savePreference({ notificationsEnabled: !notificationsEnabled })} />
           </SettingsCard>
         </div>
       </div>
@@ -129,9 +114,9 @@ function SettingsCard({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="glass-panel min-w-0 p-5 sm:p-6">
+    <section id={id} className="min-w-0 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 sm:p-6">
       <div className="mb-5 flex items-center gap-3">
-        <span className="grid h-11 w-11 place-items-center rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--accent-purple-soft)] text-[var(--accent-purple)] shadow-[var(--glass-highlight)]">
+        <span className="grid h-11 w-11 place-items-center rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--accent-purple-soft)] text-[var(--accent-purple)]">
           <Icon className="h-5 w-5" />
         </span>
         <h2 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">{title}</h2>
@@ -147,13 +132,13 @@ function SwitchRow({
   enabled,
   onToggle
 }: {
-  icon: typeof Bell;
+  icon: typeof Brain;
   label: string;
   enabled: boolean;
   onToggle: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4 shadow-[var(--glass-highlight)] backdrop-blur-xl">
+    <div className="flex items-center justify-between gap-4 rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4">
       <div className="flex min-w-0 items-center gap-3">
         <Icon className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
         <p className="text-sm font-medium text-[var(--text-primary)]">{label}</p>
@@ -165,7 +150,7 @@ function SwitchRow({
         onClick={onToggle}
         className={cn(
           "focus-ring relative h-7 w-12 shrink-0 rounded-[var(--radius-pill)] transition-colors duration-150 active:scale-95",
-          enabled ? "bg-gradient-to-r from-[var(--accent-purple)] to-[var(--accent-secondary)]" : "bg-[var(--bg-elevated)]"
+          enabled ? "bg-primary" : "bg-[var(--bg-elevated)]"
         )}
       >
         <span className={cn("absolute top-1 h-5 w-5 rounded-full bg-white transition-[left] duration-150", enabled ? "left-6" : "left-1")} />

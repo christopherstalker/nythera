@@ -10,12 +10,14 @@ const LEGACY_APPEARANCE_STORAGE_KEY = "nythera.appearance";
 const APPEARANCE_UPDATED_EVENT = "nythera:appearance-updated";
 const BRAND_STATE_EVENT = "nythera:brand-state";
 const BRAND_LOGO_PRIMARY = "#8F81F7";
-const BRAND_LOGO_MID = "#A78BFA";
 const BRAND_LOGO_SECONDARY = "#6EE7D8";
+const THEME_COLOR_DARK = "#03040F";
+const THEME_COLOR_LIGHT = "#F0F3FC";
 
 export type StoredAppearance = {
   accentColor?: string;
-  theme?: "dark" | "light" | "system";
+  theme?: "dark";
+  glowIntensity?: number;
 };
 
 export const ACCENT_PRESETS = ["#8F81F7", "#6EE7D8", "#A78BFA", "#2DD4BF", "#EF476F", "#38BDF8", "#F472B6", "#64748B"];
@@ -36,9 +38,8 @@ export function AppearanceProvider() {
     const onAppearanceUpdated = (event: Event) => {
       const detail = (event as CustomEvent<StoredAppearance>).detail;
       applyAccentColor(detail?.accentColor || readStoredAppearance().accentColor || DEFAULT_ACCENT_COLOR);
-      if (isTheme(detail?.theme)) {
-        setTheme(detail.theme);
-      }
+      updateDynamicFavicon(detail?.glowIntensity ?? 0.56);
+      setTheme("dark");
     };
 
     const onBrandState = (event: Event) => {
@@ -73,7 +74,7 @@ export function readStoredAppearance(): StoredAppearance {
     const parsed = JSON.parse(raw) as StoredAppearance;
     return {
       accentColor: isHexColor(parsed.accentColor) ? parsed.accentColor : undefined,
-      theme: isTheme(parsed.theme) ? parsed.theme : undefined
+      theme: isTheme(parsed.theme) ? parsed.theme : "dark"
     };
   } catch {
     return {};
@@ -131,7 +132,7 @@ function applyStoredAppearance(setTheme?: (theme: string) => void) {
   const appearance = readStoredAppearance();
   applyAccentColor(appearance.accentColor || DEFAULT_ACCENT_COLOR);
   if (isTheme(appearance.theme)) {
-    setTheme?.(appearance.theme);
+    setTheme?.("dark");
   }
 }
 
@@ -140,7 +141,7 @@ function isHexColor(value?: string): value is string {
 }
 
 function isTheme(value?: string): value is NonNullable<StoredAppearance["theme"]> {
-  return value === "dark" || value === "light" || value === "system";
+  return value === "dark";
 }
 
 async function syncAppearanceFromAccount(setTheme: (theme: string) => void) {
@@ -154,7 +155,7 @@ async function syncAppearanceFromAccount(setTheme: (theme: string) => void) {
     const profile = body?.profile;
     const next: StoredAppearance = {
       accentColor: isHexColor(profile?.accentColor) ? profile.accentColor : undefined,
-      theme: isTheme(profile?.preferredTheme) ? profile.preferredTheme : undefined
+      theme: "dark"
     };
 
     if (!next.accentColor && !next.theme) {
@@ -163,9 +164,7 @@ async function syncAppearanceFromAccount(setTheme: (theme: string) => void) {
 
     saveStoredAppearance(next, { sync: false });
     applyAccentColor(next.accentColor || readStoredAppearance().accentColor || DEFAULT_ACCENT_COLOR);
-    if (next.theme) {
-      setTheme(next.theme);
-    }
+    setTheme("dark");
   } catch {
     // Anonymous sessions and offline PWA starts keep using local appearance.
   }
@@ -217,10 +216,7 @@ function updateDynamicFavicon(glowIntensity = 0.56) {
     return;
   }
 
-  // Runtime branding keeps the favicon on the fixed Velora aurora mark while allowing chat glow state to breathe.
-  const rgb = hexToRgb(BRAND_LOGO_PRIMARY);
-  const glow = Math.max(0.14, Math.min(glowIntensity, 0.9));
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><radialGradient id="b" cx="46%" cy="38%" r="76%"><stop stop-color="#15142A"/><stop offset=".58" stop-color="#090A18"/><stop offset="1" stop-color="#03040F"/></radialGradient><linearGradient id="e" x1="112" y1="104" x2="392" y2="414" gradientUnits="userSpaceOnUse"><stop stop-color="${BRAND_LOGO_PRIMARY}"/><stop offset=".52" stop-color="${BRAND_LOGO_MID}"/><stop offset="1" stop-color="${BRAND_LOGO_SECONDARY}"/></linearGradient><filter id="g" x="-28%" y="-28%" width="156%" height="156%"><feGaussianBlur stdDeviation="16" result="blur"/><feColorMatrix in="blur" type="matrix" values="1 0 0 0 ${rgb.r / 255} 0 1 0 0 ${rgb.g / 255} 0 0 1 0 ${rgb.b / 255} 0 0 0 ${glow} 0"/></filter></defs><rect width="512" height="512" rx="92" fill="url(#b)"/><circle cx="372" cy="130" r="132" fill="${BRAND_LOGO_PRIMARY}" opacity=".12"/><circle cx="156" cy="386" r="118" fill="${BRAND_LOGO_SECONDARY}" opacity=".1"/><path d="M112 104L326 282V148L392 198V414L178 236V370L112 320Z" fill="${BRAND_LOGO_PRIMARY}" filter="url(#g)" opacity=".42"/><path d="M112 104L326 282V148L392 198V414L178 236V370L112 320Z" fill="url(#e)"/></svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="92" fill="#141414"/><path d="M112 104L326 282V148L392 198V414L178 236V370L112 320Z" fill="${BRAND_LOGO_PRIMARY}"/><path d="M326 282V148L392 198V414L326 359Z" fill="${BRAND_LOGO_SECONDARY}" opacity="${glowIntensity}"/></svg>`;
   const href = `data:image/svg+xml,${encodeURIComponent(svg)}`;
   const link = getOrCreateIconLink();
   link.href = href;
@@ -228,7 +224,8 @@ function updateDynamicFavicon(glowIntensity = 0.56) {
 
   const themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
   if (themeColor) {
-    themeColor.content = document.documentElement.classList.contains("light") ? "#F0F3FC" : "#03040F";
+    const prefersLight = window.matchMedia?.("(prefers-color-scheme: light)").matches;
+    themeColor.content = prefersLight ? THEME_COLOR_LIGHT : THEME_COLOR_DARK;
   }
 }
 

@@ -490,8 +490,8 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
   }
 
   return (
-    <div className="character-editor-surfaces grid gap-8 lg:grid-cols-[minmax(0,680px)_minmax(300px,1fr)] lg:items-start">
-      <form onSubmit={onSubmit} className="grid min-w-0 gap-5">
+    <div className="character-editor-surfaces grid min-h-[calc(100svh-var(--top-bar-height)-var(--page-padding-y)*2)] gap-0 overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] lg:grid-cols-[minmax(0,1fr)_360px]">
+      <form onSubmit={onSubmit} className="chat-scroll grid min-w-0 content-start gap-5 overflow-y-auto p-4 sm:p-6 lg:max-h-[calc(100svh-var(--page-padding-y)*2)] lg:p-8">
         {mode === "create" ? (
           <div className="glass-panel grid grid-cols-3 gap-2 p-2">
             <ModeButton label="Prompt" icon={Zap} active={isPromptMode} onClick={() => switchFormMode("prompt")} />
@@ -756,10 +756,10 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
                         <Field label="Accent color">
                           <Input type="color" value={draft.visualAccentColor} onChange={(event) => update("visualAccentColor", event.target.value)} />
                         </Field>
-                        <Field label="Gradient start">
+                        <Field label="Secondary color">
                           <Input type="color" value={draft.visualGradientFrom} onChange={(event) => update("visualGradientFrom", event.target.value)} />
                         </Field>
-                        <Field label="Gradient end">
+                        <Field label="Fallback color">
                           <Input type="color" value={draft.visualGradientTo} onChange={(event) => update("visualGradientTo", event.target.value)} />
                         </Field>
                       </div>
@@ -771,12 +771,12 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
                         />
                       </Field>
                       <div
-                        className="rounded-[var(--radius-lg)] border border-[var(--border-default)] p-4 shadow-[var(--glass-highlight)]"
+                        className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-elevated)] p-4"
                         style={{
-                          background: `linear-gradient(135deg, ${draft.visualGradientFrom}, ${draft.visualGradientTo})`
+                          borderColor: draft.visualAccentColor
                         }}
                       >
-                        <div className="rounded-[var(--radius-md)] bg-black/35 p-4 text-white backdrop-blur-sm">
+                        <div className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 text-[var(--text-primary)]">
                           <p className="text-sm font-semibold">{draft.name.trim() || "Character visual identity"}</p>
                           <p className="mt-1 text-xs opacity-85">{draft.visualChatBackground.trim() || "Background cue appears in chat theming."}</p>
                         </div>
@@ -877,7 +877,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
                         <VisibilityButton icon={Globe} label="Unlisted" selected={draft.visibility === "UNLISTED"} onClick={() => update("visibility", "UNLISTED")} />
                         <VisibilityButton icon={Globe} label="Public" selected={draft.visibility === "PUBLIC"} onClick={() => update("visibility", "PUBLIC")} />
                       </div>
-                      <label className="flex min-h-12 items-center gap-3 rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] px-4 text-sm text-[var(--text-secondary)] backdrop-blur-xl">
+                      <label className="flex min-h-12 items-center gap-3 rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] px-4 text-sm text-[var(--text-secondary)]">
                         <input type="checkbox" checked={draft.isNSFW} onChange={(event) => update("isNSFW", event.target.checked)} className="accent-[var(--accent-purple)]" />
                         Mark as age-gated / NSFW
                       </label>
@@ -891,7 +891,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
 
         {error ? <p className="rounded-[var(--radius-md)] border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</p> : null}
 
-        <div className="glass-panel flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="sticky bottom-0 z-10 flex flex-col gap-3 rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 sm:flex-row sm:items-center sm:justify-between">
           {isPromptMode ? (
             <div className="flex flex-wrap gap-2">
               <Button
@@ -926,6 +926,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
       </form>
 
       <CharacterPreviewPanel
+        className="min-h-0 border-t border-[var(--border-default)] bg-[var(--bg-elevated)] p-4 lg:border-l lg:border-t-0"
         name={previewDraft.name}
         description={previewDraft.description}
         greeting={previewDraft.greeting}
@@ -1068,7 +1069,7 @@ function AvatarUpload({
         >
           <span
             className={cn(
-              "grid place-items-center overflow-hidden rounded-full border border-white/10 bg-[var(--bg-elevated)] text-[var(--accent-purple)] shadow-[var(--shadow-glow)]",
+              "grid place-items-center overflow-hidden rounded-full border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--accent-purple)]",
               large ? "h-32 w-32" : "h-20 w-20"
             )}
           >
@@ -1106,8 +1107,8 @@ function ModeButton({
       className={cn(
         "focus-ring flex h-12 items-center justify-center gap-2 rounded-[var(--radius-pill)] text-sm font-semibold transition-colors duration-150 active:scale-95",
         active
-          ? "bg-gradient-to-br from-[var(--accent-purple)] to-[var(--accent-secondary)] text-white shadow-[var(--shadow-glow)]"
-          : "text-[var(--text-secondary)] hover:bg-white/[0.055] hover:text-[var(--text-primary)]"
+          ? "bg-primary text-primary-foreground"
+          : "text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
       )}
     >
       <Icon className="h-4 w-4" />
@@ -1205,7 +1206,7 @@ function VisibilityButton({
       onClick={onClick}
       className={cn(
         "focus-ring flex h-10 items-center justify-center gap-2 rounded-[var(--radius-pill)] text-sm font-medium transition-colors duration-150 active:scale-95",
-        selected ? "bg-gradient-to-br from-[var(--accent-purple)] to-[var(--accent-secondary)] text-white" : "text-[var(--text-secondary)] hover:bg-white/[0.055] hover:text-[var(--text-primary)]"
+        selected ? "bg-primary text-primary-foreground" : "text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
       )}
     >
       <Icon className="h-4 w-4" />

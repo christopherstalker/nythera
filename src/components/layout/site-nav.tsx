@@ -87,7 +87,7 @@ export function SiteNav() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-background/68 backdrop-blur-2xl">
+      <header className="sticky top-0 z-40 bg-background">
       <div className="container mx-auto flex h-[68px] max-w-[1360px] items-center gap-3 px-4 py-2 sm:px-6 lg:px-8">
         <Link href="/" className="flex shrink-0 items-center no-underline">
           <span className="hidden text-sm font-semibold tracking-[0.18em] text-foreground sm:inline">NYTHERA</span>
@@ -146,7 +146,7 @@ export function SiteNav() {
                 <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
               {open ? (
-                <div className="absolute right-0 mt-2 w-56 rounded-3xl border border-white/[0.035] bg-card/95 p-2 shadow-card-glow backdrop-blur-xl">
+                <div className="absolute right-0 mt-2 w-56 rounded-3xl border border-outline bg-card p-2">
                   <div className="mb-1 flex items-center gap-3 rounded-2xl bg-white/[0.028] p-2">
                     <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full border border-primary/25 bg-primary/[0.12] text-sm font-bold uppercase">
                       {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : initial}
@@ -192,7 +192,7 @@ function MobileDock({ pathname }: { pathname: string }) {
   return (
     <nav
       aria-label="Mobile primary navigation"
-      className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-50 rounded-[30px] border border-white/[0.035] bg-card/90 p-1.5 shadow-card-glow shadow-inset backdrop-blur-2xl lg:hidden"
+      className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-50 rounded-[30px] border border-outline bg-card p-1.5 lg:hidden"
     >
       <div className="grid grid-cols-5 gap-1">
         {mobileLinks.map((link) => {

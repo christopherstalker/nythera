@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import { MobileInstallPrompt } from "@/components/pwa/mobile-install-prompt";
 import { PwaUpdatePrompt } from "@/components/pwa/pwa-update-prompt";
 import {
@@ -33,6 +34,7 @@ type PwaContextValue = {
 const PwaContext = createContext<PwaContextValue | null>(null);
 
 export function PwaProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(true);
   const [standalone, setStandalone] = useState(false);
@@ -144,7 +146,7 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
   const hasNativeInstallPrompt = Boolean(installPrompt);
   const canInstall = !standalone && (hasNativeInstallPrompt || ios);
   const canInstallMobile = mobile && canInstall;
-  const showMobilePrompt = canInstallMobile && !dismissed;
+  const showMobilePrompt = pathname.startsWith("/download") && canInstallMobile && !dismissed;
 
   const value = useMemo(
     () => ({

@@ -35,7 +35,9 @@ test("the default discovery feed uses a dedicated bento component", async () => 
 test("bento spans activate only on desktop and collapse to a uniform responsive grid", async () => {
   const globals = await read("../src/app/globals.css");
 
-  assert.match(globals, /\.nythera-bento-grid\s*\{[\s\S]*repeat\(auto-fill, minmax\(var\(--card-min-width\), 1fr\)\)/);
+  assert.match(globals, /\.nythera-bento-grid\s*\{[\s\S]*grid-template-columns:\s*1fr;[\s\S]*grid-auto-rows:\s*260px/);
+  assert.match(globals, /@media \(min-width:\s*768px\)[\s\S]*\.nythera-bento-grid\s*\{[\s\S]*repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(globals, /@media \(min-width:\s*1280px\)[\s\S]*\.nythera-bento-grid\s*\{[\s\S]*repeat\(4, minmax\(0, 1fr\)\)/);
   assert.match(globals, /\.nythera-bento-card\s*\{[\s\S]*height:\s*100%/);
 
   const root = postcss.parse(globals);

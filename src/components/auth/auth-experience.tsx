@@ -131,7 +131,7 @@ export function AuthExperience({ mode, children, footer }: AuthExperienceProps) 
             {FEATURES.map((feature) => (
               <li
                 key={feature.label}
-                className="flex items-start gap-3 rounded-[var(--radius-lg)] border border-white/[0.06] bg-white/[0.03] px-4 py-3 backdrop-blur-sm"
+                className="flex items-start gap-3 rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3"
               >
                 <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
                   <feature.icon className="h-4 w-4" />
@@ -148,8 +148,8 @@ export function AuthExperience({ mode, children, footer }: AuthExperienceProps) 
         <section className="flex w-full flex-col justify-center">
           <div className="nythera-auth-portal relative mx-auto w-full max-w-md">
             <div aria-hidden="true" className="nythera-auth-portal-ring absolute -inset-px rounded-[calc(var(--radius-xl)+2px)]" />
-            <div className="relative overflow-hidden rounded-[var(--radius-xl)] border border-white/[0.08] bg-[rgb(14_14_24/0.82)] p-6 shadow-[var(--shadow-card)] backdrop-blur-2xl sm:p-7">
-              <div aria-hidden="true" className="pointer-events-none absolute inset-0 hero-gradient opacity-40" />
+            <div className="relative overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-6 sm:p-7">
+              <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-transparent" />
               <div className="relative">
                 <div className="mb-6 flex items-center gap-2 text-primary">
                   {mode === "register" ? <Wand2 className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}

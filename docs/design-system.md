@@ -1,6 +1,6 @@
 # Nythera Design System
 
-Aurora Ink is Nythera's canonical visual foundation. Dark and light themes are both first-class. Token definitions live in `src/styles/design-tokens.css`; this reference defines how later visual phases must use them.
+Aurora Ink is Nythera's canonical visual foundation. Phase 1 ships a single dark theme; light mode is deferred and normalized to the same dark semantic contract. Token definitions live in `src/styles/design-tokens.css`; this reference defines how later visual phases must use them.
 
 ## Aurora Ink colors
 
@@ -14,8 +14,8 @@ Aurora Ink is Nythera's canonical visual foundation. Dark and light themes are b
 ## Spacing and Cloud Soft radii
 
 - Spacing: 4 / 8 / 12 / 16 / 20 / 24 / 32 / 40 / 48 / 64px.
-- Radius: 6 / 12 / 20 / 28 / 36 / full.
-- The 6px radius is reserved for compact controls and internal geometry. General surfaces start at 12px.
+- Radius: 4 / 12 / 20 / 28 / 36 / full.
+- The 4px radius is reserved for compact controls and internal geometry. General surfaces start at 12px.
 - Interactive targets are at least 44px.
 
 ## Space Grotesk typography

@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { MessageContextMenu } from "@/components/chat/MessageContextMenu";
 import { RichMessageText } from "@/components/chat/rich-message-text";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
-import { MessageContextMenu } from "@/components/chat/MessageContextMenu";
-import { CharacterAvatar } from "@/components/character/character-avatar";
-import { Avatar } from "@/components/ui/avatar";
+import { springSnappy, springSoft } from "@/lib/motion";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, GitFork, History, PenLine, Pin, RefreshCw, SendHorizontal, ShieldAlert, Trash2, User } from "lucide-react";
+import { motion } from "motion/react";
+import { ChevronLeft, ChevronRight, GitFork, History, PenLine, Pin, RefreshCw, SendHorizontal, ShieldAlert, Trash2, Volume2 } from "lucide-react";
 
 type MessageBubbleProps = {
   id: string;
@@ -31,6 +31,7 @@ type MessageBubbleProps = {
   onRewind?: (messageId: string) => void;
   onBranch?: (messageId: string) => void;
   onPin?: (messageId: string) => void;
+  isLatestAssistant?: boolean;
   variantIndex?: number;
   variantCount?: number;
   onPreviousVariant?: () => void;
@@ -44,7 +45,6 @@ export function MessageBubble({
   characterName,
   characterAvatarUrl,
   personaName,
-  personaAvatarUrl,
   isPinned,
   model,
   provider,
@@ -59,10 +59,11 @@ export function MessageBubble({
   onRewind,
   onBranch,
   onPin,
+  isLatestAssistant = false,
   variantIndex,
   variantCount,
   onPreviousVariant,
-  onNextVariant,
+  onNextVariant
 }: MessageBubbleProps) {
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -76,7 +77,8 @@ export function MessageBubble({
   useEffect(() => {
     if (!menuPosition) return;
     const handleClose = () => setMenuPosition(null);
-    const handleEsc = (e: KeyboardEvent) => e.key === "Escape" && handleClose();
+    const handleEsc = (event: KeyboardEvent) => event.key === "Escape" && handleClose();
+
     window.addEventListener("click", handleClose);
     window.addEventListener("scroll", handleClose, { passive: true });
     window.addEventListener("keydown", handleEsc);
@@ -89,7 +91,7 @@ export function MessageBubble({
 
   if (role === "SYSTEM") {
     return (
-      <p className="text-center text-xs italic text-[var(--text-muted)] px-4 py-2">
+      <p className="px-4 py-2 text-center text-xs italic text-[var(--text-muted)]">
         {content}
       </p>
     );
@@ -121,7 +123,7 @@ export function MessageBubble({
       const response = await fetch(`/api/messages/${id}/report`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: "Message report", details }),
+        body: JSON.stringify({ reason: "Message report", details })
       });
 
       if (!response.ok) {
@@ -134,13 +136,13 @@ export function MessageBubble({
     }
   }
 
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setMenuPosition({ x: e.clientX, y: e.clientY });
+  const handleContextMenu = (event: React.MouseEvent) => {
+    event.preventDefault();
+    setMenuPosition({ x: event.clientX, y: event.clientY });
   };
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    const touch = e.touches[0];
+  const handleTouchStart = (event: React.TouchEvent) => {
+    const touch = event.touches[0];
     const x = touch.clientX;
     const y = touch.clientY;
 
@@ -181,136 +183,145 @@ export function MessageBubble({
   }
 
   return (
-    <div
+    <motion.div
       className={cn(
-        "group flex message-enter relative w-full",
+        "group/message relative flex w-full message-enter",
         isUser ? "justify-end" : "justify-start",
         isDeleting && "message-exit pointer-events-none"
       )}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={springSoft}
       onContextMenu={handleContextMenu}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchEnd}
     >
-      <div className={cn("flex max-w-[100%] items-start gap-2.5 sm:max-w-[92%] sm:gap-3 xl:max-w-[86%]", isUser && "flex-row-reverse")}>
-        {isUser ? (
-          personaAvatarUrl || personaName ? (
-            <Avatar
-              name={personaName ?? "You"}
-              src={personaAvatarUrl}
-              size="sm"
-              className="h-9 w-9 shrink-0 border-0 bg-[var(--bg-elevated)] shadow-[0_0_28px_oklch(var(--color-accent-secondary)/.14)]"
-            />
-          ) : (
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--bg-elevated)] text-[var(--text-secondary)]">
-              <User className="h-4 w-4" />
+      <div className={cn("flex min-w-0 flex-col", isUser ? "items-end" : "w-full items-start")}>
+        {!isUser && content && (inputTokens !== null && inputTokens !== undefined || outputTokens !== null && outputTokens !== undefined) ? (
+          <span
+            className="mb-1.5 ml-1 inline-flex h-7 items-center gap-1.5 rounded-full border border-[var(--border-subtle)] px-3 text-[11px] font-semibold text-[var(--text-secondary)] shadow-[var(--glass-highlight)]"
+            style={{ background: "color-mix(in oklch, var(--bg-base) 72%, transparent)" }}
+            title={estimatedCost !== null && estimatedCost !== undefined ? `Estimated cost ${formatEstimatedCost(estimatedCost)}` : "Token usage"}
+          >
+            <Volume2 className="h-3.5 w-3.5" />
+            {usageEstimated ? "~" : ""}{outputTokens ?? 0}
+          </span>
+        ) : null}
+
+        <motion.div
+          className={cn(
+            "relative overflow-hidden shadow-[var(--shadow-soft)]",
+            isUser
+              ? "max-w-[min(74%,480px)] rounded-[20px] px-4 py-3 text-sm font-medium leading-6 max-sm:max-w-[82%] max-sm:text-base sm:max-w-[min(38vw,360px)]"
+              : "w-full rounded-[28px] px-6 py-6 text-[26px] font-bold leading-[1.55] text-[var(--text-primary)] max-sm:min-h-32 sm:px-5 sm:py-4 sm:text-[15px] sm:font-medium sm:leading-7 md:rounded-[20px]"
+          )}
+          style={
+            isUser
+              ? {
+                  background: "color-mix(in oklch, var(--text-primary) 92%, transparent)",
+                  color: "var(--bg-base)",
+                  border: "1px solid color-mix(in oklch, var(--text-primary) 38%, transparent)"
+                }
+              : {
+                  background: "color-mix(in oklch, var(--bg-base) 92%, transparent)",
+                  border: "1px solid color-mix(in oklch, var(--border-subtle) 86%, transparent)",
+                  backdropFilter: "blur(16px) saturate(150%)",
+                  WebkitBackdropFilter: "blur(16px) saturate(150%)"
+                }
+          }
+          whileHover={{ y: -1 }}
+          transition={springSnappy}
+        >
+          {isPinned && (
+            <span className="absolute right-3 top-3 grid h-6 w-6 place-items-center rounded-full border border-[var(--border-subtle)] bg-[var(--color-overlay)] text-[var(--accent-purple)]">
+              <Pin className="h-3.5 w-3.5" />
             </span>
-          )
-        ) : (
-          <CharacterAvatar name={characterName} avatarUrl={characterAvatarUrl} size="sm" className="mt-1 hidden h-10 w-10 shrink-0 rounded-[14px] shadow-[var(--shadow-soft)] sm:inline-grid" />
-        )}
-        <div className={cn("flex flex-col", isUser ? "items-end" : "items-start", "w-full max-w-full")}>
-          {!isUser ? <p className="mb-1.5 hidden px-1 text-[11px] font-semibold tracking-wide text-[var(--accent-secondary)] sm:block">{characterName}</p> : null}
+          )}
+          {isEditing ? (
+            <div className="grid gap-3">
+              <textarea
+                autoFocus
+                aria-label="Edit message text"
+                value={editDraft}
+                onChange={(event) => setEditDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    setIsEditing(false);
+                  } else if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+                    event.preventDefault();
+                    void saveEdit();
+                  }
+                }}
+                className="focus-ring min-h-24 w-full resize-y rounded-[var(--radius-control)] border border-[var(--border-subtle)] bg-transparent px-3 py-2 text-sm leading-6 text-[var(--text-primary)]"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  aria-label="Cancel edit"
+                  onClick={() => setIsEditing(false)}
+                  className="focus-ring rounded-full border border-[var(--border-subtle)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--color-overlay)]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  aria-label="Save edit"
+                  onClick={() => void saveEdit()}
+                  disabled={!editDraft.trim() || editDraft.trim() === content || savingEdit}
+                  className="focus-ring rounded-full px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{ background: "var(--gradient-aurora-primary)" }}
+                >
+                  {savingEdit ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </div>
+          ) : content ? (
+            <RichMessageText text={content} />
+          ) : (
+            <TypingIndicator />
+          )}
+        </motion.div>
+
+        {content && !isEditing ? (
           <div
             className={cn(
-              "bubble-char relative w-full max-w-full",
-              isUser && "bubble-user"
+              "mt-3 flex flex-wrap items-center gap-2",
+              isLatestAssistant ? "opacity-100" : "opacity-0 max-sm:hidden sm:translate-y-1 sm:group-hover/message:translate-y-0 sm:group-hover/message:opacity-100 sm:group-focus-within/message:translate-y-0 sm:group-focus-within/message:opacity-100",
+              isUser ? "justify-end" : "justify-between"
             )}
           >
-            {isPinned && (
-              <span className="absolute -right-2 -top-2 grid h-5 w-5 place-items-center rounded-full border border-[color:oklch(var(--color-accent-primary)/.35)] bg-[var(--bg-elevated)] text-[0px] text-[var(--accent-purple)] shadow-[var(--shadow-glow-soft)]">
-                <Pin className="h-3 w-3" />
-              </span>
-            )}
-            {isEditing ? (
-              <div className="grid gap-2">
-                <textarea
-                  autoFocus
-                  aria-label="Edit message text"
-                  value={editDraft}
-                  onChange={(event) => setEditDraft(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Escape") {
-                      setIsEditing(false);
-                    } else if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
-                      event.preventDefault();
-                      void saveEdit();
-                    }
-                  }}
-                  className="focus-ring min-h-24 w-full resize-y rounded-xl border border-[var(--border-default)] bg-[var(--bg-input)] px-3 py-2 text-sm leading-6 text-[var(--text-primary)]"
-                />
-                <div className="flex justify-end gap-2">
-                  <button
-                    type="button"
-                    aria-label="Cancel edit"
-                    onClick={() => setIsEditing(false)}
-                    className="focus-ring rounded-full border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)]"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Save edit"
-                    onClick={() => void saveEdit()}
-                    disabled={!editDraft.trim() || editDraft.trim() === content || savingEdit}
-                    className="focus-ring rounded-full bg-[var(--accent-purple)] px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {savingEdit ? "Saving..." : "Save"}
-                  </button>
-                </div>
-              </div>
-            ) : content ? (
-              <RichMessageText text={content} />
-            ) : (
-              <TypingIndicator />
-            )}
-          </div>
-
-          {!isUser && content && (inputTokens !== null && inputTokens !== undefined || outputTokens !== null && outputTokens !== undefined) ? (
-            <p
-              className="mt-1 px-1 text-[10px] text-[var(--text-muted)]"
-              title={estimatedCost !== null && estimatedCost !== undefined ? "Estimated cost in USD based on public provider pricing" : "Token usage"}
-            >
-              {provider ? `${provider}${model ? ` · ${model}` : ""} · ` : ""}
-              {usageEstimated ? "~" : ""}{inputTokens ?? 0} in / {outputTokens ?? 0} out
-              {estimatedCost !== null && estimatedCost !== undefined ? ` · ${formatEstimatedCost(estimatedCost)}` : ""}
-            </p>
-          ) : null}
-
-          {content && !isEditing ? (
-            <div
-              className={cn(
-                "mt-1 flex flex-wrap gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100",
-                isUser ? "justify-end" : "justify-start"
-              )}
-            >
-              <ActionButton label="Edit" onClick={edit}>
-                <PenLine className="h-3.5 w-3.5" />
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <ActionButton label="Edit" onClick={edit} mobileHidden>
+                <PenLine className="h-4 w-4" />
               </ActionButton>
               {!isUser ? (
                 <>
-                  <ActionButton label="Continue" onClick={() => onContinue?.()}>
-                    <SendHorizontal className="h-3.5 w-3.5" />
+                  <ActionButton label="Regenerate" onClick={() => onRegenerate?.(id)} showLabel>
+                    <RefreshCw className="h-4 w-4" />
                   </ActionButton>
-                  <ActionButton label="Regenerate" onClick={() => onRegenerate?.(id)}>
-                    <RefreshCw className="h-3.5 w-3.5" />
+                  <ActionButton label="Continue" onClick={() => onContinue?.()} showLabel>
+                    <SendHorizontal className="h-4 w-4" />
                   </ActionButton>
                 </>
               ) : null}
               <ActionButton label="Rewind" onClick={() => onRewind?.(id)}>
-                <History className="h-3.5 w-3.5" />
+                <History className="h-4 w-4" />
               </ActionButton>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-2">
               {hasVariants && (
-                <span className="flex h-8 items-center gap-1 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-1.5 text-xs text-[var(--text-secondary)] shadow-[var(--glass-highlight)] backdrop-blur-xl">
+                <span className="flex h-10 items-center gap-1 rounded-full border border-[var(--border-subtle)] bg-[var(--color-overlay)] px-2 text-sm font-bold text-[var(--text-primary)] shadow-[var(--glass-highlight)]">
                   <ActionButton
                     label="Previous attempt"
                     onClick={() => onPreviousVariant?.()}
                     disabled={variantIndex <= 0}
                     compact
                   >
-                    <ChevronLeft className="h-3.5 w-3.5" />
+                    <ChevronLeft className="h-4 w-4" />
                   </ActionButton>
-                  <span className="min-w-9 text-center">
+                  <span className="min-w-10 text-center">
                     {variantIndex! + 1}/{variantCount}
                   </span>
                   <ActionButton
@@ -319,22 +330,22 @@ export function MessageBubble({
                     disabled={variantIndex >= variantCount! - 1}
                     compact
                   >
-                    <ChevronRight className="h-3.5 w-3.5" />
+                    <ChevronRight className="h-4 w-4" />
                   </ActionButton>
                 </span>
               )}
-              <ActionButton label="Branch" onClick={() => onBranch?.(id)}>
-                <GitFork className="h-3.5 w-3.5" />
+              <ActionButton label="Branch" onClick={() => onBranch?.(id)} mobileHidden>
+                <GitFork className="h-4 w-4" />
               </ActionButton>
-              <ActionButton label="Report" onClick={report}>
-                <ShieldAlert className="h-3.5 w-3.5" />
+              <ActionButton label="Report" onClick={report} mobileHidden>
+                <ShieldAlert className="h-4 w-4" />
               </ActionButton>
-              <ActionButton label="Delete" onClick={deleteWithMotion} disabled={isDeleting} destructive>
-                <Trash2 className="h-3.5 w-3.5" />
+              <ActionButton label="Delete" onClick={deleteWithMotion} disabled={isDeleting} destructive mobileHidden>
+                <Trash2 className="h-4 w-4" />
               </ActionButton>
             </div>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </div>
 
       <span className="sr-only">{isUser ? personaName || "You" : characterName}</span>
@@ -354,7 +365,7 @@ export function MessageBubble({
           isPinned={isPinned}
         />
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -371,35 +382,45 @@ function formatEstimatedCost(value: number | string) {
 
 function ActionButton({
   label,
-  children,
-  destructive,
   onClick,
+  children,
   disabled,
-  compact,
+  destructive = false,
+  compact = false,
+  showLabel = false,
+  mobileHidden = false
 }: {
   label: string;
+  onClick?: () => void;
   children: React.ReactNode;
-  destructive?: boolean;
   disabled?: boolean;
+  destructive?: boolean;
   compact?: boolean;
-  onClick: () => void;
+  showLabel?: boolean;
+  mobileHidden?: boolean;
 }) {
   return (
-    <button
+    <motion.button
       type="button"
-      aria-label={label}
       title={label}
+      aria-label={label}
       onClick={onClick}
       disabled={disabled}
+      whileTap={!disabled ? { scale: 0.92 } : undefined}
+      transition={springSnappy}
       className={cn(
-        "focus-ring grid place-items-center rounded-full text-[var(--text-secondary)] transition-all duration-150 hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-35",
+        "focus-ring inline-flex items-center justify-center rounded-full text-[var(--text-secondary)] disabled:cursor-not-allowed disabled:opacity-35",
         compact
-          ? "h-5 w-5 border-0 bg-transparent"
-          : "h-8 w-8 border border-white/[0.08] bg-[color:oklch(var(--color-surface)/.58)] shadow-[var(--glass-highlight)] backdrop-blur-xl hover:border-[color:oklch(var(--color-accent-secondary)/.32)]",
+          ? "h-6 w-6 border border-transparent bg-transparent"
+          : showLabel
+            ? "h-10 gap-2 border border-[var(--border-subtle)] bg-[var(--color-overlay)] px-4 text-sm font-semibold shadow-[var(--glass-highlight)] hover:text-[var(--text-primary)]"
+            : "h-10 w-10 border border-[var(--border-subtle)] bg-[var(--color-overlay)] shadow-[var(--glass-highlight)] hover:text-[var(--text-primary)]",
+        mobileHidden && "max-sm:hidden",
         destructive && "hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-200 focus:ring-red-400/30"
       )}
     >
       {children}
-    </button>
+      {showLabel ? <span>{label}</span> : null}
+    </motion.button>
   );
 }

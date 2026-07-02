@@ -1,10 +1,12 @@
 "use client";
 
 import { KeyboardEvent, useEffect, useRef, useState } from "react";
-import { SendHorizontal, Settings2, Sparkles } from "lucide-react";
+import { ArrowUp, Settings2, Sparkles } from "lucide-react";
+import { motion } from "motion/react";
 import { Avatar } from "@/components/ui/avatar";
 import type { ProviderModelGroup } from "@/lib/provider-model-options";
 import { RESPONSE_PROMPT_EXAMPLES } from "@/lib/response-prompt";
+import { springSnappy, springSoft } from "@/lib/motion";
 
 type ChatInputProps = {
   value: string;
@@ -57,7 +59,7 @@ export function ChatInput({
     }
 
     textarea.style.height = "0px";
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`;
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 240)}px`;
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -73,11 +75,28 @@ export function ChatInput({
   const modelOptions = modelGroups.flatMap((group) => group.options);
   const hasModelOptions = modelOptions.length > 0;
   const currentModelIsKnown = Boolean(model && modelOptions.some((option) => option.value === model));
+  const modelLabel = modelLoading ? "Loading" : formatModelLabel(model ?? "Model");
 
   return (
-    <div className="relative z-20 shrink-0 bg-gradient-to-t from-[var(--bg-base)] via-[color:oklch(var(--color-canvas)/.92)] to-transparent px-2 pb-[calc(0.55rem+env(safe-area-inset-bottom))] pt-2 sm:px-4 sm:pb-[calc(0.9rem+env(safe-area-inset-bottom))] md:pb-5">
+    <div
+      className="pointer-events-none sticky bottom-0 z-20 shrink-0 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-8 sm:px-5 md:px-6 md:pb-5"
+      style={{
+        background:
+          "linear-gradient(to top, var(--bg-base) 58%, color-mix(in oklch, var(--bg-base) 80%, transparent) 82%, transparent 100%)"
+      }}
+    >
       {hasApiControls && apiOpen ? (
-        <div className="api-panel-enter mx-auto mb-2 grid max-w-[var(--chat-max-width)] gap-2 rounded-[22px] border border-[var(--border-default)] bg-[var(--bg-surface)] p-2 shadow-[var(--glass-highlight)] backdrop-blur-2xl sm:grid-cols-[minmax(0,1fr)_minmax(220px,300px)]">
+        <motion.div
+          className="api-panel-enter pointer-events-auto mx-auto mb-3 grid max-w-[var(--chat-max-width)] gap-3 rounded-[28px] border border-[var(--border-subtle)] p-3 shadow-[var(--shadow-elevated)] sm:grid-cols-[minmax(0,1fr)_minmax(220px,280px)]"
+          style={{
+            background: "color-mix(in oklch, var(--bg-surface) 82%, transparent)",
+            backdropFilter: "blur(20px) saturate(170%)",
+            WebkitBackdropFilter: "blur(20px) saturate(170%)"
+          }}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={springSoft}
+        >
           {onModelChange ? (
             <label className="grid gap-1">
               <span className="px-1 text-[11px] font-medium uppercase text-[var(--text-muted)]">Model</span>
@@ -172,64 +191,105 @@ export function ChatInput({
             </label>
           ) : null}
           {apiStatus ? <p className="px-1 text-xs text-[var(--text-muted)] sm:col-span-2">{apiStatus}</p> : null}
-        </div>
+        </motion.div>
       ) : null}
-      <div className="nythera-chat-column composer-dock relative flex items-end gap-1.5 rounded-[24px] border border-white/[.09] p-1.5 shadow-[0_18px_70px_oklch(0_0_0/.28),var(--glass-highlight)] backdrop-blur-2xl transition-colors duration-200 focus-within:border-[color:oklch(var(--color-accent-secondary)/.5)] sm:gap-2 sm:rounded-[28px] sm:p-2">
+      <motion.div
+        className="nythera-chat-column composer-dock pointer-events-auto relative mx-auto flex max-w-[var(--chat-max-width)] flex-col gap-4 rounded-[36px] border border-[var(--border-subtle)] px-5 py-5 shadow-[var(--shadow-elevated)] sm:flex-row sm:items-end sm:gap-2 sm:rounded-[28px] sm:px-4 sm:py-3"
+        style={{
+          background: "color-mix(in oklch, var(--bg-surface) 84%, transparent)",
+          backdropFilter: "blur(22px) saturate(175%)",
+          WebkitBackdropFilter: "blur(22px) saturate(175%)"
+        }}
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={springSoft}
+      >
         <div aria-hidden="true" className="glass-grain pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]" />
-        <div className="relative flex min-w-0 flex-1 items-end gap-1.5 rounded-[19px] border border-white/[.07] bg-black/[.10] px-1.5 py-1.5 sm:gap-2 sm:rounded-[22px] sm:px-3 sm:py-2.5">
-          {onOpenComposer ? (
-            <button
-              type="button"
-              aria-label="Open memory, history, and persona"
-              onClick={onOpenComposer}
-              className="focus-ring mb-0.5 grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full border border-white/10 bg-[var(--bg-elevated)] text-[var(--accent-purple)] transition hover:border-[rgb(var(--accent-rgb)_/_0.45)] active:scale-95 md:hidden"
-            >
-              <Avatar name={personaName ?? "You"} src={personaAvatarUrl} size="xs" className="h-8 w-8 border-0 bg-transparent" />
-            </button>
-          ) : null}
-          <textarea
-            ref={textareaRef}
-            value={value}
-            rows={1}
-            onChange={(event) => onChange(event.target.value)}
-            onInput={resize}
-            onKeyDown={handleKeyDown}
-            placeholder="Message character..."
-            className="max-h-[112px] min-h-8 flex-1 resize-none overflow-y-auto bg-transparent px-1 py-1 text-[15px] leading-6 text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] sm:max-h-[160px] sm:min-h-9 sm:px-0 sm:text-sm"
-            disabled={disabled}
-          />
+
+        <textarea
+          ref={textareaRef}
+          value={value}
+          rows={1}
+          onChange={(event) => onChange(event.target.value)}
+          onInput={resize}
+          onKeyDown={handleKeyDown}
+          placeholder="Send a message"
+          className="relative max-h-[220px] min-h-20 w-full flex-1 resize-none overflow-y-auto bg-transparent px-0 py-1 text-2xl font-semibold leading-tight text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] sm:min-h-6 sm:text-sm sm:font-normal sm:leading-6"
+          disabled={disabled}
+        />
+
+        <div className="relative flex w-full items-center justify-between gap-2 sm:w-auto sm:contents">
+          <div className="flex min-w-0 items-center gap-2 sm:hidden">
+            {onOpenComposer ? (
+              <motion.button
+                type="button"
+                aria-label="Open memory, history, and persona"
+                onClick={onOpenComposer}
+                whileTap={{ scale: 0.94 }}
+                transition={springSnappy}
+                className="focus-ring flex h-10 min-w-0 items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-[var(--color-overlay)] px-2.5 pr-3 text-sm font-semibold text-[var(--text-secondary)]"
+              >
+                <Avatar name={personaName ?? "You"} src={personaAvatarUrl} size="xs" className="h-7 w-7 border-0 bg-transparent" />
+                <span className="max-w-[116px] truncate">{personaName ?? "You"}</span>
+              </motion.button>
+            ) : null}
+            {hasApiControls ? (
+              <motion.button
+                type="button"
+                aria-label="API settings"
+                onClick={() => setApiOpen((current) => !current)}
+                whileTap={{ scale: 0.96 }}
+                transition={springSnappy}
+                className="focus-ring flex h-10 min-w-0 items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-[var(--color-overlay)] px-3 text-sm font-semibold text-[var(--text-secondary)]"
+              >
+                <Sparkles className="h-4 w-4 shrink-0" />
+                <span className="max-w-[112px] truncate">{modelLabel}</span>
+              </motion.button>
+            ) : null}
+          </div>
+
+          <div className="relative flex shrink-0 items-center gap-2">
           {hasApiControls ? (
-            <button
+            <motion.button
               type="button"
               aria-label="API settings"
               title="API settings"
               onClick={() => setApiOpen((current) => !current)}
-              className="focus-ring mb-0.5 flex h-8 shrink-0 items-center gap-2 rounded-full border border-white/10 bg-[var(--bg-elevated)] px-2 text-[var(--text-secondary)] transition hover:border-[rgb(var(--accent-rgb)_/_0.45)] hover:text-[var(--text-primary)] active:scale-95 sm:h-9 sm:px-2.5"
+              whileTap={{ scale: 0.96 }}
+              transition={springSnappy}
+              className="focus-ring hidden h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--border-subtle)] bg-[var(--color-overlay)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] sm:grid"
             >
-              <Settings2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="hidden max-w-28 truncate text-[11px] sm:block">{model || "Model"}</span>
-            </button>
+              {modelLoading ? <Sparkles className="h-3.5 w-3.5" /> : <Settings2 className="h-3.5 w-3.5" />}
+            </motion.button>
           ) : null}
+
+          <motion.button
+            type="button"
+            onClick={onSubmit}
+            disabled={!canSend}
+            aria-label="Send message"
+            whileTap={canSend ? { scale: 0.92 } : undefined}
+            transition={springSnappy}
+            className="focus-ring relative grid h-9 w-9 shrink-0 place-items-center rounded-full text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-45"
+            style={{
+              background: canSend ? "var(--gradient-aurora-primary)" : "var(--color-overlay)"
+            }}
+          >
+            <ArrowUp className="h-4 w-4" />
+          </motion.button>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={onSubmit}
-          disabled={!canSend}
-          aria-label="Send message"
-          className="focus-ring relative mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[var(--gradient-aurora-primary)] text-[color:oklch(var(--color-on-accent))] shadow-[0_0_34px_oklch(var(--color-accent-primary)/.24)] transition-all duration-100 hover:brightness-110 active:scale-90 disabled:opacity-35 md:hidden"
-        >
-          {canSend ? <SendHorizontal className="h-[18px] w-[18px]" /> : <Sparkles className="h-4 w-4" />}
-        </button>
-        <button
-          type="button"
-          onClick={onSubmit}
-          disabled={!canSend}
-          aria-label="Send message"
-          className="focus-ring relative mb-0.5 hidden h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/15 bg-[var(--gradient-aurora-primary)] text-[color:oklch(var(--color-on-accent))] shadow-[var(--shadow-glow)] transition-all duration-100 hover:brightness-110 active:scale-90 disabled:opacity-40 md:flex"
-        >
-          <SendHorizontal className="h-[18px] w-[18px]" />
-        </button>
-      </div>
+      </motion.div>
     </div>
   );
+}
+
+function formatModelLabel(value: string) {
+  return value
+    .replace(/^openai:/, "")
+    .replace(/^anthropic:/, "")
+    .replace(/^google:/, "")
+    .replace(/^xai:/, "")
+    .replace(/^openrouter:/, "")
+    .replace(/-/g, " ");
 }

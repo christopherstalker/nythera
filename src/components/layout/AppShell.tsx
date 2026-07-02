@@ -1,10 +1,9 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { BottomNav } from "@/components/layout/BottomNav";
-import { MobileGuestBar } from "@/components/layout/MobileGuestBar";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { AuroraWebglBackground } from "@/components/ambient/aurora-webgl-background";
+import { NavRail } from "@/components/nav/NavRail";
+import { SidePanel } from "@/components/panel/SidePanel";
+import { cn } from "@/lib/utils";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -12,23 +11,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/admin");
-  const isChatRoute = pathname.startsWith("/chat/") || pathname.startsWith("/room/");
+  const isChatSurface = pathname.startsWith("/chat/");
 
   if (hideChrome) {
     return <main className="min-h-dvh bg-[var(--bg-base)]">{children}</main>;
   }
 
   return (
-    <div className="relative isolate min-h-dvh bg-[var(--bg-base)]">
-      <AuroraWebglBackground />
-      <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10" style={{ background: "var(--app-shell-gradient)" }} />
-      <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-80 bg-gradient-to-b from-primary/[0.08] to-transparent" />
-      <Sidebar />
-      <MobileGuestBar />
-      <main className="min-h-dvh max-md:pb-[var(--bottom-nav-offset)] md:pl-[96px]">
-        {children}
-      </main>
-      {isChatRoute ? null : <BottomNav />}
+    <div id="app-shell" className="fixed inset-0 min-h-dvh overflow-hidden bg-[var(--bg-base)]">
+      <NavRail />
+      <div
+        className={cn(
+          "flex h-full min-w-0",
+          isChatSurface ? "pb-0 pt-0" : "pb-[var(--bottom-nav-offset)] pt-0 md:pb-0 md:pt-[var(--top-bar-height)]"
+        )}
+      >
+        <main className="min-w-0 flex-1 overflow-y-auto">
+          {children}
+        </main>
+        <SidePanel />
+      </div>
     </div>
   );
 }

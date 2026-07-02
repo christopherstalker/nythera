@@ -75,7 +75,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
-      <body className={`${spaceGrotesk.className} ${spaceGrotesk.variable} min-h-screen overflow-x-hidden`}>
+      <body className={`${spaceGrotesk.className} ${spaceGrotesk.variable} min-h-screen overflow-hidden`}>
         <SessionProvider>
           <AppShell>{children}</AppShell>
         </SessionProvider>

@@ -129,10 +129,10 @@ test("Aurora Ink tokens define the complete OKLCH design-system contract", async
   assert.doesNotMatch(css, /#[\da-f]{3,8}\b|\b(?:rgb|rgba|hsl|hsla)\s*\(/i);
 
   const primitives = {
-    "primitive-violet-500": "0.67 0.17 286",
-    "primitive-violet-600": "0.59 0.19 286",
-    "primitive-mint-400": "0.87 0.12 170",
-    "primitive-mint-500": "0.78 0.13 170",
+    "primitive-violet-500": "0.74 0.13 250",
+    "primitive-violet-600": "0.68 0.14 250",
+    "primitive-mint-400": "0.82 0.12 170",
+    "primitive-mint-500": "0.76 0.13 170",
     "primitive-warning-500": "0.78 0.15 80",
     "primitive-danger-500": "0.65 0.2 25"
   };
@@ -142,17 +142,18 @@ test("Aurora Ink tokens define the complete OKLCH design-system contract", async
   }
 
   const darkSemantic = {
-    "color-canvas": "0.115 0.027 276",
-    "color-surface": "0.165 0.035 276",
-    "color-elevated": "0.215 0.042 276",
-    "color-text-primary": "0.96 0.012 270",
-    "color-text-secondary": "0.78 0.035 270",
-    "color-text-muted": "0.64 0.035 270",
-    "color-text-disabled": "0.49 0.026 270",
-    "color-border-subtle": "0.35 0.04 276",
-    "color-border-default": "0.45 0.04 276",
-    "color-border-strong": "0.6 0.04 276",
-    "color-border-disabled": "0.28 0.025 276",
+    "color-canvas": "0.08 0 0",
+    "color-surface": "0.16 0 0",
+    "color-elevated": "0.22 0 0",
+    "color-overlay": "oklch(var(--color-elevated) / .72)",
+    "color-text-primary": "0.98 0 0",
+    "color-text-secondary": "0.86 0 0",
+    "color-text-muted": "0.74 0 0",
+    "color-text-disabled": "0.55 0 0",
+    "color-border-subtle": "0.36 0 0",
+    "color-border-default": "0.48 0 0",
+    "color-border-strong": "0.72 0 0",
+    "color-border-disabled": "0.28 0 0",
     "color-accent-primary": "var(--primitive-violet-500)",
     "color-accent-strong": "var(--primitive-violet-600)",
     "color-accent-secondary": "var(--primitive-mint-400)",
@@ -161,17 +162,18 @@ test("Aurora Ink tokens define the complete OKLCH design-system contract", async
     "color-danger": "var(--primitive-danger-500)"
   };
   const lightSemantic = {
-    "color-canvas": "0.965 0.012 270",
-    "color-surface": "0.988 0.004 270",
-    "color-elevated": "0.999 0 0",
-    "color-text-primary": "0.22 0.04 275",
-    "color-text-secondary": "0.42 0.045 275",
-    "color-text-muted": "0.48 0.04 275",
-    "color-text-disabled": "0.65 0.025 275",
-    "color-border-subtle": "0.82 0.03 275",
-    "color-border-default": "0.72 0.035 275",
-    "color-border-strong": "0.55 0.04 275",
-    "color-border-disabled": "0.88 0.015 275",
+    "color-canvas": "0.08 0 0",
+    "color-surface": "0.16 0 0",
+    "color-elevated": "0.22 0 0",
+    "color-overlay": "oklch(var(--color-elevated) / .72)",
+    "color-text-primary": "0.98 0 0",
+    "color-text-secondary": "0.86 0 0",
+    "color-text-muted": "0.74 0 0",
+    "color-text-disabled": "0.55 0 0",
+    "color-border-subtle": "0.36 0 0",
+    "color-border-default": "0.48 0 0",
+    "color-border-strong": "0.72 0 0",
+    "color-border-disabled": "0.28 0 0",
     "color-accent-primary": "var(--primitive-violet-500)",
     "color-accent-strong": "var(--primitive-violet-600)",
     "color-accent-secondary": "var(--primitive-mint-400)",
@@ -190,7 +192,7 @@ test("Aurora Ink tokens define the complete OKLCH design-system contract", async
     assertToken(root, `space-${step}`, spacing[index])
   );
   const radii = {
-    "radius-compact": "6px",
+    "radius-compact": "4px",
     "radius-control": "12px",
     "radius-card": "20px",
     "radius-surface": "28px",
@@ -199,11 +201,11 @@ test("Aurora Ink tokens define the complete OKLCH design-system contract", async
   };
   for (const [name, value] of Object.entries(radii)) assertToken(root, name, value);
 
-  assertToken(root, "type-display", "clamp(2.5rem, 5vw, 4.5rem)");
-  assertToken(root, "type-heading-1", "clamp(2rem, 3.5vw, 3.25rem)");
-  assertToken(root, "type-heading-2", "clamp(1.5rem, 2.5vw, 2.25rem)");
-  assertToken(root, "type-heading-3", "clamp(1.25rem, 1.5vw, 1.5rem)");
-  assertToken(root, "type-body", "clamp(.9375rem, .9rem + .2vw, 1.0625rem)");
+  assertToken(root, "type-display", "clamp(2.5rem, 5vw, 4rem)");
+  assertToken(root, "type-heading-1", "clamp(1.75rem, 3vw, 2.5rem)");
+  assertToken(root, "type-heading-2", "clamp(1.25rem, 2vw, 1.75rem)");
+  assertToken(root, "type-heading-3", "clamp(1rem, 1.5vw, 1.25rem)");
+  assertToken(root, "type-body", "1rem");
 
   for (const [name, value] of Object.entries({ subtle: "56%", standard: "72%", strong: "88%" })) {
     assertToken(root, `glass-surface-${name}`, value);
@@ -222,27 +224,39 @@ test("Aurora Ink tokens define the complete OKLCH design-system contract", async
   const layout = {
     "page-padding-x": "clamp(1rem, 2.8vw, 2.5rem)",
     "page-padding-y": "clamp(1rem, 2vw, 2rem)",
-    "page-max-width": "72rem",
-    "content-max-width": "57.5rem",
-    "chat-max-width": "min(920px, calc(100vw - 2rem))",
+    "page-max-width": "74rem",
+    "content-max-width": "45rem",
+    "chat-max-width": "min(720px, calc(100vw - 2rem))",
     "card-min-width": "clamp(9.75rem, 42vw, 12.5rem)",
     "card-height": "clamp(16.5rem, 38vw, 18.75rem)",
     "grid-gap": "clamp(0.75rem, 1.8vw, 1.25rem)",
-    "bottom-nav-offset": "calc(5.75rem + env(safe-area-inset-bottom))",
+    "bottom-nav-offset": "calc(92px + env(safe-area-inset-bottom))",
     "touch-target": "44px",
-    "sidebar-width": "260px",
-    "sidebar-collapsed": "64px"
+    "sidebar-width": "220px",
+    "sidebar-collapsed": "64px",
+    "nav-rail-collapsed": "64px",
+    "nav-rail-expanded": "220px",
+    "top-bar-height": "80px",
+    "side-panel-width": "280px"
   };
   for (const [name, value] of Object.entries(layout)) assertToken(root, name, value);
 
-  assertToken(root, "gradient-aurora-primary", "linear-gradient(90deg, oklch(var(--color-accent-primary)), oklch(var(--color-accent-secondary)))");
-  assertToken(root, "gradient-aurora-ambient", "radial-gradient(circle at 82% 0%, oklch(var(--color-accent-primary) / 0.18), transparent 40%), linear-gradient(145deg, oklch(var(--color-canvas)), oklch(var(--color-surface)) 68%, oklch(var(--color-canvas)))");
+  assertToken(
+    root,
+    "gradient-aurora-primary",
+    "linear-gradient(120deg, oklch(var(--color-accent-primary)) 0%, oklch(var(--color-accent-secondary)) 100%)"
+  );
+  assertToken(
+    root,
+    "gradient-aurora-ambient",
+    "radial-gradient(ellipse 80% 55% at 20% 78%, oklch(var(--color-accent-primary) / .38) 0%, transparent 58%), radial-gradient(ellipse 70% 45% at 78% 22%, oklch(var(--color-accent-secondary) / .28) 0%, transparent 62%)"
+  );
 
   const compatibilityAliases = {
     "bg-base": "oklch(var(--color-canvas))",
-    "bg-surface": "oklch(var(--color-surface) / .72)",
-    "bg-elevated": "oklch(var(--color-elevated) / .76)",
-    "bg-input": "oklch(var(--color-surface) / .82)",
+    "bg-surface": "oklch(var(--color-surface))",
+    "bg-elevated": "oklch(var(--color-elevated))",
+    "bg-input": "oklch(var(--color-surface))",
     "text-primary": "oklch(var(--color-text-primary))",
     "text-secondary": "oklch(var(--color-text-secondary))",
     "text-muted": "oklch(var(--color-text-muted))",
@@ -252,16 +266,17 @@ test("Aurora Ink tokens define the complete OKLCH design-system contract", async
     "brand-primary-hover": "oklch(var(--color-accent-strong))",
     "brand-secondary": "oklch(var(--color-accent-secondary))",
     "brand-secondary-deep": "oklch(var(--primitive-violet-600))",
-    "brand-glow": "oklch(var(--color-accent-primary) / .15)",
-    "brand-glow-strong": "oklch(var(--color-accent-primary) / .28)",
+    "border-strong": "oklch(var(--color-border-strong))",
+    "brand-glow": "transparent",
+    "brand-glow-strong": "transparent",
     "accent-purple": "oklch(var(--color-accent-primary))",
     "accent-purple-hover": "oklch(var(--color-accent-strong))",
-    "accent-purple-soft": "oklch(var(--color-accent-primary) / .16)",
+    "accent-purple-soft": "oklch(var(--color-accent-primary) / .28)",
     "accent-secondary": "oklch(var(--color-accent-secondary))",
     "accent-teal": "oklch(var(--primitive-mint-500))",
     "accent-rgb": "143 129 247",
-    "bubble-user": "oklch(var(--color-accent-primary) / .24)",
-    "bubble-char": "oklch(var(--color-surface) / .72)",
+    "bubble-user": "oklch(var(--color-accent-primary))",
+    "bubble-char": "oklch(var(--color-surface))",
     "radius-sm": "var(--radius-compact)",
     "radius-md": "var(--radius-control)",
     "radius-lg": "var(--radius-card)",
@@ -294,34 +309,36 @@ test("Aurora Ink tokens define the complete OKLCH design-system contract", async
     ring: "var(--color-focus-ring)"
   };
   for (const [name, value] of Object.entries(compatibilityAliases)) assertToken(root, name, value);
-  assertToken(root, "color-on-accent", "0.115 0.027 276");
-  assertToken(root, "color-on-danger", "0.115 0.027 276");
+  assertToken(root, "color-on-accent", "0.08 0 0");
+  assertToken(root, "color-on-danger", "0.08 0 0");
 
   const darkThemeAliases = {
-    "elevation-raised": "0 14px 45px oklch(0 0 0 / .28)",
-    "elevation-floating": "0 24px 80px oklch(0 0 0 / .38)",
-    "elevation-glow": "0 0 42px oklch(var(--color-accent-primary) / .2)",
+    "elevation-raised": "0 16px 42px oklch(0 0 0 / .26)",
+    "elevation-floating": "0 24px 72px oklch(0 0 0 / .34)",
+    "elevation-glow": "0 0 0 1px oklch(var(--color-focus-ring) / .46), 0 0 42px oklch(var(--color-accent-primary) / .24)",
     "shadow-card": "var(--elevation-floating)",
+    "shadow-elevated": "var(--elevation-floating)",
     "shadow-soft": "var(--elevation-raised)",
     "shadow-glow": "var(--elevation-glow)",
-    "shadow-glow-soft": "0 0 84px oklch(var(--color-accent-primary) / .11)",
-    "glass-highlight": "inset 0 1px 0 oklch(var(--color-text-primary) / .08)",
-    "app-body-gradient": "var(--gradient-aurora-ambient)",
-    "app-shell-gradient": "var(--gradient-aurora-ambient)",
-    "chat-overlay": "linear-gradient(180deg, oklch(var(--color-canvas) / .66), oklch(var(--color-canvas) / .9) 34%, oklch(var(--color-canvas)))"
+    "shadow-glow-soft": "0 0 32px oklch(var(--color-accent-primary) / .18)",
+    "glass-highlight": "inset 0 1px 0 oklch(1 0 0 / .08)",
+    "app-body-gradient": "var(--gradient-aurora-ambient), var(--bg-base)",
+    "app-shell-gradient": "linear-gradient(180deg, oklch(var(--color-canvas)) 0%, oklch(var(--color-canvas) / .96) 100%)",
+    "chat-overlay": "oklch(var(--color-canvas) / .9)"
   };
   const lightThemeAliases = {
-    "elevation-raised": "0 12px 36px oklch(.35 .04 275 / .1)",
-    "elevation-floating": "0 18px 60px oklch(.35 .04 275 / .12)",
-    "elevation-glow": "0 0 34px oklch(var(--color-accent-primary) / .16)",
+    "elevation-raised": "0 16px 42px oklch(0 0 0 / .26)",
+    "elevation-floating": "0 24px 72px oklch(0 0 0 / .34)",
+    "elevation-glow": "0 0 0 1px oklch(var(--color-focus-ring) / .46), 0 0 42px oklch(var(--color-accent-primary) / .24)",
     "shadow-card": "var(--elevation-floating)",
+    "shadow-elevated": "var(--elevation-floating)",
     "shadow-soft": "var(--elevation-raised)",
     "shadow-glow": "var(--elevation-glow)",
-    "shadow-glow-soft": "0 0 74px oklch(var(--color-accent-primary) / .1)",
-    "glass-highlight": "inset 0 1px 0 oklch(var(--color-elevated) / .72)",
-    "app-body-gradient": "var(--gradient-aurora-ambient)",
-    "app-shell-gradient": "var(--gradient-aurora-ambient)",
-    "chat-overlay": "linear-gradient(180deg, oklch(var(--color-canvas) / .7), oklch(var(--color-canvas) / .9) 34%, oklch(var(--color-canvas)))"
+    "shadow-glow-soft": "0 0 32px oklch(var(--color-accent-primary) / .18)",
+    "glass-highlight": "inset 0 1px 0 oklch(1 0 0 / .08)",
+    "app-body-gradient": "var(--gradient-aurora-ambient), var(--bg-base)",
+    "app-shell-gradient": "linear-gradient(180deg, oklch(var(--color-canvas)) 0%, oklch(var(--color-canvas) / .96) 100%)",
+    "chat-overlay": "oklch(var(--color-canvas) / .9)"
   };
   for (const [name, value] of Object.entries(darkThemeAliases)) assertToken(dark, name, value);
   for (const [name, value] of Object.entries(lightThemeAliases)) assertToken(light, name, value);
@@ -416,7 +433,7 @@ test("global CSS compiles imported tokens and semantic Tailwind utilities", asyn
     readFile(globalsFile, "utf8")
   ]);
   const contentFixture = `
-    <div class="bg-canvas/72 text-content-primary border-outline bg-aurora-primary shadow-glow bg-primary font-sans"></div>
+    <div class="bg-canvas/72 bg-aurora-primary text-content-primary border-outline bg-primary font-sans"></div>
   `;
   const plugins: AcceptedPlugin[] = [];
 
@@ -446,10 +463,9 @@ test("global CSS compiles imported tokens and semantic Tailwind utilities", asyn
   assert.deepEqual(Object.keys(postcssConfig.plugins), ["postcss-import", "tailwindcss", "autoprefixer"]);
   for (const selector of [
     ".bg-canvas\\/72",
+    ".bg-aurora-primary",
     ".text-content-primary",
     ".border-outline",
-    ".bg-aurora-primary",
-    ".shadow-glow",
     ".bg-primary",
     ".font-sans"
   ]) {
@@ -459,15 +475,15 @@ test("global CSS compiles imported tokens and semantic Tailwind utilities", asyn
     "background-color: oklch(var(--color-canvas) / .72)",
     "color: oklch(var(--color-text-primary) / var(--tw-text-opacity, 1))",
     "border-color: oklch(var(--color-border-default) / var(--tw-border-opacity, 1))",
-    "background-image: var(--gradient-aurora-primary)",
-    "--tw-shadow: var(--elevation-glow)",
     "background-color: oklch(var(--color-accent-primary) / var(--tw-bg-opacity, 1))",
     'font-family: var(--font-space-grotesk, "Segoe UI"), Roboto, Arial, sans-serif'
   ]) {
     assert.ok(compiled.includes(declaration), `missing generated declaration: ${declaration}`);
   }
-  assert.match(compiled, /--color-canvas:\s*0\.115 0\.027 276/);
-  assert.match(compiled, /--elevation-glow:\s*0 0 42px oklch\(var\(--color-accent-primary\) \/ \.2\)/);
+  assert.match(compiled, /--color-canvas:\s*0\.08 0 0/);
+  assert.match(compiled, /--gradient-aurora-primary:\s*linear-gradient\(120deg, oklch\(var\(--color-accent-primary\)\) 0%, oklch\(var\(--color-accent-secondary\)\) 100%\)/);
+  assert.match(compiled, /--shadow-glow-soft:\s*0 0 32px oklch\(var\(--color-accent-primary\) \/ \.18\)/);
+  assert.match(compiled, /background-image:\s*var\(--gradient-aurora-primary\)/);
 });
 
 test("Tailwind and global CSS consume the semantic token contract", async () => {
@@ -561,7 +577,7 @@ test("the design-system reference documents every foundation contract", async ()
     assert.match(docs, new RegExp(`## ${heading}`));
   }
 
-  assert.match(docs, /6 \/ 12 \/ 20 \/ 28 \/ 36 \/ full/);
+  assert.match(docs, /4 \/ 12 \/ 20 \/ 28 \/ 36 \/ full/);
   assert.match(docs, /surface\/72/);
   assert.match(docs, /springSnappy/);
   assert.match(docs, /WCAG AA/);

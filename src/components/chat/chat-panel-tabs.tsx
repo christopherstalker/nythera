@@ -16,14 +16,14 @@ type PanelState = ReturnType<typeof useChatQuickPanel>;
 export function PersonaTabContent({ panel, compact = false }: { panel: PanelState; compact?: boolean }) {
   return (
     <div className="grid gap-3">
-      <div className="scrollbar-none flex gap-2 overflow-x-auto pb-1">
+      <div className="scrollbar-none flex min-w-0 gap-2 overflow-x-auto pb-1">
         {panel.profiles.map((profile) => (
           <button
             key={profile.id}
             type="button"
             onClick={() => void panel.switchPersona(profile)}
             className={cn(
-              "focus-ring flex h-11 shrink-0 items-center gap-2 rounded-2xl border px-3 text-left text-xs transition-colors",
+              "focus-ring flex h-11 min-w-0 shrink-0 items-center gap-2 rounded-2xl border px-3 text-left text-xs transition-colors",
               panel.activeProfileId === profile.id
                 ? "border-transparent bg-[var(--accent-purple-soft)] text-[var(--text-primary)]"
                 : "border-[var(--border-default)] bg-[var(--bg-input)] text-[var(--text-secondary)]"
@@ -102,7 +102,7 @@ export function MemoryTabContent({ panel }: { panel: PanelState }) {
       {panel.memoryStatus ? <PanelStatusText>{panel.memoryStatus}</PanelStatusText> : null}
       <div className="grid gap-2">
         {panel.memories.map((memory) => (
-          <div key={memory.id} className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-input)] p-3 shadow-[var(--glass-highlight)]">
+          <div key={memory.id} className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-input)] p-3">
             <p className="text-sm leading-5 text-[var(--text-primary)]">{memory.content}</p>
             <p className="mt-2 text-xs text-[var(--text-muted)]">
               {memory.category}
@@ -133,7 +133,7 @@ export function HistoryTabContent({
         <button
           type="button"
           onClick={onNewChat}
-          className="focus-ring flex h-11 items-center justify-center gap-2 rounded-2xl border border-[rgb(var(--accent-rgb)_/_0.45)] bg-[var(--accent-purple-soft)] px-3 text-sm font-semibold text-[var(--text-primary)] shadow-[var(--glass-highlight)] transition hover:bg-white/[0.06]"
+          className="focus-ring flex h-11 items-center justify-center gap-2 rounded-2xl border border-[var(--border-strong)] bg-primary px-3 text-sm font-semibold text-primary-foreground transition hover:bg-[var(--accent-purple-hover)]"
         >
           <Plus className="h-4 w-4" />
           Start new chat
@@ -145,8 +145,8 @@ export function HistoryTabContent({
           href={`/chat/${chat.id}`}
           onClick={onNavigate}
           className={cn(
-            "flex items-center gap-3 overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-input)] p-3 no-underline shadow-[var(--glass-highlight)] transition-colors hover:bg-white/[0.055]",
-            chat.id === chatId && "border-[rgb(var(--accent-rgb)_/_0.38)] bg-[var(--accent-purple-soft)]"
+            "flex min-w-0 items-center gap-3 overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-input)] p-3 no-underline transition-colors hover:bg-[var(--bg-elevated)]",
+            chat.id === chatId && "border-[var(--border-strong)] bg-[var(--accent-purple-soft)]"
           )}
         >
           <Avatar name={chat.character.name} src={chat.character.avatarUrl} size="xs" />

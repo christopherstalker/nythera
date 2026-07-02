@@ -47,7 +47,7 @@ export default function DownloadPage() {
   return (
     <PageShell className="space-y-6">
       <Surface className="relative isolate overflow-hidden p-5 sm:p-6">
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 hero-gradient opacity-55" />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-transparent" />
         <PageHeader
           icon={MonitorSmartphone}
           title="Install Nythera"
@@ -76,7 +76,7 @@ export default function DownloadPage() {
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
         <Surface className="p-5 sm:p-6">
           <div className="flex items-start gap-4">
-            <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl border border-primary/25 bg-primary/10 shadow-[var(--shadow-glow-soft)]">
+            <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl border border-primary/25 bg-primary/10">
               <Image src="/icons/velora-aurora-v4-192.png" alt="" width={42} height={42} className="h-10 w-10" />
             </div>
             <div className="min-w-0 flex-1">

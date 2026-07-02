@@ -5,9 +5,9 @@ import test from "node:test";
 test("motion exposes only the approved reusable presets", async () => {
   const motion = await import("../src/lib/motion").catch(() => null);
 
-  assert.deepEqual(motion?.springSnappy, { type: "spring", stiffness: 420, damping: 32, mass: 0.75 });
-  assert.deepEqual(motion?.springSoft, { type: "spring", stiffness: 220, damping: 28, mass: 0.9 });
-  assert.deepEqual(motion?.easeStandard, { duration: 0.22, ease: [0.2, 0, 0, 1] });
+  assert.deepEqual(motion?.springSnappy, { type: "spring", stiffness: 500, damping: 30, mass: 0.8 });
+  assert.deepEqual(motion?.springSoft, { type: "spring", stiffness: 200, damping: 24, mass: 1 });
+  assert.deepEqual(motion?.easeStandard, { duration: 0.22, ease: [0.4, 0, 0.2, 1] });
   assert.deepEqual(Object.keys(motion ?? {}).sort(), ["easeStandard", "springSnappy", "springSoft"]);
 });
 
