@@ -83,17 +83,16 @@ export function ChatInput({
     <div
       className="pointer-events-none sticky bottom-0 z-20 shrink-0 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-8 sm:px-5 md:px-6 md:pb-5"
       style={{
-        background:
-          "linear-gradient(to top, var(--bg-base) 58%, color-mix(in oklch, var(--bg-base) 80%, transparent) 82%, transparent 100%)"
+        background: "transparent"
       }}
     >
       {hasApiControls && apiOpen ? (
         <motion.div
-          className="api-panel-enter pointer-events-auto mx-auto mb-3 grid max-w-[var(--chat-max-width)] gap-3 rounded-[28px] border border-[var(--border-subtle)] p-3 shadow-[var(--shadow-elevated)] sm:grid-cols-[minmax(0,1fr)_minmax(220px,280px)]"
+          className="api-panel-enter pointer-events-auto mx-auto mb-3 grid max-w-[var(--chat-max-width)] gap-3 rounded-[28px] border border-[var(--border-subtle)] p-3 sm:grid-cols-[minmax(0,1fr)_minmax(220px,280px)]"
           style={{
-            background: "color-mix(in oklch, var(--bg-surface) 82%, transparent)",
-            backdropFilter: "blur(20px) saturate(170%)",
-            WebkitBackdropFilter: "blur(20px) saturate(170%)"
+            background: "color-mix(in oklch, var(--bg-surface) 10%, transparent)",
+            backdropFilter: "blur(8px) saturate(115%)",
+            WebkitBackdropFilter: "blur(8px) saturate(115%)"
           }}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -196,11 +195,11 @@ export function ChatInput({
         </motion.div>
       ) : null}
       <motion.div
-        className="nythera-chat-column composer-dock pointer-events-auto relative mx-auto flex max-w-[var(--chat-max-width)] flex-col gap-4 rounded-[36px] border border-[var(--border-subtle)] px-5 py-5 shadow-[var(--shadow-elevated)] sm:flex-row sm:items-end sm:gap-2 sm:rounded-[28px] sm:px-4 sm:py-3"
+        className="nythera-chat-column composer-dock pointer-events-auto relative mx-auto flex max-w-[var(--chat-max-width)] flex-col gap-4 rounded-[36px] border border-[var(--border-subtle)] px-5 py-5 sm:flex-row sm:items-end sm:gap-2 sm:rounded-[28px] sm:px-4 sm:py-3"
         style={{
-          background: "color-mix(in oklch, var(--bg-surface) 84%, transparent)",
-          backdropFilter: "blur(22px) saturate(175%)",
-          WebkitBackdropFilter: "blur(22px) saturate(175%)"
+          background: "color-mix(in oklch, var(--bg-surface) 4%, transparent)",
+          backdropFilter: "blur(8px) saturate(115%)",
+          WebkitBackdropFilter: "blur(8px) saturate(115%)"
         }}
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}

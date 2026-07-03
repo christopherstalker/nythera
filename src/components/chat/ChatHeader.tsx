@@ -44,13 +44,13 @@ export function ChatHeader({ chatId, characterId, characterName, characterAvatar
       animate={{ opacity: 1, y: 0 }}
       transition={springSoft}
     >
-      <div className="mx-auto flex w-full max-w-[min(920px,calc(100vw-2rem))] items-start justify-between gap-3">
+      <div className="mx-auto flex w-full max-w-[min(920px,calc(100vw-1.5rem))] items-start justify-between gap-2 sm:gap-3">
         <motion.div
-          className="pointer-events-auto flex h-16 min-w-0 max-w-[min(480px,calc(100vw-7.25rem))] items-center gap-2 rounded-full border border-[var(--border-subtle)] px-2.5 shadow-[var(--shadow-elevated)]"
+          className="pointer-events-auto flex h-14 min-w-0 max-w-[min(460px,calc(100vw-8.5rem))] items-center gap-2 rounded-full border border-[var(--border-subtle)] px-2 sm:h-16 sm:max-w-[min(480px,calc(100vw-7.25rem))] sm:px-2.5"
           style={{
-            background: "color-mix(in oklch, var(--bg-base) 76%, transparent)",
-            backdropFilter: "blur(24px) saturate(185%)",
-            WebkitBackdropFilter: "blur(24px) saturate(185%)"
+            background: "color-mix(in oklch, var(--bg-base) 8%, transparent)",
+            backdropFilter: "blur(8px) saturate(115%)",
+            WebkitBackdropFilter: "blur(8px) saturate(115%)"
           }}
           whileHover={{ y: -1 }}
           transition={springSnappy}
@@ -59,11 +59,11 @@ export function ChatHeader({ chatId, characterId, characterName, characterAvatar
             <ArrowLeft className="h-6 w-6" />
           </HeaderIconButton>
 
-          <Avatar name={characterName} src={characterAvatarUrl} size="md" className="h-12 w-12 shrink-0 border border-[var(--border-subtle)]" />
+          <Avatar name={characterName} src={characterAvatarUrl} size="md" className="h-10 w-10 shrink-0 border border-[var(--border-subtle)] sm:h-12 sm:w-12" />
 
           <div className="min-w-0 flex-1 pr-1">
-            <h1 className="truncate text-xl font-bold leading-6 text-[var(--text-primary)] sm:text-2xl">{characterName}</h1>
-            <p className="truncate text-xs font-semibold leading-4 text-[var(--text-muted)] sm:text-sm">
+            <h1 className="truncate text-lg font-bold leading-5 text-[var(--text-primary)] sm:text-2xl sm:leading-6">{characterName}</h1>
+            <p className="truncate text-[11px] font-semibold leading-4 text-[var(--text-muted)] sm:text-sm">
               {personaName ? `${personaName} active` : "Active scene"}
             </p>
           </div>
@@ -77,7 +77,7 @@ export function ChatHeader({ chatId, characterId, characterName, characterAvatar
           </Link>
         </motion.div>
 
-        <div className="pointer-events-auto flex shrink-0 items-center gap-3">
+        <div className="pointer-events-auto flex shrink-0 items-center gap-2 sm:gap-3">
           <HeaderIconButton ariaLabel={contextOpen ? "Close story context" : "Open story context"} onClick={onOpenContext} elevated active={contextOpen}>
             {contextOpen ? <PanelRightClose className="h-5 w-5" /> : <PanelRightOpen className="h-5 w-5" />}
           </HeaderIconButton>
@@ -144,16 +144,16 @@ function HeaderIconButton({
       transition={springSnappy}
       className={cn(
         "focus-ring grid shrink-0 place-items-center rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
-        elevated ? "h-14 w-14 border border-[var(--border-subtle)] shadow-[var(--shadow-soft)]" : "h-10 w-10",
+        elevated ? "h-12 w-12 border border-[var(--border-subtle)] sm:h-14 sm:w-14" : "h-10 w-10",
         active && "text-[var(--text-primary)]",
         subtle ? "hover:bg-[var(--color-overlay)]" : "bg-[var(--color-overlay)] hover:bg-[var(--bg-elevated)]"
       )}
       style={
         elevated
           ? {
-              background: active ? "color-mix(in oklch, var(--bg-elevated) 88%, transparent)" : "color-mix(in oklch, var(--bg-base) 55%, transparent)",
-              backdropFilter: "blur(18px) saturate(170%)",
-              WebkitBackdropFilter: "blur(18px) saturate(170%)"
+              background: active ? "color-mix(in oklch, var(--bg-elevated) 14%, transparent)" : "color-mix(in oklch, var(--bg-base) 6%, transparent)",
+              backdropFilter: "blur(8px) saturate(115%)",
+              WebkitBackdropFilter: "blur(8px) saturate(115%)"
             }
           : undefined
       }

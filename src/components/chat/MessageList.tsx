@@ -74,7 +74,7 @@ export function MessageList({ messages, characterName, personaName, summary, err
     <div
       ref={scrollRef}
       onScroll={handleScroll}
-      className="chat-scroll relative z-10 flex-1 overflow-y-auto px-4 pb-8 pt-[calc(96px+env(safe-area-inset-top))] sm:px-6 sm:pb-10 md:px-8 md:pt-[calc(92px+env(safe-area-inset-top))]"
+      className="chat-scroll relative z-10 flex-1 overflow-y-auto px-4 pb-8 pt-[calc(84px+env(safe-area-inset-top))] sm:px-6 sm:pb-10 sm:pt-[calc(96px+env(safe-area-inset-top))] md:px-8 md:pt-[calc(92px+env(safe-area-inset-top))]"
       aria-live="polite"
     >
       <div className="nythera-chat-column flex min-h-full flex-col justify-end gap-6 sm:gap-7">

@@ -32,8 +32,9 @@ test("chat uses immersive story cards, compact user pills, and a reference-style
   const store = await read("../src/stores/use-ui-store.ts");
 
   assert.match(header, /motion\.header/);
-  assert.match(header, /max-w-\[min\(920px,calc\(100vw-2rem\)\)\]/);
-  assert.match(header, /rounded-full[\s\S]*blur\(24px\) saturate\(185%\)/);
+  assert.match(header, /max-w-\[min\(920px,calc\(100vw-1\.5rem\)\)\]/);
+  assert.match(header, /var\(--bg-base\) 8%, transparent/);
+  assert.match(header, /blur\(8px\) saturate\(115%\)/);
   assert.match(header, /personaName/);
   assert.match(header, /contextOpen/);
   assert.match(header, /Close story context/);
@@ -45,18 +46,22 @@ test("chat uses immersive story cards, compact user pills, and a reference-style
   assert.doesNotMatch(bubble, /<CharacterAvatar/);
   assert.match(bubble, /w-full rounded-\[28px\]/);
   assert.match(bubble, /text-\[26px\] font-bold/);
-  assert.match(bubble, /max-w-\[min\(74%,480px\)\]/);
-  assert.match(bubble, /color-mix\(in oklch, var\(--text-primary\) 92%, transparent\)/);
+  assert.match(bubble, /max-w-\[min\(88%,640px\)\]/);
+  assert.match(bubble, /var\(--accent-purple\) 24%, transparent/);
+  assert.match(bubble, /border-white\/20 bg-white\/\[0\.06\] text-\[var\(--text-primary\)\]/);
   assert.match(bubble, /color-mix\(in oklch, var\(--bg-base\) 92%, transparent\)/);
   assert.match(bubble, /isLatestAssistant/);
   assert.match(bubble, /group-hover\/message:opacity-100/);
   assert.match(list, /latestAssistantId/);
   assert.doesNotMatch(list, /xl:pr-\[calc\(var\(--side-panel-width\)\+24px\)\]/);
   assert.match(client, /chat-scene-art/);
+  assert.match(client, /background:\s*"transparent"/);
   assert.match(composer, /composer-dock/);
   assert.match(composer, /sticky bottom-0/);
   assert.match(composer, /rounded-\[36px\]/);
-  assert.match(composer, /shadow-\[var\(--shadow-elevated\)\]/);
+  assert.doesNotMatch(composer, /shadow-\[var\(--shadow-elevated\)\]/);
+  assert.match(composer, /background: "transparent"/);
+  assert.match(composer, /var\(--bg-surface\) 4%, transparent/);
   assert.match(composer, /ArrowUp/);
   assert.match(composer, /gradient-aurora-primary/);
   assert.doesNotMatch(composer, /bg-primary/);

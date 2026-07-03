@@ -93,6 +93,7 @@ export async function POST(request: Request, context: Context) {
     const model = effectiveSettings.model;
     const temperature = effectiveSettings.temperature;
     let recentMessages = [...chat.messages].reverse();
+    let userMessage: Awaited<ReturnType<typeof createMessageWithNextSequence>> | null = null;
 
     if (input.regenerate) {
       let latestAssistantIndex = -1;
@@ -112,7 +113,7 @@ export async function POST(request: Request, context: Context) {
         recentMessages = recentMessages.filter((_, index) => index < firstVariantIndex || index > latestAssistantIndex);
       }
     } else if (!continueChat) {
-      await createMessageWithNextSequence({
+      userMessage = await createMessageWithNextSequence({
         chatId: chat.id,
         role: MessageRole.USER,
         content: message,
@@ -176,6 +177,10 @@ export async function POST(request: Request, context: Context) {
         };
 
         try {
+          if (userMessage) {
+            send({ type: "user_message", message: userMessage });
+          }
+
           for await (const chunk of streamLlmResponse({
             messages: prompt,
             model,

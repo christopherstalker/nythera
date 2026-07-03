@@ -209,15 +209,18 @@ export function MessageBubble({
           className={cn(
             "relative overflow-hidden shadow-[var(--shadow-soft)]",
             isUser
-              ? "max-w-[min(74%,480px)] rounded-[20px] px-4 py-3 text-sm font-medium leading-6 max-sm:max-w-[82%] max-sm:text-base sm:max-w-[min(38vw,360px)]"
-              : "w-full rounded-[28px] px-6 py-6 text-[26px] font-bold leading-[1.55] text-[var(--text-primary)] max-sm:min-h-32 sm:px-5 sm:py-4 sm:text-[15px] sm:font-medium sm:leading-7 md:rounded-[20px]"
+              ? "max-w-[min(88%,640px)] rounded-[20px] px-4 py-3 text-sm font-medium leading-6 max-sm:max-w-[92%] max-sm:text-base sm:max-w-[min(58vw,600px)]"
+              : "w-full rounded-[28px] px-6 py-6 text-[26px] font-bold leading-[1.55] text-[var(--text-primary)] max-sm:min-h-32 max-sm:max-w-[94%] sm:px-5 sm:py-4 sm:text-[15px] sm:font-medium sm:leading-7 md:rounded-[20px]"
           )}
           style={
             isUser
               ? {
-                  background: "color-mix(in oklch, var(--text-primary) 92%, transparent)",
-                  color: "var(--bg-base)",
-                  border: "1px solid color-mix(in oklch, var(--text-primary) 38%, transparent)"
+                  background:
+                    "color-mix(in oklch, var(--accent-purple) 24%, transparent)",
+                  color: "var(--text-primary)",
+                  border: "1px solid color-mix(in oklch, var(--accent-purple) 42%, transparent)",
+                  backdropFilter: "blur(10px) saturate(135%)",
+                  WebkitBackdropFilter: "blur(10px) saturate(135%)"
                 }
               : {
                   background: "color-mix(in oklch, var(--bg-base) 92%, transparent)",
@@ -249,14 +252,22 @@ export function MessageBubble({
                     void saveEdit();
                   }
                 }}
-                className="focus-ring min-h-24 w-full resize-y rounded-[var(--radius-control)] border border-[var(--border-subtle)] bg-transparent px-3 py-2 text-sm leading-6 text-[var(--text-primary)]"
+                className={cn(
+                  "focus-ring min-h-24 w-full resize-y rounded-[var(--radius-control)] border px-3 py-2 text-sm leading-6 outline-none",
+                  isUser
+                    ? "border-white/20 bg-white/[0.06] text-[var(--text-primary)] placeholder:text-white/45"
+                    : "border-[var(--border-subtle)] bg-transparent text-[var(--text-primary)]"
+                )}
               />
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   aria-label="Cancel edit"
                   onClick={() => setIsEditing(false)}
-                  className="focus-ring rounded-full border border-[var(--border-subtle)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--color-overlay)]"
+                  className={cn(
+                    "focus-ring rounded-full border px-3 py-1.5 text-xs hover:bg-[var(--color-overlay)]",
+                    isUser ? "border-white/15 text-[var(--text-primary)]" : "border-[var(--border-subtle)] text-[var(--text-secondary)]"
+                  )}
                 >
                   Cancel
                 </button>
@@ -265,8 +276,11 @@ export function MessageBubble({
                   aria-label="Save edit"
                   onClick={() => void saveEdit()}
                   disabled={!editDraft.trim() || editDraft.trim() === content || savingEdit}
-                  className="focus-ring rounded-full px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
-                  style={{ background: "var(--gradient-aurora-primary)" }}
+                  className="focus-ring rounded-full px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{
+                    background: isUser ? "color-mix(in oklch, var(--bg-base) 78%, transparent)" : "var(--gradient-aurora-primary)",
+                    color: "var(--text-primary)"
+                  }}
                 >
                   {savingEdit ? "Saving..." : "Save"}
                 </button>

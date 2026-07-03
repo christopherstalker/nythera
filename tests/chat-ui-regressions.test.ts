@@ -16,7 +16,11 @@ test("immersive message frames keep avatars out of the body stream", async () =>
   const source = await readFile(new URL("../src/components/chat/MessageBubble.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(source, /CharacterAvatar/);
   assert.match(source, /w-full rounded-\[28px\]/);
-  assert.match(source, /max-w-\[min\(74%,480px\)\]/);
+  assert.match(source, /max-w-\[min\(88%,640px\)\]/);
+  assert.match(source, /max-sm:max-w-\[94%\]/);
+  assert.match(source, /var\(--accent-purple\) 24%, transparent/);
+  assert.doesNotMatch(source, /var\(--text-primary\) 92%/);
+  assert.doesNotMatch(source, /bg-black\/20/);
 });
 
 test("tablet quick panel can stack above its blur overlay", async () => {
@@ -36,6 +40,19 @@ test("editing a user message truncates later messages atomically", async () => {
   assert.match(source, /prisma\.\$transaction/);
   assert.match(source, /deleteMany/);
   assert.match(source, /deletedMessageIds/);
+});
+
+test("streamed chat replaces optimistic user messages with persisted ids", async () => {
+  const [hookSource, streamSource] = await Promise.all([
+    readFile(new URL("../src/hooks/useChat.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/app/api/chats/[id]/stream/route.ts", import.meta.url), "utf8")
+  ]);
+
+  assert.match(streamSource, /userMessage = await createMessageWithNextSequence/);
+  assert.match(streamSource, /type: "user_message"/);
+  assert.match(hookSource, /clientRequestId: requestId/);
+  assert.match(hookSource, /payload\.type === "user_message"/);
+  assert.match(hookSource, /message\.clientRequestId === requestId/);
 });
 
 test("message delete removes stale local ghosts and keeps chat counts fresh", async () => {

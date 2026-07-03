@@ -62,7 +62,8 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
       const userMessage: ChatMessage = {
         id: `local-user-${requestId}`,
         role: "USER",
-        content: trimmedContent
+        content: trimmedContent,
+        clientRequestId: requestId
       };
       const assistantMessage: ChatMessage = {
         id: `local-assistant-${requestId}`,
@@ -124,6 +125,16 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
               current.map((message) =>
                 message.id === assistantMessage.id
                   ? { ...message, content: `${message.content}${payload.text}` }
+                  : message
+              )
+            );
+          }
+
+          if (payload.type === "user_message" && payload.message && typeof payload.message !== "string") {
+            setMessages((current) =>
+              current.map((message) =>
+                message.id === userMessage.id || message.clientRequestId === requestId
+                  ? payload.message as ChatMessage
                   : message
               )
             );
@@ -192,6 +203,10 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
     if (!response.ok) {
       const body = await response.json().catch(() => null);
       if (response.status === 404) {
+        if (messageId.startsWith("local-")) {
+          setError("Message is still syncing. Try again in a moment.");
+          return;
+        }
         setMessages((current) => current.filter((message) => message.id !== messageId));
         setError(null);
         return;

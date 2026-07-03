@@ -238,7 +238,7 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
         className="pointer-events-none absolute inset-0 -z-20"
         style={{
           background:
-            "linear-gradient(180deg, oklch(var(--color-canvas) / .48) 0%, oklch(var(--color-canvas) / .28) 34%, oklch(var(--color-canvas) / .82) 100%)"
+            "linear-gradient(180deg, oklch(var(--color-canvas) / .22) 0%, oklch(var(--color-canvas) / .12) 34%, oklch(var(--color-canvas) / .34) 100%)"
         }}
       />
       <div
@@ -253,14 +253,14 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
         className="pointer-events-none absolute inset-x-0 bottom-0 -z-20 h-64"
         style={{
           background:
-            "linear-gradient(to top, var(--bg-base) 0%, color-mix(in oklch, var(--bg-base) 78%, transparent) 58%, transparent 100%)"
+            "transparent"
         }}
       />
       <div
         className="pointer-events-none absolute inset-x-0 top-0 z-20 h-56"
         style={{
           background:
-            "linear-gradient(to bottom, var(--bg-base) 0%, color-mix(in oklch, var(--bg-base) 96%, transparent) 64%, transparent 100%)"
+            "transparent"
         }}
       />
       <div aria-hidden="true" className="glass-grain pointer-events-none absolute inset-0 -z-10" />
