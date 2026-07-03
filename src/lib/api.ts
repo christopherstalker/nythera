@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { RateLimitError } from "@/lib/rate-limit";
 import { isPlatformAdminEmail } from "@/lib/admin";
+import { logSafeError } from "@/lib/secret-redaction";
 
 export class HttpError extends Error {
   constructor(
@@ -82,7 +83,7 @@ export function routeError(error: unknown) {
     return json({ error: "Invalid request body.", issues: error.flatten() }, { status: 400 });
   }
 
-  console.error(error);
+  logSafeError("Unexpected route error.", error);
   return json({ error: "Unexpected server error." }, { status: 500 });
 }
 

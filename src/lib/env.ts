@@ -7,6 +7,7 @@ const envSchema = z.object({
   NEXTAUTH_URL: z.string().optional(),
   AUTH_URL: z.string().optional(),
   AUTH_SECRET: z.string().optional(),
+  API_KEY_ENCRYPTION_SECRET: z.string().optional(),
   MOBILE_AUTH_SECRET: z.string().optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),

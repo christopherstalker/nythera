@@ -3,6 +3,7 @@ import "server-only";
 import { MemoryCategory, Prisma } from "@prisma/client";
 import { HttpError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { logSafeError } from "@/lib/secret-redaction";
 import { createMemory, writeMemoryEmbedding } from "@/lib/vector";
 import type { ProviderKeys } from "@/lib/user-keys";
 
@@ -122,7 +123,7 @@ export async function updateMemory(input: {
     try {
       await writeMemoryEmbedding(updated.id, updated.content, input.providerKeys);
     } catch (error) {
-      console.error("Memory embedding refresh failed.", error);
+      logSafeError("Memory embedding refresh failed.", error);
     }
   }
 

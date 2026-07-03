@@ -15,6 +15,7 @@ import { formatUserPersonaForPrompt } from "@/lib/user-persona";
 import { createMessageWithNextSequence } from "@/lib/message-sequence";
 import { resolveCharacterModelSettings } from "@/lib/character-model-settings";
 import { estimateModelCost } from "@/lib/model-pricing";
+import { logSafeError } from "@/lib/secret-redaction";
 
 type Context = {
   params: {
@@ -296,7 +297,7 @@ export async function POST(request: Request, context: Context) {
           send({ type: "message", message: assistant });
           send({ type: "done" });
         } catch (error) {
-          console.error(error);
+          logSafeError("Chat stream failed.", error);
           const errorMessage = error instanceof Error ? error.message : "The model stream failed.";
           if (assistantText.trim() && !assistantPersisted) {
             const estimatedCost = estimateModelCost({

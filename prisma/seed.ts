@@ -12,7 +12,7 @@ const demoUser = {
 };
 
 async function main() {
-  await prisma.$executeRawUnsafe(`CREATE EXTENSION IF NOT EXISTS vector`);
+  await prisma.$executeRaw`CREATE EXTENSION IF NOT EXISTS vector`;
 
   const passwordHash = await bcrypt.hash(demoUser.password, 12);
 

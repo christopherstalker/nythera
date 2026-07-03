@@ -54,8 +54,13 @@ export async function DELETE(request: Request) {
       throw new HttpError(400, "id is required.");
     }
 
-    const message = await prisma.message.findUnique({
-      where: { id: messageId },
+    const message = await prisma.message.findFirst({
+      where: {
+        id: messageId,
+        chat: {
+          userId: user.id
+        }
+      },
       include: {
         chat: {
           select: { userId: true, id: true }
@@ -63,7 +68,7 @@ export async function DELETE(request: Request) {
       }
     });
 
-    if (!message || message.chat.userId !== user.id) {
+    if (!message) {
       throw new HttpError(404, "Message not found.");
     }
 
@@ -97,8 +102,13 @@ export async function PATCH(request: Request) {
     }
 
     const input = await parseJson(request, messageUpdateSchema);
-    const message = await prisma.message.findUnique({
-      where: { id: messageId },
+    const message = await prisma.message.findFirst({
+      where: {
+        id: messageId,
+        chat: {
+          userId: user.id
+        }
+      },
       include: {
         chat: {
           select: { userId: true, id: true }
@@ -106,7 +116,7 @@ export async function PATCH(request: Request) {
       }
     });
 
-    if (!message || message.chat.userId !== user.id) {
+    if (!message) {
       throw new HttpError(404, "Message not found.");
     }
 

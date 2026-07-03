@@ -93,8 +93,11 @@ export async function GET(_request: Request, context: Context) {
 export async function PATCH(request: Request, context: Context) {
   try {
     const user = await requireUser();
-    const character = await prisma.character.findUnique({
-      where: { id: context.params.id },
+    const character = await prisma.character.findFirst({
+      where: {
+        id: context.params.id,
+        ...(user.role === "ADMIN" ? {} : { creatorId: user.id })
+      },
       select: {
         creatorId: true,
         creationMode: true,
@@ -114,10 +117,6 @@ export async function PATCH(request: Request, context: Context) {
 
     if (!character) {
       throw new HttpError(404, "Character not found.");
-    }
-
-    if (character.creatorId !== user.id && user.role !== "ADMIN") {
-      throw new HttpError(403, "You cannot edit this character.");
     }
 
     const input = await parseJson(request, characterUpdateSchema);
@@ -189,17 +188,16 @@ export async function PATCH(request: Request, context: Context) {
 export async function DELETE(_request: Request, context: Context) {
   try {
     const user = await requireUser();
-    const character = await prisma.character.findUnique({
-      where: { id: context.params.id },
+    const character = await prisma.character.findFirst({
+      where: {
+        id: context.params.id,
+        ...(user.role === "ADMIN" ? {} : { creatorId: user.id })
+      },
       select: { creatorId: true }
     });
 
     if (!character) {
       throw new HttpError(404, "Character not found.");
-    }
-
-    if (character.creatorId !== user.id && user.role !== "ADMIN") {
-      throw new HttpError(403, "You cannot delete this character.");
     }
 
     await prisma.character.delete({ where: { id: context.params.id } });

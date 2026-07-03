@@ -18,6 +18,10 @@ export const redis =
       })
     : null;
 
+export function hasDistributedRateLimitStore() {
+  return Boolean(redis);
+}
+
 export async function incrementWithExpiry(key: string, windowSeconds: number) {
   if (redis) {
     const count = await redis.incr(key);

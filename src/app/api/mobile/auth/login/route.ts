@@ -1,8 +1,9 @@
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { json, parseJson, routeError, HttpError } from "@/lib/api";
+import { getRequestIp, json, parseJson, routeError, HttpError } from "@/lib/api";
 import { createMobileToken, publicMobileUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 const mobileLoginSchema = z.object({
   email: z.string().email(),
@@ -14,6 +15,10 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
+    await enforceRateLimit({
+      ip: getRequestIp(request),
+      route: "mobile-auth:login"
+    });
     const input = await parseJson(request, mobileLoginSchema);
     const email = input.email.toLowerCase().trim();
 

@@ -4,6 +4,7 @@ import { env } from "@/lib/env";
 import { createGatewayEmbedding, streamGatewayResponse } from "@/lib/llm-gateway";
 import type { ProviderKeys } from "@/lib/user-keys";
 import type { PromptMessage, StreamChunk } from "@/types";
+import { logSafeError } from "@/lib/secret-redaction";
 
 type StreamInput = {
   messages: PromptMessage[];
@@ -117,7 +118,7 @@ export async function* streamLlmResponse(input: StreamInput): AsyncGenerator<Str
     }
 
     if (proxyErrorBeforeStream && !receivedDelta) {
-      console.error("External LLM proxy failed before streaming, using Vercel gateway.", proxyErrorBeforeStream);
+      logSafeError("External LLM proxy failed before streaming, using Vercel gateway.", proxyErrorBeforeStream);
       yield* streamGatewayResponse(input);
       return;
     }
@@ -130,7 +131,7 @@ export async function* streamLlmResponse(input: StreamInput): AsyncGenerator<Str
       return;
     }
 
-    console.error("External LLM proxy failed, using Vercel gateway.", error);
+    logSafeError("External LLM proxy failed, using Vercel gateway.", error);
     yield* streamGatewayResponse(input);
   }
 }
@@ -155,7 +156,7 @@ export async function createEmbedding(text: string, providerKeys?: ProviderKeys)
         }
       }
     } catch (error) {
-      console.error("Embedding proxy failed, using deterministic fallback.", error);
+      logSafeError("Embedding proxy failed, using deterministic fallback.", error);
     }
   }
 

@@ -4,6 +4,7 @@ import { MemoryCategory, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { sanitizePromptContext, shouldStoreMemoryFromText } from "@/lib/prompt-security";
 import { createEmbedding } from "@/lib/proxy";
+import { logSafeError } from "@/lib/secret-redaction";
 import type { ProviderKeys } from "@/lib/user-keys";
 import type { RetrievedMemory } from "@/types";
 
@@ -19,24 +20,18 @@ export async function searchMemories(input: {
   const limit = input.limit ?? 5;
 
   try {
-    return await prisma.$queryRawUnsafe<RetrievedMemory[]>(
-      `
-        SELECT id, content, importance, category, confidence, metadata, 1 - (embedding <=> $1::vector) AS similarity
+    return await prisma.$queryRaw<RetrievedMemory[]>`
+        SELECT id, content, importance, category, confidence, metadata, 1 - (embedding <=> ${vector}::vector) AS similarity
         FROM "Memory"
-        WHERE "userId" = $2
+        WHERE "userId" = ${input.userId}
           AND embedding IS NOT NULL
-          AND ("characterId" = $3 OR "characterId" IS NULL)
-          AND (1 - (embedding <=> $1::vector)) >= 0.18
-        ORDER BY embedding <=> $1::vector, importance DESC
-        LIMIT $4
-      `,
-      vector,
-      input.userId,
-      input.characterId ?? null,
-      limit
-    );
+          AND ("characterId" = ${input.characterId ?? null} OR "characterId" IS NULL)
+          AND (1 - (embedding <=> ${vector}::vector)) >= 0.18
+        ORDER BY embedding <=> ${vector}::vector, importance DESC
+        LIMIT ${limit}
+      `;
   } catch (error) {
-    console.error("Vector search failed.", error);
+    logSafeError("Vector search failed.", error);
     return [];
   }
 }
@@ -86,7 +81,7 @@ export async function createMemory(input: {
   try {
     await writeMemoryEmbedding(memory.id, content, input.providerKeys);
   } catch (error) {
-    console.error("Memory embedding write failed.", error);
+    logSafeError("Memory embedding write failed.", error);
   }
 
   return memory;
@@ -94,11 +89,7 @@ export async function createMemory(input: {
 
 export async function writeMemoryEmbedding(memoryId: string, content: string, providerKeys?: ProviderKeys) {
   const embedding = await createEmbedding(content, providerKeys);
-  await prisma.$executeRawUnsafe(
-    `UPDATE "Memory" SET embedding = $1::vector WHERE id = $2`,
-    toVectorLiteral(embedding),
-    memoryId
-  );
+  await prisma.$executeRaw`UPDATE "Memory" SET embedding = ${toVectorLiteral(embedding)}::vector WHERE id = ${memoryId}`;
 }
 
 export function toVectorLiteral(vector: number[]) {

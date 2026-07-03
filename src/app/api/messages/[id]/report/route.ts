@@ -15,8 +15,13 @@ export async function POST(request: Request, context: Context) {
   try {
     const user = await requireUser();
     const input = await parseJson(request, reportSchema);
-    const message = await prisma.message.findUnique({
-      where: { id: context.params.id },
+    const message = await prisma.message.findFirst({
+      where: {
+        id: context.params.id,
+        chat: {
+          userId: user.id
+        }
+      },
       include: {
         chat: {
           select: {

@@ -55,8 +55,11 @@ export async function GET(request: Request, context: Context) {
 export async function PATCH(request: Request, context: Context) {
   try {
     const user = await requireMobileUser(request);
-    const character = await prisma.character.findUnique({
-      where: { id: context.params.id },
+    const character = await prisma.character.findFirst({
+      where: {
+        id: context.params.id,
+        ...(user.role === "ADMIN" ? {} : { creatorId: user.id })
+      },
       select: {
         creatorId: true,
         name: true,
@@ -75,10 +78,6 @@ export async function PATCH(request: Request, context: Context) {
 
     if (!character) {
       throw new HttpError(404, "Character not found.");
-    }
-
-    if (character.creatorId !== user.id && user.role !== "ADMIN") {
-      throw new HttpError(403, "You cannot edit this character.");
     }
 
     const input = await parseJson(request, characterUpdateSchema);

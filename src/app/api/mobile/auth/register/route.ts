@@ -1,8 +1,9 @@
 import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
-import { json, parseJson, routeError, HttpError } from "@/lib/api";
+import { getRequestIp, json, parseJson, routeError, HttpError } from "@/lib/api";
 import { createMobileToken, publicMobileUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { registerSchema } from "@/lib/validation";
 
 export const runtime = "nodejs";
@@ -10,6 +11,10 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
+    await enforceRateLimit({
+      ip: getRequestIp(request),
+      route: "mobile-auth:register"
+    });
     const input = await parseJson(request, registerSchema);
     const email = input.email.toLowerCase().trim();
     const passwordHash = await bcrypt.hash(input.password, 12);

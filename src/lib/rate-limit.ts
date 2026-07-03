@@ -1,10 +1,11 @@
-import { incrementWithExpiry } from "@/lib/redis";
+import { hasDistributedRateLimitStore, incrementWithExpiry } from "@/lib/redis";
 
 export class RateLimitError extends Error {
-  status = 429;
+  status: number;
 
-  constructor(message: string) {
+  constructor(message: string, status = 429) {
     super(message);
+    this.status = status;
   }
 }
 
@@ -15,6 +16,10 @@ export async function enforceRateLimit(input: {
   ip?: string | null;
   route: string;
 }) {
+  if (process.env.NODE_ENV === "production" && !hasDistributedRateLimitStore()) {
+    throw new RateLimitError("Rate limiter is unavailable. Please retry shortly.", 503);
+  }
+
   const limits = PLATFORM_LIMITS;
   const principal = input.userId ? `user:${input.userId}` : `ip:${input.ip ?? "unknown"}`;
   const minute = Math.floor(Date.now() / 60_000);

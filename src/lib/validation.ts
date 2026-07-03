@@ -1,21 +1,84 @@
 import { z } from "zod";
 
-const imageDataUrlPattern = /^data:image\/(?:png|jpe?g|webp|gif|svg\+xml);base64,[a-zA-Z0-9+/=\s]+$/;
+const MAX_IMAGE_DATA_URL_BYTES = 1_500_000;
+const MAX_IMAGE_DATA_URL_LENGTH = 2_100_000;
+const imageDataUrlPattern = /^data:image\/(png|jpe?g|webp|gif);base64,([a-zA-Z0-9+/=\s]+)$/i;
+
+function decodeBase64ImageBytes(value: string) {
+  const normalized = value.replace(/\s/g, "");
+  if (normalized.length > Math.ceil((MAX_IMAGE_DATA_URL_BYTES * 4) / 3) + 8) {
+    return null;
+  }
+
+  try {
+    if (typeof Buffer !== "undefined") {
+      return new Uint8Array(Buffer.from(normalized, "base64"));
+    }
+
+    const binary = atob(normalized);
+    return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  } catch {
+    return null;
+  }
+}
+
+function hasImageMagicBytes(format: string, bytes: Uint8Array) {
+  if (format === "png") {
+    return bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a;
+  }
+
+  if (format === "jpg" || format === "jpeg") {
+    return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  }
+
+  if (format === "webp") {
+    return bytes.length >= 12 && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50;
+  }
+
+  if (format === "gif") {
+    return bytes.length >= 6 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38 && (bytes[4] === 0x37 || bytes[4] === 0x39) && bytes[5] === 0x61;
+  }
+
+  return false;
+}
+
+function isValidImageDataUrl(value: string) {
+  const match = imageDataUrlPattern.exec(value);
+  if (!match) {
+    return false;
+  }
+
+  const bytes = decodeBase64ImageBytes(match[2]);
+  return Boolean(bytes && bytes.byteLength <= MAX_IMAGE_DATA_URL_BYTES && hasImageMagicBytes(match[1].toLowerCase(), bytes));
+}
+
+function isAllowedRemoteImageUrl(value: string) {
+  try {
+    const url = new URL(value);
+    if (url.protocol === "https:") {
+      return true;
+    }
+
+    return process.env.NODE_ENV !== "production" && url.protocol === "http:" && (url.hostname === "localhost" || url.hostname === "127.0.0.1");
+  } catch {
+    return false;
+  }
+}
 
 export const imageSourceSchema = z
   .string()
   .trim()
-  .max(2_100_000, "Image must be smaller than 1.5MB.")
+  .max(MAX_IMAGE_DATA_URL_LENGTH, "Image must be smaller than 1.5MB.")
   .refine((value) => {
     if (value === "") {
       return true;
     }
 
-    if (imageDataUrlPattern.test(value)) {
+    if (isValidImageDataUrl(value)) {
       return true;
     }
 
-    return z.string().url().safeParse(value).success;
+    return isAllowedRemoteImageUrl(value);
   }, "Use a valid image file or image URL.");
 
 export const communicationStyleSchema = z.object({

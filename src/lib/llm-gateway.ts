@@ -7,6 +7,7 @@ import { classifyProviderError } from "@/lib/llm-provider-errors";
 import type { ProviderKey, ProviderKeys } from "@/lib/user-keys";
 import type { PromptMessage, StreamChunk } from "@/types";
 import { eligibleFallbackKeys } from "@/lib/provider-fallback";
+import { logSafeError } from "@/lib/secret-redaction";
 
 type StreamInput = {
   messages: PromptMessage[];
@@ -134,7 +135,7 @@ export async function createGatewayEmbedding(text: string, providerKeys?: Provid
 
       return result.data[0].embedding;
     } catch (error) {
-      console.error("OpenAI embedding failed, using deterministic fallback.", error);
+      logSafeError("OpenAI embedding failed, using deterministic fallback.", error);
     }
   }
 
