@@ -73,7 +73,7 @@
     "@types/react": "^18.3.17",
     "@types/react-dom": "^18.3.5",
     "autoprefixer": "^10.4.20",
-    "eslint": "^8.57.1",
+    "eslint": "^10.6.0",
     "eslint-config-next": "^14.2.23",
     "postcss": "^8.4.49",
     "postcss-import": "^16.1.1",
