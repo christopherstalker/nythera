@@ -126,7 +126,13 @@ export default function HomePage() {
     <div className="relative min-h-full overflow-hidden">
       <FeaturedCharacterHero character={featured} onStartChat={startFeaturedChat} />
       <PageShell className="relative z-10 space-y-10 px-4 pb-24 pt-6 sm:px-6 md:pb-14 md:pt-8">
-        <section className="space-y-4">
+        <motion.section
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-90px" }}
+          transition={springSoft}
+          className="space-y-4"
+        >
           <SectionTitle icon={Sparkles} title="Characters" href="/explore" />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
             {characters.slice(0, 6).map((character, index) => (
@@ -138,17 +144,23 @@ export default function HomePage() {
               />
             ))}
           </div>
-        </section>
+        </motion.section>
 
         {recentChats.length ? (
-          <section className="space-y-4">
+          <motion.section
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-90px" }}
+            transition={springSoft}
+            className="space-y-4"
+          >
             <SectionTitle icon={MessageCircle} title="Recent chats" href="/chats" />
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
               {recentChats.slice(0, 4).map((chat) => (
                 <RecentChatCard key={chat.id} chat={chat} />
               ))}
             </div>
-          </section>
+          </motion.section>
         ) : null}
       </PageShell>
     </div>

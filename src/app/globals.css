@@ -329,6 +329,43 @@
     z-index: 1;
   }
 
+  .nythera-cosmic-backdrop {
+    background:
+      linear-gradient(180deg, oklch(var(--color-canvas)) 0%, oklch(0.105 0.012 260) 46%, oklch(var(--color-canvas)) 100%);
+  }
+
+  .nythera-cosmic-starfield {
+    opacity: .54;
+    background-image:
+      radial-gradient(circle at 18% 22%, oklch(1 0 0 / .45) 0 1px, transparent 1.6px),
+      radial-gradient(circle at 72% 34%, oklch(var(--color-accent-secondary) / .34) 0 1px, transparent 1.5px),
+      radial-gradient(circle at 42% 76%, oklch(var(--color-accent-primary) / .32) 0 1px, transparent 1.4px),
+      linear-gradient(115deg, transparent 0 34%, oklch(var(--color-accent-secondary) / .055) 40%, transparent 52%),
+      linear-gradient(22deg, transparent 0 58%, oklch(var(--color-accent-primary) / .05) 66%, transparent 78%);
+    background-position: 0 0, 24px 42px, 90px 12px, 0 0, 0 0;
+    background-size: 180px 180px, 260px 260px, 340px 340px, 100% 100%, 100% 100%;
+    animation: nythera-cosmic-drift 44s linear infinite;
+  }
+
+  .nythera-cosmic-starfield::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: .22;
+    background-image:
+      linear-gradient(100deg, transparent 0 18%, oklch(var(--color-border-strong) / .13) 18.4%, transparent 19.2% 100%),
+      linear-gradient(150deg, transparent 0 64%, oklch(var(--color-accent-secondary) / .12) 64.4%, transparent 65.2% 100%);
+    background-size: 520px 320px, 640px 420px;
+    mask-image: radial-gradient(ellipse 90% 74% at 50% 42%, black 0%, transparent 78%);
+  }
+
+  .nythera-cosmic-veil {
+    background:
+      radial-gradient(ellipse 72% 52% at 50% 0%, oklch(var(--color-accent-primary) / .09), transparent 62%),
+      radial-gradient(ellipse 88% 46% at 50% 100%, oklch(0 0 0 / .58), transparent 72%),
+      linear-gradient(90deg, oklch(0 0 0 / .36), transparent 18% 82%, oklch(0 0 0 / .36));
+  }
+
   .glass-grain {
     display: block;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.86' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
@@ -594,6 +631,15 @@
   }
 }
 
+@keyframes nythera-cosmic-drift {
+  from {
+    background-position: 0 0, 24px 42px, 90px 12px, 0 0, 0 0;
+  }
+  to {
+    background-position: 180px 180px, 284px 302px, 430px 352px, 0 0, 0 0;
+  }
+}
+
 @keyframes shimmer {
   from {
     background-position: -200% 0;
@@ -747,6 +793,10 @@
   .app-canvas-bg {
     animation: none;
   }
+
+  .nythera-cosmic-starfield {
+    animation: none;
+  }
 }
 
 @layer components {
@@ -792,5 +842,67 @@
   .bubble-user {
     border-radius: 0;
     box-shadow: none;
+  }
+
+  .library-hero-panel,
+  .library-chat-row,
+  .library-empty-panel {
+    border: 1px solid oklch(var(--color-border-default) / .34);
+    background: color-mix(in oklch, var(--bg-surface) 58%, transparent);
+    -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturation));
+    backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturation));
+    box-shadow: var(--glass-highlight), 0 18px 54px oklch(0 0 0 / .22);
+  }
+
+  .library-hero-panel {
+    border-radius: var(--radius-surface);
+  }
+
+  .library-hero-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(120deg, oklch(var(--color-accent-primary) / .16), transparent 38%),
+      linear-gradient(24deg, transparent 42%, oklch(var(--color-accent-secondary) / .10), transparent 78%);
+    opacity: .72;
+  }
+
+  .library-chat-row {
+    border-radius: var(--radius-card);
+    transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+  }
+
+  .library-chat-row:hover {
+    transform: translateY(-2px);
+    border-color: oklch(var(--color-accent-secondary) / .26);
+    background: color-mix(in oklch, var(--bg-surface) 70%, transparent);
+  }
+
+  .library-empty-panel {
+    border-radius: var(--radius-card);
+  }
+
+  .library-shelf {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(220px, 260px);
+    gap: var(--grid-gap);
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    padding: 2px 2px 12px;
+    scroll-snap-type: x proximity;
+  }
+
+  .library-shelf > * {
+    min-height: 280px;
+    scroll-snap-align: start;
+  }
+
+  @media (min-width: 1280px) {
+    .library-shelf {
+      grid-auto-columns: minmax(230px, 1fr);
+    }
   }
 }

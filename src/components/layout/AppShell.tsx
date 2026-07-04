@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { CosmicBackdrop } from "@/components/ambient/cosmic-backdrop";
 import { NavRail } from "@/components/nav/NavRail";
 import { SidePanel } from "@/components/panel/SidePanel";
 import { cn } from "@/lib/utils";
@@ -18,11 +19,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div id="app-shell" className="fixed inset-0 min-h-dvh overflow-hidden bg-[var(--bg-base)]">
+    <div id="app-shell" className="fixed inset-0 isolate min-h-dvh overflow-hidden bg-[var(--bg-base)]">
+      {!isChatSurface ? <CosmicBackdrop /> : null}
       <NavRail />
       <div
         className={cn(
-          "flex h-full min-w-0",
+          "relative z-10 flex h-full min-w-0",
           isChatSurface ? "pb-0 pt-0" : "pb-[var(--bottom-nav-offset)] pt-0 md:pb-0 md:pt-[var(--top-bar-height)]"
         )}
       >

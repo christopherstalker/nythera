@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { cn } from "@/lib/utils";
 
 const vertexShaderSource = `
 attribute vec2 a_position;
@@ -42,7 +43,7 @@ void main() {
 }
 `;
 
-export function AuroraWebglBackground() {
+export function AuroraWebglBackground({ className }: { className?: string }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -111,7 +112,7 @@ export function AuroraWebglBackground() {
       ref={canvasRef}
       aria-hidden="true"
       data-nythera-webgl-ambient="true"
-      className="pointer-events-none fixed inset-0 -z-20 h-full w-full opacity-90"
+      className={cn("pointer-events-none fixed inset-0 -z-20 h-full w-full opacity-90", className)}
     />
   );
 }
