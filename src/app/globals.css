@@ -330,20 +330,55 @@
   }
 
   .nythera-cosmic-backdrop {
+    isolation: isolate;
     background:
-      linear-gradient(180deg, oklch(var(--color-canvas)) 0%, oklch(0.105 0.012 260) 46%, oklch(var(--color-canvas)) 100%);
+      radial-gradient(ellipse 120% 72% at 16% -12%, oklch(var(--color-accent-secondary) / .13), transparent 44%),
+      radial-gradient(ellipse 110% 68% at 92% 18%, oklch(var(--color-accent-primary) / .12), transparent 48%),
+      linear-gradient(180deg, oklch(var(--color-canvas)) 0%, oklch(0.098 0.018 266) 42%, oklch(var(--color-canvas)) 100%);
+  }
+
+  .nythera-cosmic-backdrop::before,
+  .nythera-cosmic-backdrop::after {
+    content: "";
+    position: absolute;
+    inset: -10%;
+    pointer-events: none;
+  }
+
+  .nythera-cosmic-backdrop::before {
+    opacity: .46;
+    background-image:
+      linear-gradient(118deg, transparent 0 29%, oklch(var(--color-accent-secondary) / .13) 38%, transparent 49% 100%),
+      linear-gradient(64deg, transparent 0 58%, oklch(var(--color-accent-primary) / .11) 67%, transparent 78% 100%),
+      repeating-radial-gradient(circle at 52% 38%, oklch(1 0 0 / .16) 0 1px, transparent 1.2px 30px);
+    filter: blur(.2px);
+    mask-image: radial-gradient(ellipse 88% 72% at 50% 36%, black 0%, transparent 82%);
+    mix-blend-mode: screen;
+    animation: nythera-nebula-drift 72s ease-in-out infinite alternate;
+  }
+
+  .nythera-cosmic-backdrop::after {
+    opacity: .24;
+    background-image:
+      linear-gradient(156deg, transparent 0 47%, oklch(0.92 0.07 225 / .28) 47.2%, transparent 48.1% 100%),
+      linear-gradient(24deg, transparent 0 68%, oklch(var(--color-accent-secondary) / .16) 68.3%, transparent 69.1% 100%);
+    background-position: 11% 18%, 88% 34%;
+    background-size: 760px 420px, 920px 560px;
+    mask-image: radial-gradient(ellipse 92% 70% at 50% 34%, black 0%, transparent 84%);
   }
 
   .nythera-cosmic-starfield {
-    opacity: .54;
+    opacity: .72;
     background-image:
-      radial-gradient(circle at 18% 22%, oklch(1 0 0 / .45) 0 1px, transparent 1.6px),
-      radial-gradient(circle at 72% 34%, oklch(var(--color-accent-secondary) / .34) 0 1px, transparent 1.5px),
-      radial-gradient(circle at 42% 76%, oklch(var(--color-accent-primary) / .32) 0 1px, transparent 1.4px),
+      radial-gradient(circle at 18% 22%, oklch(1 0 0 / .58) 0 .9px, transparent 1.6px),
+      radial-gradient(circle at 72% 34%, oklch(var(--color-accent-secondary) / .44) 0 1px, transparent 1.6px),
+      radial-gradient(circle at 42% 76%, oklch(var(--color-accent-primary) / .4) 0 1px, transparent 1.5px),
+      radial-gradient(circle at 88% 18%, oklch(0.86 0.1 218 / .42) 0 .8px, transparent 1.6px),
+      radial-gradient(circle at 9% 64%, oklch(0.9 0.08 300 / .34) 0 .8px, transparent 1.5px),
       linear-gradient(115deg, transparent 0 34%, oklch(var(--color-accent-secondary) / .055) 40%, transparent 52%),
       linear-gradient(22deg, transparent 0 58%, oklch(var(--color-accent-primary) / .05) 66%, transparent 78%);
-    background-position: 0 0, 24px 42px, 90px 12px, 0 0, 0 0;
-    background-size: 180px 180px, 260px 260px, 340px 340px, 100% 100%, 100% 100%;
+    background-position: 0 0, 24px 42px, 90px 12px, 120px 28px, 32px 138px, 0 0, 0 0;
+    background-size: 168px 168px, 248px 248px, 328px 328px, 420px 420px, 520px 520px, 100% 100%, 100% 100%;
     animation: nythera-cosmic-drift 44s linear infinite;
   }
 
@@ -351,19 +386,34 @@
     content: "";
     position: absolute;
     inset: 0;
-    opacity: .22;
+    opacity: .32;
     background-image:
-      linear-gradient(100deg, transparent 0 18%, oklch(var(--color-border-strong) / .13) 18.4%, transparent 19.2% 100%),
-      linear-gradient(150deg, transparent 0 64%, oklch(var(--color-accent-secondary) / .12) 64.4%, transparent 65.2% 100%);
-    background-size: 520px 320px, 640px 420px;
+      linear-gradient(100deg, transparent 0 18%, oklch(var(--color-border-strong) / .15) 18.4%, transparent 19.2% 100%),
+      linear-gradient(150deg, transparent 0 64%, oklch(var(--color-accent-secondary) / .14) 64.4%, transparent 65.2% 100%),
+      linear-gradient(38deg, transparent 0 74%, oklch(var(--color-accent-primary) / .11) 74.3%, transparent 75.1% 100%);
+    background-size: 520px 320px, 640px 420px, 860px 520px;
     mask-image: radial-gradient(ellipse 90% 74% at 50% 42%, black 0%, transparent 78%);
+  }
+
+  .nythera-cosmic-starfield::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: .36;
+    background-image:
+      radial-gradient(circle at 28% 31%, oklch(1 0 0 / .72) 0 .8px, transparent 1.7px),
+      radial-gradient(circle at 62% 58%, oklch(0.94 0.08 230 / .56) 0 .8px, transparent 1.6px),
+      radial-gradient(circle at 77% 24%, oklch(0.93 0.09 315 / .5) 0 .7px, transparent 1.5px);
+    background-position: 14px 18px, 60px 96px, 144px 34px;
+    background-size: 360px 360px, 480px 480px, 620px 620px;
+    mask-image: radial-gradient(ellipse 82% 70% at 50% 38%, black 0%, transparent 86%);
   }
 
   .nythera-cosmic-veil {
     background:
-      radial-gradient(ellipse 72% 52% at 50% 0%, oklch(var(--color-accent-primary) / .09), transparent 62%),
-      radial-gradient(ellipse 88% 46% at 50% 100%, oklch(0 0 0 / .58), transparent 72%),
-      linear-gradient(90deg, oklch(0 0 0 / .36), transparent 18% 82%, oklch(0 0 0 / .36));
+      radial-gradient(ellipse 86% 48% at 50% -4%, oklch(var(--color-accent-primary) / .11), transparent 64%),
+      radial-gradient(ellipse 92% 46% at 50% 100%, oklch(0 0 0 / .5), transparent 74%),
+      linear-gradient(90deg, oklch(0 0 0 / .28), transparent 18% 82%, oklch(0 0 0 / .28));
   }
 
   .glass-grain {
@@ -633,10 +683,19 @@
 
 @keyframes nythera-cosmic-drift {
   from {
-    background-position: 0 0, 24px 42px, 90px 12px, 0 0, 0 0;
+    background-position: 0 0, 24px 42px, 90px 12px, 120px 28px, 32px 138px, 0 0, 0 0;
   }
   to {
-    background-position: 180px 180px, 284px 302px, 430px 352px, 0 0, 0 0;
+    background-position: 168px 168px, 272px 290px, 418px 340px, 540px 448px, 552px 658px, 0 0, 0 0;
+  }
+}
+
+@keyframes nythera-nebula-drift {
+  from {
+    transform: translate3d(-1.5%, -1%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(1.5%, 1%, 0) scale(1.04);
   }
 }
 
@@ -795,6 +854,10 @@
   }
 
   .nythera-cosmic-starfield {
+    animation: none;
+  }
+
+  .nythera-cosmic-backdrop::before {
     animation: none;
   }
 }

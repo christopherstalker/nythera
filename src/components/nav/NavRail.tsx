@@ -31,7 +31,7 @@ export function NavRail() {
       <header className="fixed inset-x-0 top-4 z-50 hidden justify-center px-3 md:flex">
         <nav
           aria-label="Primary navigation"
-          className="top-nav-island flex h-14 w-full max-w-[760px] items-center gap-2 overflow-hidden rounded-full border border-[oklch(var(--color-border-subtle)/0.55)] px-3"
+          className="top-nav-island flex h-14 w-full max-w-[760px] items-center gap-2 overflow-hidden rounded-full border border-[oklch(var(--color-border-subtle)/0.34)] px-3"
           style={islandStyle}
         >
           <div className="flex min-w-0 flex-1 items-center justify-center gap-1">
@@ -44,7 +44,7 @@ export function NavRail() {
             })}
           </div>
 
-          <div className="h-8 w-px shrink-0 bg-[oklch(var(--color-border-subtle)/0.45)]" />
+          <div className="h-8 w-px shrink-0 bg-[oklch(var(--color-border-subtle)/0.28)]" />
 
           <AccountLinks pathname={pathname} isAuthenticated={isAuthenticated} userLabel={userLabel} />
         </nav>
@@ -52,7 +52,7 @@ export function NavRail() {
 
       <nav
         aria-label="Mobile primary navigation"
-        className="mobile-nav-island fixed inset-x-3 bottom-[calc(12px+env(safe-area-inset-bottom))] z-50 flex h-16 items-center justify-center gap-1 overflow-hidden rounded-full border border-[oklch(var(--color-border-subtle)/0.55)] px-2 md:hidden"
+        className="mobile-nav-island fixed inset-x-3 bottom-[calc(12px+env(safe-area-inset-bottom))] z-50 flex h-16 items-center justify-center gap-1 overflow-hidden rounded-full border border-[oklch(var(--color-border-subtle)/0.34)] px-2 md:hidden"
         style={islandStyle}
       >
         {navItems.map((item) => {
@@ -60,7 +60,7 @@ export function NavRail() {
           const active = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(`${item.href}/`);
           return <MobileIslandLink key={item.href} href={item.href} label={item.label} active={active} icon={Icon} />;
         })}
-        <div className="h-9 w-px shrink-0 bg-[oklch(var(--color-border-subtle)/0.45)]" />
+        <div className="h-9 w-px shrink-0 bg-[oklch(var(--color-border-subtle)/0.28)]" />
         <AccountLinks pathname={pathname} isAuthenticated={isAuthenticated} userLabel={userLabel} mobile />
       </nav>
     </>
@@ -68,10 +68,10 @@ export function NavRail() {
 }
 
 const islandStyle = {
-  background: "color-mix(in oklch, oklch(var(--color-surface)) 86%, transparent)",
+  background: "color-mix(in oklch, oklch(var(--color-surface)) 32%, transparent)",
   backdropFilter: "blur(var(--glass-blur-md)) saturate(var(--glass-saturation))",
   WebkitBackdropFilter: "blur(var(--glass-blur-md)) saturate(var(--glass-saturation))",
-  boxShadow: "var(--shadow-card)"
+  boxShadow: "0 18px 52px oklch(0 0 0 / 0.18)"
 };
 
 function IslandLink({
@@ -92,8 +92,8 @@ function IslandLink({
       className={cn(
         "focus-ring flex h-10 min-w-0 shrink-0 items-center justify-center gap-2 overflow-hidden whitespace-nowrap rounded-full px-2 text-sm font-medium no-underline sm:px-3",
         "text-[oklch(var(--color-text-muted))]",
-        "hover:bg-[oklch(var(--color-elevated))] hover:text-[oklch(var(--color-text-primary))]",
-        active && "bg-[oklch(var(--color-elevated))] text-[oklch(var(--color-text-primary))]"
+        "hover:bg-[oklch(var(--color-elevated)/0.42)] hover:text-[oklch(var(--color-text-primary))]",
+        active && "bg-[oklch(var(--color-elevated)/0.46)] text-[oklch(var(--color-text-primary))]"
       )}
     >
       <Icon className="h-5 w-5 shrink-0" />
@@ -119,8 +119,8 @@ function MobileIslandLink({
       aria-label={label}
       className={cn(
         "focus-ring grid h-12 flex-1 place-items-center rounded-full text-[oklch(var(--color-text-muted))] no-underline",
-        "hover:bg-[oklch(var(--color-elevated))] hover:text-[oklch(var(--color-text-primary))]",
-        active && "bg-[oklch(var(--color-elevated))] text-[oklch(var(--color-text-primary))]"
+        "hover:bg-[oklch(var(--color-elevated)/0.42)] hover:text-[oklch(var(--color-text-primary))]",
+        active && "bg-[oklch(var(--color-elevated)/0.46)] text-[oklch(var(--color-text-primary))]"
       )}
     >
       <Icon className="h-6 w-6" />
@@ -149,8 +149,8 @@ function AccountLinks({
         className={cn(
           "focus-ring grid shrink-0 place-items-center rounded-full text-[oklch(var(--color-text-muted))] no-underline",
           sizeClass,
-          "hover:bg-[oklch(var(--color-elevated))] hover:text-[oklch(var(--color-text-primary))]",
-          pathname === "/settings" && "bg-[oklch(var(--color-elevated))] text-[oklch(var(--color-text-primary))]"
+          "hover:bg-[oklch(var(--color-elevated)/0.42)] hover:text-[oklch(var(--color-text-primary))]",
+          pathname === "/settings" && "bg-[oklch(var(--color-elevated)/0.46)] text-[oklch(var(--color-text-primary))]"
         )}
       >
         <UserRound className={cn(mobile ? "h-6 w-6" : "h-5 w-5")} />
@@ -164,7 +164,7 @@ function AccountLinks({
           className={cn(
             "focus-ring grid shrink-0 place-items-center rounded-full text-[oklch(var(--color-text-muted))]",
             sizeClass,
-            "hover:bg-[oklch(var(--color-elevated))] hover:text-[oklch(var(--color-text-primary))]"
+            "hover:bg-[oklch(var(--color-elevated)/0.42)] hover:text-[oklch(var(--color-text-primary))]"
           )}
         >
           <LogOut className={cn(mobile ? "h-6 w-6" : "h-5 w-5")} />
@@ -176,7 +176,7 @@ function AccountLinks({
           className={cn(
             "focus-ring grid shrink-0 place-items-center rounded-full text-[oklch(var(--color-text-muted))] no-underline",
             sizeClass,
-            "hover:bg-[oklch(var(--color-elevated))] hover:text-[oklch(var(--color-text-primary))]"
+            "hover:bg-[oklch(var(--color-elevated)/0.42)] hover:text-[oklch(var(--color-text-primary))]"
           )}
         >
           <LogIn className={cn(mobile ? "h-6 w-6" : "h-5 w-5")} />
