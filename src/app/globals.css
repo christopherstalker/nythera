@@ -349,8 +349,7 @@
     opacity: .46;
     background-image:
       linear-gradient(118deg, transparent 0 29%, oklch(var(--color-accent-secondary) / .13) 38%, transparent 49% 100%),
-      linear-gradient(64deg, transparent 0 58%, oklch(var(--color-accent-primary) / .11) 67%, transparent 78% 100%),
-      repeating-radial-gradient(circle at 52% 38%, oklch(1 0 0 / .16) 0 1px, transparent 1.2px 30px);
+      linear-gradient(64deg, transparent 0 58%, oklch(var(--color-accent-primary) / .11) 67%, transparent 78% 100%);
     filter: blur(.2px);
     mask-image: radial-gradient(ellipse 88% 72% at 50% 36%, black 0%, transparent 82%);
     mix-blend-mode: screen;
