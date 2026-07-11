@@ -7,7 +7,9 @@ import { classifyProviderError } from "@/lib/llm-provider-errors";
 import type { ProviderKey, ProviderKeys } from "@/lib/user-keys";
 import type { PromptMessage, StreamChunk } from "@/types";
 import { eligibleFallbackKeys } from "@/lib/provider-fallback";
+import { logPerformanceMetric } from "@/lib/performance-logger";
 import { logSafeError } from "@/lib/secret-redaction";
+import { abortableAsyncIterable, createTimeoutSignal, LLM_EMBEDDING_TIMEOUT_MS, LLM_PROVIDER_TIMEOUT_MS } from "@/lib/llm-timeouts";
 
 type StreamInput = {
   messages: PromptMessage[];
@@ -20,6 +22,7 @@ type StreamInput = {
   userId: string;
   chatId: string;
   providerKeys?: ProviderKeys;
+  signal?: AbortSignal;
 };
 
 const APP_DEFAULT_MODELS = new Set(["gpt-4o-mini", "gpt-3.5-turbo"]);
@@ -40,8 +43,14 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
   const attemptLabels: string[] = [];
 
   for (const [index, attempt] of attempts.entries()) {
+    if (input.signal?.aborted) {
+      return;
+    }
+
     let emittedAny = false;
+    let firstTokenLogged = false;
     const attemptStarted = Date.now();
+    const attemptSignal = createTimeoutSignal(input.signal, LLM_PROVIDER_TIMEOUT_MS, "Provider request timed out.");
     attemptLabels.push(`${attempt.providerName}:${attempt.model}`);
     try {
       let outputText = "";
@@ -55,24 +64,36 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
         presencePenalty: input.presencePenalty,
         maxTokens: input.maxTokens,
         key: attempt.key,
+        signal: attemptSignal.signal,
         writeDelta(delta) {
           outputText += delta;
           return delta;
         }
       });
 
-      for await (const delta of usage.deltas) {
+      for await (const delta of abortableAsyncIterable(usage.deltas, attemptSignal.signal)) {
         emittedAny = true;
+        if (!firstTokenLogged) {
+          firstTokenLogged = true;
+          logPerformanceMetric("llm_time_to_first_token", {
+            route: "chat:gateway",
+            provider: attempt.providerName,
+            model: attempt.model,
+            attempt: index + 1,
+            fallbackTriggered: index > 0,
+            durationMs: Date.now() - started,
+            providerLatencyMs: Date.now() - attemptStarted
+          });
+        }
         yield { type: "delta", text: delta };
       }
 
       const providerUsage = usage.getUsage();
 
-      console.info({
-        event: "llm_provider_attempt",
+      logPerformanceMetric("llm_provider_attempt", {
+        route: "chat:gateway",
         provider: attempt.providerName,
-        userId: input.userId,
-        chatId: input.chatId,
+        model: attempt.model,
         success: true,
         statusCode: 200,
         latencyMs: Date.now() - attemptStarted
@@ -92,13 +113,16 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
       yield { type: "done" };
       return;
     } catch (error) {
-      lastError = error;
-      const classified = classifyProviderError(error);
-      console.warn({
-        event: "llm_provider_attempt",
+      if (input.signal?.aborted) {
+        return;
+      }
+
+      lastError = attemptSignal.timedOut() ? new Error("Provider request timed out.") : error;
+      const classified = classifyProviderError(lastError);
+      logPerformanceMetric("llm_provider_attempt", {
+        route: "chat:gateway",
         provider: attempt.providerName,
-        userId: input.userId,
-        chatId: input.chatId,
+        model: attempt.model,
         success: false,
         statusCode: classified.status,
         errorCode: classified.code,
@@ -112,6 +136,8 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
         yield { type: "error", message: classified.message };
         return;
       }
+    } finally {
+      attemptSignal.dispose();
     }
   }
 
@@ -122,20 +148,26 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
 export async function createGatewayEmbedding(text: string, providerKeys?: ProviderKeys) {
   const openaiKey = providerKeys?.find((key) => key.apiFormat === "OPENAI" || key.provider === "openai");
   if (openaiKey) {
+    const timeout = createTimeoutSignal(undefined, LLM_EMBEDDING_TIMEOUT_MS, "Embedding provider request timed out.");
     try {
       const openai = new OpenAI({
         apiKey: openaiKey.apiKey,
         baseURL: openaiKey.baseUrl || "https://api.openai.com/v1"
       });
-      const result = await openai.embeddings.create({
-        model: "text-embedding-3-small",
-        input: text,
-        dimensions: 1536
-      });
+      const result = await openai.embeddings.create(
+        {
+          model: "text-embedding-3-small",
+          input: text,
+          dimensions: 1536
+        },
+        { signal: timeout.signal }
+      );
 
       return result.data[0].embedding;
     } catch (error) {
       logSafeError("OpenAI embedding failed, using deterministic fallback.", error);
+    } finally {
+      timeout.dispose();
     }
   }
 
@@ -245,6 +277,7 @@ async function streamProvider(input: {
   presencePenalty?: number | null;
   maxTokens?: number | null;
   key?: ProviderKey;
+  signal: AbortSignal;
   writeDelta: (delta: string) => string;
 }) {
   if (input.provider === "openai" || input.provider === "openai-compatible") {
@@ -269,6 +302,7 @@ async function streamProvider(input: {
         frequencyPenalty: input.frequencyPenalty,
         presencePenalty: input.presencePenalty,
         maxTokens: input.maxTokens,
+        signal: input.signal,
         writeDelta: input.writeDelta,
         onUsage: usage.record
       }),
@@ -290,6 +324,7 @@ async function streamProvider(input: {
         temperature: input.temperature,
         topP: input.topP,
         maxTokens: input.maxTokens,
+        signal: input.signal,
         writeDelta: input.writeDelta,
         onUsage: usage.record
       }),
@@ -311,6 +346,7 @@ async function streamProvider(input: {
         temperature: input.temperature,
         topP: input.topP,
         maxTokens: input.maxTokens,
+        signal: input.signal,
         writeDelta: input.writeDelta,
         onUsage: usage.record
       }),
@@ -338,20 +374,24 @@ async function* streamOpenAI(input: {
   frequencyPenalty?: number | null;
   presencePenalty?: number | null;
   maxTokens?: number | null;
+  signal: AbortSignal;
   writeDelta: (delta: string) => string;
   onUsage: (usage: { inputTokens: number; outputTokens: number }) => void;
 }) {
-  const stream = await input.client.chat.completions.create({
-    model: input.model,
-    messages: input.messages,
-    temperature: input.temperature,
-    top_p: input.topP ?? undefined,
-    frequency_penalty: input.frequencyPenalty ?? undefined,
-    presence_penalty: input.presencePenalty ?? undefined,
-    max_tokens: input.maxTokens ?? undefined,
-    stream: true,
-    stream_options: { include_usage: true }
-  });
+  const stream = await input.client.chat.completions.create(
+    {
+      model: input.model,
+      messages: input.messages,
+      temperature: input.temperature,
+      top_p: input.topP ?? undefined,
+      frequency_penalty: input.frequencyPenalty ?? undefined,
+      presence_penalty: input.presencePenalty ?? undefined,
+      max_tokens: input.maxTokens ?? undefined,
+      stream: true,
+      stream_options: { include_usage: true }
+    },
+    { signal: input.signal }
+  );
 
   for await (const chunk of stream) {
     if (chunk.usage) {
@@ -374,6 +414,7 @@ async function* streamAnthropic(input: {
   temperature: number;
   topP?: number | null;
   maxTokens?: number | null;
+  signal: AbortSignal;
   writeDelta: (delta: string) => string;
   onUsage: (usage: { inputTokens: number; outputTokens: number }) => void;
 }) {
@@ -390,14 +431,17 @@ async function* streamAnthropic(input: {
       content: message.content
     }));
 
-  const stream = input.client.messages.stream({
-    model: input.model,
-    max_tokens: input.maxTokens ?? 900,
-    temperature: input.temperature,
-    top_p: input.topP ?? undefined,
-    system,
-    messages
-  });
+  const stream = input.client.messages.stream(
+    {
+      model: input.model,
+      max_tokens: input.maxTokens ?? 900,
+      temperature: input.temperature,
+      top_p: input.topP ?? undefined,
+      system,
+      messages
+    },
+    { signal: input.signal }
+  );
 
   for await (const event of stream) {
     if (event.type === "message_start") {
@@ -421,6 +465,7 @@ async function* streamGemini(input: {
   temperature: number;
   topP?: number | null;
   maxTokens?: number | null;
+  signal: AbortSignal;
   writeDelta: (delta: string) => string;
   onUsage: (usage: { inputTokens: number; outputTokens: number }) => void;
 }) {
@@ -433,7 +478,10 @@ async function* streamGemini(input: {
     }
   });
   const prompt = input.messages.map((message) => `${message.role.toUpperCase()}: ${message.content}`).join("\n\n");
-  const result = await model.generateContentStream(prompt);
+  const result = await model.generateContentStream(prompt, {
+    signal: input.signal,
+    timeout: LLM_PROVIDER_TIMEOUT_MS
+  });
 
   for await (const chunk of result.stream) {
     const text = chunk.text();

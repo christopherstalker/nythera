@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { MessageContextMenu } from "@/components/chat/MessageContextMenu";
 import { RichMessageText } from "@/components/chat/rich-message-text";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
@@ -37,7 +37,7 @@ type MessageBubbleProps = {
   onNextVariant?: () => void;
 };
 
-export function MessageBubble({
+function MessageBubbleComponent({
   id,
   role,
   content,
@@ -376,6 +376,26 @@ export function MessageBubble({
         />
       )}
     </motion.div>
+  );
+}
+
+export const MessageBubble = memo(MessageBubbleComponent, areMessageBubblePropsEqual);
+
+function areMessageBubblePropsEqual(previous: MessageBubbleProps, next: MessageBubbleProps) {
+  return (
+    previous.id === next.id &&
+    previous.role === next.role &&
+    previous.content === next.content &&
+    previous.characterName === next.characterName &&
+    previous.personaName === next.personaName &&
+    previous.isPinned === next.isPinned &&
+    previous.inputTokens === next.inputTokens &&
+    previous.outputTokens === next.outputTokens &&
+    previous.estimatedCost === next.estimatedCost &&
+    previous.usageEstimated === next.usageEstimated &&
+    previous.isLatestAssistant === next.isLatestAssistant &&
+    previous.variantIndex === next.variantIndex &&
+    previous.variantCount === next.variantCount
   );
 }
 

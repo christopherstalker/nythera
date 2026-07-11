@@ -1,7 +1,8 @@
 import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
+import { HttpError, getRequestIp, json, parseJson, requireUser, routeError } from "@/lib/api";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { moderateText } from "@/lib/safety";
 import { characterUpdateSchema } from "@/lib/validation";
 import { normalizeCharacterTags } from "@/lib/character-tags";
@@ -207,9 +208,15 @@ export async function DELETE(_request: Request, context: Context) {
   }
 }
 
-export async function POST(_request: Request, context: Context) {
+export async function POST(request: Request, context: Context) {
   try {
     const user = await requireUser();
+    await enforceRateLimit({
+      userId: user.id,
+      ip: getRequestIp(request),
+      route: "characters:clone"
+    });
+
     const source = await prisma.character.findUnique({
       where: { id: context.params.id }
     });

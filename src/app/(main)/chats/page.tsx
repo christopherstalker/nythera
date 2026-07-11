@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, MessageCircle, Plus, Sparkles } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page";
 import { toChatPreview } from "@/lib/chat-preview";
+import { shouldBypassNextImageOptimization } from "@/lib/image-cache";
 
 type Chat = {
   id: string;
@@ -69,7 +71,7 @@ export default function ChatsPage() {
       ) : chats.length > 0 ? (
         <div className="grid gap-8 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,.85fr)]">
           <Link href={`/chat/${chats[0].id}`} className="group relative min-h-[430px] overflow-hidden rounded-[32px] border border-[var(--border-default)] bg-[var(--bg-surface)] no-underline sm:min-h-[540px]">
-            {chats[0].character.avatarUrl ? <img src={chats[0].character.avatarUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-38" /> : <div className="absolute inset-0 bg-[var(--bg-elevated)]" />}
+            <ChatHeroArtwork src={chats[0].character.avatarUrl} />
             <div className="absolute inset-0 bg-[color:oklch(var(--color-canvas)/.76)]" />
             <div className="glass-grain pointer-events-none absolute inset-0" />
             <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8">
@@ -107,5 +109,25 @@ export default function ChatsPage() {
         />
       )}
     </PageShell>
+  );
+}
+
+function ChatHeroArtwork({ src }: { src?: string | null }) {
+  if (!src) {
+    return <div className="absolute inset-0 bg-[var(--bg-elevated)]" />;
+  }
+
+  if (shouldBypassNextImageOptimization(src)) {
+    return <img src={src} alt="" className="absolute inset-0 h-full w-full object-cover opacity-38" />;
+  }
+
+  return (
+    <Image
+      src={src}
+      alt=""
+      fill
+      sizes="(min-width: 1280px) 52vw, 100vw"
+      className="absolute inset-0 h-full w-full object-cover opacity-38"
+    />
   );
 }

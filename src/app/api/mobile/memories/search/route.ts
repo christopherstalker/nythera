@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { HttpError, json, parseJson, routeError } from "@/lib/api";
+import { HttpError, getRequestIp, json, parseJson, routeError } from "@/lib/api";
 import { requireMobileUser } from "@/lib/mobile-auth";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { getEffectiveProviderKeys } from "@/lib/user-keys";
 import { searchMemories } from "@/lib/vector";
 
@@ -13,6 +14,12 @@ const memorySearchSchema = z.object({
 export async function POST(request: Request) {
   try {
     const user = await requireMobileUser(request);
+    await enforceRateLimit({
+      userId: user.id,
+      ip: getRequestIp(request),
+      route: "mobile:memories:search"
+    });
+
     const input = await parseJson(request, memorySearchSchema);
 
     if (!input.query.trim()) {

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
+import { measurePrismaOperation } from "@/lib/performance-logger";
 import { splitProviderModelValue } from "@/lib/provider-model-options";
 import { chatUpdateSchema } from "@/lib/validation";
 
@@ -12,19 +13,30 @@ type Context = {
 export async function GET(_request: Request, context: Context) {
   try {
     const user = await requireUser();
-    const chat = await prisma.chat.findFirst({
-      where: {
-        id: context.params.id,
-        userId: user.id
+    const chat = await measurePrismaOperation(
+      {
+        route: "chat:get",
+        operation: "load_conversation"
       },
-      include: {
-        character: true,
-        persona: true,
-        messages: {
-          orderBy: [{ createdAt: "asc" }, { sequence: "asc" }, { id: "asc" }]
-        }
-      }
-    });
+      () =>
+        prisma.chat.findFirst({
+          where: {
+            id: context.params.id,
+            userId: user.id
+          },
+          include: {
+            character: true,
+            persona: true,
+            messages: {
+              orderBy: [{ createdAt: "asc" }, { sequence: "asc" }, { id: "asc" }]
+            }
+          }
+        }),
+      (result) => ({
+        found: Boolean(result),
+        messageCount: result?.messages.length ?? 0
+      })
+    );
 
     if (!chat) {
       throw new HttpError(404, "Chat not found.");

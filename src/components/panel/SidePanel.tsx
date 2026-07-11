@@ -55,15 +55,11 @@ export function SidePanel() {
       ) : null}
       <motion.aside
         className={cn(
-          "side-panel fixed bottom-0 right-0 top-[var(--top-bar-height)] z-50 flex w-full max-w-[var(--side-panel-width)] translate-x-full flex-col overflow-hidden border-l border-[var(--border-subtle)] shadow-[var(--shadow-elevated)] md:top-0 xl:top-[var(--top-bar-height)] xl:h-[calc(100%-var(--top-bar-height))] xl:shrink-0",
+          "side-panel orbital-functional fixed bottom-0 right-0 top-[var(--top-bar-height)] z-50 flex w-full max-w-[var(--side-panel-width)] translate-x-full flex-col overflow-hidden border-l border-[var(--border-subtle)] shadow-[var(--shadow-elevated)] md:top-0 xl:top-[var(--top-bar-height)] xl:h-[calc(100%-var(--top-bar-height))] xl:shrink-0",
           isChatSurface && "top-0 xl:top-0 xl:h-full",
+          isTablet && "orbital-tablet-solid",
           open && "translate-x-0"
         )}
-        style={{
-          background: isTablet ? "var(--bg-surface)" : "color-mix(in oklch, var(--bg-surface) 72%, transparent)",
-          backdropFilter: isTablet ? "none" : "blur(20px) saturate(180%)",
-          WebkitBackdropFilter: isTablet ? "none" : "blur(20px) saturate(180%)"
-        }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={springSoft}

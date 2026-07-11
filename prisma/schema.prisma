@@ -159,8 +159,11 @@ model Character {
   likedBy     CharacterLike[]
   ratings     CharacterRating[]
 
-  @@index([creatorId])
-  @@index([visibility, moderationStatus, createdAt])
+  @@index([creatorId, updatedAt(sort: Desc)], map: "character_creator_updated_idx")
+  @@index([creatorId, cloneSourceId, updatedAt(sort: Desc)], map: "character_creator_clone_updated_idx")
+  @@index([visibility, moderationStatus, isNSFW, blockedAt, likes(sort: Desc), ratingAverage(sort: Desc), createdAt(sort: Desc)], map: "character_discovery_trending_idx")
+  @@index([visibility, moderationStatus, isNSFW, blockedAt, createdAt(sort: Desc)], map: "character_discovery_new_idx")
+  @@index([visibility, moderationStatus, isNSFW, blockedAt, ratingAverage(sort: Desc), ratingCount(sort: Desc), likes(sort: Desc)], map: "character_discovery_rating_idx")
   @@index([tags], type: Gin)
 }
 
@@ -174,6 +177,7 @@ model CharacterLike {
 
   @@id([userId, characterId])
   @@index([characterId])
+  @@index([userId, createdAt(sort: Desc)], map: "character_like_user_created_idx")
 }
 
 model CharacterRating {
@@ -214,7 +218,7 @@ model Chat {
   memories  Memory[]
   shares    ChatShare[]
 
-  @@index([userId, updatedAt])
+  @@index([userId, archivedAt, lastActiveAt(sort: Desc), updatedAt(sort: Desc)], map: "chat_user_archive_activity_idx")
   @@index([characterId])
   @@index([personaId])
 }
@@ -321,7 +325,7 @@ model Message {
   reports Report[]
 
   @@unique([chatId, sequence])
-  @@index([chatId, createdAt, sequence])
+  @@index([chatId, createdAt, sequence, id], map: "message_chat_created_sequence_id_idx")
 }
 
 model RoomMessage {

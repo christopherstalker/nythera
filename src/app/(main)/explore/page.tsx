@@ -1,9 +1,10 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Search, ShieldCheck, SlidersHorizontal, Sparkles, Star, X } from "lucide-react";
+import { ArrowRight, Plus, Search, ShieldCheck, SlidersHorizontal, Sparkles, Star, X } from "lucide-react";
 import { motion } from "motion/react";
 import { CharacterBentoGrid } from "@/components/characters/CharacterBentoGrid";
 import type { CharacterSummary } from "@/components/characters/CharacterCard";
@@ -12,6 +13,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page";
 import { SearchBar } from "@/components/ui/search-bar";
 import { DISCOVERY_TAGS, displayTagLabel } from "@/lib/character-tags";
+import { shouldBypassNextImageOptimization } from "@/lib/image-cache";
 import { springSoft } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
@@ -80,6 +82,7 @@ function ExplorePageContent() {
   const activeFeedTab = feedTabs.find((tab) => tab.id === activeFeed) ?? feedTabs[0];
   const activeFeedCharacters =
     activeFeed === "recommended" ? recommended : activeFeed === "for-you" ? characters.slice(0, FEED_TAKE) : trending;
+  const featuredCharacter = trending[0] ?? activeFeedCharacters[0] ?? characters[0] ?? null;
 
   useEffect(() => {
     setQuery(initialQuery);
@@ -163,7 +166,10 @@ function ExplorePageContent() {
   }
 
   return (
-    <PageShell className="space-y-8 px-4 pt-6 sm:px-6 md:pt-8">
+    <PageShell className="space-y-6 px-4 pt-5 sm:px-6 md:pt-6">
+      <h1 className="sr-only">Explore</h1>
+      <FeaturedStage character={featuredCharacter} loading={loading} />
+
       <DiscoveryCommandCenter
         query={query}
         selectedTags={selectedTags}
@@ -181,16 +187,10 @@ function ExplorePageContent() {
       />
 
       {showFeedSections ? (
-        <section className="space-y-5">
+        <section className="space-y-4">
           <div className="scrollbar-none overflow-x-auto pb-1">
             <div
-              className="inline-flex min-w-max gap-1 rounded-[var(--radius-pill)] border border-[var(--border-subtle)] p-1"
-              style={{
-                background: "color-mix(in oklch, var(--color-surface) 70%, transparent)",
-                boxShadow: "var(--glass-highlight)",
-                backdropFilter: "blur(var(--glass-blur-sm)) saturate(var(--glass-saturation))",
-                WebkitBackdropFilter: "blur(var(--glass-blur-sm)) saturate(var(--glass-saturation))"
-              }}
+              className="orbital-glass inline-flex min-w-max gap-1 rounded-[var(--radius-pill)] p-1"
             >
               {feedTabs.map((tab) => (
                 <button
@@ -209,7 +209,7 @@ function ExplorePageContent() {
               ))}
             </div>
           </div>
-          <CharacterBentoGrid title={activeFeedTab.label} characters={activeFeedCharacters} loading={loading} />
+          <CharacterBentoGrid title={activeFeedTab.label} characters={activeFeedCharacters.slice(0, 6)} loading={loading} layout="shelf" />
         </section>
       ) : null}
 
@@ -235,6 +235,74 @@ function ExplorePageContent() {
         />
       ) : null}
     </PageShell>
+  );
+}
+
+function FeaturedStage({ character, loading }: { character: CharacterSummary | null; loading: boolean }) {
+  if (loading && !character) {
+    return <div className="skeleton orbital-stage w-full" />;
+  }
+
+  if (!character) {
+    return null;
+  }
+
+  const avatarSrc = character.avatarUrl || "/icons/velora-aurora-v4-512.png";
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={springSoft}
+      className="orbital-stage orbital-glass group"
+      aria-labelledby="featured-character-name"
+    >
+      <Image
+        src={avatarSrc}
+        alt={character.name}
+        fill
+        priority
+        unoptimized={shouldBypassNextImageOptimization(avatarSrc)}
+        sizes="(min-width: 1280px) 88rem, 100vw"
+        className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.015] motion-reduce:transition-none"
+        style={{ objectPosition: "70% 20%" }}
+      />
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(90deg, oklch(var(--color-canvas) / .98) 0%, oklch(var(--color-canvas) / .84) 34%, oklch(var(--color-canvas) / .3) 64%, transparent 100%), linear-gradient(0deg, oklch(var(--color-canvas) / .62) 0%, transparent 46%)"
+        }}
+      />
+      <div className="absolute inset-0 bg-aurora-ambient opacity-35 mix-blend-screen" />
+
+      <div className="relative z-10 flex min-h-[inherit] max-w-xl flex-col justify-end p-6 sm:p-9 lg:justify-center lg:p-12">
+        <p className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[.18em] text-[var(--accent-secondary)]">
+          <Sparkles className="h-4 w-4" />
+          Featured character
+        </p>
+        <h2 id="featured-character-name" className="text-[clamp(3.25rem,7vw,6.5rem)] font-semibold leading-[.88] tracking-[-.055em] text-[var(--text-primary)]">
+          {character.name}
+        </h2>
+        <p className="mt-6 line-clamp-3 max-w-lg text-base leading-7 text-[var(--text-secondary)] sm:text-lg">
+          {character.description || "A story waiting to begin."}
+        </p>
+        <div className="mt-5 flex flex-wrap gap-2">
+          {character.tags?.slice(0, 3).map((tag) => (
+            <span key={tag} className="orbital-glass rounded-full px-4 py-2 text-sm font-medium text-[var(--text-primary)]">
+              {displayTagLabel(tag)}
+            </span>
+          ))}
+        </div>
+        <Link
+          href={`/character/${character.id}`}
+          className="mt-6 inline-flex h-12 w-fit items-center gap-3 rounded-full bg-aurora-primary px-6 text-sm font-semibold text-[var(--text-primary)] no-underline shadow-glow-soft transition hover:-translate-y-0.5 motion-reduce:transition-none"
+        >
+          View profile
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
+    </motion.section>
   );
 }
 
@@ -292,40 +360,9 @@ function DiscoveryCommandCenter({
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={springSoft}
-        className="relative isolate overflow-hidden rounded-[28px] border border-[var(--border-subtle)] p-4 sm:p-5 lg:p-6"
-        style={{
-          background: "color-mix(in oklch, var(--color-surface) 68%, transparent)",
-          boxShadow: "var(--shadow-card)",
-          backdropFilter: "blur(var(--glass-blur-md)) saturate(var(--glass-saturation))",
-          WebkitBackdropFilter: "blur(var(--glass-blur-md)) saturate(var(--glass-saturation))"
-        }}
+        className="orbital-functional orbital-discovery-dock p-3 sm:p-4"
       >
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-aurora-ambient opacity-60" />
-        <div
-          className="pointer-events-none absolute inset-0 -z-10 opacity-[0.035]"
-          style={{
-            backgroundImage:
-              "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E\")",
-            backgroundSize: "256px 256px"
-          }}
-        />
-
-        <div className="grid gap-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex min-w-0 items-center gap-3">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-aurora-primary text-[var(--text-primary)] shadow-glow-soft">
-                <Sparkles className="h-5 w-5" />
-              </span>
-              <h1 className="text-4xl font-semibold leading-none text-[var(--text-primary)] sm:text-5xl">Explore</h1>
-            </div>
-            <Button asChild className="self-start bg-aurora-primary text-[var(--text-primary)] shadow-glow-soft lg:self-auto">
-              <Link href="/create-character">
-                <Plus className="h-4 w-4" />
-                Create
-              </Link>
-            </Button>
-          </div>
-
+        <div className="grid gap-3 xl:grid-cols-[minmax(300px,1.35fr)_minmax(150px,.55fr)_minmax(250px,.9fr)_minmax(300px,1.05fr)_auto] xl:items-end">
           <SearchBar
             value={query}
             onChange={onQueryChange}
@@ -339,22 +376,73 @@ function DiscoveryCommandCenter({
             filterControls="explore-filter-drawer"
           />
 
-          <div className="hidden gap-5 xl:grid">
-            <DiscoveryFilterControls
-              selectedTags={selectedTags}
-              sort={sort}
-              ratingMin={ratingMin}
-              nsfwMode={nsfwMode}
-              hasActiveFilters={hasActiveFilters}
-              onToggleTag={onToggleTag}
-              onSortChange={onSortChange}
-              onRatingChange={onRatingChange}
-              onNsfwChange={onNsfwChange}
-              onReset={onReset}
-            />
-          </div>
+          <DockGroup label="Sort" className="hidden xl:grid">
+            <select
+              aria-label="Sort characters"
+              value={sort}
+              onChange={(event) => onSortChange(event.target.value as (typeof sortOptions)[number]["id"])}
+              className="focus-ring h-10 rounded-full border border-[var(--border-subtle)] bg-[var(--color-overlay)] px-3 text-xs font-semibold text-[var(--text-primary)]"
+            >
+              {sortOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+            </select>
+          </DockGroup>
+
+          <DockGroup label="Rating" className="hidden xl:grid">
+            <div className="flex gap-1.5">
+              {[0, 3, 4, 4.5].map((value) => (
+                <FilterButton key={value} active={ratingMin === value} onClick={() => onRatingChange(value)}>
+                  {value === 0 ? "Any" : `${value}+`}
+                </FilterButton>
+              ))}
+            </div>
+          </DockGroup>
+
+          <DockGroup label="Age" className="hidden xl:grid">
+            <div className="flex gap-1.5">
+              {nsfwOptions.map((option) => (
+                <FilterButton key={option.id} active={nsfwMode === option.id} onClick={() => onNsfwChange(option.id)}>
+                  {option.label}
+                </FilterButton>
+              ))}
+            </div>
+          </DockGroup>
+
+          <button
+            type="button"
+            aria-expanded={filtersOpen}
+            aria-controls="explore-extra-filters"
+            onClick={() => setFiltersOpen((current) => !current)}
+            className="focus-ring hidden h-10 items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-[var(--color-overlay)] px-4 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] xl:flex"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            More filters
+            {activeFilterCount > 0 ? <span className="text-[var(--accent-secondary)]">{activeFilterCount}</span> : null}
+          </button>
         </div>
       </motion.section>
+
+      {filtersOpen ? (
+        <motion.div
+          id="explore-extra-filters"
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={springSoft}
+          className="orbital-functional mt-3 hidden gap-5 xl:grid rounded-[var(--radius-surface)] p-4"
+        >
+          <div className="flex flex-wrap gap-2">
+            {quickTags.map((tag) => (
+              <TagButton key={tag.slug} active={selectedTags.includes(tag.slug)} onClick={() => onToggleTag(tag.slug)}>
+                {displayTagLabel(tag.slug)}
+              </TagButton>
+            ))}
+          </div>
+          {hasActiveFilters ? (
+            <button type="button" onClick={onReset} className="focus-ring w-fit rounded-full border border-[var(--border-subtle)] px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+              Reset filters
+            </button>
+          ) : null}
+        </motion.div>
+      ) : null}
 
       {filtersOpen ? (
         <div className="xl:hidden">
@@ -372,12 +460,7 @@ function DiscoveryCommandCenter({
             initial={{ opacity: 0, y: 24, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={springSoft}
-            className="fixed inset-x-3 bottom-[calc(var(--bottom-nav-offset)_+_8px)] z-[80] mx-auto flex h-[min(72svh,680px)] max-w-[720px] flex-col overflow-hidden rounded-[28px] border border-[var(--border-subtle)] p-4 shadow-[var(--shadow-elevated)] md:bottom-6 md:inset-x-6"
-            style={{
-              background: "color-mix(in oklch, var(--bg-surface) 86%, transparent)",
-              backdropFilter: "blur(var(--glass-blur-md)) saturate(var(--glass-saturation))",
-              WebkitBackdropFilter: "blur(var(--glass-blur-md)) saturate(var(--glass-saturation))"
-            }}
+            className="orbital-floating fixed inset-x-3 bottom-[calc(var(--bottom-nav-offset)_+_8px)] z-[80] mx-auto flex h-[min(72svh,680px)] max-w-[720px] flex-col overflow-hidden rounded-[28px] p-4 md:bottom-6 md:inset-x-6"
           >
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
@@ -532,6 +615,15 @@ function FilterGroup({ icon: Icon, label, children }: { icon: typeof SlidersHori
       </div>
       <div className="flex flex-wrap gap-2">{children}</div>
     </div>
+  );
+}
+
+function DockGroup({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
+  return (
+    <label className={cn("gap-1.5", className)}>
+      <span className="px-1 text-[11px] font-semibold text-[var(--text-muted)]">{label}</span>
+      {children}
+    </label>
   );
 }
 

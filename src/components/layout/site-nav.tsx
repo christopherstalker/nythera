@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { ChevronDown, Compass, Home, KeyRound, LogOut, MessageSquare, Plus, Search, Settings, ShieldCheck, User, UsersRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isPlatformAdminEmail } from "@/lib/admin";
+import { shouldBypassNextImageOptimization } from "@/lib/image-cache";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 
@@ -148,16 +150,16 @@ export function SiteNav() {
                 className="focus-ring flex h-10 items-center gap-2 rounded-full border border-white/[0.025] bg-white/[0.03] px-2 pr-3 shadow-inset transition hover:border-primary/[0.16] hover:bg-primary/[0.07]"
                 onClick={() => setOpen((current) => !current)}
               >
-                <span className="grid h-7 w-7 place-items-center overflow-hidden rounded-full border border-primary/30 bg-primary/[0.15] text-xs font-bold uppercase text-foreground">
-                  {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : initial}
+                <span className="relative grid h-7 w-7 place-items-center overflow-hidden rounded-full border border-primary/30 bg-primary/[0.15] text-xs font-bold uppercase text-foreground">
+                  {avatarUrl ? <NavAvatarImage src={avatarUrl} size={28} /> : initial}
                 </span>
                 <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
               {open ? (
                 <div className="absolute right-0 mt-2 w-56 rounded-3xl border border-outline bg-card p-2">
                   <div className="mb-1 flex items-center gap-3 rounded-2xl bg-white/[0.028] p-2">
-                    <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full border border-primary/25 bg-primary/[0.12] text-sm font-bold uppercase">
-                      {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : initial}
+                    <span className="relative grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full border border-primary/25 bg-primary/[0.12] text-sm font-bold uppercase">
+                      {avatarUrl ? <NavAvatarImage src={avatarUrl} size={40} /> : initial}
                     </span>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-foreground">{displayName}</p>
@@ -194,6 +196,14 @@ export function SiteNav() {
       {showMobileDock ? <MobileDock pathname={pathname} /> : null}
     </>
   );
+}
+
+function NavAvatarImage({ src, size }: { src: string; size: number }) {
+  if (shouldBypassNextImageOptimization(src)) {
+    return <img src={src} alt="" className="h-full w-full object-cover" />;
+  }
+
+  return <Image src={src} alt="" fill sizes={`${size}px`} className="h-full w-full object-cover" />;
 }
 
 function MobileDock({ pathname }: { pathname: string }) {

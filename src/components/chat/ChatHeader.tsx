@@ -46,12 +46,7 @@ export function ChatHeader({ chatId, characterId, characterName, characterAvatar
     >
       <div className="mx-auto flex w-full max-w-[min(920px,calc(100vw-1.5rem))] items-start justify-between gap-2 sm:gap-3">
         <motion.div
-          className="pointer-events-auto flex h-14 min-w-0 max-w-[min(460px,calc(100vw-8.5rem))] items-center gap-2 rounded-full border border-[var(--border-subtle)] px-2 sm:h-16 sm:max-w-[min(480px,calc(100vw-7.25rem))] sm:px-2.5"
-          style={{
-            background: "color-mix(in oklch, var(--bg-base) 8%, transparent)",
-            backdropFilter: "blur(8px) saturate(115%)",
-            WebkitBackdropFilter: "blur(8px) saturate(115%)"
-          }}
+          className="orbital-floating pointer-events-auto flex h-14 min-w-0 max-w-[min(460px,calc(100vw-8.5rem))] items-center gap-2 rounded-full px-2 sm:h-16 sm:max-w-[min(480px,calc(100vw-7.25rem))] sm:px-2.5"
           whileHover={{ y: -1 }}
           transition={springSnappy}
         >
@@ -88,12 +83,7 @@ export function ChatHeader({ chatId, characterId, characterName, characterAvatar
             </HeaderIconButton>
             {open ? (
               <div
-                className="absolute right-0 top-16 z-40 w-52 overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-subtle)] p-1.5 shadow-[var(--shadow-elevated)]"
-                style={{
-                  background: "color-mix(in oklch, var(--bg-elevated) 88%, transparent)",
-                  backdropFilter: "blur(18px) saturate(165%)",
-                  WebkitBackdropFilter: "blur(18px) saturate(165%)"
-                }}
+                className="orbital-floating absolute right-0 top-16 z-40 w-52 overflow-hidden rounded-[var(--radius-card)] p-1.5"
               >
                 <button type="button" onClick={shareChat} className="nav-item w-full">
                   <Share2 className="h-4 w-4" />
@@ -144,19 +134,10 @@ function HeaderIconButton({
       transition={springSnappy}
       className={cn(
         "focus-ring grid shrink-0 place-items-center rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
-        elevated ? "h-12 w-12 border border-[var(--border-subtle)] sm:h-14 sm:w-14" : "h-10 w-10",
+        elevated ? "orbital-floating h-12 w-12 sm:h-14 sm:w-14" : "h-10 w-10",
         active && "text-[var(--text-primary)]",
         subtle ? "hover:bg-[var(--color-overlay)]" : "bg-[var(--color-overlay)] hover:bg-[var(--bg-elevated)]"
       )}
-      style={
-        elevated
-          ? {
-              background: active ? "color-mix(in oklch, var(--bg-elevated) 14%, transparent)" : "color-mix(in oklch, var(--bg-base) 6%, transparent)",
-              backdropFilter: "blur(8px) saturate(115%)",
-              WebkitBackdropFilter: "blur(8px) saturate(115%)"
-            }
-          : undefined
-      }
     >
       {children}
     </motion.button>

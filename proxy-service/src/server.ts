@@ -46,6 +46,8 @@ const serverOpenAIKey = process.env.OPENAI_API_KEY;
 const serverAnthropicKey = process.env.ANTHROPIC_API_KEY;
 const serverGeminiKey = process.env.GEMINI_API_KEY;
 const APP_DEFAULT_MODELS = new Set(["gpt-4o-mini", "gpt-3.5-turbo"]);
+const LLM_PROVIDER_TIMEOUT_MS = 60_000;
+const LLM_EMBEDDING_TIMEOUT_MS = 15_000;
 
 const legacyProviderKeysSchema = z
   .object({
@@ -130,17 +132,28 @@ app.post("/v1/embeddings", async (request, response) => {
     return;
   }
 
-  const result = await requestOpenAI.embeddings.create({
-    model: "text-embedding-3-small",
-    input: parsed.data.text,
-    dimensions: 1536
-  });
+  const timeout = createTimeoutSignal(undefined, LLM_EMBEDDING_TIMEOUT_MS, "Embedding provider request timed out.");
+  try {
+    const result = await requestOpenAI.embeddings.create(
+      {
+        model: "text-embedding-3-small",
+        input: parsed.data.text,
+        dimensions: 1536
+      },
+      { signal: timeout.signal }
+    );
 
-  response.json({
-    embedding: result.data[0].embedding,
-    provider: "openai",
-    model: "text-embedding-3-small"
-  });
+    response.json({
+      embedding: result.data[0].embedding,
+      provider: "openai",
+      model: "text-embedding-3-small"
+    });
+  } catch (error) {
+    logger.warn({ route: "embeddings", error: error instanceof Error ? error.message : String(error) });
+    response.json({ embedding: deterministicEmbedding(parsed.data.text), provider: "local" });
+  } finally {
+    timeout.dispose();
+  }
 });
 
 app.post("/v1/chat/stream", async (request, response) => {
@@ -172,8 +185,12 @@ app.post("/v1/chat/stream", async (request, response) => {
   });
 
   let clientClosed = false;
+  const clientAbort = new AbortController();
   response.on("close", () => {
     clientClosed = true;
+    if (!clientAbort.signal.aborted) {
+      clientAbort.abort(new Error("Client disconnected."));
+    }
   });
   const writeEvent = (payload: unknown) => {
     if (clientClosed || response.writableEnded) {
@@ -190,15 +207,17 @@ app.post("/v1/chat/stream", async (request, response) => {
   let streamed = "";
   let lastError: unknown = null;
 
-  for (const attempt of attempts) {
+  for (const [attemptIndex, attempt] of attempts.entries()) {
     if (clientClosed) {
-      logger.info({ route: "chat", status: "client_closed", chatId: parsed.data.chatId, userId });
+      logger.info({ route: "chat", status: "client_closed" });
       return;
     }
 
-    const attemptLabels = attempts.slice(0, attempts.indexOf(attempt) + 1).map((item) => `${item.providerName}:${item.model}`);
+    const attemptLabels = attempts.slice(0, attemptIndex + 1).map((item) => `${item.providerName}:${item.model}`);
     const streamedBeforeAttempt = streamed.length;
     const attemptStarted = Date.now();
+    let firstTokenLogged = false;
+    const attemptSignal = createTimeoutSignal(clientAbort.signal, LLM_PROVIDER_TIMEOUT_MS, "Provider request timed out.");
     try {
       const usage = await streamProvider({
         provider: attempt.provider,
@@ -210,6 +229,7 @@ app.post("/v1/chat/stream", async (request, response) => {
         presencePenalty: parsed.data.presencePenalty,
         maxTokens: parsed.data.maxTokens,
         key: attempt.key,
+        signal: attemptSignal.signal,
         writeDelta(delta) {
           if (clientClosed) {
             throw new Error("Client disconnected.");
@@ -222,6 +242,19 @@ app.post("/v1/chat/stream", async (request, response) => {
           }
 
           streamed = next;
+          if (!firstTokenLogged) {
+            firstTokenLogged = true;
+            logger.info({
+              event: "llm_time_to_first_token",
+              route: "proxy:chat",
+              provider: attempt.providerName,
+              model: attempt.model,
+              attempt: attemptIndex + 1,
+              fallbackTriggered: attemptIndex > 0,
+              durationMs: Date.now() - started,
+              providerLatencyMs: Date.now() - attemptStarted
+            });
+          }
           if (!writeEvent({ type: "delta", text: delta })) {
             throw new Error("Client disconnected.");
           }
@@ -236,7 +269,7 @@ app.post("/v1/chat/stream", async (request, response) => {
           model: attempt.model,
           usageEstimated: usage.usageEstimated,
           latencyMs: Date.now() - started,
-          fallbackTriggered: attempts.indexOf(attempt) > 0,
+          fallbackTriggered: attemptIndex > 0,
           attempts: attemptLabels
         });
       writeEvent({ type: "done" });
@@ -245,9 +278,9 @@ app.post("/v1/chat/stream", async (request, response) => {
       }
       logger.info({
         event: "llm_provider_attempt",
+        route: "proxy:chat",
         provider: attempt.providerName,
-        chatId: parsed.data.chatId,
-        userId,
+        model: attempt.model,
         success: true,
         statusCode: 200,
         latencyMs: Date.now() - attemptStarted
@@ -255,17 +288,17 @@ app.post("/v1/chat/stream", async (request, response) => {
       return;
     } catch (error) {
       if (clientClosed) {
-        logger.info({ route: "chat", status: "client_closed", chatId: parsed.data.chatId, userId });
+        logger.info({ route: "chat", status: "client_closed" });
         return;
       }
 
-      lastError = error;
-      const classified = classifyProviderError(error);
+      lastError = attemptSignal.timedOut() ? new Error("Provider request timed out.") : error;
+      const classified = classifyProviderError(lastError);
       logger.warn({
         event: "llm_provider_attempt",
+        route: "proxy:chat",
         provider: attempt.providerName,
-        chatId: parsed.data.chatId,
-        userId,
+        model: attempt.model,
         success: false,
         statusCode: classified.status,
         errorCode: classified.code,
@@ -285,6 +318,8 @@ app.post("/v1/chat/stream", async (request, response) => {
         return;
       }
       await delay(300);
+    } finally {
+      attemptSignal.dispose();
     }
   }
 
@@ -410,6 +445,7 @@ async function streamProvider(input: {
   presencePenalty?: number | null;
   maxTokens?: number | null;
   key?: ProviderKey;
+  signal: AbortSignal;
   writeDelta: (delta: string) => void;
 }) {
   if (input.provider === "openai" || input.provider === "openai-compatible") {
@@ -541,24 +577,28 @@ async function streamOpenAI(input: {
   frequencyPenalty?: number | null;
   presencePenalty?: number | null;
   maxTokens?: number | null;
+  signal: AbortSignal;
   writeDelta: (delta: string) => void;
 }) {
   let inputTokens = 0;
   let outputTokens = 0;
   let hasProviderUsage = false;
-  const stream = await input.client.chat.completions.create({
-    model: input.model,
-    messages: input.messages,
-    temperature: input.temperature,
-    top_p: input.topP ?? undefined,
-    frequency_penalty: input.frequencyPenalty ?? undefined,
-    presence_penalty: input.presencePenalty ?? undefined,
-    max_tokens: input.maxTokens ?? undefined,
-    stream: true,
-    stream_options: { include_usage: true }
-  });
+  const stream = await input.client.chat.completions.create(
+    {
+      model: input.model,
+      messages: input.messages,
+      temperature: input.temperature,
+      top_p: input.topP ?? undefined,
+      frequency_penalty: input.frequencyPenalty ?? undefined,
+      presence_penalty: input.presencePenalty ?? undefined,
+      max_tokens: input.maxTokens ?? undefined,
+      stream: true,
+      stream_options: { include_usage: true }
+    },
+    { signal: input.signal }
+  );
 
-  for await (const chunk of stream) {
+  for await (const chunk of abortableAsyncIterable(stream, input.signal)) {
     if (chunk.usage) {
       hasProviderUsage = true;
       inputTokens = chunk.usage.prompt_tokens;
@@ -584,6 +624,7 @@ async function streamAnthropic(input: {
   temperature: number;
   topP?: number | null;
   maxTokens?: number | null;
+  signal: AbortSignal;
   writeDelta: (delta: string) => void;
 }) {
   let inputTokens = 0;
@@ -600,16 +641,19 @@ async function streamAnthropic(input: {
       content: message.content
     }));
 
-  const stream = input.client.messages.stream({
-    model: input.model,
-    max_tokens: input.maxTokens ?? 900,
-    temperature: input.temperature,
-    top_p: input.topP ?? undefined,
-    system,
-    messages
-  });
+  const stream = input.client.messages.stream(
+    {
+      model: input.model,
+      max_tokens: input.maxTokens ?? 900,
+      temperature: input.temperature,
+      top_p: input.topP ?? undefined,
+      system,
+      messages
+    },
+    { signal: input.signal }
+  );
 
-  for await (const event of stream) {
+  for await (const event of abortableAsyncIterable(stream, input.signal)) {
     if (event.type === "message_start") {
       hasProviderUsage = true;
       inputTokens = event.message.usage.input_tokens;
@@ -637,6 +681,7 @@ async function streamGemini(input: {
   temperature: number;
   topP?: number | null;
   maxTokens?: number | null;
+  signal: AbortSignal;
   writeDelta: (delta: string) => void;
 }) {
   const model = input.client.getGenerativeModel({
@@ -648,9 +693,12 @@ async function streamGemini(input: {
     }
   });
   const prompt = input.messages.map((message) => `${message.role.toUpperCase()}: ${message.content}`).join("\n\n");
-  const result = await model.generateContentStream(prompt);
+  const result = await model.generateContentStream(prompt, {
+    signal: input.signal,
+    timeout: LLM_PROVIDER_TIMEOUT_MS
+  });
 
-  for await (const chunk of result.stream) {
+  for await (const chunk of abortableAsyncIterable(result.stream, input.signal)) {
     const text = chunk.text();
     if (text) {
       input.writeDelta(text);
@@ -719,4 +767,79 @@ function estimateTokens(text: string) {
 
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function createTimeoutSignal(parentSignal: AbortSignal | undefined, timeoutMs: number, timeoutMessage: string) {
+  const controller = new AbortController();
+  let timedOut = false;
+
+  const abortFromParent = () => {
+    if (!controller.signal.aborted) {
+      controller.abort(parentSignal?.reason ?? new Error("Request aborted."));
+    }
+  };
+
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    if (!controller.signal.aborted) {
+      controller.abort(new Error(timeoutMessage));
+    }
+  }, timeoutMs);
+
+  if (parentSignal?.aborted) {
+    abortFromParent();
+  } else {
+    parentSignal?.addEventListener("abort", abortFromParent, { once: true });
+  }
+
+  return {
+    signal: controller.signal,
+    timedOut: () => timedOut,
+    dispose() {
+      clearTimeout(timeoutId);
+      parentSignal?.removeEventListener("abort", abortFromParent);
+    }
+  };
+}
+
+async function* abortableAsyncIterable<T>(source: AsyncIterable<T>, signal: AbortSignal): AsyncGenerator<T> {
+  const iterator = source[Symbol.asyncIterator]();
+
+  try {
+    while (true) {
+      const next = await nextWithAbort(iterator, signal);
+      if (next.done) {
+        return;
+      }
+
+      yield next.value;
+    }
+  } finally {
+    await iterator.return?.();
+  }
+}
+
+function nextWithAbort<T>(iterator: AsyncIterator<T>, signal: AbortSignal) {
+  if (signal.aborted) {
+    throw abortSignalError(signal);
+  }
+
+  return new Promise<IteratorResult<T>>((resolve, reject) => {
+    const onAbort = () => {
+      reject(abortSignalError(signal));
+    };
+
+    signal.addEventListener("abort", onAbort, { once: true });
+    iterator.next().then(resolve, reject).finally(() => {
+      signal.removeEventListener("abort", onAbort);
+    });
+  });
+}
+
+function abortSignalError(signal: AbortSignal) {
+  if (signal.reason instanceof Error) {
+    return signal.reason;
+  }
+
+  return new Error(typeof signal.reason === "string" ? signal.reason : "Request aborted.");
 }

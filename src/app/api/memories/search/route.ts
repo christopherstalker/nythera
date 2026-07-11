@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
+import { HttpError, getRequestIp, json, parseJson, requireUser, routeError } from "@/lib/api";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { searchMemories } from "@/lib/vector";
 import { getEffectiveProviderKeys } from "@/lib/user-keys";
 
@@ -12,6 +13,12 @@ const memorySearchSchema = z.object({
 export async function POST(request: Request) {
   try {
     const user = await requireUser();
+    await enforceRateLimit({
+      userId: user.id,
+      ip: getRequestIp(request),
+      route: "memories:search"
+    });
+
     const input = await parseJson(request, memorySearchSchema);
 
     if (!input.query.trim()) {

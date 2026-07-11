@@ -1,6 +1,6 @@
 import { MessageRole } from "@prisma/client";
 import crypto from "crypto";
-import { getRequestIp, HttpError, json, parseJson, routeError } from "@/lib/api";
+import { getRequestIp, HttpError, parseJson, routeError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireMobileUser } from "@/lib/mobile-auth";
 import { enforceRateLimit } from "@/lib/rate-limit";
@@ -16,6 +16,7 @@ import { formatUserPersonaForPrompt } from "@/lib/user-persona";
 import { createMessageWithNextSequence } from "@/lib/message-sequence";
 import { resolveCharacterModelSettings } from "@/lib/character-model-settings";
 import { estimateModelCost } from "@/lib/model-pricing";
+import { logSafeError } from "@/lib/secret-redaction";
 
 type Context = {
   params: {
@@ -130,8 +131,11 @@ export async function POST(request: Request, context: Context) {
       injectionAssessment
     });
 
+    const encoder = new TextEncoder();
     let assistantText = "";
     let outputBlocked = false;
+    let assistantPersisted = false;
+    let publicErrorMessage = "The model stream failed.";
     let usage: {
       inputTokens: number;
       outputTokens: number;
@@ -149,112 +153,202 @@ export async function POST(request: Request, context: Context) {
       usageEstimated: true
     };
 
-    for await (const chunk of streamLlmResponse({
-      messages: prompt,
-      model,
-      temperature,
-      topP: effectiveSettings.topP,
-      frequencyPenalty: effectiveSettings.frequencyPenalty,
-      presencePenalty: effectiveSettings.presencePenalty,
-      maxTokens: effectiveSettings.maxTokens,
-      userId: user.id,
-      chatId: chat.id,
-      providerKeys,
-      signal: request.signal
-    })) {
-      if (chunk.type === "delta") {
-        const nextText = assistantText + chunk.text;
-        const check = moderateText({
-          text: nextText,
-          userIsMinor: isMinor(user.birthDate),
-          context: "assistant"
-        });
+    const stream = new ReadableStream({
+      async start(controller) {
+        const send = (payload: unknown) => {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+        };
 
-        if (!check.allowed) {
-          outputBlocked = true;
-          assistantText = check.reason ?? "The response was stopped because it did not pass the platform safety policy.";
-          break;
+        try {
+          if (userMessage) {
+            send({ type: "user_message", message: userMessage });
+          }
+
+          for await (const chunk of streamLlmResponse({
+            messages: prompt,
+            model,
+            temperature,
+            topP: effectiveSettings.topP,
+            frequencyPenalty: effectiveSettings.frequencyPenalty,
+            presencePenalty: effectiveSettings.presencePenalty,
+            maxTokens: effectiveSettings.maxTokens,
+            userId: user.id,
+            chatId: chat.id,
+            providerKeys,
+            signal: request.signal
+          })) {
+            if (chunk.type === "delta") {
+              const nextText = assistantText + chunk.text;
+              const check = moderateText({
+                text: nextText,
+                userIsMinor: isMinor(user.birthDate),
+                context: "assistant"
+              });
+
+              if (!check.allowed) {
+                outputBlocked = true;
+                const replacement =
+                  check.reason ?? "The response was stopped because it did not pass the platform safety policy.";
+                assistantText = replacement;
+                send({ type: "delta", text: replacement });
+                break;
+              }
+
+              assistantText = nextText;
+              send(chunk);
+            }
+
+            if (chunk.type === "usage") {
+              usage = chunk;
+            }
+
+            if (chunk.type === "error") {
+              publicErrorMessage = chunk.message;
+              throw new Error(chunk.message);
+            }
+          }
+
+          if (!assistantText.trim()) {
+            throw new Error("The model returned an empty response.");
+          }
+
+          const estimatedCost = estimateModelCost({
+            provider: usage.provider,
+            model: usage.model,
+            inputTokens: usage.inputTokens,
+            outputTokens: usage.outputTokens
+          });
+
+          const assistantMessage = await createMessageWithNextSequence({
+            chatId: chat.id,
+            role: MessageRole.ASSISTANT,
+            content: assistantText,
+            model: usage.model,
+            tokens: usage.outputTokens,
+            provider: usage.provider,
+            inputTokens: usage.inputTokens,
+            outputTokens: usage.outputTokens,
+            estimatedCost,
+            usageEstimated: usage.usageEstimated,
+            flagged: outputBlocked,
+            clientRequestId: continueChat ? `continue-${input.requestId || crypto.randomUUID()}` : undefined
+          });
+          assistantPersisted = true;
+
+          const actualMessageCount = await prisma.message.count({ where: { chatId: chat.id } });
+          const updated = await prisma.chat.update({
+            where: { id: chat.id },
+            data: {
+              messageCount: actualMessageCount,
+              model,
+              temperature,
+              lastActiveAt: new Date(),
+              updatedAt: new Date()
+            },
+            select: { id: true, title: true, messageCount: true, lastActiveAt: true }
+          });
+
+          await prisma.llmRequestLog.create({
+            data: {
+              userId: user.id,
+              chatId: chat.id,
+              provider: usage.provider,
+              model: usage.model,
+              route: "mobile_chat",
+              inputTokens: usage.inputTokens,
+              outputTokens: usage.outputTokens,
+              estimatedCost,
+              status: outputBlocked ? "blocked_output" : usage.fallbackTriggered ? "ok_fallback" : "ok",
+              error: usage.fallbackTriggered ? `fallback attempts: ${(usage.attempts ?? []).join(" -> ")}`.slice(0, 2000) : null,
+              latencyMs: Date.now() - started
+            }
+          });
+
+          if (user.memoryEnabled && !continueChat) {
+            await schedulePostMessageJobs({
+              chatId: chat.id,
+              userId: user.id,
+              characterId: chat.characterId,
+              latestUserMessage: message,
+              latestAssistantMessage: assistantMessage.content,
+              messageCount: updated.messageCount,
+              providerKeys
+            });
+          }
+
+          send({ type: "message", message: assistantMessage });
+          send({ type: "done" });
+        } catch (error) {
+          logSafeError("Mobile chat stream failed.", error);
+          const errorMessage = error instanceof Error ? error.message : "The model stream failed.";
+          const estimatedCost = estimateModelCost({
+            provider: usage.provider,
+            model: usage.model,
+            inputTokens: usage.inputTokens,
+            outputTokens: usage.outputTokens
+          });
+
+          if (assistantText.trim() && !assistantPersisted) {
+            const assistantMessage = await createMessageWithNextSequence({
+              chatId: chat.id,
+              role: MessageRole.ASSISTANT,
+              content: assistantText,
+              model: usage.model,
+              tokens: usage.outputTokens,
+              provider: usage.provider,
+              inputTokens: usage.inputTokens,
+              outputTokens: usage.outputTokens,
+              estimatedCost,
+              usageEstimated: usage.usageEstimated,
+              flagged: true
+            });
+            assistantPersisted = true;
+            send({ type: "message", message: assistantMessage });
+          }
+
+          const actualMessageCount = await prisma.message.count({ where: { chatId: chat.id } });
+          await prisma.chat.update({
+            where: { id: chat.id },
+            data: {
+              messageCount: actualMessageCount,
+              model,
+              temperature,
+              lastActiveAt: new Date(),
+              updatedAt: new Date()
+            }
+          });
+
+          await prisma.llmRequestLog.create({
+            data: {
+              userId: user.id,
+              chatId: chat.id,
+              provider: usage.provider || "unknown",
+              model: usage.model || model,
+              route: "mobile_chat",
+              inputTokens: usage.inputTokens,
+              outputTokens: usage.outputTokens,
+              estimatedCost,
+              status: assistantPersisted ? "partial_error" : "error",
+              error: errorMessage.slice(0, 2000),
+              latencyMs: Date.now() - started
+            }
+          });
+
+          send({ type: "error", message: publicErrorMessage });
+        } finally {
+          controller.close();
         }
-
-        assistantText = nextText;
-      }
-
-      if (chunk.type === "usage") {
-        usage = chunk;
-      }
-
-      if (chunk.type === "error") {
-        throw new Error(chunk.message);
-      }
-    }
-
-    if (!assistantText.trim()) {
-      throw new Error("The model returned an empty response.");
-    }
-
-    const estimatedCost = estimateModelCost({
-      provider: usage.provider,
-      model: usage.model,
-      inputTokens: usage.inputTokens,
-      outputTokens: usage.outputTokens
-    });
-
-    const assistantMessage = await createMessageWithNextSequence({
-      chatId: chat.id,
-      role: MessageRole.ASSISTANT,
-      content: assistantText,
-      model: usage.model,
-      tokens: usage.outputTokens,
-      provider: usage.provider,
-      inputTokens: usage.inputTokens,
-      outputTokens: usage.outputTokens,
-      estimatedCost,
-      usageEstimated: usage.usageEstimated,
-      flagged: outputBlocked,
-      clientRequestId: continueChat ? `continue-${input.requestId || crypto.randomUUID()}` : undefined
-    });
-
-    const updated = await prisma.chat.update({
-      where: { id: chat.id },
-      data: {
-        messageCount: await prisma.message.count({ where: { chatId: chat.id } }),
-        model,
-        temperature,
-        lastActiveAt: new Date(),
-        updatedAt: new Date()
-      },
-      select: { id: true, title: true, messageCount: true, lastActiveAt: true }
-    });
-
-    await prisma.llmRequestLog.create({
-      data: {
-        userId: user.id,
-        chatId: chat.id,
-        provider: usage.provider,
-        model: usage.model,
-        route: "mobile_chat",
-        inputTokens: usage.inputTokens,
-        outputTokens: usage.outputTokens,
-        estimatedCost,
-        status: outputBlocked ? "blocked_output" : usage.fallbackTriggered ? "ok_fallback" : "ok",
-        error: usage.fallbackTriggered ? `fallback attempts: ${(usage.attempts ?? []).join(" -> ")}`.slice(0, 2000) : null,
-        latencyMs: Date.now() - started
       }
     });
 
-    if (user.memoryEnabled && !continueChat) {
-      await schedulePostMessageJobs({
-        chatId: chat.id,
-        userId: user.id,
-        characterId: chat.characterId,
-        latestUserMessage: message,
-        latestAssistantMessage: assistantMessage.content,
-        messageCount: updated.messageCount,
-        providerKeys
-      });
-    }
-
-    return json({ chat: updated, userMessage, assistantMessage });
+    return new Response(stream, {
+      headers: {
+        "content-type": "text/event-stream; charset=utf-8",
+        "cache-control": "no-cache, no-transform",
+        "x-accel-buffering": "no",
+        connection: "keep-alive"
+      }
+    });
   } catch (error) {
     return routeError(error);
   }

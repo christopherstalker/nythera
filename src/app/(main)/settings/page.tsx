@@ -59,7 +59,7 @@ export default function SettingsPage() {
     <PageShell>
       <div className="grid min-w-0 gap-6 lg:grid-cols-[220px_minmax(0,720px)] lg:justify-start">
         <aside className="min-w-0 lg:sticky lg:top-6 lg:self-start">
-          <nav className="scrollbar-none flex w-full max-w-full gap-2 overflow-x-auto rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-2 lg:grid" aria-label="Settings sections">
+          <nav className="settings-orbital-nav scrollbar-none flex w-full max-w-full gap-2 overflow-x-auto p-2 lg:grid" aria-label="Settings sections">
             {sections.map((section) => {
               const Icon = section.icon;
               return (
@@ -120,7 +120,7 @@ function SettingsCard({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="min-w-0 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 sm:p-6">
+    <section id={id} className="settings-orbital-section min-w-0 p-5 sm:p-6">
       <div className="mb-5 flex items-center gap-3">
         <span className="grid h-11 w-11 place-items-center rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--accent-purple-soft)] text-[var(--accent-purple)]">
           <Icon className="h-5 w-5" />

@@ -6,6 +6,7 @@ import { Heart, ShieldAlert, Star } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { displayTagLabel } from "@/lib/character-tags";
+import { shouldBypassNextImageOptimization } from "@/lib/image-cache";
 import { springSoft } from "@/lib/motion";
 
 export type CharacterSummary = {
@@ -48,6 +49,7 @@ export function CharacterCard({
 
   if (presentation === "discovery") {
     const rating = character.ratingAverage ?? 0;
+    const avatarSrc = character.avatarUrl || "/icons/velora-aurora-v4-512.png";
 
     return (
       <motion.button
@@ -56,21 +58,17 @@ export function CharacterCard({
         whileHover={{ y: -6, scale: 1.015 }}
         transition={springSoft}
         className={cn(
-          "focus-ring group relative w-full overflow-hidden rounded-[20px] border border-[var(--border-subtle)] text-left",
+          "focus-ring orbital-glass group relative w-full overflow-hidden rounded-[20px] text-left",
           fill && "h-full",
           className
         )}
-        style={{
-          background: "var(--color-surface)",
-          boxShadow: "var(--shadow-card)"
-        }}
         aria-label={`Open ${character.name}`}
       >
         <Image
-          src={character.avatarUrl || "/icons/velora-aurora-v4-512.png"}
+          src={avatarSrc}
           alt={character.name}
           fill
-          unoptimized
+          unoptimized={shouldBypassNextImageOptimization(avatarSrc)}
           sizes={featured ? "(min-width: 1280px) 50vw, 100vw" : "(min-width: 1280px) 25vw, 50vw"}
           className="absolute inset-0 h-full w-full object-cover"
           style={{ objectPosition: "center 20%" }}

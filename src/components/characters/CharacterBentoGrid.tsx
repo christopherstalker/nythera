@@ -6,11 +6,12 @@ type CharacterBentoGridProps = {
   characters: CharacterSummary[];
   loading?: boolean;
   title?: string;
+  layout?: "bento" | "shelf";
 };
 
 const skeletonCount = 8;
 
-export function CharacterBentoGrid({ characters, loading = false, title }: CharacterBentoGridProps) {
+export function CharacterBentoGrid({ characters, loading = false, title, layout = "bento" }: CharacterBentoGridProps) {
   const orderedCharacters = [...characters].sort((a, b) => {
     const placementDelta = placementWeight(b.discoveryPlacement) - placementWeight(a.discoveryPlacement);
     if (placementDelta !== 0) {
@@ -23,14 +24,14 @@ export function CharacterBentoGrid({ characters, loading = false, title }: Chara
   return (
     <section className="space-y-4">
       {title ? <h2 className="text-2xl font-semibold text-content-primary">{title}</h2> : null}
-      <div className="nythera-bento-grid">
+      <div className={cn(layout === "shelf" ? "orbital-character-shelf chat-scroll" : "nythera-bento-grid")}>
         {loading
           ? Array.from({ length: skeletonCount }).map((_, index) => {
               const placement = fallbackPlacement(index, count);
               return (
                 <SkeletonCard
                   key={index}
-                  className={cn("nythera-bento-card", bentoCellClass(placement))}
+                  className={cn(layout === "bento" && "nythera-bento-card", layout === "bento" && bentoCellClass(placement))}
                 />
               );
             })
@@ -41,12 +42,15 @@ export function CharacterBentoGrid({ characters, loading = false, title }: Chara
               return (
                 <div
                   key={character.id}
-                  className={cn("nythera-bento-card", explicitCellClass || bentoCellClass(placement))}
+                  className={cn(
+                    layout === "bento" && "nythera-bento-card",
+                    layout === "bento" && (explicitCellClass || bentoCellClass(placement))
+                  )}
                 >
                   <CharacterCard
                     character={character}
                     fill
-                    featured={placement === "FEATURED"}
+                    featured={layout === "bento" && placement === "FEATURED"}
                     presentation="discovery"
                   />
                 </div>

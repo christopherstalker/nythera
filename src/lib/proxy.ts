@@ -5,6 +5,7 @@ import { createGatewayEmbedding, streamGatewayResponse } from "@/lib/llm-gateway
 import type { ProviderKeys } from "@/lib/user-keys";
 import type { PromptMessage, StreamChunk } from "@/types";
 import { logSafeError } from "@/lib/secret-redaction";
+import { createTimeoutSignal, LLM_EMBEDDING_TIMEOUT_MS, LLM_PROVIDER_TIMEOUT_MS } from "@/lib/llm-timeouts";
 
 type StreamInput = {
   messages: PromptMessage[];
@@ -26,6 +27,8 @@ export async function* streamLlmResponse(input: StreamInput): AsyncGenerator<Str
     return;
   }
 
+  let receivedDelta = false;
+  const proxySignal = createTimeoutSignal(input.signal, LLM_PROVIDER_TIMEOUT_MS, "LLM proxy request timed out.");
   try {
     const { signal, ...payload } = input;
     const response = await fetch(`${env.LLM_PROXY_URL}/v1/chat/stream`, {
@@ -36,7 +39,7 @@ export async function* streamLlmResponse(input: StreamInput): AsyncGenerator<Str
       },
       // Provider keys are passed only in this request payload; no key is cached globally by the proxy layer.
       body: JSON.stringify(payload),
-      signal
+      signal: proxySignal.signal
     });
 
     if (!response.ok || !response.body) {
@@ -48,7 +51,6 @@ export async function* streamLlmResponse(input: StreamInput): AsyncGenerator<Str
     const decoder = new TextDecoder();
     let buffer = "";
     let receivedDone = false;
-    let receivedDelta = false;
     let proxyErrorBeforeStream: string | null = null;
 
     while (true) {
@@ -131,13 +133,21 @@ export async function* streamLlmResponse(input: StreamInput): AsyncGenerator<Str
       return;
     }
 
+    if (receivedDelta) {
+      yield { type: "error", message: "The model stream was interrupted." };
+      return;
+    }
+
     logSafeError("External LLM proxy failed, using Vercel gateway.", error);
     yield* streamGatewayResponse(input);
+  } finally {
+    proxySignal.dispose();
   }
 }
 
 export async function createEmbedding(text: string, providerKeys?: ProviderKeys) {
   if (env.LLM_PROXY_URL && env.INTERNAL_API_TOKEN) {
+    const proxySignal = createTimeoutSignal(undefined, LLM_EMBEDDING_TIMEOUT_MS, "Embedding proxy request timed out.");
     try {
       const response = await fetch(`${env.LLM_PROXY_URL}/v1/embeddings`, {
         method: "POST",
@@ -146,7 +156,7 @@ export async function createEmbedding(text: string, providerKeys?: ProviderKeys)
           authorization: `Bearer ${env.INTERNAL_API_TOKEN}`
         },
         body: JSON.stringify({ text, providerKeys }),
-        signal: AbortSignal.timeout(15_000)
+        signal: proxySignal.signal
       });
 
       if (response.ok) {
@@ -157,6 +167,8 @@ export async function createEmbedding(text: string, providerKeys?: ProviderKeys)
       }
     } catch (error) {
       logSafeError("Embedding proxy failed, using deterministic fallback.", error);
+    } finally {
+      proxySignal.dispose();
     }
   }
 

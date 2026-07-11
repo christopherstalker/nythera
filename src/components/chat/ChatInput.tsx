@@ -88,12 +88,7 @@ export function ChatInput({
     >
       {hasApiControls && apiOpen ? (
         <motion.div
-          className="api-panel-enter pointer-events-auto mx-auto mb-3 grid max-w-[var(--chat-max-width)] gap-3 rounded-[28px] border border-[var(--border-subtle)] p-3 sm:grid-cols-[minmax(0,1fr)_minmax(220px,280px)]"
-          style={{
-            background: "color-mix(in oklch, var(--bg-surface) 10%, transparent)",
-            backdropFilter: "blur(8px) saturate(115%)",
-            WebkitBackdropFilter: "blur(8px) saturate(115%)"
-          }}
+          className="api-panel-enter orbital-functional pointer-events-auto mx-auto mb-3 grid max-w-[var(--chat-max-width)] gap-3 rounded-[28px] p-3 sm:grid-cols-[minmax(0,1fr)_minmax(220px,280px)]"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={springSoft}
@@ -195,12 +190,7 @@ export function ChatInput({
         </motion.div>
       ) : null}
       <motion.div
-        className="nythera-chat-column composer-dock pointer-events-auto relative mx-auto flex max-w-[var(--chat-max-width)] flex-col gap-4 rounded-[36px] border border-[var(--border-subtle)] px-5 py-5 sm:flex-row sm:items-end sm:gap-2 sm:rounded-[28px] sm:px-4 sm:py-3"
-        style={{
-          background: "color-mix(in oklch, var(--bg-surface) 4%, transparent)",
-          backdropFilter: "blur(8px) saturate(115%)",
-          WebkitBackdropFilter: "blur(8px) saturate(115%)"
-        }}
+        className="nythera-chat-column composer-dock orbital-floating pointer-events-auto relative mx-auto flex max-w-[var(--chat-max-width)] flex-col gap-4 rounded-[36px] px-5 py-5 sm:flex-row sm:items-end sm:gap-2 sm:rounded-[28px] sm:px-4 sm:py-3"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={springSoft}

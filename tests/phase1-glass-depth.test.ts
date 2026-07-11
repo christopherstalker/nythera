@@ -4,7 +4,7 @@ import test from "node:test";
 
 const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
-test("flat surface treatment is scoped to the product surfaces", async () => {
+test("orbital glass treatment is scoped to product surfaces", async () => {
   const [globals, sidePanel, characterForm, characterCard] = await Promise.all([
     read("../src/app/globals.css"),
     read("../src/components/panel/SidePanel.tsx"),
@@ -20,6 +20,9 @@ test("flat surface treatment is scoped to the product surfaces", async () => {
   assert.match(globals, /\.side-panel/);
   assert.match(globals, /\.character-editor-surfaces \.glass-panel/);
   assert.match(globals, /\.glass-depth-card/);
+  assert.match(globals, /\.orbital-glass/);
+  assert.match(globals, /\.orbital-functional/);
+  assert.match(globals, /\.orbital-floating/);
   assert.doesNotMatch(globals, /\.glass-panel\s*\{[^}]*backdrop-filter:\s*blur/s);
   assert.doesNotMatch(globals, /\.glass-depth-card::after[\s\S]*noise\.svg/s);
 });
@@ -39,10 +42,14 @@ test("flat accessibility surfaces avoid blur, grain, and glow effects", async ()
 });
 
 test("side panel uses a runtime tablet fallback before applying desktop blur", async () => {
-  const sidePanel = await read("../src/components/panel/SidePanel.tsx");
+  const [sidePanel, globals] = await Promise.all([
+    read("../src/components/panel/SidePanel.tsx"),
+    read("../src/app/globals.css")
+  ]);
 
   assert.match(sidePanel, /useTabletGlassFallback/);
   assert.match(sidePanel, /\(min-width: 768px\) and \(max-width: 1024px\)/);
-  assert.match(sidePanel, /background:\s*isTablet \? "var\(--bg-surface\)" : "color-mix\(in oklch, var\(--bg-surface\) 72%, transparent\)"/);
-  assert.match(sidePanel, /backdropFilter:\s*isTablet \? "none" : "blur\(20px\) saturate\(180%\)"/);
+  assert.match(sidePanel, /side-panel orbital-functional/);
+  assert.match(sidePanel, /isTablet && "orbital-tablet-solid"/);
+  assert.match(globals, /\.orbital-tablet-solid[\s\S]*backdrop-filter:\s*none/);
 });

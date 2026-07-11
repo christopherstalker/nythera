@@ -75,7 +75,15 @@ export function json(data: unknown, init?: ResponseInit) {
 }
 
 export function routeError(error: unknown) {
-  if (error instanceof HttpError || error instanceof RateLimitError) {
+  if (error instanceof RateLimitError) {
+    const headers =
+      error.status === 429 && error.retryAfterSeconds
+        ? { "Retry-After": String(error.retryAfterSeconds) }
+        : undefined;
+    return json({ error: error.message }, { status: error.status, headers });
+  }
+
+  if (error instanceof HttpError) {
     return json({ error: error.message }, { status: error.status });
   }
 

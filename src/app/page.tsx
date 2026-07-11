@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page";
 import { displayTagLabel } from "@/lib/character-tags";
+import { shouldBypassNextImageOptimization } from "@/lib/image-cache";
 import { springSoft } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
@@ -174,14 +175,16 @@ function FeaturedCharacterHero({
   character: CharacterSummary;
   onStartChat: () => void;
 }) {
+  const avatarSrc = character.avatarUrl || "/icons/velora-aurora-v4-512.png";
+
   return (
     <section className="relative isolate min-h-[clamp(440px,64svh,680px)] w-full overflow-hidden md:-mt-[var(--top-bar-height)] md:pt-[var(--top-bar-height)]">
       <Image
-        src={character.avatarUrl || "/icons/velora-aurora-v4-512.png"}
+        src={avatarSrc}
         alt={character.name}
         fill
         priority
-        unoptimized
+        unoptimized={shouldBypassNextImageOptimization(avatarSrc)}
         sizes="100vw"
         className="absolute inset-0 -z-30 h-full w-full object-cover object-center"
         style={{ objectPosition: "center 18%" }}
@@ -238,6 +241,7 @@ function FeaturedCharacterHero({
 
 function RecentChatCard({ chat }: { chat: RecentChat }) {
   const lastMessage = chat.messages.at(-1)?.content;
+  const avatarSrc = chat.character.avatarUrl || "/icons/velora-aurora-v4-512.png";
 
   return (
     <motion.article
@@ -254,10 +258,10 @@ function RecentChatCard({ chat }: { chat: RecentChat }) {
       <Link href={`/chat/${chat.id}`} className="flex items-center gap-3 p-3 no-underline">
         <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full border border-[var(--border-subtle)]">
           <Image
-            src={chat.character.avatarUrl || "/icons/velora-aurora-v4-512.png"}
+            src={avatarSrc}
             alt={chat.character.name}
             fill
-            unoptimized
+            unoptimized={shouldBypassNextImageOptimization(avatarSrc)}
             sizes="56px"
             className="h-full w-full object-cover"
           />
@@ -283,6 +287,8 @@ function HomeCharacterCard({
   featured?: boolean;
   className?: string;
 }) {
+  const avatarSrc = character.avatarUrl || "/icons/velora-aurora-v4-512.png";
+
   return (
     <motion.article
       whileHover={{ y: -6, scale: 1.015 }}
@@ -296,10 +302,10 @@ function HomeCharacterCard({
     >
       <Link href={`/character/${character.id}`} className="absolute inset-0 block overflow-hidden no-underline" aria-label={`Open ${character.name}`}>
         <Image
-          src={character.avatarUrl || "/icons/velora-aurora-v4-512.png"}
+          src={avatarSrc}
           alt={character.name}
           fill
-          unoptimized
+          unoptimized={shouldBypassNextImageOptimization(avatarSrc)}
           sizes={featured ? "(min-width: 1280px) 33vw, 100vw" : "(min-width: 1280px) 16vw, 50vw"}
           className="absolute inset-0 h-full w-full object-cover"
           style={{ objectPosition: "center 20%" }}

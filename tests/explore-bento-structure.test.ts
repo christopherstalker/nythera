@@ -9,6 +9,12 @@ test("Explore uses one bento component for default and filtered discovery result
 
   assert.match(explore, /import \{ CharacterBentoGrid \}/);
   assert.equal((explore.match(/<CharacterBentoGrid/g) ?? []).length, 2);
+  assert.match(explore, /<FeaturedStage/);
+  assert.match(explore, /orbital-stage orbital-glass/);
+  assert.match(explore, /orbital-discovery-dock/);
+  assert.match(explore, /layout="shelf"/);
+  assert.match(explore, /More filters/);
+  assert.doesNotMatch(explore, /data:image\/svg\+xml/);
   assert.doesNotMatch(explore, /<CharacterRow|<CharacterGrid/);
 });
 
@@ -45,7 +51,9 @@ test("Discovery bento provides featured and wide desktop spans with responsive c
   assert.match(bento, /orderedCharacters/);
   assert.match(bento, /count >= 3 && index === 0/);
   assert.match(bento, /count >= 4 && index === 3/);
-  assert.match(bento, /featured=\{placement === "FEATURED"\}/);
+  assert.match(bento, /layout\?: "bento" \| "shelf"/);
+  assert.match(bento, /layout === "bento" && placement === "FEATURED"/);
+  assert.match(bento, /orbital-character-shelf/);
   assert.match(bento, /bentoCellClass\(placement\)/);
   assert.match(bento, /nythera-bento-grid/);
   assert.match(bento, /presentation="discovery"/);

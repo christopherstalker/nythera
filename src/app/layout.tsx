@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "@/app/globals.css";
 import { AppShell } from "@/components/layout/AppShell";
 import { SessionProvider } from "@/components/providers/session-provider";
@@ -79,6 +80,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SessionProvider>
           <AppShell>{children}</AppShell>
         </SessionProvider>
+        <SpeedInsights />
       </body>
     </html>
   );

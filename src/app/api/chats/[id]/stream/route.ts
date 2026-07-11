@@ -15,6 +15,7 @@ import { formatUserPersonaForPrompt } from "@/lib/user-persona";
 import { createMessageWithNextSequence } from "@/lib/message-sequence";
 import { resolveCharacterModelSettings } from "@/lib/character-model-settings";
 import { estimateModelCost } from "@/lib/model-pricing";
+import { elapsedMs, logPerformanceMetric, measurePrismaOperation, performanceStart } from "@/lib/performance-logger";
 import { logSafeError } from "@/lib/secret-redaction";
 
 type Context = {
@@ -28,6 +29,7 @@ export const maxDuration = 60;
 
 export async function POST(request: Request, context: Context) {
   const started = Date.now();
+  const streamStartedAt = performanceStart();
 
   try {
     const user = await requireUser();
@@ -53,21 +55,32 @@ export async function POST(request: Request, context: Context) {
       throw new HttpError(400, moderation.reason ?? "Message blocked by safety policy.");
     }
 
-    const chat = await prisma.chat.findFirst({
-      where: {
-        id: context.params.id,
-        userId: user.id,
-        archivedAt: null
+    const chat = await measurePrismaOperation(
+      {
+        route: "chat:stream",
+        operation: "load_prompt_context"
       },
-      include: {
-        character: true,
-        persona: true,
-        messages: {
-          orderBy: [{ createdAt: "desc" }, { sequence: "desc" }, { id: "desc" }],
-          take: 40
-        }
-      }
-    });
+      () =>
+        prisma.chat.findFirst({
+          where: {
+            id: context.params.id,
+            userId: user.id,
+            archivedAt: null
+          },
+          include: {
+            character: true,
+            persona: true,
+            messages: {
+              orderBy: [{ createdAt: "desc" }, { sequence: "desc" }, { id: "desc" }],
+              take: 40
+            }
+          }
+        }),
+      (result) => ({
+        found: Boolean(result),
+        messageCount: result?.messages.length ?? 0
+      })
+    );
 
     if (!chat) {
       throw new HttpError(404, "Chat not found.");
@@ -151,6 +164,7 @@ export async function POST(request: Request, context: Context) {
 
     const encoder = new TextEncoder();
     let assistantText = "";
+    let firstClientTokenLogged = false;
     let outputBlocked = false;
     let assistantPersisted = false;
     let publicErrorMessage = "The model stream failed.";
@@ -213,6 +227,14 @@ export async function POST(request: Request, context: Context) {
               }
 
               assistantText = nextText;
+              if (!firstClientTokenLogged) {
+                firstClientTokenLogged = true;
+                logPerformanceMetric("chat_stream_first_token", {
+                  route: "chat:stream",
+                  configuredModel: model,
+                  durationMs: elapsedMs(streamStartedAt)
+                });
+              }
               send(chunk);
             }
 

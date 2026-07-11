@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { json, parseJson, requireUser, routeError } from "@/lib/api";
+import { getRequestIp, json, parseJson, requireUser, routeError } from "@/lib/api";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { userPersonaSchema } from "@/lib/validation";
 import { activateUserPersona, deleteUserPersona, getUserPersonaState, saveUserPersona } from "@/lib/user-persona-store";
 
@@ -33,6 +34,12 @@ export async function GET(request: Request) {
 export async function PUT(request: Request) {
   try {
     const user = await requireUser();
+    await enforceRateLimit({
+      userId: user.id,
+      ip: getRequestIp(request),
+      route: "user-persona:write"
+    });
+
     const input = await parseJson(request, userPersonaUpsertSchema);
     return json(await saveUserPersona(user.id, input, input.chatId));
   } catch (error) {
@@ -43,6 +50,12 @@ export async function PUT(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const user = await requireUser();
+    await enforceRateLimit({
+      userId: user.id,
+      ip: getRequestIp(request),
+      route: "user-persona:write"
+    });
+
     const input = await parseJson(request, userPersonaSwitchSchema);
     return json(await activateUserPersona(user.id, input.activeProfileId, input.chatId));
   } catch (error) {
@@ -53,6 +66,12 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const user = await requireUser();
+    await enforceRateLimit({
+      userId: user.id,
+      ip: getRequestIp(request),
+      route: "user-persona:write"
+    });
+
     const input = userPersonaDeleteSchema.parse((await request.json().catch(() => ({}))) ?? {});
     return json(await deleteUserPersona(user.id, input.profileId));
   } catch (error) {

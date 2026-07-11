@@ -12,7 +12,8 @@ test("chat context is a glass side panel that becomes an overlay drawer on activ
   assert.match(panel, /useTabletGlassFallback/);
   assert.match(panel, /usePathname/);
   assert.match(panel, /isChatSurface/);
-  assert.match(panel, /backdropFilter:\s*isTablet \? "none" : "blur\(20px\) saturate\(180%\)"/);
+  assert.match(panel, /side-panel orbital-functional/);
+  assert.match(panel, /isTablet && "orbital-tablet-solid"/);
   assert.match(panel, /<nav[\s\S]*?aria-label="Story context"/);
   assert.match(panel, /grid-cols-3/);
   assert.match(panel, /Persona[\s\S]*Memory[\s\S]*Chats/);
@@ -33,8 +34,7 @@ test("chat uses immersive story cards, compact user pills, and a reference-style
 
   assert.match(header, /motion\.header/);
   assert.match(header, /max-w-\[min\(920px,calc\(100vw-1\.5rem\)\)\]/);
-  assert.match(header, /var\(--bg-base\) 8%, transparent/);
-  assert.match(header, /blur\(8px\) saturate\(115%\)/);
+  assert.match(header, /orbital-floating/);
   assert.match(header, /personaName/);
   assert.match(header, /contextOpen/);
   assert.match(header, /Close story context/);
@@ -61,7 +61,7 @@ test("chat uses immersive story cards, compact user pills, and a reference-style
   assert.match(composer, /rounded-\[36px\]/);
   assert.doesNotMatch(composer, /shadow-\[var\(--shadow-elevated\)\]/);
   assert.match(composer, /background: "transparent"/);
-  assert.match(composer, /var\(--bg-surface\) 4%, transparent/);
+  assert.match(composer, /composer-dock orbital-floating/);
   assert.match(composer, /ArrowUp/);
   assert.match(composer, /gradient-aurora-primary/);
   assert.doesNotMatch(composer, /bg-primary/);

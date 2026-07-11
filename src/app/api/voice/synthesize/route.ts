@@ -1,4 +1,5 @@
-import { HttpError, requireUser, routeError } from "@/lib/api";
+import { HttpError, getRequestIp, requireUser, routeError } from "@/lib/api";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { moderateText, sanitizeUserText, isMinorBirthDate } from "@/lib/safety";
 import { parseJson } from "@/lib/api";
 import { getDecryptedVoiceApiKey } from "@/lib/voice-keys";
@@ -14,6 +15,12 @@ const DEFAULT_PLAYHT_VOICE = "s3://voice-cloning-zero-shot/d9ff78ba-d016-47f6-b0
 export async function POST(request: Request) {
   try {
     const user = await requireUser();
+    await enforceRateLimit({
+      userId: user.id,
+      ip: getRequestIp(request),
+      route: "voice:synthesize"
+    });
+
     const input = await parseJson(request, voiceSynthesisSchema);
     const text = sanitizeUserText(input.text, 2500);
     const moderation = moderateText({

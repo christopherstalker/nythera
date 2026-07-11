@@ -19,7 +19,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div id="app-shell" className="fixed inset-0 isolate min-h-dvh overflow-hidden bg-[var(--bg-base)]">
+    <div id="app-shell" className="orbital-app-shell fixed inset-0 isolate min-h-dvh overflow-hidden bg-[var(--bg-base)]">
       {!isChatSurface ? <CosmicBackdrop /> : null}
       <NavRail />
       <div

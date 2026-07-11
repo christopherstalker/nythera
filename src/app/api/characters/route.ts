@@ -5,84 +5,80 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 import { moderateText } from "@/lib/safety";
 import { getRequestIp, HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
 import { characterCreateSchema } from "@/lib/validation";
-import { DISCOVERY_TAGS, expandTagQuery, normalizeCharacterTags } from "@/lib/character-tags";
+import { expandTagQuery, normalizeCharacterTags } from "@/lib/character-tags";
 import { redactCharacterModelSettings } from "@/lib/character-model-settings";
+import {
+  DISCOVERY_TAGS,
+  discoveryFeedCacheHeaders,
+  getPublicCharacters,
+  normalizePublicCharacterQuery,
+  shouldCachePublicCharacterQuery
+} from "@/lib/discovery-feed";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
-    const session = await auth();
     const { searchParams } = new URL(request.url);
     const mine = searchParams.get("mine") === "true";
-    const search = searchParams.get("q")?.trim();
-    const tags = [
+    const rawTags = [
       ...searchParams.getAll("tag"),
       ...(searchParams.get("tags")?.split(",") ?? [])
     ].map((tag) => tag.trim()).filter(Boolean);
-    const visibility = searchParams.get("visibility") as Visibility | null;
-    const sort = searchParams.get("sort") ?? "trending";
-    const nsfw = searchParams.get("nsfw") ?? "safe";
-    const minRating = Number(searchParams.get("ratingMin") ?? 0);
-    const take = Math.min(Number(searchParams.get("take") ?? 24), 50);
+    const visibility = normalizeVisibility(searchParams.get("visibility"));
+    const query = normalizePublicCharacterQuery({
+      search: searchParams.get("q"),
+      tags: rawTags,
+      sort: searchParams.get("sort"),
+      nsfw: searchParams.get("nsfw"),
+      minRating: Number(searchParams.get("ratingMin") ?? 0),
+      take: Number(searchParams.get("take") ?? 24)
+    });
 
-    const where: Prisma.CharacterWhereInput = mine
-      ? { creatorId: session?.user?.id ?? "__none__" }
-      : {
-          visibility: Visibility.PUBLIC,
-          moderationStatus: "APPROVED",
-          blockedAt: null,
-          AND: [
-            { name: { not: "" } },
-            { description: { not: "" } },
-            { greeting: { not: "" } },
-            { personality: { not: "" } },
-            { scenario: { not: null } },
-            { scenario: { not: "" } },
-            { persona: { not: Prisma.JsonNull } }
-          ]
-        };
+    if (!mine) {
+      const characters = await getPublicCharacters(query);
+      return json(
+        { characters, tags: DISCOVERY_TAGS },
+        shouldCachePublicCharacterQuery(query) ? { headers: discoveryFeedCacheHeaders() } : undefined
+      );
+    }
+
+    const session = await auth();
+
+    const where: Prisma.CharacterWhereInput = { creatorId: session?.user?.id ?? "__none__" };
 
     if (visibility && mine) {
       where.visibility = visibility;
     }
 
-    if (search) {
+    if (query.search) {
       where.OR = [
-        { name: { contains: search, mode: "insensitive" } },
-        { description: { contains: search, mode: "insensitive" } },
-        { personality: { contains: search, mode: "insensitive" } },
-        { tags: { hasSome: expandTagQuery(search) } }
+        { name: { contains: query.search, mode: "insensitive" } },
+        { description: { contains: query.search, mode: "insensitive" } },
+        { personality: { contains: query.search, mode: "insensitive" } },
+        { tags: { hasSome: expandTagQuery(query.search) } }
       ];
     }
 
-    if (tags.length > 0) {
-      where.tags = { hasSome: tags.flatMap(expandTagQuery) };
+    if (query.tags.length > 0) {
+      where.tags = { hasSome: query.tags.flatMap(expandTagQuery) };
     }
 
-    if (!mine) {
-      if (nsfw === "only") {
-        where.isNSFW = true;
-      } else if (nsfw !== "include") {
-        where.isNSFW = false;
-      }
-    }
-
-    if (Number.isFinite(minRating) && minRating > 0) {
-      where.ratingAverage = { gte: Math.min(Math.max(minRating, 1), 5) };
+    if (query.minRating > 0) {
+      where.ratingAverage = { gte: query.minRating };
     }
 
     const orderBy =
-      sort === "new"
+      query.sort === "new"
         ? [{ createdAt: "desc" as const }]
-        : sort === "top-rated"
+        : query.sort === "top-rated"
           ? [{ ratingAverage: "desc" as const }, { ratingCount: "desc" as const }, { likes: "desc" as const }]
           : [{ likes: "desc" as const }, { ratingAverage: "desc" as const }, { createdAt: "desc" as const }];
 
     const characters = await prisma.character.findMany({
       where,
       orderBy,
-      take,
+      take: query.take,
       include: {
         creator: {
           select: {
@@ -183,6 +179,13 @@ export async function POST(request: Request) {
   } catch (error) {
     return routeError(error);
   }
+}
+
+function normalizeVisibility(value: string | null): Visibility | null {
+  if (value === Visibility.PRIVATE) return Visibility.PRIVATE;
+  if (value === Visibility.PUBLIC) return Visibility.PUBLIC;
+  if (value === Visibility.UNLISTED) return Visibility.UNLISTED;
+  return null;
 }
 
 function isMinor(birthDate: Date | null) {

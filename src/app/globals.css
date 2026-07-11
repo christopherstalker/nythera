@@ -207,27 +207,33 @@
   }
 
   .app-surface {
-    @apply border border-[var(--border-default)] bg-[var(--bg-surface)];
+    @apply border border-[var(--border-default)];
     border-radius: var(--radius-xl);
-    box-shadow: none;
+    background: color-mix(in oklch, var(--bg-surface) 72%, transparent);
+    box-shadow: var(--glass-highlight), var(--shadow-soft);
+    -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturation));
+    backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturation));
   }
 
   .app-surface-muted {
-    @apply border border-[var(--border-default)] bg-[var(--bg-elevated)];
+    @apply border border-[var(--border-default)];
     border-radius: var(--radius-lg);
-    box-shadow: none;
+    background: color-mix(in oklch, var(--bg-elevated) 82%, transparent);
+    box-shadow: var(--glass-highlight);
   }
 
   .glass-panel {
-    @apply border border-[var(--border-default)] bg-[var(--bg-surface)];
+    @apply border border-[var(--border-default)];
     border-radius: var(--radius-xl);
-    box-shadow: none;
+    background: color-mix(in oklch, var(--bg-surface) 72%, transparent);
+    box-shadow: var(--glass-highlight), var(--shadow-soft);
   }
 
   .glass-card {
-    @apply border border-[var(--border-default)] bg-[var(--bg-elevated)] transition duration-150;
+    @apply border border-[var(--border-default)] transition duration-150;
     border-radius: var(--radius-lg);
-    box-shadow: none;
+    background: color-mix(in oklch, var(--bg-elevated) 78%, transparent);
+    box-shadow: var(--glass-highlight);
     overflow: hidden;
   }
 
@@ -237,7 +243,55 @@
 
   .glass-card-hover:hover {
     border-color: rgb(var(--accent-rgb) / 0.34);
-    box-shadow: none;
+    box-shadow: var(--glass-highlight), var(--shadow-soft);
+  }
+
+  .orbital-glass,
+  .orbital-functional,
+  .orbital-floating {
+    position: relative;
+    isolation: isolate;
+    border: 1px solid oklch(var(--color-border-default) / var(--glass-border-subtle));
+    box-shadow: var(--glass-highlight), var(--shadow-soft);
+    -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturation));
+    backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturation));
+  }
+
+  .orbital-glass {
+    background: color-mix(in oklch, var(--bg-surface) var(--glass-surface-subtle), transparent);
+  }
+
+  .orbital-functional {
+    background: color-mix(in oklch, var(--bg-surface) var(--glass-surface-standard), transparent);
+  }
+
+  .orbital-floating {
+    background: color-mix(in oklch, var(--bg-elevated) var(--glass-surface-standard), transparent);
+    box-shadow: var(--glass-highlight), var(--shadow-elevated);
+    -webkit-backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturation));
+    backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturation));
+  }
+
+  .orbital-stage {
+    min-height: clamp(26rem, 40vw, 32rem);
+    overflow: hidden;
+    border-radius: var(--radius-panel);
+  }
+
+  .orbital-discovery-dock {
+    border-radius: var(--radius-surface);
+  }
+
+  .orbital-nav-active {
+    color: var(--text-primary);
+    background: color-mix(in oklch, var(--bg-elevated) 74%, transparent);
+    box-shadow: var(--glass-highlight), 0 0 28px oklch(var(--color-accent-secondary) / .12);
+  }
+
+  .orbital-tablet-solid {
+    background: var(--bg-surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 
   .glass-depth-panel,
@@ -840,7 +894,11 @@
 @media (min-width: 768px) and (max-width: 1180px) {
   .quick-panel,
   .side-panel,
-  .composer-dock {
+  .composer-dock,
+  .orbital-glass,
+  .orbital-functional,
+  .orbital-floating,
+  .app-surface {
     background-color: var(--bg-surface);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
@@ -863,16 +921,15 @@
 
 @layer components {
   .app-surface,
-  .app-surface-muted,
   .glass-panel,
-  .glass-card,
-  .glass-card-hover,
   .character-editor-surfaces {
-    border-radius: 0;
-    box-shadow: none;
-    background: transparent;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
+    border-radius: var(--radius-surface);
+  }
+
+  .app-surface-muted,
+  .glass-card,
+  .glass-card-hover {
+    border-radius: var(--radius-card);
   }
 
   .nythera-page-shell {
@@ -897,13 +954,31 @@
   .nav-item,
   .rail-action,
   .rail-action-active,
-  .focus-ring,
   .energy-pill,
-  .violet-pill,
+  .violet-pill {
+    border-radius: var(--radius-pill);
+  }
+
   .bubble-char,
   .bubble-user {
-    border-radius: 0;
-    box-shadow: none;
+    border-radius: var(--radius-bubble);
+  }
+
+  .settings-orbital-nav,
+  .settings-orbital-section {
+    border: 1px solid oklch(var(--color-border-default) / var(--glass-border-subtle));
+    background: color-mix(in oklch, var(--bg-surface) 72%, transparent);
+    box-shadow: var(--glass-highlight), var(--shadow-soft);
+    -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturation));
+    backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturation));
+  }
+
+  .settings-orbital-nav {
+    border-radius: var(--radius-card);
+  }
+
+  .settings-orbital-section {
+    border-radius: var(--radius-surface);
   }
 
   .library-hero-panel,
@@ -965,6 +1040,47 @@
   @media (min-width: 1280px) {
     .library-shelf {
       grid-auto-columns: minmax(230px, 1fr);
+    }
+  }
+
+  .orbital-character-shelf {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(220px, 260px);
+    grid-template-rows: minmax(300px, 1fr);
+    gap: var(--grid-gap);
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    padding: 2px 2px 14px;
+    scroll-snap-type: x proximity;
+  }
+
+  .orbital-character-shelf > * {
+    min-height: 300px;
+    scroll-snap-align: start;
+  }
+
+  @media (min-width: 1280px) {
+    .orbital-character-shelf {
+      grid-auto-columns: minmax(210px, 240px);
+    }
+  }
+
+  @media (max-width: 1024px) {
+    .settings-orbital-nav,
+    .settings-orbital-section,
+    .orbital-glass,
+    .orbital-functional,
+    .orbital-floating,
+    .app-surface {
+      background: var(--bg-surface);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+
+    .orbital-stage {
+      min-height: 34rem;
+      border-radius: var(--radius-surface);
     }
   }
 }

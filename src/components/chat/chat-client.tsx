@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { MessageList } from "@/components/chat/MessageList";
 import { useChat, type ChatMessage } from "@/hooks/useChat";
+import { shouldBypassNextImageOptimization } from "@/lib/image-cache";
 import { buildProviderModelGroups, inferProviderModelValue, type ProviderModelGroup, type SavedProviderSummary } from "@/lib/provider-model-options";
 import { useUiStore } from "@/stores/use-ui-store";
 
@@ -32,6 +34,9 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
   const [providerKeysLoading, setProviderKeysLoading] = useState(true);
   const persistedApiRef = useRef({ model: initialModel || "gpt-4o-mini", temperature: initialTemperature ?? 0.7, responsePrompt: initialResponsePrompt ?? "" });
   const { messages, send, editMessage, deleteMessage, rewindToMessage, branchFromMessage, pinMessage, unpinMessage, isStreaming, error } = useChat(chatId, initialMessages);
+  const messagesRef = useRef(messages);
+  const isStreamingRef = useRef(isStreaming);
+  const chatSettingsRef = useRef({ model, temperature, responsePrompt });
   const setActiveChatId = useUiStore((state) => state.setActiveChatId);
   const setActiveCharacterId = useUiStore((state) => state.setActiveCharacterId);
   const sidePanelOpen = useUiStore((state) => state.sidePanelOpen);
@@ -40,6 +45,19 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
   const activePersona = useUiStore((state) => state.activePersona);
   const providerModelGroups: ProviderModelGroup[] = useMemo(() => buildProviderModelGroups(providerKeys), [providerKeys]);
   const selectedProviderModel = inferProviderModelValue(model, providerModelGroups);
+  const usePlainSceneImage = Boolean(characterAvatarUrl && shouldBypassNextImageOptimization(characterAvatarUrl));
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  useEffect(() => {
+    isStreamingRef.current = isStreaming;
+  }, [isStreaming]);
+
+  useEffect(() => {
+    chatSettingsRef.current = { model, temperature, responsePrompt };
+  }, [model, responsePrompt, temperature]);
 
   useEffect(() => {
     setModel(initialModel || "gpt-4o-mini");
@@ -166,11 +184,11 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
     }
   }, [model, providerKeysLoading, providerModelGroups]);
 
-  function handleModelChange(value: string) {
+  const handleModelChange = useCallback((value: string) => {
     setModel(value);
-  }
+  }, []);
 
-  function submitMessage() {
+  const submitMessage = useCallback(() => {
     const content = draft.trim();
     if (!content || isStreaming) {
       return;
@@ -178,59 +196,67 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
 
     setDraft("");
     void send(content, { model, temperature, responsePrompt });
-  }
+  }, [draft, isStreaming, model, responsePrompt, send, temperature]);
 
-  function continueChat() {
-    if (isStreaming) {
+  const continueChat = useCallback(() => {
+    if (isStreamingRef.current) {
       return;
     }
 
-    void send("", { model, temperature, responsePrompt, continueChat: true });
-  }
+    void send("", { ...chatSettingsRef.current, continueChat: true });
+  }, [send]);
 
-  function regenerate(assistantMessageId: string) {
-    const index = messages.findIndex((message) => message.id === assistantMessageId);
-    const previousUser = messages
-      .slice(0, index >= 0 ? index : messages.length)
+  const regenerate = useCallback((assistantMessageId: string) => {
+    const currentMessages = messagesRef.current;
+    const index = currentMessages.findIndex((message) => message.id === assistantMessageId);
+    const previousUser = currentMessages
+      .slice(0, index >= 0 ? index : currentMessages.length)
       .reverse()
       .find((message) => message.role === "USER");
 
-    if (!previousUser || isStreaming) {
+    if (!previousUser || isStreamingRef.current) {
       return;
     }
 
     void send(previousUser.content, {
-      model,
-      temperature,
-      responsePrompt,
+      ...chatSettingsRef.current,
       regenerate: true,
       replaceAssistantId: assistantMessageId
     });
-  }
+  }, [send]);
 
-  async function branch(messageId: string) {
+  const branch = useCallback(async (messageId: string) => {
     const branchId = await branchFromMessage(messageId);
     if (branchId) {
       window.location.href = `/chat/${branchId}`;
     }
-  }
+  }, [branchFromMessage]);
 
-  async function togglePin(messageId: string) {
-    const message = messages.find((m) => m.id === messageId);
+  const togglePin = useCallback(async (messageId: string) => {
+    const message = messagesRef.current.find((m) => m.id === messageId);
     if (!message) return;
     if (message.pinned) {
       await unpinMessage(messageId);
     } else {
       await pinMessage(messageId);
     }
-  }
+  }, [pinMessage, unpinMessage]);
 
   return (
     <div className="relative isolate flex h-full min-h-0 flex-col overflow-hidden bg-[var(--bg-base)]">
-      {characterAvatarUrl ? (
+      {characterAvatarUrl && usePlainSceneImage ? (
         <img
           src={characterAvatarUrl}
           alt=""
+          className="chat-scene-art pointer-events-none absolute inset-0 -z-30 h-full w-full object-cover object-center opacity-60"
+        />
+      ) : characterAvatarUrl ? (
+        <Image
+          src={characterAvatarUrl}
+          alt=""
+          fill
+          priority
+          sizes="100vw"
           className="chat-scene-art pointer-events-none absolute inset-0 -z-30 h-full w-full object-cover object-center opacity-60"
         />
       ) : null}

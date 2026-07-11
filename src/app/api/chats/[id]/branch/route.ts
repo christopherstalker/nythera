@@ -1,7 +1,8 @@
 import { MessageRole } from "@prisma/client";
 import { z } from "zod";
-import { HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
+import { HttpError, getRequestIp, json, parseJson, requireUser, routeError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,12 @@ const branchSchema = z.object({
 export async function POST(request: Request, context: Context) {
   try {
     const user = await requireUser();
+    await enforceRateLimit({
+      userId: user.id,
+      ip: getRequestIp(request),
+      route: "chats:branch"
+    });
+
     const input = await parseJson(request, branchSchema);
     const source = await prisma.chat.findFirst({
       where: {

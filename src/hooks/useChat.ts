@@ -100,6 +100,9 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
 
         if (!response.ok || !response.body) {
           const body = await response.json().catch(() => null);
+          if (response.status === 429) {
+            throw new Error("You're sending messages quickly. One moment, then try again.");
+          }
           throw new Error(body?.error ?? "Chat request failed.");
         }
 

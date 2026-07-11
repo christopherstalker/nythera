@@ -1,5 +1,6 @@
 import { MemoryCategory } from "@prisma/client";
-import { HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
+import { HttpError, getRequestIp, json, parseJson, requireUser, routeError } from "@/lib/api";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { getEffectiveProviderKeys } from "@/lib/user-keys";
 import { memoryCreateSchema, memoryUpdateSchema } from "@/lib/validation";
 import { createManualMemory, deleteMemory, listMemories, updateMemory } from "@/lib/memory-store";
@@ -24,6 +25,12 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const user = await requireUser();
+    await enforceRateLimit({
+      userId: user.id,
+      ip: getRequestIp(request),
+      route: "memories:write"
+    });
+
     const input = await parseJson(request, memoryCreateSchema);
     const providerKeys = await getEffectiveProviderKeys(user.id);
 
@@ -47,6 +54,12 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const user = await requireUser();
+    await enforceRateLimit({
+      userId: user.id,
+      ip: getRequestIp(request),
+      route: "memories:write"
+    });
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     if (!id) {
@@ -74,6 +87,12 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const user = await requireUser();
+    await enforceRateLimit({
+      userId: user.id,
+      ip: getRequestIp(request),
+      route: "memories:write"
+    });
+
     const id = new URL(request.url).searchParams.get("id");
     if (!id) {
       throw new HttpError(400, "id is required.");
