@@ -1,10 +1,9 @@
-const CACHE_NAME = "velora-brand-v10";
+const CACHE_NAME = "nythera-codex-v1";
 const CORE_ASSETS = [
   "/offline.html",
-  "/icon.svg",
-  "/icons/velora-aurora-v4-192.png",
-  "/icons/velora-aurora-v4-512.png",
-  "/icons/velora-aurora-v4-maskable-512.png",
+  "/icons/nythera-codex-v1-192.png",
+  "/icons/nythera-codex-v1-512.png",
+  "/icons/nythera-codex-v1-maskable-512.png",
   "/manifest.webmanifest"
 ];
 

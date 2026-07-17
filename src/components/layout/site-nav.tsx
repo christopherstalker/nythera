@@ -10,7 +10,6 @@ import { cn } from "@/lib/utils";
 import { isPlatformAdminEmail } from "@/lib/admin";
 import { shouldBypassNextImageOptimization } from "@/lib/image-cache";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/layout/theme-toggle";
 
 const baseLinks = [
   { href: "/explore", label: "Explore", icon: Compass },
@@ -141,7 +140,6 @@ export function SiteNav() {
               Create
             </Link>
           </Button>
-          <ThemeToggle />
           {isAuthenticated ? (
             <div className="relative">
               <button

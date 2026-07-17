@@ -8,6 +8,7 @@ import "@fontsource/cormorant-garamond/600.css";
 import "@/app/globals.css";
 import { AppShell } from "@/components/layout/AppShell";
 import { SessionProvider } from "@/components/providers/session-provider";
+import { BRAND_ICON_APPLE, BRAND_ICON_LARGE, BRAND_ICON_SMALL, BRAND_OG_IMAGE, BRAND_THEME_COLOR } from "@/lib/brand";
 
 const spaceGrotesk = localFont({
   src: "../assets/fonts/SpaceGrotesk-Variable.woff2",
@@ -36,11 +37,10 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/icon.svg", type: "image/svg+xml" },
-      { url: "/icons/velora-aurora-v4-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/velora-aurora-v4-512.png", sizes: "512x512", type: "image/png" }
+      { url: BRAND_ICON_SMALL, sizes: "192x192", type: "image/png" },
+      { url: BRAND_ICON_LARGE, sizes: "512x512", type: "image/png" }
     ],
-    apple: [{ url: "/icons/velora-aurora-v4-apple-180.png", sizes: "180x180", type: "image/png" }]
+    apple: [{ url: BRAND_ICON_APPLE, sizes: "180x180", type: "image/png" }]
   },
   openGraph: {
     type: "website",
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
     description: "AI roleplay platform with persona, memory, and secure model access.",
     images: [
       {
-        url: "/og-image-v3.png",
+        url: BRAND_OG_IMAGE,
         width: 1200,
         height: 630,
         alt: "Nythera N logo"
@@ -62,7 +62,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Nythera",
     description: "AI roleplay platform with persona, memory, and secure model access.",
-    images: ["/og-image-v3.png"]
+    images: [BRAND_OG_IMAGE]
   }
 };
 
@@ -71,10 +71,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#03040F" },
-    { media: "(prefers-color-scheme: light)", color: "#E5DCCB" }
-  ]
+  themeColor: BRAND_THEME_COLOR
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

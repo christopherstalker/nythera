@@ -57,10 +57,6 @@
     color-scheme: dark;
   }
 
-  html.light {
-    color-scheme: light;
-  }
-
   body {
     @apply min-h-screen bg-canvas text-content-primary antialiased;
     min-height: 100dvh;
@@ -886,48 +882,6 @@
       background: color-mix(in oklch, var(--codex-paper-raised) 88%, transparent);
       backdrop-filter: blur(16px);
     }
-  }
-}
-
-@layer components {
-  html.light .living-codex-shell::after,
-  html.light .codex-auth::after {
-    opacity: .055;
-    mix-blend-mode: multiply;
-  }
-
-  html.light .codex-rail {
-    background:
-      linear-gradient(180deg, oklch(0.955 0.012 78 / .98), oklch(0.885 0.022 76 / .96));
-  }
-
-  html.light .nythera-cosmic-backdrop {
-    display: none;
-    background:
-      radial-gradient(ellipse 90% 58% at 12% 4%, oklch(var(--color-accent-secondary) / .07), transparent 52%),
-      radial-gradient(ellipse 82% 54% at 92% 16%, oklch(var(--color-accent-primary) / .065), transparent 56%),
-      linear-gradient(180deg, var(--codex-paper-raised), var(--codex-paper));
-  }
-
-  html.light .nythera-cosmic-backdrop::before {
-    opacity: .12;
-    mix-blend-mode: multiply;
-  }
-
-  html.light .nythera-cosmic-backdrop::after {
-    opacity: .08;
-    mix-blend-mode: multiply;
-  }
-
-  html.light .nythera-cosmic-backdrop canvas,
-  html.light .nythera-cosmic-starfield {
-    opacity: .08;
-  }
-
-  html.light .nythera-cosmic-veil {
-    background:
-      radial-gradient(ellipse 90% 44% at 50% 100%, oklch(0.3 0.014 70 / .055), transparent 74%),
-      linear-gradient(90deg, oklch(0.3 0.014 70 / .035), transparent 18% 82%, oklch(0.3 0.014 70 / .035));
   }
 }
 

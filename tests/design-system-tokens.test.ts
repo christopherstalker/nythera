@@ -8,7 +8,7 @@ import tailwindcss from "tailwindcss";
 import tailwindConfig from "../tailwind.config";
 
 const tokenFile = new URL("../src/styles/design-tokens.css", import.meta.url);
-const contractSelectors = [":root", ":root, .dark", ".light"] as const;
+const contractSelectors = [":root", ":root, .dark"] as const;
 
 function parseTokenContract(css: string) {
   const ast = postcss.parse(css);
@@ -124,7 +124,6 @@ test("Aurora Ink tokens define the complete OKLCH design-system contract", async
   const rules = parseTokenContract(css);
   const root = rules.get(":root")!;
   const dark = rules.get(":root, .dark")!;
-  const light = rules.get(".light")!;
 
   assert.doesNotMatch(css, /#[\da-f]{3,8}\b|\b(?:rgb|rgba|hsl|hsla)\s*\(/i);
 
@@ -138,7 +137,7 @@ test("Aurora Ink tokens define the complete OKLCH design-system contract", async
   };
   for (const [name, value] of Object.entries(primitives)) {
     assertToken(root, name, value);
-    assert.ok(!dark.has(name) && !light.has(name), `--${name} must only be in standalone :root`);
+    assert.ok(!dark.has(name), `--${name} must only be in standalone :root`);
   }
 
   const darkSemantic = {
@@ -161,28 +160,7 @@ test("Aurora Ink tokens define the complete OKLCH design-system contract", async
     "color-warning": "var(--primitive-warning-500)",
     "color-danger": "var(--primitive-danger-500)"
   };
-  const lightSemantic = {
-    "color-canvas": "0.91 0.018 78",
-    "color-surface": "0.945 0.014 78",
-    "color-elevated": "0.965 0.011 78",
-    "color-overlay": "oklch(var(--color-elevated) / .86)",
-    "color-text-primary": "0.22 0.012 70",
-    "color-text-secondary": "0.38 0.015 70",
-    "color-text-muted": "0.49 0.014 70",
-    "color-text-disabled": "0.64 0.012 75",
-    "color-border-subtle": "0.73 0.018 72",
-    "color-border-default": "0.61 0.02 70",
-    "color-border-strong": "0.39 0.018 70",
-    "color-border-disabled": "0.78 0.015 75",
-    "color-accent-primary": "0.6 0.12 292",
-    "color-accent-strong": "0.5 0.13 292",
-    "color-accent-secondary": "0.58 0.09 174",
-    "color-focus-ring": "0.46 0.09 174",
-    "color-warning": "var(--primitive-warning-500)",
-    "color-danger": "var(--primitive-danger-500)"
-  };
   for (const [name, value] of Object.entries(darkSemantic)) assertToken(dark, name, value);
-  for (const [name, value] of Object.entries(lightSemantic)) assertToken(light, name, value);
   for (const name of Object.keys(darkSemantic)) {
     assert.ok(!root.has(name), `semantic --${name} must be in theme blocks`);
   }
@@ -218,7 +196,6 @@ test("Aurora Ink tokens define the complete OKLCH design-system contract", async
   assertToken(root, "glass-blur-lg", "28px");
   assertToken(root, "glass-saturation", "115%");
   assertToken(root, "glass-noise-opacity", "3.5%");
-  assertToken(light, "glass-noise-opacity", "2.5%");
   assertToken(root, "focus-ring-opacity", "54%");
 
   const layout = {
@@ -326,40 +303,23 @@ test("Aurora Ink tokens define the complete OKLCH design-system contract", async
     "app-shell-gradient": "linear-gradient(180deg, oklch(var(--color-canvas)) 0%, oklch(var(--color-canvas) / .96) 100%)",
     "chat-overlay": "oklch(var(--color-canvas) / .9)"
   };
-  const lightThemeAliases = {
-    "elevation-raised": "0 16px 42px oklch(0.24 0.012 70 / .11)",
-    "elevation-floating": "0 24px 72px oklch(0.24 0.012 70 / .16)",
-    "elevation-glow": "0 0 0 1px oklch(var(--color-focus-ring) / .34), 0 0 38px oklch(var(--color-accent-primary) / .12)",
-    "shadow-card": "var(--elevation-floating)",
-    "shadow-elevated": "var(--elevation-floating)",
-    "shadow-soft": "var(--elevation-raised)",
-    "shadow-glow": "var(--elevation-glow)",
-    "shadow-glow-soft": "0 0 32px oklch(var(--color-accent-primary) / .11)",
-    "glass-highlight": "inset 0 1px 0 oklch(1 0 0 / .5)",
-    "app-body-gradient": "radial-gradient(ellipse 70% 45% at 14% 84%, oklch(var(--color-accent-primary) / .06), transparent 60%), var(--bg-base)",
-    "app-shell-gradient": "linear-gradient(180deg, oklch(var(--color-elevated)) 0%, oklch(var(--color-canvas)) 100%)",
-    "chat-overlay": "oklch(var(--color-canvas) / .92)"
-  };
   for (const [name, value] of Object.entries(darkThemeAliases)) assertToken(dark, name, value);
-  for (const [name, value] of Object.entries(lightThemeAliases)) assertToken(light, name, value);
 });
 
-test("primary, secondary, and muted text maintain WCAG AA contrast on every theme surface", async () => {
+test("primary, secondary, and muted text maintain WCAG AA contrast on dark theme surfaces", async () => {
   const css = await readFile(tokenFile, "utf8");
   const rules = parseTokenContract(css);
 
-  for (const [theme, selector] of [["dark", ":root, .dark"], ["light", ".light"]] as const) {
-    const tokens = rules.get(selector)!;
-    for (const textToken of ["color-text-primary", "color-text-secondary", "color-text-muted"]) {
-      const textChannels = parseOklchChannels(tokens.get(textToken)!);
-      for (const surfaceToken of ["color-canvas", "color-surface", "color-elevated"]) {
-        const surfaceChannels = parseOklchChannels(tokens.get(surfaceToken)!);
-        const ratio = contrast(textChannels, surfaceChannels);
-        assert.ok(
-          ratio >= 4.5,
-          `${theme} --${textToken} is ${ratio.toFixed(2)}:1 against --${surfaceToken}; expected at least 4.5:1`
-        );
-      }
+  const tokens = rules.get(":root, .dark")!;
+  for (const textToken of ["color-text-primary", "color-text-secondary", "color-text-muted"]) {
+    const textChannels = parseOklchChannels(tokens.get(textToken)!);
+    for (const surfaceToken of ["color-canvas", "color-surface", "color-elevated"]) {
+      const surfaceChannels = parseOklchChannels(tokens.get(surfaceToken)!);
+      const ratio = contrast(textChannels, surfaceChannels);
+      assert.ok(
+        ratio >= 4.5,
+        `dark --${textToken} is ${ratio.toFixed(2)}:1 against --${surfaceToken}; expected at least 4.5:1`
+      );
     }
   }
 });
@@ -369,28 +329,23 @@ test("action foregrounds maintain WCAG AA contrast against accent and danger col
   const rules = parseTokenContract(css);
   const root = rules.get(":root")!;
 
-  for (const [theme, selector] of [["dark", ":root, .dark"], ["light", ".light"]] as const) {
-    const themed = rules.get(selector)!;
-    for (const foreground of ["primary-foreground", "accent-foreground"]) {
-      const foregroundChannels = resolveChannels(foreground, themed, root);
-      for (const background of ["color-accent-primary", "color-accent-secondary"]) {
-        const ratio = contrast(foregroundChannels, resolveChannels(background, themed, root));
-        assert.ok(
-          ratio >= 4.5,
-          `${theme} --${foreground} is ${ratio.toFixed(2)}:1 against --${background}; expected at least 4.5:1`
-        );
-      }
+  const themed = rules.get(":root, .dark")!;
+  for (const foreground of ["primary-foreground", "accent-foreground"]) {
+    const foregroundChannels = resolveChannels(foreground, themed, root);
+    for (const background of ["color-accent-primary", "color-accent-secondary"]) {
+      const ratio = contrast(foregroundChannels, resolveChannels(background, themed, root));
+      assert.ok(
+        ratio >= 4.5,
+        `dark --${foreground} is ${ratio.toFixed(2)}:1 against --${background}; expected at least 4.5:1`
+      );
     }
-
-    const dangerRatio = contrast(
-      resolveChannels("destructive-foreground", themed, root),
-      resolveChannels("color-danger", themed, root)
-    );
-    assert.ok(
-      dangerRatio >= 4.5,
-      `${theme} --destructive-foreground is ${dangerRatio.toFixed(2)}:1 against --color-danger; expected at least 4.5:1`
-    );
   }
+
+  const dangerRatio = contrast(
+    resolveChannels("destructive-foreground", themed, root),
+    resolveChannels("color-danger", themed, root)
+  );
+  assert.ok(dangerRatio >= 4.5, `dark --destructive-foreground is ${dangerRatio.toFixed(2)}:1 against --color-danger; expected at least 4.5:1`);
 });
 
 test("PostCSS contract parsing ignores comments and rejects active overrides", () => {
@@ -402,7 +357,6 @@ test("PostCSS contract parsing ignores comments and rejects active overrides", (
         --fixture: active;
       }
       :root, .dark { --theme: dark; }
-      .light { --theme: light; }
     }
   `;
   const parsed = parseTokenContract(fixture);
@@ -412,7 +366,7 @@ test("PostCSS contract parsing ignores comments and rejects active overrides", (
     /duplicate --fixture in :root/
   );
   assert.throws(
-    () => parseTokenContract(`${fixture} .light { --theme: outer-override; }`),
+    () => parseTokenContract(`${fixture} :root { --theme: outer-override; }`),
     /unexpected active style rule outside @layer base/
   );
   assert.throws(

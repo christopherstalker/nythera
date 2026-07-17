@@ -11,6 +11,7 @@ import type { CharacterSummary } from "@/components/characters/CharacterCard";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page";
+import { BRAND_ICON_LARGE } from "@/lib/brand";
 import { displayTagLabel } from "@/lib/character-tags";
 import { shouldBypassNextImageOptimization } from "@/lib/image-cache";
 import { springSoft } from "@/lib/motion";
@@ -175,7 +176,7 @@ function FeaturedCharacterHero({
   character: CharacterSummary;
   onStartChat: () => void;
 }) {
-  const avatarSrc = character.avatarUrl || "/icons/velora-aurora-v4-512.png";
+  const avatarSrc = character.avatarUrl || BRAND_ICON_LARGE;
 
   return (
     <section className="codex-featured-stage grid min-h-[min(720px,78dvh)] overflow-hidden border-y border-[var(--codex-rule)] lg:grid-cols-[minmax(340px,.82fr)_minmax(0,1.3fr)]">
@@ -216,7 +217,7 @@ function FeaturedCharacterHero({
               type="button"
               size="lg"
               onClick={onStartChat}
-              className="bg-aurora-primary px-6 text-[var(--text-primary)] shadow-glow"
+              className="px-6"
             >
               <Sparkles className="h-4 w-4" />
               Start Chat
@@ -236,7 +237,7 @@ function FeaturedCharacterHero({
 
 function RecentChatCard({ chat }: { chat: RecentChat }) {
   const lastMessage = chat.messages.at(-1)?.content;
-  const avatarSrc = chat.character.avatarUrl || "/icons/velora-aurora-v4-512.png";
+  const avatarSrc = chat.character.avatarUrl || BRAND_ICON_LARGE;
 
   return (
     <motion.article
@@ -276,7 +277,7 @@ function HomeCharacterCard({
   featured?: boolean;
   className?: string;
 }) {
-  const avatarSrc = character.avatarUrl || "/icons/velora-aurora-v4-512.png";
+  const avatarSrc = character.avatarUrl || BRAND_ICON_LARGE;
 
   return (
     <motion.article
@@ -390,7 +391,7 @@ function HomeLoading() {
         <div className="absolute inset-x-4 bottom-10 max-w-3xl space-y-4 sm:inset-x-8 md:inset-x-12 xl:inset-x-16">
           <div className="h-16 w-3/4 rounded-full bg-[color-mix(in_oklch,var(--color-surface)_72%,transparent)]" />
           <div className="h-5 w-1/2 rounded-full bg-[color-mix(in_oklch,var(--color-surface)_64%,transparent)]" />
-          <div className="h-12 w-40 rounded-full bg-aurora-primary opacity-70" />
+          <div className="h-12 w-40 rounded-sm border border-brand-secondary/30 bg-brand-secondary/[0.06]" />
         </div>
       </section>
       <PageShell className="space-y-4 px-4 pt-6 sm:px-6">

@@ -277,7 +277,7 @@ export function UserPersonaSettingsClient() {
               className={cn(
                 "focus-ring flex h-12 shrink-0 items-center gap-2 rounded-2xl border px-3 text-left text-sm font-medium transition-colors",
                 activeProfileId === profile.id
-                  ? "border-[var(--border-strong)] bg-primary text-primary-foreground"
+                  ? "border-[var(--codex-mint)]/55 bg-[color-mix(in_oklch,var(--codex-mint)_10%,transparent)] text-[var(--codex-mint)]"
                   : "border-[var(--border-default)] bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               )}
             >
@@ -407,8 +407,8 @@ function ModeButton({
       className={cn(
         "focus-ring flex h-11 items-center justify-center gap-2 rounded-[var(--radius-pill)] text-sm font-semibold transition-colors duration-150",
         active
-          ? "bg-primary text-primary-foreground"
-          : "text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+          ? "border border-[var(--codex-mint)]/55 bg-[color-mix(in_oklch,var(--codex-mint)_10%,transparent)] text-[var(--codex-mint)]"
+          : "border border-transparent text-[var(--text-secondary)] hover:border-[var(--codex-rule)] hover:text-[var(--text-primary)]"
       )}
     >
       <Icon className="h-4 w-4" />

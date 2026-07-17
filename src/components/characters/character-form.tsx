@@ -948,8 +948,8 @@ function VisibilityButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "focus-ring flex h-10 items-center justify-center gap-2 rounded-[var(--radius-pill)] text-sm font-medium transition-colors duration-150 active:scale-95",
-        selected ? "bg-primary text-primary-foreground" : "text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+        "focus-ring flex h-10 items-center justify-center gap-2 rounded-sm border font-mono text-[10px] font-medium uppercase tracking-[.12em] transition-colors duration-150 active:scale-[.98]",
+        selected ? "border-[var(--codex-mint)]/55 bg-[color-mix(in_oklch,var(--codex-mint)_10%,transparent)] text-[var(--codex-mint)]" : "border-transparent text-[var(--text-secondary)] hover:border-[var(--codex-rule)] hover:text-[var(--text-primary)]"
       )}
     >
       <Icon className="h-4 w-4" />

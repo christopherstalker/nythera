@@ -1,45 +1,49 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
 const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
-test("Living Codex light theme uses archival paper and ink tokens", async () => {
-  const [tokens, globals] = await Promise.all([
+test("Living Codex is a single permanent dark theme", async () => {
+  const [tokens, globals, layout, sessionProvider, navRail, siteNav, settings] = await Promise.all([
     read("../src/styles/design-tokens.css"),
-    read("../src/app/globals.css")
+    read("../src/app/globals.css"),
+    read("../src/app/layout.tsx"),
+    read("../src/components/providers/session-provider.tsx"),
+    read("../src/components/nav/NavRail.tsx"),
+    read("../src/components/layout/site-nav.tsx"),
+    read("../src/app/(main)/settings/page.tsx")
   ]);
 
-  const lightTheme = tokens.match(/\.light\s*\{[\s\S]*?\n  \}/)?.[0] ?? "";
-  assert.ok(lightTheme, "missing light theme token block");
-  assert.match(lightTheme, /--color-canvas:\s*0\.91 0\.018 78/);
-  assert.match(lightTheme, /--codex-paper:\s*oklch\(0\.91 0\.018 78\)/);
-  assert.match(lightTheme, /--codex-ivory:\s*oklch\(0\.22 0\.012 70\)/);
-  assert.match(lightTheme, /--codex-rule:/);
-  assert.doesNotMatch(lightTheme, /Phase 2 light mode is deferred/);
-  assert.match(globals, /html\.light\s*\{\s*color-scheme:\s*light/);
-  assert.match(globals, /html\.light \.living-codex-shell::after/);
-  assert.match(globals, /html\.light \.nythera-cosmic-backdrop/);
-  assert.match(globals, /html\.light \.nythera-cosmic-veil/);
+  assert.doesNotMatch(tokens, /\.light\s*\{/);
+  assert.doesNotMatch(globals, /html\.light/);
+  assert.match(layout, /<html lang="en" className="dark"/);
+  assert.doesNotMatch(layout, /prefers-color-scheme|#E5DCCB/);
+  assert.doesNotMatch(sessionProvider, /ThemeProvider|next-themes|AppearanceProvider/);
+  assert.doesNotMatch([navRail, siteNav].join("\n"), /ThemeToggle|mobile-theme-toggle|Use light theme/);
+  assert.doesNotMatch(settings, /Accent color|Choose accent color|\["dark", "light"\]/);
+  assert.match(settings, /one permanent ink-dark theme and a fixed editorial palette/);
+
+  await assert.rejects(() => access(new URL("../src/components/layout/theme-toggle.tsx", import.meta.url)));
+  await assert.rejects(() => access(new URL("../src/components/providers/appearance-provider.tsx", import.meta.url)));
+  await assert.rejects(() => access(new URL("../src/components/settings/appearance-settings-client.tsx", import.meta.url)));
 });
 
-test("appearance controls persist both light and dark themes", async () => {
-  const [provider, settings, toggle, navRail] = await Promise.all([
-    read("../src/components/providers/appearance-provider.tsx"),
-    read("../src/components/settings/appearance-settings-client.tsx"),
-    read("../src/components/layout/theme-toggle.tsx"),
-    read("../src/components/nav/NavRail.tsx")
+test("profile APIs no longer accept theme or global accent overrides", async () => {
+  const [profile, mobileProfile] = await Promise.all([
+    read("../src/app/api/profile/route.ts"),
+    read("../src/app/api/mobile/profile/route.ts")
   ]);
 
-  assert.match(provider, /theme\?: "dark" \| "light"/);
-  assert.match(provider, /value === "dark" \|\| value === "light"/);
-  assert.match(provider, /profile\?\.preferredTheme/);
-  assert.match(provider, /localAppearance\.theme \|\|/);
-  assert.match(settings, /\["dark", "light"\] as const/);
-  assert.match(provider, /MutationObserver/);
-  assert.match(provider, /saveStoredAppearance\(\{ theme: nextTheme \}\)/);
-  assert.match(toggle, /activeTheme === "light" \? "dark" : "light"/);
-  assert.match(navRail, /<ThemeToggle/);
-  assert.match(navRail, /mobile-theme-toggle/);
-  assert.doesNotMatch(settings, /setTheme\("dark"\)/);
+  assert.doesNotMatch([profile, mobileProfile].join("\n"), /preferredTheme|accentColor/);
+});
+
+test("shared buttons use the fixed Living Codex action treatment", async () => {
+  const button = await read("../src/components/ui/button.tsx");
+
+  assert.match(button, /font-mono/);
+  assert.match(button, /uppercase/);
+  assert.match(button, /brand-secondary/);
+  assert.match(button, /bg-transparent/);
+  assert.doesNotMatch(button, /bg-primary text-primary-foreground/);
 });

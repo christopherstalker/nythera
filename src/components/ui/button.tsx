@@ -4,25 +4,25 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "focus-ring inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold no-underline transition-all duration-200 active:scale-95 disabled:pointer-events-none disabled:border-outline-disabled disabled:text-content-disabled disabled:opacity-100",
+  "focus-ring inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-sm border font-mono text-[11px] font-medium uppercase tracking-[.14em] no-underline transition-all duration-200 active:scale-95 disabled:pointer-events-none disabled:border-outline-disabled disabled:text-content-disabled disabled:opacity-100",
   {
     variants: {
       variant: {
         primary:
-          "border border-outline-strong bg-primary text-primary-foreground hover:border-outline-strong",
+          "border-brand-secondary/55 bg-brand-secondary/[.08] text-brand-secondary hover:border-brand-secondary hover:bg-brand-secondary/[.13]",
         secondary:
-          "border border-outline bg-elevated text-content-primary hover:border-outline-strong",
+          "border-outline bg-transparent text-content-primary hover:border-content-primary/45 hover:bg-content-primary/[.05]",
         ghost:
-          "text-content-secondary hover:bg-surface/56 hover:text-content-primary",
+          "border-transparent bg-transparent text-content-muted hover:border-outline hover:text-content-primary",
         outline:
-          "border border-outline bg-surface text-content-primary hover:border-outline-strong",
+          "border-outline bg-transparent text-content-secondary hover:border-brand-secondary/45 hover:text-brand-secondary",
         destructive:
-          "border border-danger bg-danger text-destructive-foreground hover:border-outline-strong"
+          "border-danger/60 bg-transparent text-danger hover:border-danger hover:bg-danger/10"
       },
       size: {
-        sm: "h-11 px-3 text-xs",
+        sm: "h-11 px-3 text-[10px]",
         md: "h-11 px-5",
-        lg: "h-12 px-8 text-base",
+        lg: "h-12 px-7 text-xs",
         icon: "h-11 w-11 px-0"
       }
     },

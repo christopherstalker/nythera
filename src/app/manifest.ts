@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { BRAND_ICON_APPLE, BRAND_ICON_LARGE, BRAND_ICON_MASKABLE, BRAND_ICON_SMALL, BRAND_THEME_COLOR } from "@/lib/brand";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
@@ -11,33 +12,33 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     display_override: ["window-controls-overlay", "standalone", "browser"],
     orientation: "any",
-    background_color: "#0B0B12",
-    theme_color: "#0B0B12",
+    background_color: BRAND_THEME_COLOR,
+    theme_color: BRAND_THEME_COLOR,
     lang: "en",
     dir: "ltr",
     categories: ["social", "entertainment", "games"],
     prefer_related_applications: false,
     icons: [
       {
-        src: "/icons/velora-aurora-v4-192.png",
+        src: BRAND_ICON_SMALL,
         sizes: "192x192",
         type: "image/png",
         purpose: "any"
       },
       {
-        src: "/icons/velora-aurora-v4-512.png",
+        src: BRAND_ICON_LARGE,
         sizes: "512x512",
         type: "image/png",
         purpose: "any"
       },
       {
-        src: "/icons/velora-aurora-v4-maskable-512.png",
+        src: BRAND_ICON_MASKABLE,
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable"
       },
       {
-        src: "/icons/velora-aurora-v4-apple-180.png",
+        src: BRAND_ICON_APPLE,
         sizes: "180x180",
         type: "image/png",
         purpose: "any"
@@ -48,19 +49,19 @@ export default function manifest(): MetadataRoute.Manifest {
         name: "Explore characters",
         short_name: "Explore",
         url: "/explore?source=shortcut",
-        icons: [{ src: "/icons/velora-aurora-v4-192.png", sizes: "192x192", type: "image/png" }]
+        icons: [{ src: BRAND_ICON_SMALL, sizes: "192x192", type: "image/png" }]
       },
       {
         name: "Continue chats",
         short_name: "Chats",
         url: "/chats?source=shortcut",
-        icons: [{ src: "/icons/velora-aurora-v4-192.png", sizes: "192x192", type: "image/png" }]
+        icons: [{ src: BRAND_ICON_SMALL, sizes: "192x192", type: "image/png" }]
       },
       {
         name: "Create character",
         short_name: "Create",
         url: "/create-character?source=shortcut",
-        icons: [{ src: "/icons/velora-aurora-v4-192.png", sizes: "192x192", type: "image/png" }]
+        icons: [{ src: BRAND_ICON_SMALL, sizes: "192x192", type: "image/png" }]
       }
     ]
   };

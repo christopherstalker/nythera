@@ -17,6 +17,7 @@ import {
 import { usePwa } from "@/components/providers/pwa-provider";
 import { Button } from "@/components/ui/button";
 import { PageHeader, PageShell, Surface } from "@/components/ui/page";
+import { BRAND_ICON_SMALL } from "@/lib/brand";
 
 const installBenefits = [
   {
@@ -77,7 +78,7 @@ export default function DownloadPage() {
         <Surface className="border-0 p-6 lg:border-r lg:pr-10">
           <div className="flex items-start gap-4">
             <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl border border-primary/25 bg-primary/10">
-              <Image src="/icons/velora-aurora-v4-192.png" alt="" width={42} height={42} className="h-10 w-10" />
+              <Image src={BRAND_ICON_SMALL} alt="" width={42} height={42} className="h-10 w-10" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="codex-kicker">Preferred edition</p>

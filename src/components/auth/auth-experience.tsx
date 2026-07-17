@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { BookOpen, MessageCircle, Sparkles, Users, Wand2 } from "lucide-react";
 import { AUTH_WHISPERS, TRAVELER_NAMES } from "@/components/auth/auth-whispers";
+import { BRAND_ICON_SMALL } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
 type AuthExperienceProps = {
@@ -67,7 +68,7 @@ export function AuthExperience({ mode, children, footer }: AuthExperienceProps) 
         <section className="flex flex-col justify-center border-b border-[var(--border-default)] px-6 py-10 lg:border-b-0 lg:border-r lg:px-[clamp(3rem,7vw,8rem)] lg:py-14">
           <Link href="/" className="inline-flex w-fit items-center gap-3 no-underline">
             <span className="brand-mark-shell h-11 w-11">
-              <Image src="/icon.svg" alt="" width={28} height={28} className="h-7 w-7" />
+              <Image src={BRAND_ICON_SMALL} alt="" width={28} height={28} className="h-7 w-7" />
             </span>
             <span className="text-sm font-semibold tracking-[0.22em] text-[var(--text-primary)]">NYTHERA</span>
           </Link>

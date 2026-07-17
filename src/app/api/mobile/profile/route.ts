@@ -18,12 +18,7 @@ const mobileProfileSchema = z.object({
   ageVerified: z.boolean().optional(),
   memoryEnabled: z.boolean().optional(),
   compactMode: z.boolean().optional(),
-  notificationsEnabled: z.boolean().optional(),
-  preferredTheme: z.enum(["dark", "light", "system"]).optional(),
-  accentColor: z
-    .string()
-    .regex(/^#[0-9a-fA-F]{6}$/)
-    .optional()
+  notificationsEnabled: z.boolean().optional()
 });
 
 export const dynamic = "force-dynamic";
@@ -50,9 +45,7 @@ export async function PATCH(request: Request) {
         ageVerified: input.ageVerified,
         memoryEnabled: input.memoryEnabled,
         compactMode: input.compactMode,
-        notificationsEnabled: input.notificationsEnabled,
-        preferredTheme: input.preferredTheme,
-        accentColor: input.accentColor
+        notificationsEnabled: input.notificationsEnabled
       },
       select: {
         id: true,
@@ -66,9 +59,7 @@ export async function PATCH(request: Request) {
         ageVerified: true,
         memoryEnabled: true,
         compactMode: true,
-        notificationsEnabled: true,
-        preferredTheme: true,
-        accentColor: true
+        notificationsEnabled: true
       }
     });
 

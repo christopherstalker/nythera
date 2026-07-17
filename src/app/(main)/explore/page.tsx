@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page";
 import { SearchBar } from "@/components/ui/search-bar";
+import { BRAND_ICON_LARGE } from "@/lib/brand";
 import { DISCOVERY_TAGS, displayTagLabel } from "@/lib/character-tags";
 import { shouldBypassNextImageOptimization } from "@/lib/image-cache";
 import { springSoft } from "@/lib/motion";
@@ -250,7 +251,7 @@ function FeaturedStage({ character, loading }: { character: CharacterSummary | n
     return null;
   }
 
-  const avatarSrc = character.avatarUrl || "/icons/velora-aurora-v4-512.png";
+  const avatarSrc = character.avatarUrl || BRAND_ICON_LARGE;
 
   return (
     <motion.section
@@ -297,13 +298,12 @@ function FeaturedStage({ character, loading }: { character: CharacterSummary | n
             </span>
           ))}
         </div>
-        <Link
-          href={`/character/${character.id}`}
-          className="mt-6 inline-flex h-12 w-fit items-center gap-3 rounded-full bg-aurora-primary px-6 text-sm font-semibold text-[var(--text-primary)] no-underline shadow-glow-soft transition hover:-translate-y-0.5 motion-reduce:transition-none"
-        >
+        <Button asChild size="lg" className="mt-6 w-fit">
+          <Link href={`/character/${character.id}`}>
           View profile
           <ArrowRight className="h-4 w-4" />
-        </Link>
+          </Link>
+        </Button>
       </div>
     </motion.section>
   );
@@ -636,9 +636,9 @@ function FilterButton({ active, onClick, children }: { active: boolean; onClick:
       type="button"
       onClick={onClick}
       className={cn(
-        "focus-ring h-9 rounded-[var(--radius-pill)] border px-3 text-xs font-semibold active:scale-95",
+        "focus-ring h-9 rounded-sm border px-3 font-mono text-[10px] font-medium uppercase tracking-[.12em] active:scale-[.98]",
         active
-          ? "border-[var(--border-strong)] bg-aurora-primary text-[var(--text-primary)] shadow-glow-soft"
+          ? "border-[var(--codex-mint)]/55 bg-[color-mix(in_oklch,var(--codex-mint)_10%,transparent)] text-[var(--codex-mint)]"
           : "border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
       )}
       style={active ? undefined : { background: "color-mix(in oklch, var(--color-surface) 48%, transparent)" }}
@@ -654,9 +654,9 @@ function TagButton({ active, onClick, children }: { active: boolean; onClick: ()
       type="button"
       onClick={onClick}
       className={cn(
-        "focus-ring rounded-full border px-3 py-1.5 text-xs font-medium active:scale-95",
+        "focus-ring rounded-sm border px-3 py-1.5 font-mono text-[10px] font-medium uppercase tracking-[.12em] active:scale-[.98]",
         active
-          ? "border-[var(--border-strong)] bg-aurora-primary text-[var(--text-primary)] shadow-glow-soft"
+          ? "border-[var(--codex-mint)]/55 bg-[color-mix(in_oklch,var(--codex-mint)_10%,transparent)] text-[var(--codex-mint)]"
           : "border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
       )}
       style={active ? undefined : {

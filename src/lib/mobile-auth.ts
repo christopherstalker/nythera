@@ -109,8 +109,6 @@ export async function requireMobileUser(request: Request) {
       memoryEnabled: true,
       compactMode: true,
       notificationsEnabled: true,
-      preferredTheme: true,
-      accentColor: true,
       preferredProvider: true,
       preferredModel: true,
       bannedAt: true
@@ -224,8 +222,6 @@ export function publicMobileUser(user: {
   memoryEnabled?: boolean;
   compactMode?: boolean;
   notificationsEnabled?: boolean;
-  preferredTheme?: string;
-  accentColor?: string;
 }) {
   return {
     id: user.id,
@@ -238,8 +234,6 @@ export function publicMobileUser(user: {
     ageVerified: user.ageVerified ?? false,
     memoryEnabled: user.memoryEnabled ?? true,
     compactMode: user.compactMode ?? false,
-    notificationsEnabled: user.notificationsEnabled ?? false,
-    preferredTheme: user.preferredTheme ?? "dark",
-    accentColor: user.accentColor ?? "#8F81F7"
+    notificationsEnabled: user.notificationsEnabled ?? false
   };
 }

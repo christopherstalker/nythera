@@ -56,7 +56,7 @@ export function SearchBar({
             className={cn(
               "focus-ring absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full border text-[var(--text-secondary)] xl:hidden",
               filterActive
-                ? "border-[var(--border-strong)] bg-aurora-primary text-[var(--text-primary)] shadow-glow-soft"
+                ? "border-[var(--codex-mint)]/55 bg-[color-mix(in_oklch,var(--codex-mint)_10%,transparent)] text-[var(--codex-mint)]"
                 : "border-[var(--border-default)] bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
             )}
           >

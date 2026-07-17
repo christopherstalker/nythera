@@ -35,8 +35,6 @@ export async function requireUser() {
       memoryEnabled: true,
       compactMode: true,
       notificationsEnabled: true,
-      preferredTheme: true,
-      accentColor: true,
       preferredProvider: true,
       preferredModel: true,
       bannedAt: true

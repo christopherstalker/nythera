@@ -130,14 +130,14 @@ export function HistoryTabContent({
   return (
     <div className="grid gap-2">
       {onNewChat ? (
-        <button
+        <Button
           type="button"
           onClick={onNewChat}
-          className="focus-ring flex h-11 items-center justify-center gap-2 rounded-2xl border border-[var(--border-strong)] bg-primary px-3 text-sm font-semibold text-primary-foreground transition hover:bg-[var(--accent-purple-hover)]"
+          className="w-full"
         >
           <Plus className="h-4 w-4" />
           Start new chat
-        </button>
+        </Button>
       ) : null}
       {panel.chats.map((chat) => (
         <Link

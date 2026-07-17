@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { displayTagLabel } from "@/lib/character-tags";
 import { shouldBypassNextImageOptimization } from "@/lib/image-cache";
 import { springSoft } from "@/lib/motion";
+import { BRAND_ICON_LARGE } from "@/lib/brand";
 
 export type CharacterSummary = {
   id: string;
@@ -49,7 +50,7 @@ export function CharacterCard({
 
   if (presentation === "discovery") {
     const rating = character.ratingAverage ?? 0;
-    const avatarSrc = character.avatarUrl || "/icons/velora-aurora-v4-512.png";
+    const avatarSrc = character.avatarUrl || BRAND_ICON_LARGE;
 
     return (
       <motion.button

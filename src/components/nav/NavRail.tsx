@@ -15,7 +15,7 @@ import {
   UserCircle,
   UsersThree
 } from "@phosphor-icons/react";
-import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { BRAND_ICON_SMALL } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
 const primaryItems = [
@@ -36,8 +36,8 @@ export function NavRail() {
   return (
     <>
       <aside className="codex-rail fixed inset-y-0 left-0 z-50 hidden w-[var(--codex-rail-width)] flex-col items-center border-r border-[var(--codex-rule)] md:flex">
-        <Link href="/" aria-label="Nythera home" className="focus-ring mt-5 grid h-11 w-11 place-items-center rounded-full">
-          <Image src="/icon.svg" alt="" width={34} height={34} className="h-8 w-8 object-contain" priority />
+        <Link href="/" aria-label="Nythera home" className="focus-ring mt-5 grid h-11 w-11 place-items-center">
+          <Image src={BRAND_ICON_SMALL} alt="" width={48} height={48} className="h-12 w-12 object-contain" priority />
         </Link>
 
         <div className="my-5 h-px w-8 bg-[var(--codex-rule)]" />
@@ -49,7 +49,6 @@ export function NavRail() {
         </nav>
 
         <div className="mb-4 flex flex-col items-center gap-2">
-          <ThemeToggle className="codex-rail-link h-11 w-11 rounded-none border-0 bg-transparent shadow-none" />
           <RailLink href="/settings" label="Settings" icon={GearSix} active={isActive(pathname, "/settings")} />
           {isAuthenticated ? (
             <button
@@ -68,16 +67,13 @@ export function NavRail() {
       </aside>
 
       {!isCharacterStudio ? (
-        <>
-          <ThemeToggle className="mobile-theme-toggle fixed left-4 top-[calc(12px+env(safe-area-inset-top))] z-40 h-10 w-10 rounded-full border border-[var(--codex-rule)] bg-[var(--codex-paper-raised)] shadow-soft md:hidden" />
-          <Link
-            href={isAuthenticated ? "/settings" : "/login"}
-            aria-label={isAuthenticated ? userLabel : "Sign in"}
-            className="mobile-account focus-ring fixed right-4 top-[calc(12px+env(safe-area-inset-top))] z-40 grid h-10 w-10 place-items-center rounded-full border border-[var(--codex-rule)] bg-[var(--codex-paper-raised)] text-[var(--codex-ivory)] shadow-soft md:hidden"
-          >
-            <UserCircle size={22} weight="thin" />
-          </Link>
-        </>
+        <Link
+          href={isAuthenticated ? "/settings" : "/login"}
+          aria-label={isAuthenticated ? userLabel : "Sign in"}
+          className="mobile-account focus-ring fixed right-4 top-[calc(12px+env(safe-area-inset-top))] z-40 grid h-10 w-10 place-items-center rounded-full border border-[var(--codex-rule)] bg-[var(--codex-paper-raised)] text-[var(--codex-ivory)] shadow-soft md:hidden"
+        >
+          <UserCircle size={22} weight="thin" />
+        </Link>
       ) : null}
 
       <nav

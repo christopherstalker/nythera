@@ -74,15 +74,6 @@ const nextConfig = {
         ]
       },
       {
-        source: "/icon.svg",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "no-cache, no-store, must-revalidate"
-          }
-        ]
-      },
-      {
         source: "/icons/:path*",
         headers: [
           {

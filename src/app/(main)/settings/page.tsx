@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Brain, Eye, KeyRound, Paintbrush, Shield, UserCog, UserRound } from "lucide-react";
-import { AppearanceSettingsClient } from "@/components/settings/appearance-settings-client";
+import { Brain, Eye, KeyRound, Shield, UserCog, UserRound } from "lucide-react";
 import { KeySettingsClient } from "@/components/settings/key-settings-client";
 import { MemorySettingsClient } from "@/components/settings/memory-settings-client";
 import { ProfileSettingsClient } from "@/components/settings/profile-settings-client";
@@ -14,7 +13,7 @@ import { cn } from "@/lib/utils";
 const sections = [
   { id: "api-keys", label: "API Keys", icon: KeyRound },
   { id: "persona", label: "Persona", icon: UserRound },
-  { id: "appearance", label: "Appearance", icon: Paintbrush },
+  { id: "interface", label: "Interface", icon: Eye },
   { id: "privacy", label: "Privacy", icon: Shield }
 ];
 
@@ -89,11 +88,12 @@ export default function SettingsPage() {
             <UserPersonaSettingsClient />
           </SettingsCard>
 
-          <SettingsCard id="appearance" icon={Paintbrush} title="Appearance">
-            <div className="grid gap-4">
-              <AppearanceSettingsClient />
-              <SwitchRow icon={Eye} label="Compact chat density" enabled={compactMode} onToggle={() => savePreference({ compactMode: !compactMode })} />
+          <SettingsCard id="interface" icon={Eye} title="Interface">
+            <div className="border-y border-[var(--border-default)] py-4">
+              <p className="text-sm font-medium text-[var(--text-primary)]">Living Codex</p>
+              <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">Nythera uses one permanent ink-dark theme and a fixed editorial palette.</p>
             </div>
+            <SwitchRow icon={Eye} label="Compact chat density" enabled={compactMode} onToggle={() => savePreference({ compactMode: !compactMode })} />
           </SettingsCard>
 
           <SettingsCard id="privacy" icon={Shield} title="Privacy">
@@ -157,10 +157,10 @@ function SwitchRow({
         onClick={onToggle}
         className={cn(
           "focus-ring relative h-7 w-12 shrink-0 rounded-[var(--radius-pill)] transition-colors duration-150 active:scale-95",
-          enabled ? "bg-primary" : "bg-[var(--bg-elevated)]"
+          enabled ? "border border-[var(--codex-mint)]/55 bg-[color-mix(in_oklch,var(--codex-mint)_13%,transparent)]" : "border border-[var(--codex-rule)] bg-[var(--bg-elevated)]"
         )}
       >
-        <span className={cn("absolute top-1 h-5 w-5 rounded-full bg-white transition-[left] duration-150", enabled ? "left-6" : "left-1")} />
+        <span className={cn("absolute top-1 h-5 w-5 rounded-full bg-[var(--codex-ivory)] transition-[left] duration-150", enabled ? "left-6" : "left-1")} />
       </button>
     </div>
   );

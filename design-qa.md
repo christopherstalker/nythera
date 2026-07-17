@@ -39,11 +39,39 @@
 - [x] Shared route headers use the archive register composition.
 - [x] Explore and Library character grids use ruled archival folios instead of rounded bento cards.
 - [x] Desktop and mobile screenshots captured from the production build.
-- [x] 164 automated tests pass.
+- [x] 163 automated tests pass.
 - [x] Production build passes.
 
 ## Follow-up polish
 
 - P3: once real creator portraits are available, an additional QA pass can tune crop focal points per character rather than relying on the current centered default.
+
+## Living Codex branding pass — 2026-07-18
+
+### Evidence
+
+- Exact logo reference: `C:\Users\chris\AppData\Local\Temp\codex-clipboard-372c8fee-1416-4593-8762-577a32f48992.png`
+- Desktop implementation: `D:\Web\Roleplay\output\redesign\brand-buttons-desktop.png`
+- Mobile implementation: `D:\Web\Roleplay\output\redesign\brand-buttons-mobile.png`
+- Focused logo comparison: `D:\Web\Roleplay\output\redesign\brand-logo-comparison.png`
+- Viewports: desktop 1914 × 930; mobile 390 × 844.
+- State: optimized production build, permanent dark theme, unauthenticated auth surface for stable button and mobile evidence.
+
+### Findings
+
+- No actionable P0, P1, or P2 mismatch remains.
+- The geometric aurora mark is replaced by the ivory high-contrast serif `N` across navigation, favicon, PWA icons, Apple touch icon, and social preview.
+- The final mark was optically enlarged after the first screenshot so its apparent size and rail placement match the supplied preview.
+- Primary, secondary, outline, ghost, filter, tab, and message-edit actions now use the fixed Living Codex outline/low-fill treatment instead of bright gradient fills.
+- Runtime light-theme and global text/accent customization controls are removed. The rendered document remains `html.dark`; favicon links resolve only to the versioned Living Codex assets.
+- Desktop and mobile screenshots show the same black-paper, warm-ivory, mint-accent system without a light-theme escape hatch.
+
+### Verification
+
+- [x] 163 automated tests pass.
+- [x] TypeScript typecheck passes.
+- [x] Production build passes.
+- [x] Desktop and mobile screenshots captured and visually inspected.
+- [x] Browser console inspection returned no errors on the local production surface.
 
 final result: passed

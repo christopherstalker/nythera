@@ -1,14 +1,14 @@
 # Nythera Design System
 
-Aurora Ink is Nythera's canonical visual foundation. Phase 1 ships a single dark theme; light mode is deferred and normalized to the same dark semantic contract. Token definitions live in `src/styles/design-tokens.css`; this reference defines how later visual phases must use them.
+Living Codex is Nythera's canonical visual foundation. The platform ships one permanent ink-dark theme; there is no user-selectable light or accent-color mode. Token definitions live in `src/styles/design-tokens.css`; this reference defines how later visual work must use them.
 
 ## Aurora Ink colors
 
 - Canvas, surface, and elevated are semantic theme surfaces.
 - Content primary, secondary, muted, and disabled are the only text roles.
-- Brand uses violet as the primary accent and mint as the secondary accent.
+- Brand actions use restrained mint rules and ivory text on ink-dark surfaces; violet remains a secondary narrative marker.
 - Use semantic Tailwind groups (`canvas`, `surface`, `elevated`, `content`, `outline`, `brand`) rather than primitive colors.
-- Runtime user accents may override the primary brand channel only through the approved hex-to-OKLCH utility.
+- Runtime user appearance overrides are intentionally unsupported so every page preserves the same editorial hierarchy.
 - Primary, secondary, and muted text maintain WCAG AA contrast on every foundation surface; action foregrounds are separately tested against accent and danger colors.
 
 ## Spacing and Cloud Soft radii

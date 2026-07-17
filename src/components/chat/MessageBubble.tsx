@@ -273,11 +273,7 @@ function MessageBubbleComponent({
                   aria-label="Save edit"
                   onClick={() => void saveEdit()}
                   disabled={!editDraft.trim() || editDraft.trim() === content || savingEdit}
-                  className="focus-ring rounded-full px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-                  style={{
-                    background: isUser ? "color-mix(in oklch, var(--bg-base) 78%, transparent)" : "var(--gradient-aurora-primary)",
-                    color: "var(--text-primary)"
-                  }}
+                  className="focus-ring rounded-sm border border-brand-secondary/50 bg-brand-secondary/[0.08] px-3 py-1.5 font-mono text-xs font-medium uppercase tracking-[0.12em] text-brand-secondary transition-colors hover:border-brand-secondary/75 hover:bg-brand-secondary/[0.14] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {savingEdit ? "Saving..." : "Save"}
                 </button>

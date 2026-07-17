@@ -100,9 +100,8 @@ export function SidePanel() {
                   transition={springSnappy}
                   className={cn(
                     "focus-ring flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-[var(--radius-pill)] px-2 text-xs font-semibold",
-                    active ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:bg-[var(--color-overlay)] hover:text-[var(--text-primary)]"
+                    active ? "border border-[var(--codex-mint)]/45 bg-[color-mix(in_oklch,var(--codex-mint)_9%,transparent)] text-[var(--codex-mint)]" : "border border-transparent text-[var(--text-secondary)] hover:bg-[var(--color-overlay)] hover:text-[var(--text-primary)]"
                   )}
-                  style={active ? { background: "var(--gradient-aurora-primary)" } : undefined}
                 >
                   <Icon className="h-3.5 w-3.5 shrink-0" />
                   <span className="truncate">{tab.label}</span>

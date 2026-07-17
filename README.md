@@ -1,6 +1,6 @@
 # Nythera
 
-![Nythera](./public/og-image-v3.png)
+![Nythera](./public/icons/nythera-codex-v1-og.png)
 
 > A BYOK AI roleplay platform for building persistent characters, private personas, and model-flexible conversations without locking users into one hosted model.
 
