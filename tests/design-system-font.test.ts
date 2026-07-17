@@ -18,13 +18,13 @@ test("Space Grotesk is local, variable, licensed, and wired through next/font/lo
   assert.doesNotMatch(layout, /next\/font\/google|\bInter\(/);
 });
 
-test("browser chrome uses the Aurora Ink canvas colors", async () => {
+test("browser chrome uses the Living Codex canvas colors", async () => {
   const [layout, appearance] = await Promise.all([
     readFile(new URL("../src/app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/components/providers/appearance-provider.tsx", import.meta.url), "utf8")
   ]);
 
-  for (const color of ["#03040F", "#F0F3FC"]) {
+  for (const color of ["#03040F", "#E5DCCB"]) {
     assert.match(layout, new RegExp(color));
     assert.match(appearance, new RegExp(color));
   }

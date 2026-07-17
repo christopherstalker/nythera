@@ -171,92 +171,91 @@ export default function RoomPage() {
   }
 
   return (
-    <PageShell variant="chat" className="px-0 md:px-[max(var(--page-padding-x),1.5rem)] lg:px-10">
-      <div className="grid h-[calc(100dvh-2rem)] min-h-[680px] overflow-hidden rounded-none border border-transparent bg-transparent md:rounded-[28px] md:border-[var(--border-default)] md:bg-[var(--bg-surface)] md:shadow-[var(--shadow-card)]">
-        <header className="flex min-w-0 items-center gap-3 border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3">
-          <Button asChild variant="outline" size="icon" aria-label="Back to rooms">
-            <Link href="/rooms"><ArrowLeft className="h-4 w-4" /></Link>
-          </Button>
-          <div className="flex -space-x-2">
-            {room.characters.slice(0, 4).map((link) => (
-              <Avatar key={link.characterId} name={link.character.name} src={link.character.avatarUrl} size="sm" className="ring-2 ring-[var(--bg-surface)]" />
+    <PageShell variant="chat" className="!p-0">
+      <div className="grid h-dvh min-h-[680px] overflow-hidden bg-[var(--bg-canvas)] md:grid-cols-[260px_minmax(0,1fr)]">
+        <aside className="hidden min-h-0 border-r border-[var(--border-default)] bg-black/10 px-6 py-7 md:flex md:flex-col">
+          <Link href="/rooms" className="codex-kicker inline-flex items-center gap-2 no-underline">
+            <ArrowLeft className="h-3.5 w-3.5" /> Ensemble desk
+          </Link>
+          <p className="codex-kicker mt-12">Room manuscript</p>
+          <h1 className="font-editorial mt-3 text-4xl font-medium leading-none text-[var(--text-primary)]">{room.title}</h1>
+          <p className="mt-4 text-sm leading-6 text-[var(--text-muted)]">{room.messageCount} exchanges across {room.characters.length} voices.</p>
+          <div className="mt-10 border-t border-[var(--border-default)]">
+            {room.characters.map((link, index) => (
+              <button key={link.characterId} type="button" onClick={() => setSpeakerId(link.characterId)} className={cn("focus-ring flex w-full items-center gap-3 border-b border-[var(--border-default)] py-4 text-left", speakerId === link.characterId && "text-[var(--accent-mint)]")}>
+                <span className="codex-index">{String(index + 1).padStart(2, "0")}</span>
+                <Avatar name={link.character.name} src={link.character.avatarUrl} size="sm" />
+                <span className="min-w-0 flex-1 truncate text-sm">{link.character.name}</span>
+              </button>
             ))}
           </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-base font-semibold text-[var(--text-primary)]">{room.title}</h1>
-            <p className="truncate text-xs text-[var(--text-muted)]">{room.characters.map((link) => link.character.name).join(", ")}</p>
-          </div>
-          <Button type="button" variant="outline" size="icon" aria-label="Delete room" onClick={() => void removeRoom()}>
-            <Trash2 className="h-4 w-4" />
+          <Button type="button" variant="ghost" className="mt-auto justify-start text-[var(--text-muted)]" onClick={() => void removeRoom()}>
+            <Trash2 className="h-4 w-4" /> Delete room
           </Button>
-        </header>
+        </aside>
 
-        <main className="chat-scroll min-h-0 overflow-y-auto px-4 py-5 sm:px-6">
-          <div className="mx-auto grid w-full max-w-3xl gap-3">
-            {room.messages.map((item) => {
-              const isUser = item.role === "USER";
-              return (
-                <article key={item.id} className={cn("flex gap-3", isUser && "flex-row-reverse")}>
-                  {isUser ? (
-                    <Avatar name="You" size="sm" />
-                  ) : (
-                    <Avatar name={item.character?.name} src={item.character?.avatarUrl} size="sm" />
-                  )}
-                  <div className={cn("min-w-0 max-w-[82%] rounded-[22px] border p-3 shadow-[var(--glass-highlight)]", isUser ? "border-[rgb(var(--accent-rgb)_/.28)] bg-[var(--accent-purple-soft)]" : "border-[var(--border-default)] bg-[var(--bg-input)]")}>
-                    <div className="mb-1 flex items-center gap-2">
-                      <span className="truncate text-xs font-semibold text-[var(--text-primary)]">{isUser ? "You" : item.character?.name ?? "Room"}</span>
-                      {!isUser && item.role === "CHARACTER" ? (
-                        <button
-                          type="button"
-                          onClick={() => void speak(item)}
-                          className="focus-ring ml-auto grid h-7 w-7 place-items-center rounded-full text-[var(--text-muted)] hover:bg-white/[0.06] hover:text-[var(--text-primary)]"
-                          aria-label={`Play ${item.character?.name ?? "character"} voice`}
-                        >
-                          {speakingId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Volume2 className="h-3.5 w-3.5" />}
-                        </button>
-                      ) : null}
+        <section className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto]">
+          <header className="flex min-w-0 items-center gap-3 border-b border-[var(--border-default)] bg-[var(--bg-surface)]/90 px-4 py-3 backdrop-blur md:px-8">
+            <Button asChild variant="ghost" size="icon" className="md:hidden" aria-label="Back to rooms">
+              <Link href="/rooms"><ArrowLeft className="h-4 w-4" /></Link>
+            </Button>
+            <div className="flex -space-x-2 md:hidden">
+              {room.characters.slice(0, 4).map((link) => (
+                <Avatar key={link.characterId} name={link.character.name} src={link.character.avatarUrl} size="sm" className="ring-2 ring-[var(--bg-surface)]" />
+              ))}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="codex-kicker">Live room · {room.characters.length} voices</p>
+              <h2 className="font-editorial mt-1 truncate text-xl text-[var(--text-primary)]">{room.title}</h2>
+            </div>
+            <Button type="button" variant="ghost" size="icon" className="md:hidden" aria-label="Delete room" onClick={() => void removeRoom()}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </header>
+
+          <main className="chat-scroll min-h-0 overflow-y-auto px-4 py-2 sm:px-8">
+            <div className="mx-auto w-full max-w-4xl">
+              {room.messages.map((item) => {
+                const isUser = item.role === "USER";
+                return (
+                  <article key={item.id} className="grid grid-cols-[34px_minmax(0,1fr)] gap-4 border-b border-[var(--border-default)] py-6 sm:grid-cols-[42px_minmax(0,1fr)] sm:gap-5 sm:py-8">
+                    <Avatar name={isUser ? "You" : item.character?.name} src={isUser ? undefined : item.character?.avatarUrl} size="sm" />
+                    <div className="min-w-0">
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className={cn("codex-kicker truncate", isUser && "text-[var(--accent-mint)]")}>{isUser ? "You" : item.character?.name ?? "Room"}</span>
+                        {!isUser && item.role === "CHARACTER" ? (
+                          <button type="button" onClick={() => void speak(item)} className="focus-ring ml-auto grid h-7 w-7 place-items-center text-[var(--text-muted)] hover:text-[var(--text-primary)]" aria-label={`Play ${item.character?.name ?? "character"} voice`}>
+                            {speakingId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Volume2 className="h-3.5 w-3.5" />}
+                          </button>
+                        ) : null}
+                      </div>
+                      <p className="font-editorial whitespace-pre-wrap text-[1.15rem] leading-8 text-[var(--text-secondary)] sm:text-xl">{item.content}</p>
                     </div>
-                    <p className="whitespace-pre-wrap text-sm leading-6 text-[var(--text-secondary)]">{item.content}</p>
-                  </div>
-                </article>
-              );
-            })}
-            <div ref={endRef} />
-          </div>
-        </main>
+                  </article>
+                );
+              })}
+              <div ref={endRef} />
+            </div>
+          </main>
 
-        <form onSubmit={send} className="border-t border-[var(--border-default)] bg-[var(--bg-surface)] p-3 sm:p-4">
-          <div className="mx-auto grid w-full max-w-3xl gap-2">
-            <div className="flex min-w-0 items-center gap-2">
-              <select
-                value={speakerId}
-                onChange={(event) => setSpeakerId(event.target.value)}
-                className="focus-ring glass-input h-11 min-w-0 rounded-[var(--radius-md)] px-3 text-sm sm:w-56"
-                aria-label="Next speaker"
-              >
-                {room.characters.map((link) => (
-                  <option key={link.characterId} value={link.characterId}>{link.character.name}</option>
-                ))}
-              </select>
-              <span className="hidden min-w-0 truncate text-xs text-[var(--text-muted)] sm:block">
-                Next reply: {selectedSpeaker?.name ?? "auto"}
-              </span>
+          <form onSubmit={send} className="border-t border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 sm:px-8 sm:py-4">
+            <div className="mx-auto grid w-full max-w-4xl gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <select value={speakerId} onChange={(event) => setSpeakerId(event.target.value)} className="focus-ring glass-input h-9 min-w-0 border-0 bg-transparent px-0 text-xs uppercase tracking-[.16em] sm:w-56" aria-label="Next speaker">
+                  {room.characters.map((link) => <option key={link.characterId} value={link.characterId}>{link.character.name}</option>)}
+                </select>
+                <span className="hidden min-w-0 truncate text-xs text-[var(--text-muted)] sm:block">Next reply: {selectedSpeaker?.name ?? "auto"}</span>
+              </div>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 border-t border-[var(--border-default)] pt-3">
+                <textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Write what happens next…" className="focus-ring font-editorial min-h-[52px] resize-none border-0 bg-transparent px-1 py-3 text-lg leading-7 outline-none placeholder:italic placeholder:text-[var(--text-muted)]" rows={1} />
+                <Button type="submit" size="icon" className="h-[48px] w-[48px] rounded-full" disabled={!message.trim() || sending} aria-label="Send room message">
+                  {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                </Button>
+              </div>
+              {error ? <p className="border-l border-[var(--accent-violet)] pl-3 text-sm text-[var(--text-secondary)]">{error}</p> : null}
             </div>
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-              <textarea
-                value={message}
-                onChange={(event) => setMessage(event.target.value)}
-                placeholder="Write to the room..."
-                className="focus-ring glass-input min-h-[52px] resize-none rounded-[22px] px-4 py-3 text-sm leading-6"
-                rows={1}
-              />
-              <Button type="submit" size="icon" className="h-[52px] w-[52px]" disabled={!message.trim() || sending} aria-label="Send room message">
-                {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-              </Button>
-            </div>
-            {error ? <p className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 text-sm text-[var(--text-secondary)]">{error}</p> : null}
-          </div>
-        </form>
+          </form>
+        </section>
       </div>
     </PageShell>
   );

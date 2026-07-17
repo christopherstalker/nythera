@@ -162,22 +162,22 @@ test("Aurora Ink tokens define the complete OKLCH design-system contract", async
     "color-danger": "var(--primitive-danger-500)"
   };
   const lightSemantic = {
-    "color-canvas": "0.08 0 0",
-    "color-surface": "0.16 0 0",
-    "color-elevated": "0.22 0 0",
-    "color-overlay": "oklch(var(--color-elevated) / .72)",
-    "color-text-primary": "0.98 0 0",
-    "color-text-secondary": "0.86 0 0",
-    "color-text-muted": "0.74 0 0",
-    "color-text-disabled": "0.55 0 0",
-    "color-border-subtle": "0.36 0 0",
-    "color-border-default": "0.48 0 0",
-    "color-border-strong": "0.72 0 0",
-    "color-border-disabled": "0.28 0 0",
-    "color-accent-primary": "var(--primitive-violet-500)",
-    "color-accent-strong": "var(--primitive-violet-600)",
-    "color-accent-secondary": "var(--primitive-mint-400)",
-    "color-focus-ring": "var(--primitive-violet-600)",
+    "color-canvas": "0.91 0.018 78",
+    "color-surface": "0.945 0.014 78",
+    "color-elevated": "0.965 0.011 78",
+    "color-overlay": "oklch(var(--color-elevated) / .86)",
+    "color-text-primary": "0.22 0.012 70",
+    "color-text-secondary": "0.38 0.015 70",
+    "color-text-muted": "0.49 0.014 70",
+    "color-text-disabled": "0.64 0.012 75",
+    "color-border-subtle": "0.73 0.018 72",
+    "color-border-default": "0.61 0.02 70",
+    "color-border-strong": "0.39 0.018 70",
+    "color-border-disabled": "0.78 0.015 75",
+    "color-accent-primary": "0.6 0.12 292",
+    "color-accent-strong": "0.5 0.13 292",
+    "color-accent-secondary": "0.58 0.09 174",
+    "color-focus-ring": "0.46 0.09 174",
     "color-warning": "var(--primitive-warning-500)",
     "color-danger": "var(--primitive-danger-500)"
   };
@@ -327,18 +327,18 @@ test("Aurora Ink tokens define the complete OKLCH design-system contract", async
     "chat-overlay": "oklch(var(--color-canvas) / .9)"
   };
   const lightThemeAliases = {
-    "elevation-raised": "0 16px 42px oklch(0 0 0 / .26)",
-    "elevation-floating": "0 24px 72px oklch(0 0 0 / .34)",
-    "elevation-glow": "0 0 0 1px oklch(var(--color-focus-ring) / .46), 0 0 42px oklch(var(--color-accent-primary) / .24)",
+    "elevation-raised": "0 16px 42px oklch(0.24 0.012 70 / .11)",
+    "elevation-floating": "0 24px 72px oklch(0.24 0.012 70 / .16)",
+    "elevation-glow": "0 0 0 1px oklch(var(--color-focus-ring) / .34), 0 0 38px oklch(var(--color-accent-primary) / .12)",
     "shadow-card": "var(--elevation-floating)",
     "shadow-elevated": "var(--elevation-floating)",
     "shadow-soft": "var(--elevation-raised)",
     "shadow-glow": "var(--elevation-glow)",
-    "shadow-glow-soft": "0 0 32px oklch(var(--color-accent-primary) / .18)",
-    "glass-highlight": "inset 0 1px 0 oklch(1 0 0 / .08)",
-    "app-body-gradient": "var(--gradient-aurora-ambient), var(--bg-base)",
-    "app-shell-gradient": "linear-gradient(180deg, oklch(var(--color-canvas)) 0%, oklch(var(--color-canvas) / .96) 100%)",
-    "chat-overlay": "oklch(var(--color-canvas) / .9)"
+    "shadow-glow-soft": "0 0 32px oklch(var(--color-accent-primary) / .11)",
+    "glass-highlight": "inset 0 1px 0 oklch(1 0 0 / .5)",
+    "app-body-gradient": "radial-gradient(ellipse 70% 45% at 14% 84%, oklch(var(--color-accent-primary) / .06), transparent 60%), var(--bg-base)",
+    "app-shell-gradient": "linear-gradient(180deg, oklch(var(--color-elevated)) 0%, oklch(var(--color-canvas)) 100%)",
+    "chat-overlay": "oklch(var(--color-canvas) / .92)"
   };
   for (const [name, value] of Object.entries(darkThemeAliases)) assertToken(dark, name, value);
   for (const [name, value] of Object.entries(lightThemeAliases)) assertToken(light, name, value);

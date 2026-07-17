@@ -1,18 +1,29 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { BookMarked, Compass, Home, LogIn, LogOut, Plus, Settings, UserRound, UsersRound } from "lucide-react";
+import {
+  Books,
+  Compass,
+  GearSix,
+  House,
+  Plus,
+  SignIn,
+  SignOut,
+  UserCircle,
+  UsersThree
+} from "@phosphor-icons/react";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { cn } from "@/lib/utils";
 
-const navItems = [
-  { href: "/", label: "Home", icon: Home, emphasis: false },
-  { href: "/explore", label: "Explore", icon: Compass, emphasis: false },
-  { href: "/library", label: "Library", icon: BookMarked, emphasis: false },
-  { href: "/rooms", label: "Rooms", icon: UsersRound, emphasis: false },
-  { href: "/create-character", label: "Create", icon: Plus, emphasis: true },
-  { href: "/settings", label: "Settings", icon: Settings, emphasis: false }
+const primaryItems = [
+  { href: "/", label: "Home", icon: House },
+  { href: "/explore", label: "Discover", icon: Compass },
+  { href: "/library", label: "Library", icon: Books },
+  { href: "/rooms", label: "Rooms", icon: UsersThree },
+  { href: "/create-character", label: "Create", icon: Plus }
 ];
 
 export function NavRail() {
@@ -20,162 +31,101 @@ export function NavRail() {
   const { data: session, status } = useSession();
   const isAuthenticated = status === "authenticated";
   const userLabel = session?.user?.name ?? session?.user?.email ?? "Account";
-  const isChatSurface = pathname.startsWith("/chat/");
-
-  if (isChatSurface) {
-    return null;
-  }
+  const isCharacterStudio = pathname === "/create-character" || /^\/character\/[^/]+\/edit$/.test(pathname);
 
   return (
     <>
-      <header className="fixed inset-x-0 top-4 z-50 hidden justify-center px-3 md:flex">
-        <nav
-          aria-label="Primary navigation"
-          className="top-nav-island orbital-floating flex h-16 w-full max-w-[760px] items-center gap-2 overflow-hidden rounded-full px-3 xl:max-w-[920px]"
-        >
-          <div className="flex min-w-0 flex-1 items-center justify-center gap-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const active = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(`${item.href}/`);
-              return (
-                <IslandLink key={item.href} href={item.href} label={item.label} active={active} emphasis={item.emphasis} icon={Icon} />
-              );
-            })}
-          </div>
+      <aside className="codex-rail fixed inset-y-0 left-0 z-50 hidden w-[var(--codex-rail-width)] flex-col items-center border-r border-[var(--codex-rule)] md:flex">
+        <Link href="/" aria-label="Nythera home" className="focus-ring mt-5 grid h-11 w-11 place-items-center rounded-full">
+          <Image src="/icon.svg" alt="" width={34} height={34} className="h-8 w-8 object-contain" priority />
+        </Link>
 
-          <div className="h-8 w-px shrink-0 bg-[oklch(var(--color-border-subtle)/0.28)]" />
+        <div className="my-5 h-px w-8 bg-[var(--codex-rule)]" />
 
-          <AccountLinks pathname={pathname} isAuthenticated={isAuthenticated} userLabel={userLabel} />
+        <nav aria-label="Primary navigation" className="flex flex-1 flex-col items-center gap-2">
+          {primaryItems.map((item) => (
+            <RailLink key={item.href} {...item} active={isActive(pathname, item.href)} />
+          ))}
         </nav>
-      </header>
+
+        <div className="mb-4 flex flex-col items-center gap-2">
+          <ThemeToggle className="codex-rail-link h-11 w-11 rounded-none border-0 bg-transparent shadow-none" />
+          <RailLink href="/settings" label="Settings" icon={GearSix} active={isActive(pathname, "/settings")} />
+          {isAuthenticated ? (
+            <button
+              type="button"
+              aria-label={`Sign out ${userLabel}`}
+              title={`Sign out ${userLabel}`}
+              onClick={() => void signOut({ callbackUrl: "/" })}
+              className="codex-rail-link focus-ring grid h-11 w-11 place-items-center text-[var(--text-muted)] hover:text-[var(--codex-ivory)]"
+            >
+              <SignOut size={21} weight="thin" />
+            </button>
+          ) : (
+            <RailLink href="/login" label="Sign in" icon={SignIn} active={isActive(pathname, "/login")} />
+          )}
+        </div>
+      </aside>
+
+      {!isCharacterStudio ? (
+        <>
+          <ThemeToggle className="mobile-theme-toggle fixed left-4 top-[calc(12px+env(safe-area-inset-top))] z-40 h-10 w-10 rounded-full border border-[var(--codex-rule)] bg-[var(--codex-paper-raised)] shadow-soft md:hidden" />
+          <Link
+            href={isAuthenticated ? "/settings" : "/login"}
+            aria-label={isAuthenticated ? userLabel : "Sign in"}
+            className="mobile-account focus-ring fixed right-4 top-[calc(12px+env(safe-area-inset-top))] z-40 grid h-10 w-10 place-items-center rounded-full border border-[var(--codex-rule)] bg-[var(--codex-paper-raised)] text-[var(--codex-ivory)] shadow-soft md:hidden"
+          >
+            <UserCircle size={22} weight="thin" />
+          </Link>
+        </>
+      ) : null}
 
       <nav
         aria-label="Mobile primary navigation"
-        className="mobile-nav-island orbital-floating fixed inset-x-3 bottom-[calc(12px+env(safe-area-inset-bottom))] z-50 flex h-16 items-center justify-center gap-1 overflow-hidden rounded-full px-2 md:hidden"
+        className="codex-mobile-dock fixed inset-x-0 bottom-0 z-50 grid h-[calc(var(--codex-mobile-dock-height)+env(safe-area-inset-bottom))] grid-cols-5 border-t border-[var(--codex-rule)] bg-[var(--codex-paper)] px-2 pb-[env(safe-area-inset-bottom)] md:hidden"
       >
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const active = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(`${item.href}/`);
-          return <MobileIslandLink key={item.href} href={item.href} label={item.label} active={active} icon={Icon} />;
-        })}
-        <div className="h-9 w-px shrink-0 bg-[oklch(var(--color-border-subtle)/0.28)]" />
-        <AccountLinks pathname={pathname} isAuthenticated={isAuthenticated} userLabel={userLabel} mobile />
+        {primaryItems.map((item) => (
+          <MobileLink key={item.href} {...item} active={isActive(pathname, item.href)} />
+        ))}
       </nav>
     </>
   );
 }
 
-function IslandLink({
-  href,
-  label,
-  active,
-  emphasis,
-  icon: Icon
-}: {
-  href: string;
-  label: string;
-  active: boolean;
-  emphasis?: boolean;
-  icon: typeof Home;
-}) {
+type NavIcon = (typeof House);
+
+function isActive(pathname: string, href: string) {
+  return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function RailLink({ href, label, icon: Icon, active }: { href: string; label: string; icon: NavIcon; active: boolean }) {
+  return (
+    <Link
+      href={href}
+      aria-label={label}
+      title={label}
+      className={cn(
+        "codex-rail-link focus-ring relative grid h-11 w-11 place-items-center text-[var(--text-muted)] no-underline",
+        active && "is-active text-[var(--codex-mint)]"
+      )}
+    >
+      <Icon size={22} weight={active ? "light" : "thin"} />
+    </Link>
+  );
+}
+
+function MobileLink({ href, label, icon: Icon, active }: { href: string; label: string; icon: NavIcon; active: boolean }) {
   return (
     <Link
       href={href}
       aria-label={label}
       className={cn(
-        "focus-ring flex h-10 min-w-0 shrink-0 items-center justify-center gap-2 overflow-hidden whitespace-nowrap rounded-full px-2 text-sm font-medium no-underline sm:px-3",
-        "text-[oklch(var(--color-text-muted))]",
-        "hover:bg-[oklch(var(--color-elevated)/0.42)] hover:text-[oklch(var(--color-text-primary))]",
-        emphasis && "bg-aurora-primary text-[var(--text-primary)] shadow-glow-soft hover:bg-aurora-primary",
-        active && "orbital-nav-active"
+        "focus-ring flex min-w-0 flex-col items-center justify-center gap-0.5 text-[var(--text-muted)] no-underline",
+        active && "text-[var(--codex-mint)]"
       )}
     >
-      <Icon className="h-5 w-5 shrink-0" />
-      <span className={cn("hidden text-sm font-medium", active ? "lg:inline" : "xl:inline")}>{label}</span>
+      <Icon size={24} weight={active ? "light" : "thin"} />
+      <span className={cn("max-w-full truncate text-[9px] uppercase tracking-[.14em]", !active && "sr-only")}>{label}</span>
     </Link>
-  );
-}
-
-function MobileIslandLink({
-  href,
-  label,
-  active,
-  icon: Icon
-}: {
-  href: string;
-  label: string;
-  active: boolean;
-  icon: typeof Home;
-}) {
-  return (
-    <Link
-      href={href}
-      aria-label={label}
-      className={cn(
-        "focus-ring grid h-12 flex-1 place-items-center rounded-full text-[oklch(var(--color-text-muted))] no-underline",
-        "hover:bg-[oklch(var(--color-elevated)/0.42)] hover:text-[oklch(var(--color-text-primary))]",
-        active && "orbital-nav-active"
-      )}
-    >
-      <Icon className="h-6 w-6" />
-    </Link>
-  );
-}
-
-function AccountLinks({
-  pathname,
-  isAuthenticated,
-  userLabel,
-  mobile = false
-}: {
-  pathname: string;
-  isAuthenticated: boolean;
-  userLabel: string;
-  mobile?: boolean;
-}) {
-  const sizeClass = mobile ? "h-12 flex-1" : "h-10 w-10";
-
-  return (
-    <>
-      <Link
-        href="/settings#persona"
-        aria-label="Persona"
-        className={cn(
-          "focus-ring grid shrink-0 place-items-center rounded-full text-[oklch(var(--color-text-muted))] no-underline",
-          sizeClass,
-          "hover:bg-[oklch(var(--color-elevated)/0.42)] hover:text-[oklch(var(--color-text-primary))]",
-          pathname === "/settings" && "orbital-nav-active"
-        )}
-      >
-        <UserRound className={cn(mobile ? "h-6 w-6" : "h-5 w-5")} />
-      </Link>
-
-      {isAuthenticated ? (
-        <button
-          type="button"
-          aria-label={`Sign out ${userLabel}`}
-          onClick={() => void signOut({ callbackUrl: "/" })}
-          className={cn(
-            "focus-ring grid shrink-0 place-items-center rounded-full text-[oklch(var(--color-text-muted))]",
-            sizeClass,
-            "hover:bg-[oklch(var(--color-elevated)/0.42)] hover:text-[oklch(var(--color-text-primary))]"
-          )}
-        >
-          <LogOut className={cn(mobile ? "h-6 w-6" : "h-5 w-5")} />
-        </button>
-      ) : (
-        <Link
-          href="/login"
-          aria-label="Login"
-          className={cn(
-            "focus-ring grid shrink-0 place-items-center rounded-full text-[oklch(var(--color-text-muted))] no-underline",
-            sizeClass,
-            "hover:bg-[oklch(var(--color-elevated)/0.42)] hover:text-[oklch(var(--color-text-primary))]"
-          )}
-        >
-          <LogIn className={cn(mobile ? "h-6 w-6" : "h-5 w-5")} />
-        </Link>
-      )}
-    </>
   );
 }

@@ -13,7 +13,7 @@ export function PageShell({
   return (
     <div
       className={cn(
-        "nythera-page-shell w-full overflow-x-hidden md:px-[max(var(--page-padding-x),1.5rem)] lg:px-10",
+        "nythera-page-shell codex-page w-full overflow-x-hidden",
         variant === "chat" && "nythera-page-shell-chat",
         className
       )}
@@ -37,18 +37,18 @@ export function PageHeader({
   className?: string;
 }) {
   return (
-    <div className={cn("flex flex-col justify-between gap-4 sm:gap-5 md:flex-row md:items-end", className)}>
-      <div className="min-w-0">
-        {Icon ? (
-          <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-control border border-outline bg-brand-soft text-brand sm:mb-5">
-            <Icon className="h-5 w-5" />
-          </div>
-        ) : null}
-        <h1 className="text-heading-1 max-w-4xl font-semibold tracking-tight text-content-primary">{title}</h1>
-        {description ? <p className="text-body mt-2 max-w-2xl text-content-secondary sm:mt-3">{description}</p> : null}
+    <header className={cn("codex-page-header grid gap-5 border-b border-[var(--codex-rule)] pb-7 md:grid-cols-[104px_minmax(0,1fr)_auto] md:items-end md:pb-9", className)}>
+      <div className="codex-page-register hidden self-stretch border-r border-[var(--codex-rule)] pr-5 md:flex">
+        {Icon ? <Icon className="h-5 w-5 text-[var(--codex-mint)]" /> : null}
+        <span>Living<br />Codex</span>
       </div>
-      {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
-    </div>
+      <div className="min-w-0">
+        <p className="mb-3 text-[10px] font-medium uppercase tracking-[.3em] text-[var(--codex-violet)]">Nythera / Archive</p>
+        <h1 className="font-editorial max-w-4xl text-[clamp(3.1rem,7vw,6.6rem)] font-medium leading-[.78] tracking-[-.045em] text-[var(--codex-ivory)]">{title}</h1>
+        {description ? <p className="mt-5 max-w-2xl font-editorial text-lg italic leading-7 text-content-secondary sm:text-xl">{description}</p> : null}
+      </div>
+      {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2 md:justify-end">{actions}</div> : null}
+    </header>
   );
 }
 
@@ -66,7 +66,7 @@ export function SectionHeader({
   return (
     <div className={cn("flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-6", className)}>
       <div className="min-w-0">
-        <h2 className="text-heading-2 font-semibold text-content-primary">{title}</h2>
+        <h2 className="font-editorial text-[clamp(1.75rem,3vw,2.7rem)] font-medium leading-none text-[var(--codex-ivory)]">{title}</h2>
         {description ? <p className="text-body mt-1 max-w-2xl text-content-secondary">{description}</p> : null}
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
@@ -83,7 +83,7 @@ export function Surface({
   className?: string;
   as?: "section" | "article" | "aside" | "div" | "main";
 }) {
-  return <Comp className={cn("app-surface", className)}>{children}</Comp>;
+  return <Comp className={cn("app-surface codex-surface", className)}>{children}</Comp>;
 }
 
 export function SurfaceMuted({ children, className }: { children: React.ReactNode; className?: string }) {

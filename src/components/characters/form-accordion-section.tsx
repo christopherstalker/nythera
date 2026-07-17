@@ -27,17 +27,17 @@ export function FormAccordionSection({
   children
 }: FormAccordionSectionProps) {
   return (
-    <section className="glass-panel overflow-hidden">
-      <div className="flex items-start gap-3 p-4 sm:p-5">
+    <section className="overflow-hidden border-b border-[var(--border-default)]">
+      <div className="flex items-start gap-3 py-5">
         {Icon ? (
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--accent-purple-soft)] text-[var(--accent-purple)] shadow-[var(--glass-highlight)]">
+          <span className="grid h-10 w-10 shrink-0 place-items-center border border-[var(--border-default)] text-[var(--accent-violet)]">
             <Icon className="h-5 w-5" />
           </span>
         ) : null}
         <button type="button" onClick={onToggle} className="focus-ring min-w-0 flex-1 text-left">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">{title}</h2>
+              <h2 className="font-editorial text-2xl font-medium text-[var(--text-primary)]">{title}</h2>
               {description ? <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{description}</p> : null}
             </div>
             <ChevronDown className={cn("h-5 w-5 shrink-0 text-[var(--text-muted)] transition-transform", open && "rotate-180")} />
@@ -53,7 +53,7 @@ export function FormAccordionSection({
 
       <div className={cn("grid transition-[grid-template-rows] duration-200", open ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
         <div className="overflow-hidden">
-          <div className="grid gap-4 border-t border-[var(--border-default)] px-4 py-5 sm:px-5">{children}</div>
+          <div className="grid gap-4 border-t border-[var(--border-default)] py-6">{children}</div>
         </div>
       </div>
     </section>

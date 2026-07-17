@@ -8,7 +8,7 @@ import { CharacterCard, type CharacterSummary } from "@/components/characters/Ch
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { PageShell } from "@/components/ui/page";
+import { PageHeader, PageShell } from "@/components/ui/page";
 import { springSoft } from "@/lib/motion";
 
 type LibraryBody = {
@@ -47,31 +47,25 @@ export default function LibraryPage() {
   }, []);
 
   return (
-    <PageShell className="relative z-10 space-y-8 px-4 pb-24 pt-6 sm:px-6 md:pb-14 md:pt-8">
-      <motion.header
+    <PageShell className="codex-library relative z-10 space-y-12">
+      <motion.div
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={springSoft}
-        className="library-hero-panel relative isolate overflow-hidden p-5 sm:p-6 md:p-8"
+        className="relative isolate"
       >
-        <div className="relative z-10 flex flex-col justify-between gap-5 md:flex-row md:items-end">
-          <div className="min-w-0">
-            <span className="mb-5 grid h-11 w-11 place-items-center rounded-[var(--radius-control)] border border-[oklch(var(--color-accent-primary)/.34)] bg-[oklch(var(--color-accent-primary)/.12)] text-[var(--accent-purple)] shadow-[var(--glass-highlight)]">
-              <BookMarked className="h-5 w-5" />
-            </span>
-            <h1 className="text-heading-1 max-w-4xl font-semibold tracking-tight text-content-primary">Library</h1>
-            <p className="text-body mt-2 max-w-2xl text-content-secondary sm:mt-3">
-              Favorites, your characters, remixes, and active conversations.
-            </p>
-          </div>
-          <Button asChild className="self-start bg-aurora-primary text-[var(--text-primary)] shadow-glow-soft md:self-auto">
+        <PageHeader
+          icon={BookMarked}
+          title="Library"
+          description="Favorites, your characters, remixes, and active conversations."
+          actions={<Button asChild className="self-start md:self-auto">
             <Link href="/create-character">
               <Plus className="h-4 w-4" />
               New character
             </Link>
-          </Button>
-        </div>
-      </motion.header>
+          </Button>}
+        />
+      </motion.div>
 
       {error ? (
         <EmptyState
@@ -95,7 +89,7 @@ export default function LibraryPage() {
         <>
           <Section title="Continue chats" empty="No active chats yet.">
             {library.chats.length ? (
-              <div className="grid gap-3 xl:grid-cols-2">
+              <div className="grid border-y border-[var(--codex-rule)] xl:grid-cols-2 xl:divide-x xl:divide-[var(--codex-rule)]">
                 {library.chats.map((chat, index) => (
                   <ChatRow key={chat.id} chat={chat} index={index} />
                 ))}
@@ -148,11 +142,13 @@ function ChatRow({ chat, index }: { chat: LibraryBody["chats"][number]; index: n
 
 function CharacterShelf({ characters }: { characters: CharacterSummary[] }) {
   return (
-    <div className="library-shelf chat-scroll">
+    <ol className="codex-character-catalog is-shelf">
       {characters.map((character) => (
-        <CharacterCard key={character.id} character={character} presentation="discovery" fill />
+        <li key={character.id} className="codex-character-record">
+          <CharacterCard character={character} presentation="discovery" fill />
+        </li>
       ))}
-    </div>
+    </ol>
   );
 }
 
@@ -167,8 +163,8 @@ function Section({ title, empty, children }: { title: string; empty: string; chi
       className="space-y-3"
     >
       <div className="flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-[var(--text-primary)]">
-          <span className="grid h-7 w-7 place-items-center rounded-full bg-[oklch(var(--color-accent-primary)/.16)] text-[var(--accent-purple)]">
+        <h2 className="font-editorial flex items-center gap-3 text-3xl font-medium tracking-tight text-[var(--codex-ivory)]">
+          <span className="grid h-7 w-7 place-items-center rounded-full border border-[var(--codex-rule)] text-[var(--codex-mint)]">
             <Sparkles className="h-3.5 w-3.5" />
           </span>
           {title}

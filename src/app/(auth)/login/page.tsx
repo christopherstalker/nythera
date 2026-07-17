@@ -28,11 +28,18 @@ function LoginPageContent() {
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false
-    });
+    let result;
+    try {
+      result = await signIn("credentials", {
+        email,
+        password,
+        callbackUrl,
+        redirect: false
+      });
+    } catch {
+      setError("Invalid email or password.");
+      return;
+    }
 
     if (result?.error) {
       setError("Invalid email or password.");
@@ -69,7 +76,7 @@ function LoginPageContent() {
           autoComplete="current-password"
           required
         />
-        {error ? <p className="rounded-2xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
+        {error ? <p className="border-l border-destructive bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
         <Button className="w-full" type="submit" size="lg">
           <Mail className="h-4 w-4" />
           Enter the story

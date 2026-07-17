@@ -7,6 +7,7 @@ import { Copy, Edit3, Flag, Globe, Heart, Lock, MessageCircle, Share2, Sparkles,
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CharacterAvatar } from "@/components/character/character-avatar";
+import { Avatar } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell, Surface, SurfaceMuted } from "@/components/ui/page";
 import { cn } from "@/lib/utils";
@@ -339,40 +340,43 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
   }
 
   return (
-    <PageShell>
-      <Surface className="overflow-hidden">
-        <div className="relative isolate px-6 py-9 sm:px-9 sm:py-11">
-          <div className="pointer-events-none absolute inset-0 -z-10 border-t-4 bg-transparent" style={heroStyle} />
-          <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-            <div className="flex flex-col gap-6 sm:flex-row sm:items-end">
-              <CharacterAvatar name={character.name} avatarUrl={character.avatarUrl} size="xl" className="h-32 w-32 border border-[var(--border-default)]" />
-              <div className="min-w-0">
-                <h1 className="max-w-3xl text-[2.3rem] font-semibold leading-tight tracking-tight text-white sm:text-[3.3rem]">
-                  {character.name}
-                </h1>
-                <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
-                  <User className="h-4 w-4" />
-                  by @{character.creator?.username ?? "user"}
-                </p>
-                <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">{character.description}</p>
-                <div className="mt-5 flex flex-wrap gap-2">
-                  {character.tags.map((tag) => (
-                    <Badge key={tag}>{tag}</Badge>
-                  ))}
-                </div>
-              </div>
+    <PageShell className="codex-character-page">
+      <div className="grid overflow-hidden border-y border-[var(--codex-rule)] lg:grid-cols-[minmax(300px,.72fr)_minmax(0,1.5fr)]">
+        <aside className="relative border-b border-[var(--codex-rule)] bg-[var(--codex-paper-raised)] lg:border-b-0 lg:border-r">
+          <div className="relative min-h-[440px] overflow-hidden sm:min-h-[560px] lg:min-h-[620px]">
+            <Avatar name={character.name} src={character.avatarUrl} size="xl" className="absolute inset-0 h-full w-full rounded-none border-0" imageClassName="object-cover object-top" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[var(--codex-paper-raised)] via-transparent to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8">
+              <p className="mb-2 text-[10px] uppercase tracking-[.26em] text-[var(--codex-mint)]">Character dossier</p>
+              <h1 className="font-editorial text-[clamp(4rem,10vw,7.5rem)] font-medium leading-[.72] tracking-[-.05em] text-[var(--codex-ivory)]">{character.name}</h1>
+              <p className="mt-5 flex items-center gap-2 text-xs uppercase tracking-[.16em] text-muted-foreground">
+                <User className="h-3.5 w-3.5" /> by @{character.creator?.username ?? "user"}
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-6 p-6 sm:p-8">
+            <p className="font-editorial text-xl leading-8 text-[var(--codex-ivory)]">{character.description}</p>
+            <div className="flex flex-wrap gap-2">
+              {character.tags.map((tag) => <Badge key={tag}>{tag}</Badge>)}
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-3 border-y border-[var(--codex-rule)] py-4 text-center">
+              <Stat icon={MessageCircle} value="Live" label="chat-ready" />
+              <Stat icon={Heart} value={String(character.likes)} label="likes" rose />
+              <Stat icon={Star} value={(character.ratingAverage || 0).toFixed(1)} label={`${character.ratingCount || 0} ratings`} />
+            </div>
+
+            <div className="grid gap-2">
               {viewer.canEdit ? (
                 <>
-                  <Button asChild variant="outline" size="lg">
+                  <Button asChild variant="outline">
                     <Link href={`/character/${character.id}/edit`}>
                       <Edit3 className="h-4 w-4" />
                       Edit
                     </Link>
                   </Button>
-                  <div className="flex items-center gap-1 rounded-full border border-[var(--border-default)] bg-[var(--bg-elevated)] p-1">
+                  <div className="grid grid-cols-2 gap-1 border border-[var(--codex-rule)] p-1">
                     <Button
                       type="button"
                       variant={character.visibility === "PRIVATE" ? "primary" : "outline"}
@@ -396,38 +400,34 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
                   </div>
                 </>
               ) : null}
-              <Button onClick={startChat} size="lg" className="px-7">
+              <Button onClick={startChat} size="lg" className="w-full px-7">
                 <MessageCircle className="h-4 w-4" />
                 {recentChat ? "Continue chat" : "Start chat"}
               </Button>
               <Button
                 type="button"
                 variant="outline"
-                size="lg"
-                className={cn(liked && "border-[#f0a8c8]/40 bg-[#f0a8c8]/10 text-[#ffd5e5]")}
+                className={cn(liked && "border-[oklch(var(--color-danger)/.4)] text-[oklch(var(--color-danger))]")}
                 onClick={likeCharacter}
               >
-                <Heart className={cn("h-4 w-4 text-[#f0a8c8]", liked && "fill-[#f0a8c8]")} />
+                <Heart className={cn("h-4 w-4", liked && "fill-current")} />
                 Like
               </Button>
-              <Button type="button" variant="outline" size="lg" onClick={shareCharacter}>
+              <Button type="button" variant="outline" onClick={shareCharacter}>
                 <Share2 className="h-4 w-4" />
                 Share
               </Button>
             </div>
           </div>
-        </div>
+        </aside>
 
-        <div className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[minmax(0,1fr)_340px]">
-          <main className="space-y-6">
-            <div className="grid gap-4 sm:grid-cols-3">
-              <Stat icon={MessageCircle} value="Live" label="chat-ready" />
-              <Stat icon={Heart} value={String(character.likes)} label="likes" rose />
-              <Stat icon={Star} value={(character.ratingAverage || 0).toFixed(1)} label={`${character.ratingCount || 0} ratings`} />
-            </div>
-            <RatingPanel value={ratingValue} review={reviewText} onValueChange={setRatingValue} onReviewChange={setReviewText} onSubmit={submitRating} />
-            <ReviewsPanel reviews={reviews} />
+        <main className="space-y-10 p-6 sm:p-10 lg:p-12 xl:p-16">
+          <header className="border-b border-[var(--codex-rule)] pb-7">
+            <p className="mb-2 text-[10px] uppercase tracking-[.28em] text-[var(--codex-violet)]">Persona manuscript</p>
+            <h2 className="font-editorial text-5xl font-medium leading-none text-[var(--codex-ivory)] sm:text-6xl">Inside the character</h2>
+          </header>
 
+          <div className="space-y-8">
             <ProfileSection title="Personality">{character.personality}</ProfileSection>
             {character.persona ? (
               <ProfileSection title="Persona engine">
@@ -443,7 +443,7 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
             ) : null}
             {character.scenario ? <ProfileSection title="Scenario">{character.scenario}</ProfileSection> : null}
             <ProfileSection title="Greeting">
-              <span className="block rounded-[24px] bg-primary/[0.065] px-4 py-3 text-foreground/90 shadow-inset">{character.greeting}</span>
+              <span className="font-editorial block border-l border-[var(--codex-mint)] pl-5 text-2xl italic leading-9 text-[var(--codex-ivory)]">{character.greeting}</span>
             </ProfileSection>
             <ProfileSection title="Memory and lore">
               {loreEntries.length
@@ -452,11 +452,11 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
                   ? "This persona is configured with a scene foundation and can retrieve relevant saved memories during chat."
                   : "No extra lore notes are available yet."}
             </ProfileSection>
-          </main>
+          </div>
 
-          <aside className="space-y-5">
-            <SurfaceMuted className="p-5">
-              <h2 className="text-lg font-semibold leading-6">Communication style</h2>
+          <div className="grid gap-8 border-t border-[var(--codex-rule)] pt-9 xl:grid-cols-2">
+            <section>
+              <h2 className="font-editorial text-3xl font-medium leading-6 text-[var(--codex-ivory)]">Communication style</h2>
               <div className="mt-4 flex flex-wrap gap-2">
                 {styleEntries.length > 0 ? (
                   styleEntries.map(([key, value]) => (
@@ -468,10 +468,10 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
                   <span className="text-sm text-muted-foreground">No style settings yet.</span>
                 )}
               </div>
-            </SurfaceMuted>
+            </section>
 
-            <SurfaceMuted className="p-5">
-              <h2 className="text-lg font-semibold leading-6">Creator actions</h2>
+            <section>
+              <h2 className="font-editorial text-3xl font-medium leading-6 text-[var(--codex-ivory)]">Creator actions</h2>
               <div className="mt-4 grid gap-2">
                 <Button type="button" variant="outline" onClick={cloneCharacter}>
                   <Copy className="h-4 w-4" />
@@ -492,17 +492,13 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
                   Report
                 </Button>
               </div>
-            </SurfaceMuted>
+            </section>
+          </div>
 
-            <SurfaceMuted className="p-5">
-              <Sparkles className="h-5 w-5 text-primary" />
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                Long-term memory can retrieve relevant user facts into the character prompt before replies.
-              </p>
-            </SurfaceMuted>
-          </aside>
-        </div>
-      </Surface>
+          <RatingPanel value={ratingValue} review={reviewText} onValueChange={setRatingValue} onReviewChange={setReviewText} onSubmit={submitRating} />
+          <ReviewsPanel reviews={reviews} />
+        </main>
+      </div>
       {status ? <p className="mt-4 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 text-sm text-[var(--text-secondary)]">{status}</p> : null}
       {reportOpen ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/82 p-4">
@@ -534,10 +530,10 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
 
 function ProfileSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <SurfaceMuted className="p-6">
-      <h2 className="text-lg font-semibold leading-6">{title}</h2>
-      <p className="mt-4 whitespace-pre-wrap text-base leading-8 text-muted-foreground">{children}</p>
-    </SurfaceMuted>
+    <section className="grid gap-4 border-b border-[var(--codex-rule)] pb-8 md:grid-cols-[180px_minmax(0,1fr)]">
+      <h2 className="text-[10px] font-semibold uppercase tracking-[.24em] text-[var(--codex-violet)]">{title}</h2>
+      <p className="font-editorial whitespace-pre-wrap text-xl leading-8 text-[var(--codex-ivory)] md:text-2xl md:leading-9">{children}</p>
+    </section>
   );
 }
 

@@ -45,8 +45,8 @@ export default function DownloadPage() {
   const { canInstall, hasNativeInstallPrompt, standalone, ios, installApp, openIosGuide } = usePwa();
 
   return (
-    <PageShell className="space-y-6">
-      <Surface className="relative isolate overflow-hidden p-5 sm:p-6">
+    <PageShell className="codex-download space-y-10">
+      <Surface className="relative isolate overflow-hidden !border-x-0 !bg-transparent p-0 pb-8">
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-transparent" />
         <PageHeader
           icon={MonitorSmartphone}
@@ -73,14 +73,15 @@ export default function DownloadPage() {
         />
       </Surface>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
-        <Surface className="p-5 sm:p-6">
+      <div className="grid border-y border-[var(--border-default)] lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
+        <Surface className="border-0 p-6 lg:border-r lg:pr-10">
           <div className="flex items-start gap-4">
             <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl border border-primary/25 bg-primary/10">
               <Image src="/icons/velora-aurora-v4-192.png" alt="" width={42} height={42} className="h-10 w-10" />
             </div>
             <div className="min-w-0 flex-1">
-              <h2 className="text-lg font-semibold text-[var(--text-primary)]">Recommended install</h2>
+              <p className="codex-kicker">Preferred edition</p>
+              <h2 className="font-editorial mt-2 text-3xl font-medium text-[var(--text-primary)]">Recommended install</h2>
               <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
                 Open Nythera in Chrome or Edge and press the install button. It launches like a desktop app, keeps the mobile layout responsive, and avoids unsigned installer warnings.
               </p>
@@ -110,8 +111,9 @@ export default function DownloadPage() {
           </div>
         </Surface>
 
-        <Surface className="p-5 sm:p-6">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">Manual install</h2>
+        <Surface className="border-0 p-6 lg:pl-10">
+          <p className="codex-kicker">Device notes</p>
+          <h2 className="font-editorial mt-2 text-3xl font-medium text-[var(--text-primary)]">Manual install</h2>
           <div className="mt-4 grid gap-3 text-sm leading-6 text-[var(--text-secondary)]">
             <InstallRow icon={MonitorSmartphone} title="Windows / desktop">
               Use Chrome or Edge, open the browser menu, then choose <strong>Install Nythera</strong> or <strong>Apps / Install this site as an app</strong>.
@@ -126,15 +128,15 @@ export default function DownloadPage() {
         </Surface>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid border-y border-[var(--border-default)] sm:grid-cols-2 xl:grid-cols-4">
         {installBenefits.map((step) => {
           const Icon = step.icon;
           return (
-            <Surface key={step.title} className="p-4">
-              <div className="grid h-10 w-10 place-items-center rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--accent-purple-soft)] text-[var(--accent-purple)]">
+            <Surface key={step.title} className="border-0 border-b border-r p-5">
+              <div className="grid h-10 w-10 place-items-center border border-[var(--border-default)] text-[var(--accent-violet)]">
                 <Icon className="h-5 w-5" />
               </div>
-              <h3 className="mt-4 text-sm font-semibold text-[var(--text-primary)]">{step.title}</h3>
+              <h3 className="font-editorial mt-4 text-xl font-medium text-[var(--text-primary)]">{step.title}</h3>
               <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">{step.text}</p>
             </Surface>
           );
@@ -163,7 +165,7 @@ function InstallRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-3 shadow-[var(--glass-highlight)]">
+    <div className="border-t border-[var(--border-default)] py-3">
       <div className="mb-1 flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
         <Icon className="h-4 w-4 text-[var(--accent-purple)]" />
         {title}

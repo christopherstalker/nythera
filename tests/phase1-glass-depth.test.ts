@@ -15,7 +15,8 @@ test("orbital glass treatment is scoped to product surfaces", async () => {
   assert.match(sidePanel, /side-panel/);
   assert.match(sidePanel, /glass-grain/);
   assert.match(characterForm, /character-editor-surfaces/);
-  assert.match(characterCard, /absolute inset-0 h-full w-full object-cover/);
+  assert.match(characterCard, /codex-character-plate-image/);
+  assert.match(characterCard, /className="h-full w-full object-cover"/);
   assert.doesNotMatch(characterCard, /glass-depth-card/);
   assert.match(globals, /\.side-panel/);
   assert.match(globals, /\.character-editor-surfaces \.glass-panel/);
@@ -37,7 +38,8 @@ test("flat accessibility surfaces avoid blur, grain, and glow effects", async ()
     assert.doesNotMatch(block, /backdrop-filter:\s*blur/);
   }
   assert.match(globals, /@media \(min-width:\s*768px\) and \(max-width:\s*1180px\)[\s\S]*\.quick-panel,[\s\S]*\.side-panel,[\s\S]*\.composer-dock[\s\S]*backdrop-filter:\s*none/);
-  assert.doesNotMatch(globals, /url\("\/textures\/noise\.svg"\)/);
+  assert.match(globals, /\.living-codex-shell::after[\s\S]*url\("\/textures\/noise\.svg"\)/);
+  assert.doesNotMatch(globals, /\.glass-input[^{]*\{[^}]*noise\.svg/s);
   assert.doesNotMatch(globals, /box-shadow:\s*0 0 (?:20|32|42|74|84)px/);
 });
 

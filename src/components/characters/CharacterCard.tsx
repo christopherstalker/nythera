@@ -58,31 +58,28 @@ export function CharacterCard({
         whileHover={{ y: -6, scale: 1.015 }}
         transition={springSoft}
         className={cn(
-          "focus-ring orbital-glass group relative w-full overflow-hidden rounded-[20px] text-left",
+          "focus-ring codex-character-plate group relative w-full overflow-hidden text-left",
           fill && "h-full",
           className
         )}
         aria-label={`Open ${character.name}`}
       >
-        <Image
-          src={avatarSrc}
-          alt={character.name}
-          fill
-          unoptimized={shouldBypassNextImageOptimization(avatarSrc)}
-          sizes={featured ? "(min-width: 1280px) 50vw, 100vw" : "(min-width: 1280px) 25vw, 50vw"}
-          className="absolute inset-0 h-full w-full object-cover"
-          style={{ objectPosition: "center 20%" }}
-        />
+        <div className="codex-character-plate-image">
+          <Image
+            src={avatarSrc}
+            alt={character.name}
+            fill
+            unoptimized={shouldBypassNextImageOptimization(avatarSrc)}
+            sizes={featured ? "(min-width: 1280px) 50vw, 100vw" : "(min-width: 1280px) 25vw, 50vw"}
+            className="h-full w-full object-cover"
+            style={{ objectPosition: "center 20%" }}
+          />
+          <div className="codex-character-plate-veil" />
+        </div>
 
         <div className="absolute left-3 right-3 top-3 z-10 flex items-center justify-between gap-2">
           <span
-            className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-[var(--text-primary)]"
-            style={{
-              background: "color-mix(in oklch, var(--color-surface) 48%, transparent)",
-              backdropFilter: "blur(var(--glass-blur-sm)) saturate(var(--glass-saturation))",
-              WebkitBackdropFilter: "blur(var(--glass-blur-sm)) saturate(var(--glass-saturation))",
-              boxShadow: "var(--glass-highlight)"
-            }}
+            className="inline-flex items-center gap-1 border-b border-[var(--codex-rule)] px-1 py-1 text-[10px] font-medium text-[var(--codex-ivory)]"
           >
             <Star className="h-3.5 w-3.5 text-[oklch(var(--color-accent-secondary))]" />
             {rating.toFixed(1)}
@@ -101,31 +98,19 @@ export function CharacterCard({
           ) : null}
         </div>
 
-        <div
-          className="absolute inset-x-0 bottom-0 z-10 flex flex-col justify-end p-4"
-          style={{
-            minHeight: featured ? "68%" : "60%",
-            background:
-              "linear-gradient(to top, oklch(var(--color-canvas) / .94) 0%, oklch(var(--color-canvas) / .64) 58%, transparent 100%)"
-          }}
-        >
-          <h3 className={cn("font-semibold leading-tight text-[var(--text-primary)]", featured ? "line-clamp-2 text-2xl" : "line-clamp-1 text-lg")}>
+        <div className="codex-character-plate-copy">
+          <p className="codex-kicker">Archive record</p>
+          <h3 className={cn("font-editorial font-medium leading-none text-[var(--codex-ivory)]", featured ? "line-clamp-2 text-4xl" : "line-clamp-1 text-3xl")}>
             {character.name}
           </h3>
-          <p className={cn("mt-1 text-sm leading-6 text-[var(--text-secondary)]", featured ? "line-clamp-3" : "line-clamp-2")}>
+          <p className={cn("mt-3 font-editorial text-base italic leading-6 text-[var(--text-secondary)]", featured ? "line-clamp-3" : "line-clamp-2")}>
             {character.description || "A story waiting to begin."}
           </p>
-          <div className="mt-3 flex flex-wrap gap-1.5">
+          <div className="mt-4 flex flex-wrap gap-x-3 gap-y-1 border-t border-[var(--codex-rule)] pt-3">
             {character.tags?.slice(0, featured ? 3 : 2).map((tag) => (
               <span
                 key={tag}
-                className="max-w-[9rem] truncate rounded-full px-2 py-1 text-xs font-medium text-[var(--text-primary)]"
-                style={{
-                  background: "color-mix(in oklch, var(--color-surface) 42%, transparent)",
-                  backdropFilter: "blur(var(--glass-blur-sm)) saturate(var(--glass-saturation))",
-                  WebkitBackdropFilter: "blur(var(--glass-blur-sm)) saturate(var(--glass-saturation))",
-                  boxShadow: "var(--glass-highlight)"
-                }}
+                className="max-w-[9rem] truncate text-[9px] uppercase tracking-[.14em] text-[var(--text-muted)]"
               >
                 {displayTagLabel(tag)}
               </span>

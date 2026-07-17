@@ -55,15 +55,15 @@ export default function AdminPage() {
   }
 
   return (
-    <PageShell className="space-y-10">
+    <PageShell className="codex-admin space-y-12">
       <PageHeader
         icon={ShieldAlert}
         title="Moderation"
         description="Review reports, scan safety state, and keep public characters aligned with Nythera policy."
       />
 
-      <div className="grid gap-7 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <Surface className="h-fit p-4 lg:sticky lg:top-28">
+      <div className="grid border-y border-[var(--border-default)] lg:grid-cols-[240px_minmax(0,1fr)]">
+        <Surface className="h-fit border-0 p-0 lg:sticky lg:top-28 lg:border-r">
           <div className="space-y-2">
             {[
               { item: "Reports", icon: FileWarning, count: reports.length },
@@ -74,10 +74,10 @@ export default function AdminPage() {
               <div
                 key={String(item)}
                 className={cn(
-                  "flex items-center justify-between rounded-3xl border px-3 py-3 text-sm transition",
+                  "flex items-center justify-between border-b border-[var(--border-default)] px-4 py-4 text-xs uppercase tracking-[.12em] transition",
                   index === 0
-                    ? "border-primary/[0.14] bg-primary/[0.09] text-foreground shadow-inset"
-                    : "border-transparent text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
+                    ? "bg-primary/[0.07] text-[var(--accent-mint)]"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <span className="flex items-center gap-2">
@@ -90,11 +90,12 @@ export default function AdminPage() {
           </div>
         </Surface>
 
-        <Surface className="overflow-hidden">
+        <Surface className="overflow-hidden border-0 lg:pl-10">
           <div className="p-6">
             <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
               <div>
-                <h2 className="text-2xl font-semibold leading-8 tracking-tight">Report queue</h2>
+                <p className="codex-kicker">Operations ledger</p>
+                <h2 className="font-editorial mt-2 text-3xl font-medium leading-8">Report queue</h2>
                 <p className="mt-1 text-sm text-muted-foreground">Review public character and message reports.</p>
               </div>
               <div className="flex gap-2">

@@ -124,18 +124,18 @@ export default function HomePage() {
   }
 
   return (
-    <div className="relative min-h-full overflow-hidden">
-      <FeaturedCharacterHero character={featured} onStartChat={startFeaturedChat} />
-      <PageShell className="relative z-10 space-y-10 px-4 pb-24 pt-6 sm:px-6 md:pb-14 md:pt-8">
+    <div className="codex-home relative min-h-full overflow-hidden">
+      <PageShell className="relative z-10 space-y-16">
+        <FeaturedCharacterHero character={featured} onStartChat={startFeaturedChat} />
         <motion.section
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-90px" }}
           transition={springSoft}
-          className="space-y-4"
+          className="space-y-6"
         >
           <SectionTitle icon={Sparkles} title="Characters" href="/explore" />
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
+          <div className="codex-character-index grid grid-cols-1 border-t border-[var(--codex-rule)] sm:grid-cols-2 xl:grid-cols-6">
             {characters.slice(0, 6).map((character, index) => (
               <HomeCharacterCard
                 key={character.id}
@@ -153,10 +153,10 @@ export default function HomePage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-90px" }}
             transition={springSoft}
-            className="space-y-4"
+            className="space-y-6"
           >
             <SectionTitle icon={MessageCircle} title="Recent chats" href="/chats" />
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="codex-recent-index divide-y divide-[var(--codex-rule)] border-y border-[var(--codex-rule)] md:grid md:grid-cols-2 md:divide-x md:divide-y-0 xl:grid-cols-4">
               {recentChats.slice(0, 4).map((chat) => (
                 <RecentChatCard key={chat.id} chat={chat} />
               ))}
@@ -178,41 +178,36 @@ function FeaturedCharacterHero({
   const avatarSrc = character.avatarUrl || "/icons/velora-aurora-v4-512.png";
 
   return (
-    <section className="relative isolate min-h-[clamp(440px,64svh,680px)] w-full overflow-hidden md:-mt-[var(--top-bar-height)] md:pt-[var(--top-bar-height)]">
-      <Image
-        src={avatarSrc}
-        alt={character.name}
-        fill
-        priority
-        unoptimized={shouldBypassNextImageOptimization(avatarSrc)}
-        sizes="100vw"
-        className="absolute inset-0 -z-30 h-full w-full object-cover object-center"
-        style={{ objectPosition: "center 18%" }}
-      />
-      <div
-        className="absolute inset-0 -z-20"
-        style={{
-          background:
-            "linear-gradient(to top, oklch(var(--color-canvas) / .96) 0%, oklch(var(--color-canvas) / .72) 34%, oklch(var(--color-canvas) / .16) 68%, transparent 100%)"
-        }}
-      />
-      <div className="absolute inset-0 -z-10 bg-aurora-ambient opacity-75" />
-
-      <div className="absolute inset-x-0 bottom-0 z-10 px-4 pb-10 sm:px-8 md:px-12 md:pb-12 xl:px-16">
+    <section className="codex-featured-stage grid min-h-[min(720px,78dvh)] overflow-hidden border-y border-[var(--codex-rule)] lg:grid-cols-[minmax(340px,.82fr)_minmax(0,1.3fr)]">
+      <div className="relative order-2 min-h-[360px] overflow-hidden lg:order-1 lg:min-h-full">
+        <Image
+          src={avatarSrc}
+          alt={character.name}
+          fill
+          priority
+          unoptimized={shouldBypassNextImageOptimization(avatarSrc)}
+          sizes="(min-width: 1024px) 44vw, 100vw"
+          className="absolute inset-0 h-full w-full object-cover object-center"
+          style={{ objectPosition: "center 18%" }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[var(--codex-paper)] via-transparent to-transparent lg:bg-gradient-to-r lg:from-transparent lg:to-[var(--codex-paper)]" />
+      </div>
+      <div className="order-1 flex items-center p-6 sm:p-10 lg:order-2 lg:p-14 xl:p-20">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={springSoft}
-          className="flex max-w-3xl flex-col items-start gap-5"
+          className="flex max-w-2xl flex-col items-start gap-7"
         >
+          <p className="text-[10px] font-medium uppercase tracking-[.3em] text-[var(--codex-violet)]">Featured story · Volume I</p>
           <div className="flex flex-col gap-3">
             <h1
-              className="max-w-3xl font-semibold leading-none text-[var(--text-primary)]"
-              style={{ fontSize: "clamp(2.75rem, 7vw, 5.75rem)", letterSpacing: "0" }}
+              className="font-editorial max-w-3xl font-medium leading-[.82] tracking-[-.045em] text-[var(--codex-ivory)]"
+              style={{ fontSize: "clamp(4rem, 10vw, 8rem)" }}
             >
               {character.name}
             </h1>
-            <p className="line-clamp-3 max-w-2xl text-base leading-7 text-[var(--text-secondary)] md:text-lg">
+            <p className="line-clamp-4 max-w-xl text-base leading-7 text-[var(--text-secondary)] md:text-lg">
               {character.description || "Start a new character chat and settle into the first scene."}
             </p>
           </div>
@@ -247,15 +242,9 @@ function RecentChatCard({ chat }: { chat: RecentChat }) {
     <motion.article
       whileHover={{ y: -4, scale: 1.01 }}
       transition={springSoft}
-      className="relative overflow-hidden rounded-[20px] border border-[var(--border-subtle)]"
-      style={{
-        background: "color-mix(in oklch, var(--color-surface) 72%, transparent)",
-        boxShadow: "var(--shadow-card)",
-        backdropFilter: "blur(var(--glass-blur-sm)) saturate(var(--glass-saturation))",
-        WebkitBackdropFilter: "blur(var(--glass-blur-sm)) saturate(var(--glass-saturation))"
-      }}
+      className="relative overflow-hidden bg-transparent"
     >
-      <Link href={`/chat/${chat.id}`} className="flex items-center gap-3 p-3 no-underline">
+      <Link href={`/chat/${chat.id}`} className="flex items-center gap-3 px-3 py-5 no-underline sm:px-5">
         <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full border border-[var(--border-subtle)]">
           <Image
             src={avatarSrc}
@@ -267,7 +256,7 @@ function RecentChatCard({ chat }: { chat: RecentChat }) {
           />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-sm font-semibold text-[var(--text-primary)]">{chat.character.name}</h3>
+          <h3 className="font-editorial truncate text-xl font-medium text-[var(--codex-ivory)]">{chat.character.name}</h3>
           <p className="mt-1 truncate text-sm text-[var(--text-secondary)]">
             {lastMessage || chat.character.description || "Continue chat"}
           </p>
@@ -294,11 +283,10 @@ function HomeCharacterCard({
       whileHover={{ y: -6, scale: 1.015 }}
       transition={springSoft}
       className={cn(
-        "group relative min-h-[280px] overflow-hidden rounded-[20px] border border-[var(--border-subtle)]",
+        "group relative min-h-[280px] overflow-hidden border-b border-r border-[var(--codex-rule)]",
         featured ? "sm:min-h-[360px] xl:min-h-[420px]" : "xl:min-h-[300px]",
         className
       )}
-      style={{ boxShadow: "var(--shadow-card)" }}
     >
       <Link href={`/character/${character.id}`} className="absolute inset-0 block overflow-hidden no-underline" aria-label={`Open ${character.name}`}>
         <Image
@@ -339,7 +327,7 @@ function HomeCharacterCard({
               "linear-gradient(to top, oklch(var(--color-canvas) / .94) 0%, oklch(var(--color-canvas) / .64) 58%, transparent 100%)"
           }}
         >
-          <h3 className={cn("font-semibold leading-tight text-[var(--text-primary)]", featured ? "line-clamp-2 text-2xl" : "line-clamp-1 text-base")}>
+          <h3 className={cn("font-editorial font-medium leading-tight text-[var(--codex-ivory)]", featured ? "line-clamp-2 text-4xl" : "line-clamp-1 text-2xl")}>
             {character.name}
           </h3>
           <p className={cn("mt-1 text-sm leading-6 text-[var(--text-secondary)]", featured ? "line-clamp-3" : "line-clamp-2")}>
@@ -381,8 +369,8 @@ function SectionTitle({
 }) {
   return (
     <div className="flex items-end justify-between gap-4">
-      <h2 className="flex items-center gap-2 text-2xl font-semibold text-[var(--text-primary)]">
-        <span className="grid h-8 w-8 place-items-center rounded-full bg-aurora-primary text-[var(--text-primary)] shadow-glow-soft">
+      <h2 className="font-editorial flex items-center gap-3 text-4xl font-medium text-[var(--codex-ivory)]">
+        <span className="grid h-8 w-8 place-items-center rounded-full border border-[var(--codex-rule)] text-[var(--codex-mint)]">
           <Icon className="h-4 w-4" />
         </span>
         {title}

@@ -3,18 +3,12 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  BookOpen,
-  Bot,
   Globe,
   ImagePlus,
   Download,
   FileJson,
   Lock,
-  MessageSquare,
-  MessagesSquare,
-  Palette,
   Save,
-  ShieldCheck,
   SlidersHorizontal,
   Sparkles,
   Upload,
@@ -23,7 +17,6 @@ import {
   Zap
 } from "lucide-react";
 import { CharacterPreviewPanel } from "@/components/characters/character-preview-panel";
-import { FormAccordionSection } from "@/components/characters/form-accordion-section";
 import { PromptGeneratorPanel, type PromptGeneratorOptions } from "@/components/characters/prompt-generator-panel";
 import { TagChipInput } from "@/components/characters/tag-chip-input";
 import { Button } from "@/components/ui/button";
@@ -42,7 +35,6 @@ import {
   validateCharacterCreatePayload
 } from "@/lib/character-form-payload";
 import {
-  CUSTOM_SECTIONS,
   VIBE_PRESETS,
   type CharacterFormInitialValue,
   type CharacterFormMode,
@@ -65,16 +57,16 @@ type ProviderOption = {
   defaultModel: string;
 };
 
-const sectionIcons = {
-  basics: Bot,
-  personality: MessageSquare,
-  scenario: BookOpen,
-  lorebook: BookOpen,
-  greeting: MessagesSquare,
-  speaking: Palette,
-  visual: Sparkles,
-  advanced: ShieldCheck
-} as const;
+type StudioChapterId = "identity" | "voice" | "scene" | "lore" | "appearance" | "publishing";
+
+const studioChapters: Array<{ id: StudioChapterId; number: string; label: string }> = [
+  { id: "identity", number: "01", label: "Identity" },
+  { id: "voice", number: "02", label: "Voice & personality" },
+  { id: "scene", number: "03", label: "Scene & first message" },
+  { id: "lore", number: "04", label: "Lore & memory" },
+  { id: "appearance", number: "05", label: "Visual language" },
+  { id: "publishing", number: "06", label: "Behavior & publishing" }
+];
 
 export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
   const router = useRouter();
@@ -86,16 +78,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
   const [formMode, setFormMode] = useState<CharacterFormMode>(() =>
     mode === "edit" ? creationModeForEditor(initialValue?.creationMode) : "simple"
   );
-  const [openSections, setOpenSections] = useState<Record<CustomSectionId, boolean>>({
-    basics: true,
-    personality: false,
-    scenario: false,
-    lorebook: false,
-    greeting: false,
-    speaking: false,
-    visual: false,
-    advanced: false
-  });
+  const [activeChapter, setActiveChapter] = useState<StudioChapterId>("identity");
   const [generatedPreview, setGeneratedPreview] = useState<GeneratedCharacterPreview | null>(null);
   const [prompt, setPrompt] = useState("");
   const [generationMeta, setGenerationMeta] = useState<PromptGenerationMeta | null>(null);
@@ -146,7 +129,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
     return [...options.values()];
   }, [savedProviderOptions]);
 
-  const isSimpleMode = formMode === "simple";
+  const isSimpleMode = mode === "create" && formMode === "simple";
   const isPromptMode = mode === "create" && formMode === "prompt";
   const previewDraft = useMemo(
     () => (generatedPreview ? mergePreviewIntoDraft(draft, generatedPreview) : draft),
@@ -169,18 +152,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
     if (nextMode === "custom" && generatedPreview) {
       setDraft((current) => mergePreviewIntoDraft(current, generatedPreview));
     }
-    if (nextMode === "custom" && promptGenerated) {
-      setOpenSections({
-        basics: true,
-        personality: true,
-        scenario: true,
-        lorebook: true,
-        greeting: true,
-        speaking: true,
-        visual: true,
-        advanced: false
-      });
-    }
+    if (nextMode === "custom" && promptGenerated) setActiveChapter("identity");
     setFormMode(nextMode);
     setError(null);
   }
@@ -242,8 +214,11 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
     }
   }
 
-  function toggleSection(section: CustomSectionId) {
-    setOpenSections((current) => ({ ...current, [section]: !current[section] }));
+  function selectChapter(chapter: StudioChapterId) {
+    setActiveChapter(chapter);
+    requestAnimationFrame(() => {
+      document.getElementById(`studio-${chapter}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
 
   function exportCharacterCard() {
@@ -497,19 +472,66 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
     router.push(`/character/${body.character.id}`);
   }
 
+  const visibleChapters = isSimpleMode
+    ? studioChapters.filter((chapter) => ["identity", "scene", "publishing"].includes(chapter.id))
+    : studioChapters;
+  const currentChapterIndex = Math.max(0, visibleChapters.findIndex((chapter) => chapter.id === activeChapter));
+  const completedCoreFields = [draft.name, draft.description, draft.greeting, draft.personality, draft.scenario, draft.avatarUrl].filter((value) => value.trim()).length;
+  const completion = Math.round((completedCoreFields / 6) * 100);
+
   return (
-    <div className="character-editor-surfaces grid min-h-[calc(100svh-var(--top-bar-height)-var(--page-padding-y)*2)] gap-0 overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] lg:grid-cols-[minmax(0,1fr)_360px]">
-      <form onSubmit={onSubmit} className="chat-scroll grid min-w-0 content-start gap-5 overflow-y-auto p-4 sm:p-6 lg:max-h-[calc(100svh-var(--page-padding-y)*2)] lg:p-8">
-        {mode === "create" ? (
-          <div className="glass-panel grid grid-cols-3 gap-2 p-2">
-            <ModeButton label="Prompt" icon={Zap} active={isPromptMode} onClick={() => switchFormMode("prompt")} />
-            <ModeButton label="Simple" icon={Wand2} active={isSimpleMode} onClick={() => switchFormMode("simple")} />
-            <ModeButton label="Custom" icon={SlidersHorizontal} active={formMode === "custom"} onClick={() => switchFormMode("custom")} />
+    <div className="codex-character-studio character-editor-surfaces min-h-full">
+      <CharacterPreviewPanel
+        className="codex-character-dossier"
+        name={previewDraft.name}
+        description={previewDraft.description}
+        greeting={previewDraft.greeting}
+        avatarUrl={previewDraft.avatarUrl}
+        tags={previewDraft.tags}
+        generated={Boolean(generatedPreview)}
+        mode={mode}
+        completion={completion}
+        activeChapter={activeChapter}
+        chapters={visibleChapters}
+        onChapterChange={(chapter) => selectChapter(chapter as StudioChapterId)}
+        visualIdentity={{
+          accentColor: previewDraft.visualAccentColor,
+          gradientFrom: previewDraft.visualGradientFrom,
+          gradientTo: previewDraft.visualGradientTo
+        }}
+      />
+
+      <form onSubmit={onSubmit} className="codex-manuscript chat-scroll min-w-0 overflow-y-auto">
+        <header className="codex-studio-header">
+          <div>
+            <p className="codex-kicker">{mode === "edit" ? "Character archive / revision" : "New volume / character studio"}</p>
+            <h1 className="font-editorial mt-3 text-[clamp(2.8rem,6vw,5.25rem)] font-medium leading-[.84] tracking-[-.04em] text-[var(--codex-ivory)]">
+              {mode === "edit" ? "Revise the dossier" : "Inscribe a living voice"}
+            </h1>
+            <p className="mt-4 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
+              Move through the manuscript chapter by chapter. The dossier beside it updates as the character takes shape.
+            </p>
           </div>
-        ) : null}
+
+          {mode === "create" ? (
+            <div className="codex-mode-index" aria-label="Creation method">
+              <ModeButton label="Inscribe" icon={Zap} active={isPromptMode} onClick={() => switchFormMode("prompt")} />
+              <ModeButton label="Guided" icon={Wand2} active={isSimpleMode} onClick={() => switchFormMode("simple")} />
+              <ModeButton label="Complete" icon={SlidersHorizontal} active={formMode === "custom"} onClick={() => switchFormMode("custom")} />
+            </div>
+          ) : null}
+        </header>
 
         {isPromptMode ? (
-          <>
+          <section className="codex-prompt-sheet">
+            <div className="codex-chapter-heading">
+              <span>00</span>
+              <div>
+                <p className="codex-kicker">Inscribe from prompt</p>
+                <h2>Begin with a premise</h2>
+                <p>Describe the person, tension, world, and desired relationship. Nythera will draft the complete dossier for review.</p>
+              </div>
+            </div>
             <PromptGeneratorPanel
               prompt={prompt}
               onPromptChange={(value) => {
@@ -522,432 +544,144 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
               generating={generatingPreview}
               generationMeta={generationMeta}
             />
-
             {promptGenerated ? (
-              <section className="glass-panel grid gap-4 p-5 sm:p-6">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--text-muted)]">Generated draft</p>
-                  <h2 className="mt-1 text-lg font-semibold text-[var(--text-primary)]">Review and tweak</h2>
-                  <p className="mt-1 text-sm text-[var(--text-secondary)]">Everything below was created from your prompt. Edit anything before saving.</p>
+              <div className="codex-generated-leaf">
+                <p className="codex-kicker">Draft received</p>
+                <h3 className="font-editorial mt-2 text-3xl text-[var(--codex-ivory)]">Review the opening leaf</h3>
+                <div className="mt-6 grid gap-6">
+                  <Field label="Portrait"><AvatarUpload value={draft.avatarUrl} name={draft.name} onChange={(value) => update("avatarUrl", value)} onError={setError} /></Field>
+                  <Field label="Character name" required><Input value={draft.name} onChange={(event) => update("name", event.target.value)} required /></Field>
+                  <Field label="Essence" required><Textarea value={draft.description} onChange={(event) => update("description", event.target.value)} required /></Field>
+                  <Field label="Index terms"><TagChipInput value={draft.tags} onChange={(tags) => update("tags", tags)} presets={VIBE_PRESETS} /></Field>
+                  <Field label="First message"><Textarea value={draft.greeting} onChange={(event) => update("greeting", event.target.value)} className="min-h-36" /></Field>
+                  {generatedPreview ? <GeneratedPreviewCard preview={generatedPreview} /> : null}
                 </div>
-
-                <Field label="Avatar">
-                  <AvatarUpload value={draft.avatarUrl} name={draft.name} onChange={(value) => update("avatarUrl", value)} onError={setError} />
-                </Field>
-
-                <Field label="Character name" required>
-                  <Input value={draft.name} onChange={(event) => update("name", event.target.value)} required />
-                </Field>
-
-                <Field label="Description" required>
-                  <Textarea value={draft.description} onChange={(event) => update("description", event.target.value)} required />
-                </Field>
-
-                <Field label="Tags">
-                  <TagChipInput value={draft.tags} onChange={(tags) => update("tags", tags)} presets={VIBE_PRESETS} />
-                </Field>
-
-                <Field label="Greeting / First message">
-                  <Textarea
-                    value={draft.greeting}
-                    onChange={(event) => update("greeting", event.target.value)}
-                    placeholder="The first message users will see."
-                    className="min-h-28"
-                  />
-                </Field>
-
-                {generatedPreview ? <GeneratedPreviewCard preview={generatedPreview} /> : null}
-              </section>
-            ) : null}
-          </>
-        ) : isSimpleMode ? (
-          <section className="glass-panel grid gap-5 p-5 sm:p-6">
-            <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--text-muted)]">Quick create</p>
-                <h2 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Shape your character</h2>
-                <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
-                  Add the essentials, pick a vibe, then let AI flesh out the rest when you are ready.
-                </p>
               </div>
-              <Button type="button" variant="outline" onClick={generatePreview} disabled={!canGeneratePreview || generatingPreview}>
-                <Sparkles className="h-4 w-4" />
-                {generatingPreview ? "Generating..." : "Generate preview"}
-              </Button>
-            </header>
-
-            <Field label="Avatar">
-              <AvatarUpload value={draft.avatarUrl} name={draft.name} onChange={(value) => update("avatarUrl", value)} onError={setError} />
-            </Field>
-
-            <Field label="Character name" required>
-              <Input
-                value={draft.name}
-                onChange={(event) => update("name", event.target.value)}
-                placeholder="A unique name for your character"
-                required
-              />
-            </Field>
-
-            <Field label="Core idea" required>
-              <Textarea
-                value={draft.description}
-                onChange={(event) => update("description", event.target.value)}
-                placeholder="Who are they, what vibe do they have, and why would someone want to chat with them?"
-                required
-              />
-            </Field>
-
-            <Field label="Vibe tags">
-              <TagChipInput value={draft.tags} onChange={(tags) => update("tags", tags)} presets={VIBE_PRESETS} />
-            </Field>
-
-            <Field
-              label="Greeting / First message"
-              hint="Optional. If you write this yourself, AI preview will keep your text instead of replacing it."
-            >
-              <Textarea
-                value={draft.greeting}
-                onChange={(event) => update("greeting", event.target.value)}
-                placeholder="Write the opening message users will see when they start chatting with this character."
-                className="min-h-32"
-              />
-              {draft.greeting.trim() ? (
-                <div className="mt-3 bubble-char max-w-full text-sm leading-6">{draft.greeting}</div>
-              ) : null}
-            </Field>
-
-            {generatedPreview ? (
-              <GeneratedPreviewCard preview={generatedPreview} />
             ) : null}
           </section>
+        ) : isSimpleMode ? (
+          <div className="codex-chapter-stack">
+            <StudioChapter id="identity" number="01" title="Identity" description="Name the character and define the promise at the center of every conversation." active={activeChapter === "identity"} onSelect={() => selectChapter("identity")} onAssist={() => assistSection("basics")} assisting={assistingSection === "basics"}>
+              <Field label="Portrait"><AvatarUpload value={draft.avatarUrl} name={draft.name} onChange={(value) => update("avatarUrl", value)} onError={setError} large /></Field>
+              <Field label="Character name" required><Input value={draft.name} onChange={(event) => update("name", event.target.value)} placeholder="Ari the Archivist" required /></Field>
+              <Field label="Core idea" required><Textarea value={draft.description} onChange={(event) => update("description", event.target.value)} placeholder="Who are they, what tension follows them, and why should someone stay?" className="min-h-40" required /></Field>
+              <Field label="Index terms"><TagChipInput value={draft.tags} onChange={(tags) => update("tags", tags)} presets={VIBE_PRESETS} /></Field>
+            </StudioChapter>
+            <StudioChapter id="scene" number="02" title="First scene" description="Write the threshold where the relationship begins." active={activeChapter === "scene"} onSelect={() => selectChapter("scene")} onAssist={() => assistSection("greeting")} assisting={assistingSection === "greeting"}>
+              <Field label="Greeting / first message" hint="This becomes the first page of every new conversation."><Textarea value={draft.greeting} onChange={(event) => update("greeting", event.target.value)} placeholder="Set the scene, place the character in motion, and leave the user room to answer." className="min-h-52" /></Field>
+              {draft.greeting.trim() ? <blockquote className="codex-opening-preview">{draft.greeting}</blockquote> : null}
+              {generatedPreview ? <GeneratedPreviewCard preview={generatedPreview} /> : null}
+              <Button type="button" variant="outline" onClick={generatePreview} disabled={!canGeneratePreview || generatingPreview}><Sparkles className="h-4 w-4" />{generatingPreview ? "Drafting..." : "Draft missing chapters"}</Button>
+            </StudioChapter>
+            <StudioChapter id="publishing" number="03" title="Bind the volume" description="Choose how this character enters your library." active={activeChapter === "publishing"} onSelect={() => selectChapter("publishing")}>
+              <p className="font-editorial text-xl italic leading-8 text-[var(--text-secondary)]">The guided edition keeps advanced behavior private until you open the complete manuscript.</p>
+              <Button type="button" variant="outline" onClick={() => switchFormMode("custom")}><SlidersHorizontal className="h-4 w-4" />Open complete manuscript</Button>
+            </StudioChapter>
+          </div>
         ) : (
-          <div className="grid gap-4">
-            {CUSTOM_SECTIONS.map((section) => {
-              const Icon = sectionIcons[section.id];
-              return (
-                <FormAccordionSection
-                  key={section.id}
-                  id={section.id}
-                  title={section.title}
-                  description={section.description}
-                  icon={Icon}
-                  open={openSections[section.id]}
-                  onToggle={() => toggleSection(section.id)}
-                  onAssist={() => assistSection(section.id)}
-                  assisting={assistingSection === section.id}
-                >
-                  {section.id === "basics" ? (
-                    <>
-                      <Field label="Character name" required>
-                        <Input value={draft.name} onChange={(event) => update("name", event.target.value)} placeholder="Ari the Archivist" required />
-                      </Field>
-                      <Field label="Description" required>
-                        <Textarea
-                          value={draft.description}
-                          onChange={(event) => update("description", event.target.value)}
-                          placeholder="A soft-spoken fantasy guide with a sharp memory."
-                          required
-                        />
-                      </Field>
-                      <Field label="Tags">
-                        <TagChipInput value={draft.tags} onChange={(tags) => update("tags", tags)} placeholder="Type any tag and press Enter" />
-                      </Field>
-                      <Field label="Avatar">
-                        <AvatarUpload value={draft.avatarUrl} name={draft.name} onChange={(value) => update("avatarUrl", value)} onError={setError} large />
-                      </Field>
-                    </>
-                  ) : null}
+          <div className="codex-chapter-stack">
+            <StudioChapter id="identity" number="01" title="Identity" description="The portrait, name, and core promise readers meet first." active={activeChapter === "identity"} onSelect={() => selectChapter("identity")} onAssist={() => assistSection("basics")} assisting={assistingSection === "basics"}>
+              <Field label="Portrait"><AvatarUpload value={draft.avatarUrl} name={draft.name} onChange={(value) => update("avatarUrl", value)} onError={setError} large /></Field>
+              <Field label="Character name" required><Input value={draft.name} onChange={(event) => update("name", event.target.value)} placeholder="Ari the Archivist" required /></Field>
+              <Field label="Essence" required><Textarea value={draft.description} onChange={(event) => update("description", event.target.value)} placeholder="A soft-spoken fantasy guide with a sharp memory." className="min-h-40" required /></Field>
+              <Field label="Index terms"><TagChipInput value={draft.tags} onChange={(tags) => update("tags", tags)} placeholder="Type any tag and press Enter" /></Field>
+              <div className="grid gap-6 sm:grid-cols-2"><Field label="Role"><Input value={draft.personaRole} onChange={(event) => update("personaRole", event.target.value)} placeholder="Mentor, rival, companion..." /></Field><Field label="Archetype"><Input value={draft.archetype} onChange={(event) => update("archetype", event.target.value)} placeholder="Archivist, detective, bard..." /></Field></div>
+            </StudioChapter>
 
-                  {section.id === "personality" ? (
-                    <>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <Field label="Role">
-                          <Input value={draft.personaRole} onChange={(event) => update("personaRole", event.target.value)} placeholder="Mentor, rival, companion..." />
-                        </Field>
-                        <Field label="Archetype">
-                          <Input value={draft.archetype} onChange={(event) => update("archetype", event.target.value)} placeholder="Archivist, detective, bard..." />
-                        </Field>
-                      </div>
-                      <Field label="Personality">
-                        <Textarea
-                          value={draft.personality}
-                          onChange={(event) => update("personality", event.target.value)}
-                          placeholder="How they think, react, and carry themselves."
-                          className="min-h-32"
-                        />
-                      </Field>
-                      <Field label="Traits">
-                        <Textarea value={draft.personaTraits} onChange={(event) => update("personaTraits", event.target.value)} placeholder="One trait per line." />
-                      </Field>
-                      <div className="grid gap-4 sm:grid-cols-3">
-                        <Field label="Relationship style">
-                          <Input value={draft.relationshipStyle} onChange={(event) => update("relationshipStyle", event.target.value)} placeholder="friend, romantic, mentor..." />
-                        </Field>
-                        <Field label="Initiative">
-                          <Input value={draft.initiativeLevel} onChange={(event) => update("initiativeLevel", event.target.value)} placeholder="low, medium, high" />
-                        </Field>
-                        <Field label="Verbosity">
-                          <Input value={draft.verbosityLevel} onChange={(event) => update("verbosityLevel", event.target.value)} placeholder="concise, balanced, expressive..." />
-                        </Field>
-                      </div>
-                      <Field label="Motivation">
-                        <Textarea value={draft.motivation} onChange={(event) => update("motivation", event.target.value)} placeholder="What they want from scenes and conversations." />
-                      </Field>
-                    </>
-                  ) : null}
+            <StudioChapter id="voice" number="02" title="Voice & personality" description="The private logic beneath every response." active={activeChapter === "voice"} onSelect={() => selectChapter("voice")} onAssist={() => assistSection("personality")} assisting={assistingSection === "personality"}>
+              <Field label="Personality"><Textarea value={draft.personality} onChange={(event) => update("personality", event.target.value)} placeholder="How they think, react, and carry themselves." className="min-h-44" /></Field>
+              <Field label="Traits"><Textarea value={draft.personaTraits} onChange={(event) => update("personaTraits", event.target.value)} placeholder="One trait per line." /></Field>
+              <Field label="Speaking style"><Textarea value={draft.speakingStyle} onChange={(event) => update("speakingStyle", event.target.value)} placeholder="Cadence, vocabulary, restraint, recurring habits." /></Field>
+              <div className="grid gap-6 sm:grid-cols-2"><Field label="Emotional tone"><Input value={draft.emotionalTone} onChange={(event) => update("emotionalTone", event.target.value)} /></Field><Field label="Tone"><Input value={draft.tone} onChange={(event) => update("tone", event.target.value)} /></Field><Field label="Relationship style"><Input value={draft.relationshipStyle} onChange={(event) => update("relationshipStyle", event.target.value)} /></Field><Field label="Message length"><Input value={draft.messageLength} onChange={(event) => update("messageLength", event.target.value)} /></Field></div>
+              <div className="grid gap-6 sm:grid-cols-2"><Field label="Initiative"><Input value={draft.initiativeLevel} onChange={(event) => update("initiativeLevel", event.target.value)} /></Field><Field label="Verbosity"><Input value={draft.verbosityLevel} onChange={(event) => update("verbosityLevel", event.target.value)} /></Field></div>
+              <Field label="Motivation"><Textarea value={draft.motivation} onChange={(event) => update("motivation", event.target.value)} /></Field>
+            </StudioChapter>
 
-                  {section.id === "scenario" ? (
-                    <Field label="Scenario / world">
-                      <Textarea
-                        value={draft.scenario}
-                        onChange={(event) => update("scenario", event.target.value)}
-                        placeholder="Where the scene starts and what should stay true."
-                        className="min-h-32"
-                      />
-                    </Field>
-                  ) : null}
+            <StudioChapter id="scene" number="03" title="Scene & first message" description="The world state and first beat that begin the story." active={activeChapter === "scene"} onSelect={() => selectChapter("scene")} onAssist={() => assistSection("scenario")} assisting={assistingSection === "scenario"}>
+              <Field label="Scenario / world"><Textarea value={draft.scenario} onChange={(event) => update("scenario", event.target.value)} placeholder="Where the scene starts and what must remain true." className="min-h-44" /></Field>
+              <Field label="Greeting / first message" hint="Write it as the opening paragraph of a scene, not an instruction."><Textarea value={draft.greeting} onChange={(event) => update("greeting", event.target.value)} placeholder="The first message your character sends." className="min-h-52" /></Field>
+              {draft.greeting.trim() ? <blockquote className="codex-opening-preview">{draft.greeting}</blockquote> : null}
+            </StudioChapter>
 
-                  {section.id === "lorebook" ? (
-                    <Field label="Keyword lorebook" hint="Use blocks like: keyword, alias => canonical fact. Entries trigger only when a keyword appears in recent chat.">
-                      <Textarea
-                        value={draft.lorebookText}
-                        onChange={(event) => update("lorebookText", event.target.value)}
-                        placeholder={"silver gate, moon gate => The Silver Gate only opens under a full moon.\n\nArchivist oath => Archivists cannot knowingly destroy a true record."}
-                        className="min-h-44"
-                      />
-                    </Field>
-                  ) : null}
+            <StudioChapter id="lore" number="04" title="Lore & memory" description="Canonical facts that surface only when the story calls for them." active={activeChapter === "lore"} onSelect={() => selectChapter("lore")} onAssist={() => assistSection("lorebook")} assisting={assistingSection === "lorebook"}>
+              <Field label="Keyword lorebook" hint="Use blocks like: keyword, alias => canonical fact."><Textarea value={draft.lorebookText} onChange={(event) => update("lorebookText", event.target.value)} placeholder={"silver gate, moon gate => The Silver Gate only opens under a full moon.\n\nArchivist oath => Archivists cannot knowingly destroy a true record."} className="min-h-64" /></Field>
+            </StudioChapter>
 
-                  {section.id === "greeting" ? (
-                    <>
-                      <Field
-                        label="Greeting / First message"
-                        hint="This is the opening line users see in chat. Make it immersive and in character."
-                      >
-                        <Textarea
-                          value={draft.greeting}
-                          onChange={(event) => update("greeting", event.target.value)}
-                          placeholder="Write the first message your character sends when a conversation begins."
-                          className="min-h-36"
-                        />
-                      </Field>
-                      {draft.greeting.trim() ? (
-                        <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4">
-                          <p className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-muted)]">Preview</p>
-                          <div className="mt-3 bubble-char max-w-full text-sm leading-6">{draft.greeting}</div>
-                        </div>
-                      ) : null}
-                    </>
-                  ) : null}
+            <StudioChapter id="appearance" number="05" title="Visual language" description="A restrained palette and environmental cue for the conversation." active={activeChapter === "appearance"} onSelect={() => selectChapter("appearance")} onAssist={() => assistSection("visual")} assisting={assistingSection === "visual"}>
+              <div className="grid gap-6 sm:grid-cols-3"><Field label="Accent"><Input type="color" value={draft.visualAccentColor} onChange={(event) => update("visualAccentColor", event.target.value)} /></Field><Field label="Secondary"><Input type="color" value={draft.visualGradientFrom} onChange={(event) => update("visualGradientFrom", event.target.value)} /></Field><Field label="Fallback"><Input type="color" value={draft.visualGradientTo} onChange={(event) => update("visualGradientTo", event.target.value)} /></Field></div>
+              <Field label="Chat atmosphere"><Input value={draft.visualChatBackground} onChange={(event) => update("visualChatBackground", event.target.value)} placeholder="moonlit archive, neon rain, warm cabin..." /></Field>
+              <div className="codex-color-proof" style={{ borderColor: draft.visualAccentColor }}><span style={{ background: draft.visualGradientFrom }} /><p>{draft.visualChatBackground.trim() || "The environmental cue will guide the chat surface."}</p></div>
+            </StudioChapter>
 
-                  {section.id === "speaking" ? (
-                    <>
-                      <Field label="Speaking style">
-                        <Textarea value={draft.speakingStyle} onChange={(event) => update("speakingStyle", event.target.value)} placeholder="How the character sounds in conversation." />
-                      </Field>
-                      <Field label="Emotional tone">
-                        <Input value={draft.emotionalTone} onChange={(event) => update("emotionalTone", event.target.value)} placeholder="attentive, playful, distant..." />
-                      </Field>
-                      <Field label="Tone">
-                        <Input value={draft.tone} onChange={(event) => update("tone", event.target.value)} placeholder="warm, dry, intense..." />
-                      </Field>
-                      <Field label="Message length">
-                        <Input value={draft.messageLength} onChange={(event) => update("messageLength", event.target.value)} placeholder="short, medium, long" />
-                      </Field>
-                    </>
-                  ) : null}
-
-                  {section.id === "visual" ? (
-                    <>
-                      <div className="grid gap-4 sm:grid-cols-3">
-                        <Field label="Accent color">
-                          <Input type="color" value={draft.visualAccentColor} onChange={(event) => update("visualAccentColor", event.target.value)} />
-                        </Field>
-                        <Field label="Secondary color">
-                          <Input type="color" value={draft.visualGradientFrom} onChange={(event) => update("visualGradientFrom", event.target.value)} />
-                        </Field>
-                        <Field label="Fallback color">
-                          <Input type="color" value={draft.visualGradientTo} onChange={(event) => update("visualGradientTo", event.target.value)} />
-                        </Field>
-                      </div>
-                      <Field label="Chat background cue">
-                        <Input
-                          value={draft.visualChatBackground}
-                          onChange={(event) => update("visualChatBackground", event.target.value)}
-                          placeholder="moonlit archive, neon rain, warm cabin..."
-                        />
-                      </Field>
-                      <div
-                        className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-elevated)] p-4"
-                        style={{
-                          borderColor: draft.visualAccentColor
-                        }}
-                      >
-                        <div className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 text-[var(--text-primary)]">
-                          <p className="text-sm font-semibold">{draft.name.trim() || "Character visual identity"}</p>
-                          <p className="mt-1 text-xs opacity-85">{draft.visualChatBackground.trim() || "Background cue appears in chat theming."}</p>
-                        </div>
-                      </div>
-                    </>
-                  ) : null}
-
-                  {section.id === "advanced" ? (
-                    <>
-                      <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4">
-                        <p className="text-sm font-semibold text-[var(--text-primary)]">Character Card V2</p>
-                        <p className="mt-1 text-xs text-[var(--text-muted)]">Import or export the current draft as JSON.</p>
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          <Button type="button" variant="outline" onClick={exportCharacterCard}>
-                            <Download className="h-4 w-4" />
-                            Export Card V2
-                          </Button>
-                          <Button type="button" variant="outline" onClick={importCharacterCard}>
-                            <FileJson className="h-4 w-4" />
-                            Import JSON
-                          </Button>
-                        </div>
-                        <Textarea
-                          value={draft.characterCardJson}
-                          onChange={(event) => update("characterCardJson", event.target.value)}
-                          placeholder="Paste Character Card V2 JSON here, or export the current draft."
-                          className="mt-4 min-h-32 font-mono text-xs"
-                        />
-                      </div>
-                      <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4">
-                        <p className="text-sm font-semibold text-[var(--text-primary)]">Model configuration</p>
-                        <p className="mt-1 text-xs text-[var(--text-muted)]">Leave fields blank to use the chatting user&apos;s global defaults.</p>
-                        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                          <Field label="Provider override">
-                            <select
-                              value={draft.preferredProvider}
-                              onChange={(event) => {
-                                const provider = event.target.value;
-                                const option = providerOptions.find((item) => item.provider === provider);
-                                setDraft((current) => ({
-                                  ...current,
-                                  preferredProvider: provider,
-                                  preferredModel: provider && !current.preferredModel ? option?.defaultModel ?? "" : current.preferredModel
-                                }));
-                              }}
-                              className="focus-ring glass-input h-12 w-full rounded-[var(--radius-md)] px-4 text-sm text-[var(--text-primary)]"
-                            >
-                              <option value="">Use global default</option>
-                              {providerOptions.map((provider) => (
-                                <option key={provider.provider} value={provider.provider}>
-                                  {provider.displayName}
-                                </option>
-                              ))}
-                            </select>
-                          </Field>
-                          <Field label="Model override">
-                            <Input
-                              value={draft.preferredModel}
-                              onChange={(event) => update("preferredModel", event.target.value)}
-                              placeholder="Leave blank for provider default"
-                            />
-                          </Field>
-                          <OptionalNumberInput label="Temperature" value={draft.temperature} min={0} max={2} step={0.1} onChange={(value) => update("temperature", value)} />
-                          <OptionalNumberInput label="Top P" value={draft.topP} min={0} max={1} step={0.05} onChange={(value) => update("topP", value)} />
-                          <OptionalNumberInput label="Frequency penalty" value={draft.frequencyPenalty} min={-2} max={2} step={0.1} onChange={(value) => update("frequencyPenalty", value)} />
-                          <OptionalNumberInput label="Presence penalty" value={draft.presencePenalty} min={-2} max={2} step={0.1} onChange={(value) => update("presencePenalty", value)} />
-                          <OptionalNumberInput label="Max tokens" value={draft.maxTokens} min={1} max={32768} step={1} onChange={(value) => update("maxTokens", value)} />
-                        </div>
-                        <div className="mt-4">
-                          <Field label="System prompt override" hint="Creator instructions below platform safety and above the character persona.">
-                            <Textarea
-                              value={draft.systemPromptOverride}
-                              onChange={(event) => update("systemPromptOverride", event.target.value)}
-                              maxLength={8000}
-                              placeholder="Optional response and behavior instructions"
-                            />
-                          </Field>
-                        </div>
-                      </div>
-                      <Field label="Boundaries">
-                        <Textarea value={draft.boundaries} onChange={(event) => update("boundaries", event.target.value)} />
-                      </Field>
-                      <Field label="Behavioral rules">
-                        <Textarea value={draft.behavioralRules} onChange={(event) => update("behavioralRules", event.target.value)} />
-                      </Field>
-                      <Field label="Forbidden behaviors">
-                        <Textarea value={draft.forbiddenBehaviors} onChange={(event) => update("forbiddenBehaviors", event.target.value)} />
-                      </Field>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <Slider label="Humor" value={draft.humor} onChange={(value) => update("humor", value)} />
-                        <Slider label="Romance" value={draft.romanceLevel} onChange={(value) => update("romanceLevel", value)} />
-                        <Slider label="Seriousness" value={draft.seriousness} onChange={(value) => update("seriousness", value)} />
-                        <Slider label="Initiative" value={draft.initiative} onChange={(value) => update("initiative", value)} />
-                        <Slider label="Roleplay intensity" value={draft.roleplayIntensity} onChange={(value) => update("roleplayIntensity", value)} />
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 rounded-[var(--radius-pill)] border border-[var(--border-default)] bg-[var(--bg-input)] p-1">
-                        <VisibilityButton icon={Lock} label="Private" selected={draft.visibility === "PRIVATE"} onClick={() => update("visibility", "PRIVATE")} />
-                        <VisibilityButton icon={Globe} label="Unlisted" selected={draft.visibility === "UNLISTED"} onClick={() => update("visibility", "UNLISTED")} />
-                        <VisibilityButton icon={Globe} label="Public" selected={draft.visibility === "PUBLIC"} onClick={() => update("visibility", "PUBLIC")} />
-                      </div>
-                      <label className="flex min-h-12 items-center gap-3 rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] px-4 text-sm text-[var(--text-secondary)]">
-                        <input type="checkbox" checked={draft.isNSFW} onChange={(event) => update("isNSFW", event.target.checked)} className="accent-[var(--accent-purple)]" />
-                        Mark as age-gated / NSFW
-                      </label>
-                    </>
-                  ) : null}
-                </FormAccordionSection>
-              );
-            })}
+            <StudioChapter id="publishing" number="06" title="Behavior & publishing" description="Model direction, boundaries, intensity, and who may discover the character." active={activeChapter === "publishing"} onSelect={() => selectChapter("publishing")} onAssist={() => assistSection("advanced")} assisting={assistingSection === "advanced"}>
+              <div className="codex-subleaf"><p className="codex-kicker">Model direction</p><div className="mt-6 grid gap-6 sm:grid-cols-2"><Field label="Provider override"><select value={draft.preferredProvider} onChange={(event) => { const provider = event.target.value; const option = providerOptions.find((item) => item.provider === provider); setDraft((current) => ({ ...current, preferredProvider: provider, preferredModel: provider && !current.preferredModel ? option?.defaultModel ?? "" : current.preferredModel })); }} className="focus-ring glass-input h-12 w-full px-4 text-sm text-[var(--text-primary)]"><option value="">Use global default</option>{providerOptions.map((provider) => <option key={provider.provider} value={provider.provider}>{provider.displayName}</option>)}</select></Field><Field label="Model override"><Input value={draft.preferredModel} onChange={(event) => update("preferredModel", event.target.value)} /></Field><OptionalNumberInput label="Temperature" value={draft.temperature} min={0} max={2} step={0.1} onChange={(value) => update("temperature", value)} /><OptionalNumberInput label="Top P" value={draft.topP} min={0} max={1} step={0.05} onChange={(value) => update("topP", value)} /><OptionalNumberInput label="Frequency penalty" value={draft.frequencyPenalty} min={-2} max={2} step={0.1} onChange={(value) => update("frequencyPenalty", value)} /><OptionalNumberInput label="Presence penalty" value={draft.presencePenalty} min={-2} max={2} step={0.1} onChange={(value) => update("presencePenalty", value)} /><OptionalNumberInput label="Max tokens" value={draft.maxTokens} min={1} max={32768} step={1} onChange={(value) => update("maxTokens", value)} /></div><Field label="System prompt override" hint="Creator instructions below platform safety and above the persona."><Textarea value={draft.systemPromptOverride} onChange={(event) => update("systemPromptOverride", event.target.value)} maxLength={8000} className="min-h-36" /></Field></div>
+              <Field label="Boundaries"><Textarea value={draft.boundaries} onChange={(event) => update("boundaries", event.target.value)} /></Field>
+              <Field label="Behavioral rules"><Textarea value={draft.behavioralRules} onChange={(event) => update("behavioralRules", event.target.value)} /></Field>
+              <Field label="Forbidden behaviors"><Textarea value={draft.forbiddenBehaviors} onChange={(event) => update("forbiddenBehaviors", event.target.value)} /></Field>
+              <div className="grid gap-6 sm:grid-cols-2"><Slider label="Humor" value={draft.humor} onChange={(value) => update("humor", value)} /><Slider label="Romance" value={draft.romanceLevel} onChange={(value) => update("romanceLevel", value)} /><Slider label="Seriousness" value={draft.seriousness} onChange={(value) => update("seriousness", value)} /><Slider label="Initiative" value={draft.initiative} onChange={(value) => update("initiative", value)} /><Slider label="Roleplay intensity" value={draft.roleplayIntensity} onChange={(value) => update("roleplayIntensity", value)} /></div>
+              <div className="codex-visibility-index"><VisibilityButton icon={Lock} label="Private" selected={draft.visibility === "PRIVATE"} onClick={() => update("visibility", "PRIVATE")} /><VisibilityButton icon={Globe} label="Unlisted" selected={draft.visibility === "UNLISTED"} onClick={() => update("visibility", "UNLISTED")} /><VisibilityButton icon={Globe} label="Public" selected={draft.visibility === "PUBLIC"} onClick={() => update("visibility", "PUBLIC")} /></div>
+              <label className="codex-check-row"><input type="checkbox" checked={draft.isNSFW} onChange={(event) => update("isNSFW", event.target.checked)} />Mark as age-gated / NSFW</label>
+              <div className="codex-subleaf"><p className="codex-kicker">Character Card V2</p><p className="mt-2 text-sm text-[var(--text-muted)]">Import or export this dossier as interoperable JSON.</p><div className="mt-4 flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={exportCharacterCard}><Download className="h-4 w-4" />Export Card V2</Button><Button type="button" variant="outline" onClick={importCharacterCard}><FileJson className="h-4 w-4" />Import JSON</Button></div><Textarea value={draft.characterCardJson} onChange={(event) => update("characterCardJson", event.target.value)} className="mt-4 min-h-36 font-mono text-xs" /></div>
+            </StudioChapter>
           </div>
         )}
 
-        {error ? <p className="rounded-[var(--radius-md)] border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</p> : null}
+        {error ? <p className="codex-error-note">{error}</p> : null}
 
-        <div className="sticky bottom-0 z-10 flex flex-col gap-3 rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 sm:flex-row sm:items-center sm:justify-between">
-          {isPromptMode ? (
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => promptOptions && void generateFromPrompt(promptOptions)}
-                disabled={generatingPreview || prompt.trim().length < 12 || !promptOptions}
-              >
-                <Sparkles className="h-4 w-4" />
-                Regenerate
-              </Button>
-              <Button type="button" variant="outline" onClick={() => switchFormMode("custom")} disabled={!promptGenerated}>
-                <SlidersHorizontal className="h-4 w-4" />
-                Open in Custom
-              </Button>
-            </div>
-          ) : isSimpleMode && mode === "create" ? (
-            <Button type="button" variant="outline" onClick={() => switchFormMode("custom")}>
-              <SlidersHorizontal className="h-4 w-4" />
-              Customize
-            </Button>
-          ) : isSimpleMode ? (
-            <p className="text-sm text-[var(--text-muted)]">Edit the same essentials used to create this character.</p>
-          ) : (
-            <p className="text-sm text-[var(--text-muted)]">Fill sections in any order. AI Assist can help inside each block.</p>
-          )}
-          <Button type="submit" size="lg" disabled={saving || !canSubmit}>
-            <Save className="h-4 w-4" />
-            {saving ? (mode === "edit" ? "Saving..." : "Creating...") : mode === "edit" ? "Save character" : "Create character"}
-          </Button>
-        </div>
+        <footer className="codex-studio-actions">
+          <div className="flex min-w-0 items-center gap-2">
+            {!isPromptMode && currentChapterIndex > 0 ? <Button type="button" variant="ghost" onClick={() => selectChapter(visibleChapters[currentChapterIndex - 1].id)}>Previous</Button> : null}
+            {!isPromptMode && currentChapterIndex < visibleChapters.length - 1 ? <Button type="button" variant="outline" onClick={() => selectChapter(visibleChapters[currentChapterIndex + 1].id)}>Next chapter</Button> : null}
+            {isPromptMode ? <><Button type="button" variant="outline" onClick={() => promptOptions && void generateFromPrompt(promptOptions)} disabled={generatingPreview || prompt.trim().length < 12 || !promptOptions}><Sparkles className="h-4 w-4" />Regenerate</Button><Button type="button" variant="ghost" onClick={() => switchFormMode("custom")} disabled={!promptGenerated}>Review full dossier</Button></> : null}
+          </div>
+          <Button type="submit" size="lg" disabled={saving || !canSubmit}><Save className="h-4 w-4" />{saving ? "Binding..." : mode === "edit" ? "Save revision" : "Create character"}</Button>
+        </footer>
       </form>
-
-      <CharacterPreviewPanel
-        className="min-h-0 border-t border-[var(--border-default)] bg-[var(--bg-elevated)] p-4 lg:border-l lg:border-t-0"
-        name={previewDraft.name}
-        description={previewDraft.description}
-        greeting={previewDraft.greeting}
-        avatarUrl={previewDraft.avatarUrl}
-        tags={previewDraft.tags}
-        generated={Boolean(generatedPreview)}
-        visualIdentity={{
-          accentColor: previewDraft.visualAccentColor,
-          gradientFrom: previewDraft.visualGradientFrom,
-          gradientTo: previewDraft.visualGradientTo
-        }}
-      />
     </div>
+  );
+}
+
+function StudioChapter({
+  id,
+  number,
+  title,
+  description,
+  active,
+  onSelect,
+  onAssist,
+  assisting = false,
+  children
+}: {
+  id: StudioChapterId;
+  number: string;
+  title: string;
+  description: string;
+  active: boolean;
+  onSelect: () => void;
+  onAssist?: () => void;
+  assisting?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <section id={`studio-${id}`} className={cn("codex-manuscript-chapter scroll-mt-6", active && "is-active")}>
+      <header className="codex-chapter-heading">
+        <button type="button" onClick={onSelect} aria-expanded={active} aria-controls={`studio-${id}-body`}>
+          {number}
+        </button>
+        <div>
+          <p className="codex-kicker">Chapter {number}</p>
+          <h2>{title}</h2>
+          <p>{description}</p>
+        </div>
+        {onAssist ? (
+          <button type="button" className="codex-margin-assist" onClick={onAssist} disabled={assisting}>
+            <Sparkles className="h-4 w-4" />
+            {assisting ? "Writing..." : "Assist this chapter"}
+          </button>
+        ) : null}
+      </header>
+      <div id={`studio-${id}-body`} className="codex-chapter-body">{children}</div>
+    </section>
   );
 }
 
@@ -1112,11 +846,12 @@ function ModeButton({
     <button
       type="button"
       onClick={onClick}
+      data-active={active}
       className={cn(
-        "focus-ring flex h-12 items-center justify-center gap-2 rounded-[var(--radius-pill)] text-sm font-semibold transition-colors duration-150 active:scale-95",
+        "focus-ring flex h-12 items-center justify-center gap-2 border-b-2 text-xs font-semibold uppercase tracking-[.15em] transition-colors duration-150 active:scale-95",
         active
-          ? "bg-primary text-primary-foreground"
-          : "text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+          ? "border-[var(--accent-mint)] text-[var(--accent-mint)]"
+          : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
       )}
     >
       <Icon className="h-4 w-4" />

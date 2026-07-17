@@ -81,10 +81,7 @@ export function ChatInput({
 
   return (
     <div
-      className="pointer-events-none sticky bottom-0 z-20 shrink-0 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-8 sm:px-5 md:px-6 md:pb-5"
-      style={{
-        background: "transparent"
-      }}
+      className="pointer-events-none sticky bottom-0 z-20 shrink-0 border-t border-[var(--codex-rule)] bg-[color-mix(in_oklch,var(--codex-paper)_92%,transparent)] px-4 pb-[calc(.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl sm:px-7 md:px-10 md:pb-4"
     >
       {hasApiControls && apiOpen ? (
         <motion.div
@@ -190,7 +187,7 @@ export function ChatInput({
         </motion.div>
       ) : null}
       <motion.div
-        className="nythera-chat-column composer-dock orbital-floating pointer-events-auto relative mx-auto flex max-w-[var(--chat-max-width)] flex-col gap-4 rounded-[36px] px-5 py-5 sm:flex-row sm:items-end sm:gap-2 sm:rounded-[28px] sm:px-4 sm:py-3"
+        className="composer-dock pointer-events-auto relative mx-auto flex w-full max-w-[1000px] flex-col gap-3 border border-[var(--codex-rule)] bg-[var(--codex-paper-raised)] px-4 py-4 sm:flex-row sm:items-end sm:gap-3 sm:px-5 sm:py-3"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={springSoft}
@@ -204,8 +201,8 @@ export function ChatInput({
           onChange={(event) => onChange(event.target.value)}
           onInput={resize}
           onKeyDown={handleKeyDown}
-          placeholder="Send a message"
-          className="relative max-h-[220px] min-h-20 w-full flex-1 resize-none overflow-y-auto bg-transparent px-0 py-1 text-2xl font-semibold leading-tight text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] sm:min-h-6 sm:text-sm sm:font-normal sm:leading-6"
+          placeholder="Write what happens next…"
+          className="font-editorial relative max-h-[220px] min-h-16 w-full flex-1 resize-none overflow-y-auto bg-transparent px-0 py-1 text-xl leading-8 text-[var(--codex-ivory)] outline-none placeholder:italic placeholder:text-[var(--text-muted)] sm:min-h-8 sm:text-2xl sm:leading-9"
           disabled={disabled}
         />
 
@@ -261,9 +258,9 @@ export function ChatInput({
             aria-label="Send message"
             whileTap={canSend ? { scale: 0.92 } : undefined}
             transition={springSnappy}
-            className="focus-ring relative grid h-9 w-9 shrink-0 place-items-center rounded-full text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-45"
+            className="focus-ring relative grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[var(--codex-mint)] text-[var(--codex-mint)] disabled:cursor-not-allowed disabled:opacity-45"
             style={{
-              background: canSend ? "var(--gradient-aurora-primary)" : "var(--color-overlay)"
+              background: canSend ? "oklch(var(--color-accent-secondary) / .08)" : "transparent"
             }}
           >
             <ArrowUp className="h-4 w-4" />

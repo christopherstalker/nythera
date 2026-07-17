@@ -39,14 +39,14 @@ export function ChatHeader({ chatId, characterId, characterName, characterAvatar
 
   return (
     <motion.header
-      className="pointer-events-none absolute inset-x-0 top-[calc(12px+env(safe-area-inset-top))] z-30 px-4 sm:px-6"
+      className="pointer-events-none absolute inset-x-0 top-0 z-30 border-b border-[var(--codex-rule)] bg-[color-mix(in_oklch,var(--codex-paper)_88%,transparent)] px-3 pt-[env(safe-area-inset-top)] backdrop-blur-xl sm:px-5"
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={springSoft}
     >
-      <div className="mx-auto flex w-full max-w-[min(920px,calc(100vw-1.5rem))] items-start justify-between gap-2 sm:gap-3">
+      <div className="mx-auto flex h-16 w-full max-w-[1100px] items-center justify-between gap-2 sm:h-[72px] sm:gap-3">
         <motion.div
-          className="orbital-floating pointer-events-auto flex h-14 min-w-0 max-w-[min(460px,calc(100vw-8.5rem))] items-center gap-2 rounded-full px-2 sm:h-16 sm:max-w-[min(480px,calc(100vw-7.25rem))] sm:px-2.5"
+          className="pointer-events-auto flex min-w-0 max-w-[min(520px,calc(100vw-7.5rem))] items-center gap-2"
           whileHover={{ y: -1 }}
           transition={springSnappy}
         >
@@ -54,19 +54,19 @@ export function ChatHeader({ chatId, characterId, characterName, characterAvatar
             <ArrowLeft className="h-6 w-6" />
           </HeaderIconButton>
 
-          <Avatar name={characterName} src={characterAvatarUrl} size="md" className="h-10 w-10 shrink-0 border border-[var(--border-subtle)] sm:h-12 sm:w-12" />
+          <Avatar name={characterName} src={characterAvatarUrl} size="md" className="h-10 w-10 shrink-0 border border-[var(--codex-rule)] lg:hidden" />
 
           <div className="min-w-0 flex-1 pr-1">
-            <h1 className="truncate text-lg font-bold leading-5 text-[var(--text-primary)] sm:text-2xl sm:leading-6">{characterName}</h1>
-            <p className="truncate text-[11px] font-semibold leading-4 text-[var(--text-muted)] sm:text-sm">
-              {personaName ? `${personaName} active` : "Active scene"}
+            <h1 className="truncate text-sm font-semibold uppercase tracking-[.16em] text-[var(--codex-ivory)] sm:text-base">{characterName}</h1>
+            <p className="truncate text-[9px] font-medium uppercase tracking-[.18em] text-[var(--codex-violet)] sm:text-[10px]">
+              Chapter 3 · {personaName ? `${personaName} active` : "After the storm"}
             </p>
           </div>
 
           <Link
             href={characterId ? `/character/${characterId}` : "/explore"}
             aria-label="Open character"
-            className="focus-ring grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--text-primary)] text-[var(--bg-base)] no-underline"
+            className="focus-ring hidden h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--codex-rule)] text-[var(--codex-mint)] no-underline sm:grid"
           >
             <Plus className="h-5 w-5" />
           </Link>
@@ -134,9 +134,9 @@ function HeaderIconButton({
       transition={springSnappy}
       className={cn(
         "focus-ring grid shrink-0 place-items-center rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
-        elevated ? "orbital-floating h-12 w-12 sm:h-14 sm:w-14" : "h-10 w-10",
+        elevated ? "h-10 w-10 border border-[var(--codex-rule)]" : "h-10 w-10",
         active && "text-[var(--text-primary)]",
-        subtle ? "hover:bg-[var(--color-overlay)]" : "bg-[var(--color-overlay)] hover:bg-[var(--bg-elevated)]"
+        subtle ? "hover:bg-[var(--color-overlay)]" : "bg-transparent hover:bg-[var(--bg-elevated)]"
       )}
     >
       {children}

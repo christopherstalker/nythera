@@ -243,68 +243,51 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
   }, [pinMessage, unpinMessage]);
 
   return (
-    <div className="relative isolate flex h-full min-h-0 flex-col overflow-hidden bg-[var(--bg-base)]">
-      {characterAvatarUrl && usePlainSceneImage ? (
-        <img
-          src={characterAvatarUrl}
-          alt=""
-          className="chat-scene-art pointer-events-none absolute inset-0 -z-30 h-full w-full object-cover object-center opacity-60"
+    <div className="chat-codex-workspace grid h-full min-h-0 overflow-hidden bg-[var(--codex-paper)] lg:grid-cols-[minmax(260px,300px)_minmax(0,1fr)]">
+      <aside className="relative hidden min-h-0 overflow-hidden border-r border-[var(--codex-rule)] bg-[var(--codex-paper-raised)] lg:flex lg:flex-col">
+        <div className="relative min-h-0 flex-1 overflow-hidden">
+          {characterAvatarUrl && usePlainSceneImage ? (
+            <img src={characterAvatarUrl} alt="" className="absolute inset-0 h-full w-full object-cover object-top" />
+          ) : characterAvatarUrl ? (
+            <Image src={characterAvatarUrl} alt="" fill priority sizes="300px" className="absolute inset-0 h-full w-full object-cover object-top" />
+          ) : null}
+          <div className="absolute inset-0 bg-gradient-to-t from-[var(--codex-paper-raised)] via-transparent to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 p-7">
+            <p className="mb-2 text-[10px] uppercase tracking-[.25em] text-[var(--codex-mint)]">Chapter 3</p>
+            <h1 className="font-editorial text-6xl font-medium leading-[.75] text-[var(--codex-ivory)]">{characterName}</h1>
+            <p className="mt-5 line-clamp-4 font-editorial text-lg leading-7 text-[var(--text-secondary)]">{summary || "A living story shaped by memory, character, and every choice you make."}</p>
+          </div>
+        </div>
+        <button type="button" onClick={toggleSidePanel} className="focus-ring flex h-16 items-center justify-between border-t border-[var(--codex-rule)] px-7 text-[10px] uppercase tracking-[.2em] text-[var(--text-secondary)] hover:text-[var(--codex-mint)]">
+          Story dossier <span aria-hidden>{sidePanelOpen ? "−" : "+"}</span>
+        </button>
+      </aside>
+
+      <section className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-52 overflow-hidden opacity-25 lg:hidden">
+          {characterAvatarUrl && usePlainSceneImage ? (
+            <img src={characterAvatarUrl} alt="" className="h-full w-full object-cover object-top" />
+          ) : characterAvatarUrl ? (
+            <Image src={characterAvatarUrl} alt="" fill priority sizes="100vw" className="h-full w-full object-cover object-top" />
+          ) : null}
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[var(--codex-paper)]" />
+        </div>
+        <ChatHeader
+          chatId={chatId}
+          characterId={characterId}
+          characterName={characterName}
+          characterAvatarUrl={characterAvatarUrl}
+          personaName={activePersona?.displayName}
+          contextOpen={sidePanelOpen}
+          onOpenContext={toggleSidePanel}
         />
-      ) : characterAvatarUrl ? (
-        <Image
-          src={characterAvatarUrl}
-          alt=""
-          fill
-          priority
-          sizes="100vw"
-          className="chat-scene-art pointer-events-none absolute inset-0 -z-30 h-full w-full object-cover object-center opacity-60"
-        />
-      ) : null}
-      <div
-        className="pointer-events-none absolute inset-0 -z-20"
-        style={{
-          background:
-            "linear-gradient(180deg, oklch(var(--color-canvas) / .22) 0%, oklch(var(--color-canvas) / .12) 34%, oklch(var(--color-canvas) / .34) 100%)"
-        }}
-      />
-      <div
-        className="pointer-events-none absolute inset-0 -z-20"
-        style={{
-          background:
-            "radial-gradient(ellipse 65% 45% at 50% 72%, var(--gradient-aurora-ambient)), radial-gradient(ellipse 45% 60% at 12% 44%, oklch(var(--color-canvas) / .94), transparent 70%)",
-          opacity: 0.48
-        }}
-      />
-      <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 -z-20 h-64"
-        style={{
-          background:
-            "transparent"
-        }}
-      />
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 z-20 h-56"
-        style={{
-          background:
-            "transparent"
-        }}
-      />
-      <div aria-hidden="true" className="glass-grain pointer-events-none absolute inset-0 -z-10" />
-      <ChatHeader
-        chatId={chatId}
-        characterId={characterId}
-        characterName={characterName}
-        characterAvatarUrl={characterAvatarUrl}
-        personaName={activePersona?.displayName}
-        contextOpen={sidePanelOpen}
-        onOpenContext={toggleSidePanel}
-      />
-      <div className="relative flex min-h-0 flex-1 flex-col">
-        <section className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <div aria-hidden="true" className="glass-grain pointer-events-none absolute inset-0" />
           <MessageList
             messages={messages}
             characterName={characterName}
+            characterAvatarUrl={characterAvatarUrl}
             personaName={activePersona?.displayName}
+            personaAvatarUrl={activePersona?.avatarUrl}
             summary={summary}
             error={error}
             onEdit={editMessage}
@@ -333,8 +316,7 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
             personaAvatarUrl={activePersona?.avatarUrl}
             onOpenComposer={() => setSidePanelOpen(true)}
           />
-        </section>
-      </div>
+      </section>
     </div>
   );
 }

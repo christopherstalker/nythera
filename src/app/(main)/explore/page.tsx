@@ -166,8 +166,11 @@ function ExplorePageContent() {
   }
 
   return (
-    <PageShell className="space-y-6 px-4 pt-5 sm:px-6 md:pt-6">
-      <h1 className="sr-only">Explore</h1>
+    <PageShell className="codex-explore space-y-10">
+      <header className="border-b border-[var(--codex-rule)] pb-7">
+        <p className="mb-2 text-[10px] uppercase tracking-[.3em] text-[var(--codex-violet)]">The living index</p>
+        <h1 className="font-editorial text-[clamp(3.5rem,8vw,7rem)] font-medium leading-[.82] tracking-[-.045em] text-[var(--codex-ivory)]">Discover</h1>
+      </header>
       <FeaturedStage character={featuredCharacter} loading={loading} />
 
       <DiscoveryCommandCenter
@@ -190,7 +193,7 @@ function ExplorePageContent() {
         <section className="space-y-4">
           <div className="scrollbar-none overflow-x-auto pb-1">
             <div
-              className="orbital-glass inline-flex min-w-max gap-1 rounded-[var(--radius-pill)] p-1"
+            className="inline-flex min-w-max gap-6 border-b border-[var(--codex-rule)]"
             >
               {feedTabs.map((tab) => (
                 <button
@@ -198,10 +201,10 @@ function ExplorePageContent() {
                   type="button"
                   onClick={() => setActiveFeed(tab.id)}
                   className={cn(
-                    "focus-ring h-10 rounded-[var(--radius-pill)] px-4 text-sm font-semibold",
+                    "focus-ring h-11 border-b px-1 text-xs font-semibold uppercase tracking-[.16em]",
                     activeFeed === tab.id
-                      ? "bg-aurora-primary text-[var(--text-primary)] shadow-glow-soft"
-                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                      ? "border-[var(--codex-mint)] text-[var(--codex-mint)]"
+                      : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   )}
                 >
                   {tab.label}
@@ -240,7 +243,7 @@ function ExplorePageContent() {
 
 function FeaturedStage({ character, loading }: { character: CharacterSummary | null; loading: boolean }) {
   if (loading && !character) {
-    return <div className="skeleton orbital-stage w-full" />;
+    return <div className="skeleton min-h-[560px] w-full border-y border-[var(--codex-rule)]" />;
   }
 
   if (!character) {
@@ -254,7 +257,7 @@ function FeaturedStage({ character, loading }: { character: CharacterSummary | n
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={springSoft}
-      className="orbital-stage orbital-glass group"
+      className="codex-discovery-stage group relative isolate grid min-h-[560px] overflow-hidden border-y border-[var(--codex-rule)] lg:grid-cols-[minmax(0,1.25fr)_minmax(340px,.75fr)]"
       aria-labelledby="featured-character-name"
     >
       <Image
@@ -264,24 +267,24 @@ function FeaturedStage({ character, loading }: { character: CharacterSummary | n
         priority
         unoptimized={shouldBypassNextImageOptimization(avatarSrc)}
         sizes="(min-width: 1280px) 88rem, 100vw"
-        className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.015] motion-reduce:transition-none"
+        className="absolute inset-0 h-full w-full object-cover opacity-75 transition-transform duration-700 group-hover:scale-[1.015] motion-reduce:transition-none lg:left-auto lg:w-[62%]"
         style={{ objectPosition: "70% 20%" }}
       />
       <div
         className="absolute inset-0"
         style={{
           background:
-            "linear-gradient(90deg, oklch(var(--color-canvas) / .98) 0%, oklch(var(--color-canvas) / .84) 34%, oklch(var(--color-canvas) / .3) 64%, transparent 100%), linear-gradient(0deg, oklch(var(--color-canvas) / .62) 0%, transparent 46%)"
+            "linear-gradient(90deg, var(--codex-paper) 0%, color-mix(in oklch, var(--codex-paper) 96%, transparent) 38%, transparent 76%), linear-gradient(0deg, var(--codex-paper) 0%, transparent 54%)"
         }}
       />
       <div className="absolute inset-0 bg-aurora-ambient opacity-35 mix-blend-screen" />
 
-      <div className="relative z-10 flex min-h-[inherit] max-w-xl flex-col justify-end p-6 sm:p-9 lg:justify-center lg:p-12">
+      <div className="relative z-10 flex min-h-[inherit] max-w-xl flex-col justify-end p-6 sm:p-9 lg:justify-center lg:p-12 xl:p-16">
         <p className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[.18em] text-[var(--accent-secondary)]">
           <Sparkles className="h-4 w-4" />
           Featured character
         </p>
-        <h2 id="featured-character-name" className="text-[clamp(3.25rem,7vw,6.5rem)] font-semibold leading-[.88] tracking-[-.055em] text-[var(--text-primary)]">
+        <h2 id="featured-character-name" className="font-editorial text-[clamp(4rem,9vw,7.5rem)] font-medium leading-[.78] tracking-[-.055em] text-[var(--codex-ivory)]">
           {character.name}
         </h2>
         <p className="mt-6 line-clamp-3 max-w-lg text-base leading-7 text-[var(--text-secondary)] sm:text-lg">
@@ -360,9 +363,9 @@ function DiscoveryCommandCenter({
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={springSoft}
-        className="orbital-functional orbital-discovery-dock p-3 sm:p-4"
+        className="codex-discovery-dock border-y border-[var(--codex-rule)] bg-[var(--codex-paper-raised)] p-4 sm:p-5"
       >
-        <div className="grid gap-3 xl:grid-cols-[minmax(300px,1.35fr)_minmax(150px,.55fr)_minmax(250px,.9fr)_minmax(300px,1.05fr)_auto] xl:items-end">
+        <div className="grid gap-3 xl:grid-cols-[minmax(340px,1.7fr)_minmax(150px,.55fr)_minmax(250px,.8fr)_minmax(300px,1fr)_auto] xl:items-end">
           <SearchBar
             value={query}
             onChange={onQueryChange}

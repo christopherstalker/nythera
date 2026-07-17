@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { formatOklchChannels, hexToOklch } from "@/lib/color/oklch";
 
@@ -12,15 +12,38 @@ const BRAND_STATE_EVENT = "nythera:brand-state";
 const BRAND_LOGO_PRIMARY = "#8F81F7";
 const BRAND_LOGO_SECONDARY = "#6EE7D8";
 const THEME_COLOR_DARK = "#03040F";
-const THEME_COLOR_LIGHT = "#F0F3FC";
+const THEME_COLOR_LIGHT = "#E5DCCB";
 
 export type StoredAppearance = {
   accentColor?: string;
-  theme?: "dark";
+  theme?: "dark" | "light";
   glowIntensity?: number;
 };
 
 export const ACCENT_PRESETS = ["#8F81F7", "#6EE7D8", "#A78BFA", "#2DD4BF", "#EF476F", "#38BDF8", "#F472B6", "#64748B"];
+
+export function useAppearanceTheme() {
+  const { setTheme } = useTheme();
+  const [activeTheme, setActiveTheme] = useState<"dark" | "light">("dark");
+
+  useEffect(() => {
+    const syncFromDocument = () => {
+      setActiveTheme(document.documentElement.classList.contains("light") ? "light" : "dark");
+    };
+    syncFromDocument();
+    const observer = new MutationObserver(syncFromDocument);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+
+  const updateTheme = useCallback((nextTheme: "dark" | "light") => {
+    setActiveTheme(nextTheme);
+    setTheme(nextTheme);
+    saveStoredAppearance({ theme: nextTheme });
+  }, [setTheme]);
+
+  return { activeTheme, updateTheme };
+}
 
 export function AppearanceProvider() {
   const { setTheme } = useTheme();
@@ -39,7 +62,10 @@ export function AppearanceProvider() {
       const detail = (event as CustomEvent<StoredAppearance>).detail;
       applyAccentColor(detail?.accentColor || readStoredAppearance().accentColor || DEFAULT_ACCENT_COLOR);
       updateDynamicFavicon(detail?.glowIntensity ?? 0.56);
-      setTheme("dark");
+      if (isTheme(detail?.theme)) {
+        setTheme(detail.theme);
+        updateThemeColor(detail.theme);
+      }
     };
 
     const onBrandState = (event: Event) => {
@@ -74,7 +100,7 @@ export function readStoredAppearance(): StoredAppearance {
     const parsed = JSON.parse(raw) as StoredAppearance;
     return {
       accentColor: isHexColor(parsed.accentColor) ? parsed.accentColor : undefined,
-      theme: isTheme(parsed.theme) ? parsed.theme : "dark"
+      theme: isTheme(parsed.theme) ? parsed.theme : undefined
     };
   } catch {
     return {};
@@ -132,7 +158,8 @@ function applyStoredAppearance(setTheme?: (theme: string) => void) {
   const appearance = readStoredAppearance();
   applyAccentColor(appearance.accentColor || DEFAULT_ACCENT_COLOR);
   if (isTheme(appearance.theme)) {
-    setTheme?.("dark");
+    setTheme?.(appearance.theme);
+    updateThemeColor(appearance.theme);
   }
 }
 
@@ -141,7 +168,7 @@ function isHexColor(value?: string): value is string {
 }
 
 function isTheme(value?: string): value is NonNullable<StoredAppearance["theme"]> {
-  return value === "dark";
+  return value === "dark" || value === "light";
 }
 
 async function syncAppearanceFromAccount(setTheme: (theme: string) => void) {
@@ -153,9 +180,10 @@ async function syncAppearanceFromAccount(setTheme: (theme: string) => void) {
 
     const body = await response.json();
     const profile = body?.profile;
+    const localAppearance = readStoredAppearance();
     const next: StoredAppearance = {
-      accentColor: isHexColor(profile?.accentColor) ? profile.accentColor : undefined,
-      theme: "dark"
+      accentColor: localAppearance.accentColor || (isHexColor(profile?.accentColor) ? profile.accentColor : undefined),
+      theme: localAppearance.theme || (isTheme(profile?.preferredTheme) ? profile.preferredTheme : undefined)
     };
 
     if (!next.accentColor && !next.theme) {
@@ -164,7 +192,10 @@ async function syncAppearanceFromAccount(setTheme: (theme: string) => void) {
 
     saveStoredAppearance(next, { sync: false });
     applyAccentColor(next.accentColor || readStoredAppearance().accentColor || DEFAULT_ACCENT_COLOR);
-    setTheme("dark");
+    if (next.theme) {
+      setTheme(next.theme);
+      updateThemeColor(next.theme);
+    }
   } catch {
     // Anonymous sessions and offline PWA starts keep using local appearance.
   }
@@ -224,8 +255,14 @@ function updateDynamicFavicon(glowIntensity = 0.56) {
 
   const themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
   if (themeColor) {
-    const prefersLight = window.matchMedia?.("(prefers-color-scheme: light)").matches;
-    themeColor.content = prefersLight ? THEME_COLOR_LIGHT : THEME_COLOR_DARK;
+    themeColor.content = document.documentElement.classList.contains("light") ? THEME_COLOR_LIGHT : THEME_COLOR_DARK;
+  }
+}
+
+function updateThemeColor(theme: NonNullable<StoredAppearance["theme"]>) {
+  const themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  if (themeColor) {
+    themeColor.content = theme === "light" ? THEME_COLOR_LIGHT : THEME_COLOR_DARK;
   }
 }
 

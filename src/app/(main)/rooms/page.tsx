@@ -113,8 +113,8 @@ export default function RoomsPage() {
   }
 
   return (
-    <PageShell>
-      <div className="grid gap-6">
+    <PageShell className="codex-rooms space-y-10">
+      <div className="grid gap-10">
         <PageHeader
           icon={UsersRound}
           title="Rooms"
@@ -127,43 +127,45 @@ export default function RoomsPage() {
           }
         />
 
-        <section className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="glass-panel min-w-0 p-4 sm:p-5">
+        <section className="grid min-w-0 border-y border-[var(--border-default)] lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,.75fr)]">
+          <div className="min-w-0 py-7 lg:border-r lg:border-[var(--border-default)] lg:pr-10">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-[var(--text-primary)]">Active rooms</h2>
+                <p className="codex-kicker">Ensemble desk</p>
+                <h2 className="font-editorial mt-2 text-3xl font-medium text-[var(--text-primary)]">Active rooms</h2>
                 <p className="mt-1 text-sm text-[var(--text-secondary)]">Open an existing cast or start a fresh scene.</p>
               </div>
               <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Optional room title" className="sm:max-w-xs" />
             </div>
 
-            <div className="mt-4 grid gap-3">
+            <div className="mt-7 grid border-t border-[var(--border-default)]">
               {loading ? (
-                <div className="grid min-h-36 place-items-center rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)]">
+                <div className="grid min-h-36 place-items-center border-b border-[var(--border-default)]">
                   <Loader2 className="h-5 w-5 animate-spin text-[var(--text-muted)]" />
                 </div>
               ) : rooms.length > 0 ? (
                 rooms.map((room) => <RoomRow key={room.id} room={room} />)
               ) : (
-                <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-6 text-sm text-[var(--text-secondary)]">
+                <div className="border-b border-[var(--border-default)] py-8 text-sm text-[var(--text-secondary)]">
                   No rooms yet. Select characters from the builder and create your first room.
                 </div>
               )}
             </div>
           </div>
 
-          <aside className="glass-panel min-w-0 p-4 sm:p-5">
+          <aside className="min-w-0 py-7 lg:pl-10">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold text-[var(--text-primary)]">Cast builder</h2>
+                <p className="codex-kicker">New room</p>
+                <h2 className="font-editorial mt-2 text-3xl font-medium text-[var(--text-primary)]">Cast builder</h2>
                 <p className="mt-1 text-sm text-[var(--text-secondary)]">{selected.length}/6 selected</p>
               </div>
-              <span className="grid h-10 w-10 place-items-center rounded-[var(--radius-md)] bg-[var(--accent-purple-soft)] text-[var(--accent-purple)]">
+              <span className="grid h-10 w-10 place-items-center border border-[var(--border-default)] text-[var(--accent-mint)]">
                 <UsersRound className="h-5 w-5" />
               </span>
             </div>
             <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search characters" className="mt-4" />
-            <div className="chat-scroll mt-3 grid max-h-[min(58vh,560px)] gap-2 overflow-y-auto pr-1">
+            <div className="chat-scroll mt-4 grid max-h-[min(58vh,560px)] overflow-y-auto border-t border-[var(--border-default)] pr-1">
               {filteredCharacters.map((character) => {
                 const active = selected.includes(character.id);
                 return (
@@ -172,8 +174,8 @@ export default function RoomsPage() {
                     key={character.id}
                     onClick={() => toggleCharacter(character.id)}
                     className={cn(
-                      "focus-ring flex min-w-0 items-center gap-3 rounded-[var(--radius-md)] border p-3 text-left transition",
-                      active ? "border-[rgb(var(--accent-rgb)_/.38)] bg-[var(--accent-purple-soft)]" : "border-[var(--border-default)] bg-[var(--bg-input)] hover:bg-white/[0.055]"
+                      "focus-ring flex min-w-0 items-center gap-3 border-b border-[var(--border-default)] px-1 py-3 text-left transition",
+                      active ? "bg-[var(--accent-purple-soft)]" : "hover:bg-white/[0.035]"
                     )}
                   >
                     <Avatar name={character.name} src={character.avatarUrl} size="sm" />
@@ -199,14 +201,14 @@ function RoomRow({ room }: { room: RoomSummary }) {
   const cast = room.characters.map((link) => link.character.name).join(", ");
 
   return (
-    <Link href={`/room/${room.id}`} className="group flex min-w-0 items-center gap-3 rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-3 no-underline transition hover:border-[rgb(var(--accent-rgb)_/.32)] hover:bg-white/[0.055]">
+    <Link href={`/room/${room.id}`} className="group grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 border-b border-[var(--border-default)] py-5 no-underline transition hover:bg-white/[0.025]">
       <div className="flex -space-x-2">
         {room.characters.slice(0, 3).map((link) => (
           <Avatar key={link.character.id} name={link.character.name} src={link.character.avatarUrl} size="sm" className="ring-2 ring-[var(--bg-input)]" />
         ))}
       </div>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-[var(--text-primary)]">{room.title}</span>
+        <span className="font-editorial block truncate text-xl font-medium text-[var(--text-primary)]">{room.title}</span>
         <span className="mt-1 block truncate text-xs text-[var(--text-muted)]">{cast}</span>
         <span className="mt-1 block truncate text-xs text-[var(--text-secondary)]">{preview}</span>
       </span>

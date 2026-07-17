@@ -8,6 +8,7 @@ import { springSnappy, springSoft } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
 import { ChevronLeft, ChevronRight, GitFork, History, PenLine, Pin, RefreshCw, SendHorizontal, ShieldAlert, Trash2, Volume2 } from "lucide-react";
+import { Avatar } from "@/components/ui/avatar";
 
 const LONG_PRESS_DELAY_MS = 500;
 const DELETE_EXIT_DELAY_MS = 140;
@@ -17,7 +18,9 @@ type MessageBubbleProps = {
   role: "USER" | "ASSISTANT" | "SYSTEM";
   content: string;
   characterName: string;
+  characterAvatarUrl?: string | null;
   personaName?: string | null;
+  personaAvatarUrl?: string | null;
   isPinned?: boolean;
   inputTokens?: number | null;
   outputTokens?: number | null;
@@ -42,7 +45,9 @@ function MessageBubbleComponent({
   role,
   content,
   characterName,
+  characterAvatarUrl,
   personaName,
+  personaAvatarUrl,
   isPinned,
   inputTokens,
   outputTokens,
@@ -182,7 +187,6 @@ function MessageBubbleComponent({
     <motion.div
       className={cn(
         "group/message relative flex w-full message-enter",
-        isUser ? "justify-end" : "justify-start",
         isDeleting && "message-exit pointer-events-none"
       )}
       initial={{ opacity: 0, y: 10 }}
@@ -193,7 +197,17 @@ function MessageBubbleComponent({
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchEnd}
     >
-      <div className={cn("flex min-w-0 flex-col", isUser ? "items-end" : "w-full items-start")}>
+      <div className="grid w-full min-w-0 grid-cols-[42px_minmax(0,1fr)] gap-4 border-b border-[var(--codex-rule)] pb-7 sm:grid-cols-[48px_minmax(0,1fr)] sm:gap-5">
+        <Avatar
+          name={isUser ? personaName || "You" : characterName}
+          src={isUser ? personaAvatarUrl : characterAvatarUrl}
+          size="sm"
+          className={cn("h-10 w-10 border-[var(--codex-rule)]", isUser && "text-[var(--codex-mint)]")}
+        />
+        <div className="flex min-w-0 flex-col items-start">
+          <p className={cn("mb-3 text-[10px] font-semibold uppercase tracking-[.23em]", isUser ? "text-[var(--codex-mint)]" : "text-[var(--codex-violet)]")}>
+            {isUser ? personaName || "You" : characterName}
+          </p>
         {!isUser && content && (inputTokens !== null && inputTokens !== undefined || outputTokens !== null && outputTokens !== undefined) ? (
           <span
             className="mb-1.5 ml-1 inline-flex h-7 items-center gap-1.5 rounded-full border border-[var(--border-subtle)] px-3 text-[11px] font-semibold text-[var(--text-secondary)] shadow-[var(--glass-highlight)]"
@@ -207,28 +221,11 @@ function MessageBubbleComponent({
 
         <motion.div
           className={cn(
-            "relative overflow-hidden shadow-[var(--shadow-soft)]",
+            "font-editorial relative max-w-[760px] overflow-hidden text-xl leading-8 text-[var(--codex-ivory)] sm:text-2xl sm:leading-9",
             isUser
-              ? "max-w-[min(88%,640px)] rounded-[20px] px-4 py-3 text-sm font-medium leading-6 max-sm:max-w-[92%] max-sm:text-base sm:max-w-[min(58vw,600px)]"
-              : "w-full rounded-[28px] px-6 py-6 text-[26px] font-bold leading-[1.55] text-[var(--text-primary)] max-sm:min-h-32 max-sm:max-w-[94%] sm:px-5 sm:py-4 sm:text-[15px] sm:font-medium sm:leading-7 md:rounded-[20px]"
+              ? "max-w-[680px]"
+              : "w-full"
           )}
-          style={
-            isUser
-              ? {
-                  background:
-                    "color-mix(in oklch, var(--accent-purple) 24%, transparent)",
-                  color: "var(--text-primary)",
-                  border: "1px solid color-mix(in oklch, var(--accent-purple) 42%, transparent)",
-                  backdropFilter: "blur(10px) saturate(135%)",
-                  WebkitBackdropFilter: "blur(10px) saturate(135%)"
-                }
-              : {
-                  background: "color-mix(in oklch, var(--bg-base) 92%, transparent)",
-                  border: "1px solid color-mix(in oklch, var(--border-subtle) 86%, transparent)",
-                  backdropFilter: "blur(16px) saturate(150%)",
-                  WebkitBackdropFilter: "blur(16px) saturate(150%)"
-                }
-          }
           whileHover={{ y: -1 }}
           transition={springSnappy}
         >
@@ -296,7 +293,7 @@ function MessageBubbleComponent({
         {content && !isEditing ? (
           <div
             className={cn(
-              "mt-3 flex flex-wrap items-center gap-2",
+              "mt-4 flex w-full flex-wrap items-center gap-2",
               isLatestAssistant ? "opacity-100" : "opacity-0 max-sm:hidden sm:translate-y-1 sm:group-hover/message:translate-y-0 sm:group-hover/message:opacity-100 sm:group-focus-within/message:translate-y-0 sm:group-focus-within/message:opacity-100",
               isUser ? "justify-end" : "justify-between"
             )}
@@ -357,6 +354,7 @@ function MessageBubbleComponent({
           </div>
         ) : null}
       </div>
+      </div>
 
       <span className="sr-only">{isUser ? personaName || "You" : characterName}</span>
 
@@ -387,7 +385,9 @@ function areMessageBubblePropsEqual(previous: MessageBubbleProps, next: MessageB
     previous.role === next.role &&
     previous.content === next.content &&
     previous.characterName === next.characterName &&
+    previous.characterAvatarUrl === next.characterAvatarUrl &&
     previous.personaName === next.personaName &&
+    previous.personaAvatarUrl === next.personaAvatarUrl &&
     previous.isPinned === next.isPinned &&
     previous.inputTokens === next.inputTokens &&
     previous.outputTokens === next.outputTokens &&

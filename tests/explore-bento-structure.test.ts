@@ -10,8 +10,9 @@ test("Explore uses one bento component for default and filtered discovery result
   assert.match(explore, /import \{ CharacterBentoGrid \}/);
   assert.equal((explore.match(/<CharacterBentoGrid/g) ?? []).length, 2);
   assert.match(explore, /<FeaturedStage/);
-  assert.match(explore, /orbital-stage orbital-glass/);
-  assert.match(explore, /orbital-discovery-dock/);
+  assert.match(explore, /codex-discovery-stage/);
+  assert.match(explore, /codex-discovery-dock/);
+  assert.match(explore, /The living index/);
   assert.match(explore, /layout="shelf"/);
   assert.match(explore, /More filters/);
   assert.doesNotMatch(explore, /data:image\/svg\+xml/);
@@ -35,7 +36,7 @@ test("Explore keeps mobile and tablet filters behind a search-adjacent drawer tr
   assert.match(explore, /<DiscoveryFilterControls/);
 });
 
-test("Discovery bento provides featured and wide desktop spans with responsive collapse", async () => {
+test("Discovery archive provides featured and wide folios with responsive collapse", async () => {
   const [schema, migration, bento, globals] = await Promise.all([
     read("../prisma/schema.prisma"),
     read("../prisma/migrations/20260628190000_character_discovery_placement/migration.sql"),
@@ -53,28 +54,30 @@ test("Discovery bento provides featured and wide desktop spans with responsive c
   assert.match(bento, /count >= 4 && index === 3/);
   assert.match(bento, /layout\?: "bento" \| "shelf"/);
   assert.match(bento, /layout === "bento" && placement === "FEATURED"/);
-  assert.match(bento, /orbital-character-shelf/);
+  assert.match(bento, /codex-character-catalog/);
+  assert.match(bento, /codex-character-record/);
   assert.match(bento, /bentoCellClass\(placement\)/);
   assert.match(bento, /nythera-bento-grid/);
   assert.match(bento, /presentation="discovery"/);
-  assert.match(globals, /\.nythera-bento-grid\s*\{[\s\S]*grid-template-columns:\s*1fr;[\s\S]*grid-auto-rows:\s*260px/);
-  assert.match(globals, /@media \(min-width:\s*768px\)[\s\S]*\.nythera-bento-grid\s*\{[\s\S]*repeat\(2, minmax\(0, 1fr\)\)/);
-  assert.match(globals, /@media \(min-width:\s*1280px\)[\s\S]*\.nythera-bento-grid\s*\{[\s\S]*repeat\(4, minmax\(0, 1fr\)\)/);
-  assert.match(globals, /\.nythera-bento-featured[\s\S]*grid-column:\s*span 2;[\s\S]*grid-row:\s*span 2/);
-  assert.match(globals, /\.nythera-bento-wide[\s\S]*grid-column:\s*span 2/);
+  assert.match(globals, /\.codex-character-catalog\s*\{[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(globals, /@media \(min-width:\s*768px\)[\s\S]*\.codex-character-catalog\s*\{[\s\S]*repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(globals, /@media \(min-width:\s*1280px\)[\s\S]*\.codex-character-catalog\s*\{[\s\S]*repeat\(4, minmax\(0, 1fr\)\)/);
+  assert.match(globals, /\.codex-character-record\.nythera-bento-featured[\s\S]*grid-column:\s*span 2;[\s\S]*grid-row:\s*span 2/);
+  assert.match(globals, /\.codex-character-record\.nythera-bento-wide[\s\S]*grid-column:\s*span 2/);
 });
 
-test("Discovery cards overlay copy and tags on full-bleed artwork", async () => {
+test("Discovery records separate portrait plates from archival copy", async () => {
   const card = await read("../src/components/characters/CharacterCard.tsx");
   const discoveryStart = card.indexOf('presentation === "discovery"');
   const discoveryEnd = card.indexOf("\n  }\n\n  return (", discoveryStart);
   const discovery = card.slice(discoveryStart, discoveryEnd);
 
-  assert.match(discovery, /absolute inset-0 h-full w-full object-cover/);
-  assert.match(discovery, /linear-gradient\(to top, oklch\(var\(--color-canvas\) \/ \.94\)/);
-  assert.match(discovery, /backdropFilter:\s*"blur\(var\(--glass-blur-sm\)\) saturate\(var\(--glass-saturation\)\)"/);
+  assert.match(discovery, /codex-character-plate-image/);
+  assert.match(discovery, /codex-character-plate-copy/);
+  assert.match(discovery, /codex-character-plate-veil/);
+  assert.doesNotMatch(discovery, /backdropFilter/);
   assert.match(discovery, /\{character\.name\}/);
   assert.match(discovery, /\{character\.description/);
   assert.match(discovery, /character\.tags\?\.slice/);
-  assert.doesNotMatch(discovery, /h-\[72%\]|rounded-t-/);
+  assert.doesNotMatch(discovery, /orbital-glass|rounded-\[20px\]/);
 });

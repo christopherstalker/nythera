@@ -8,7 +8,7 @@ import { MemorySettingsClient } from "@/components/settings/memory-settings-clie
 import { ProfileSettingsClient } from "@/components/settings/profile-settings-client";
 import { UserPersonaSettingsClient } from "@/components/settings/user-persona-settings-client";
 import { VoiceKeySettingsClient } from "@/components/settings/voice-key-settings-client";
-import { PageShell } from "@/components/ui/page";
+import { PageHeader, PageShell } from "@/components/ui/page";
 import { cn } from "@/lib/utils";
 
 const sections = [
@@ -56,17 +56,18 @@ export default function SettingsPage() {
   }
 
   return (
-    <PageShell>
-      <div className="grid min-w-0 gap-6 lg:grid-cols-[220px_minmax(0,720px)] lg:justify-start">
+    <PageShell className="codex-settings space-y-10">
+      <PageHeader icon={UserCog} title="Settings" description="The controls behind your voice, memory, appearance, and connected models." />
+      <div className="grid min-w-0 border-y border-[var(--border-default)] lg:grid-cols-[240px_minmax(0,760px)] lg:justify-start">
         <aside className="min-w-0 lg:sticky lg:top-6 lg:self-start">
-          <nav className="settings-orbital-nav scrollbar-none flex w-full max-w-full gap-2 overflow-x-auto p-2 lg:grid" aria-label="Settings sections">
+          <nav className="settings-orbital-nav scrollbar-none flex w-full max-w-full overflow-x-auto border-b border-[var(--border-default)] lg:grid lg:border-b-0 lg:border-r" aria-label="Settings sections">
             {sections.map((section) => {
               const Icon = section.icon;
               return (
                 <a
                   key={section.id}
                   href={`#${section.id}`}
-                  className="focus-ring flex h-10 shrink-0 items-center gap-2 rounded-[var(--radius-sm)] px-3 text-sm font-medium text-[var(--text-secondary)] no-underline transition-colors duration-150 hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+                  className="focus-ring flex h-12 shrink-0 items-center gap-2 border-r border-[var(--border-default)] px-4 text-xs font-medium uppercase tracking-[.14em] text-[var(--text-secondary)] no-underline transition-colors duration-150 hover:text-[var(--accent-mint)] lg:border-b lg:border-r-0"
                 >
                   <Icon className="h-4 w-4" />
                   {section.label}
@@ -76,7 +77,7 @@ export default function SettingsPage() {
           </nav>
         </aside>
 
-        <div className="grid min-w-0 gap-5">
+        <div className="grid min-w-0 lg:pl-10">
           <SettingsCard id="api-keys" icon={KeyRound} title="API Keys">
             <div className="grid gap-4">
               <KeySettingsClient />
@@ -120,12 +121,12 @@ function SettingsCard({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="settings-orbital-section min-w-0 p-5 sm:p-6">
+    <section id={id} className="settings-orbital-section min-w-0 border-b border-[var(--border-default)] py-8 sm:py-10">
       <div className="mb-5 flex items-center gap-3">
-        <span className="grid h-11 w-11 place-items-center rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--accent-purple-soft)] text-[var(--accent-purple)]">
+        <span className="grid h-10 w-10 place-items-center border border-[var(--border-default)] text-[var(--accent-violet)]">
           <Icon className="h-5 w-5" />
         </span>
-        <h2 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">{title}</h2>
+        <h2 className="font-editorial text-3xl font-medium text-[var(--text-primary)]">{title}</h2>
       </div>
       {children}
     </section>
@@ -144,7 +145,7 @@ function SwitchRow({
   onToggle: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4">
+    <div className="flex items-center justify-between gap-4 border-y border-[var(--border-default)] py-4">
       <div className="flex min-w-0 items-center gap-3">
         <Icon className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
         <p className="text-sm font-medium text-[var(--text-primary)]">{label}</p>

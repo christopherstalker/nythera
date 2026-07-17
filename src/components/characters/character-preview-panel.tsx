@@ -1,10 +1,15 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
+import { BookmarkSimple, CaretLeft, Check, Sparkle } from "@phosphor-icons/react";
 import { Avatar } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { displayTagLabel } from "@/lib/character-tags";
 import { cn } from "@/lib/utils";
+
+type DossierChapter = {
+  id: string;
+  number: string;
+  label: string;
+};
 
 type CharacterPreviewPanelProps = {
   name: string;
@@ -13,6 +18,11 @@ type CharacterPreviewPanelProps = {
   avatarUrl?: string;
   tags: string[];
   generated?: boolean;
+  mode?: "create" | "edit";
+  completion?: number;
+  activeChapter?: string;
+  chapters?: DossierChapter[];
+  onChapterChange?: (chapter: string) => void;
   className?: string;
   visualIdentity?: {
     accentColor?: string;
@@ -28,54 +38,87 @@ export function CharacterPreviewPanel({
   avatarUrl,
   tags,
   generated = false,
+  mode = "create",
+  completion = 0,
+  activeChapter = "identity",
+  chapters = [],
+  onChapterChange,
   className,
   visualIdentity
 }: CharacterPreviewPanelProps) {
-  const previewName = name.trim() || "Character name";
-  const previewDescription = description.trim() || "Short description will appear here.";
-  const previewGreeting = greeting.trim() || "Your greeting appears here.";
+  const previewName = name.trim() || "Untitled character";
+  const previewDescription = description.trim() || "Their story has not been written yet.";
+  const previewGreeting = greeting.trim() || "The first line will be pinned here when the scene is written.";
   const previewTags = tags.length > 0 ? tags : ["roleplay"];
-  const accentColor = visualIdentity?.accentColor || visualIdentity?.gradientFrom || "#8F81F7";
+  const accentColor = visualIdentity?.accentColor || visualIdentity?.gradientFrom || "#7bd8c8";
 
   return (
-    <aside className={cn("chat-scroll overflow-y-auto lg:sticky lg:top-0 lg:max-h-[calc(100svh-var(--page-padding-y)*2)]", className)}>
-      <div className="mx-auto grid w-full max-w-[390px] gap-4 lg:max-w-none">
-        {generated ? (
-          <div className="mb-3 inline-flex items-center gap-2 rounded-[var(--radius-pill)] border border-[rgb(var(--accent-rgb)_/_0.35)] bg-[var(--accent-purple-soft)] px-3 py-1 text-xs font-medium text-[var(--text-primary)]">
-            <Sparkles className="h-3.5 w-3.5 text-[var(--accent-purple)]" />
-            AI preview ready
-          </div>
-        ) : null}
+    <aside className={cn("codex-dossier-sheet", className)} style={{ "--character-accent": accentColor } as React.CSSProperties}>
+      <div className="codex-dossier-mobile-bar">
+        <button type="button" aria-label="Go back" onClick={() => window.history.back()} className="grid h-9 w-9 place-items-center text-[var(--codex-ivory)]">
+          <CaretLeft size={24} weight="thin" />
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[10px] uppercase tracking-[.28em] text-[var(--codex-mint)]">{mode === "edit" ? "Revision" : "New character"}</p>
+          <p className="truncate text-xs uppercase tracking-[.16em] text-[var(--text-muted)]">Draft · {completion}%</p>
+        </div>
+        <BookmarkSimple size={24} weight="thin" />
+      </div>
 
-        <div className="relative overflow-hidden rounded-[24px] border border-[var(--border-default)] bg-[var(--bg-surface)]">
-          <div className="relative aspect-video">
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <div className="grid h-full w-full place-items-center bg-[var(--bg-elevated)]" style={{ borderBottom: `3px solid ${accentColor}` }}>
-                <Avatar name={previewName} size="xl" className="h-28 w-28 bg-[var(--accent-purple-soft)]" />
-              </div>
-            )}
-            <div className="absolute inset-0 bg-[color:oklch(var(--color-canvas)/.42)]" />
+      <div className="codex-dossier-portrait">
+        {avatarUrl ? (
+          <img src={avatarUrl} alt={previewName} className="h-full w-full object-cover" />
+        ) : (
+          <div className="grid h-full w-full place-items-center bg-[var(--codex-paper-soft)]">
+            <Avatar name={previewName} size="xl" className="h-28 w-28 border border-[var(--codex-rule)] bg-transparent font-editorial text-4xl" />
           </div>
-          <div className="px-4 py-4">
-            <p className="truncate text-base font-semibold tracking-tight text-white">{previewName}</p>
-            <p className="mt-0.5 truncate text-xs text-[var(--text-muted)]">@you</p>
-            <p className="mt-2 line-clamp-2 text-xs leading-5 text-[var(--text-secondary)]">{previewDescription}</p>
+        )}
+        <div className="codex-dossier-portrait-veil" />
+        <div className="codex-dossier-title">
+          <div className="flex items-center gap-2">
+            <p className="codex-kicker">{generated ? "AI draft ready" : "Living dossier"}</p>
+            {generated ? <Sparkle size={13} weight="thin" className="text-[var(--codex-violet)]" /> : null}
+          </div>
+          <h2>{previewName}</h2>
+          <p>{previewDescription}</p>
+        </div>
+      </div>
+
+      <div className="codex-dossier-scroll chat-scroll">
+        <div className="codex-dossier-progress">
+          <div>
+            <p className="codex-kicker">Manuscript</p>
+            <p className="font-editorial mt-1 text-2xl text-[var(--codex-ivory)]">{mode === "edit" ? "Revision in progress" : "Volume in progress"}</p>
+          </div>
+          <div className="codex-progress-ring" aria-label={`${completion}% complete`} style={{ "--progress": `${completion * 3.6}deg` } as React.CSSProperties}>
+            <span>{completion}%</span>
           </div>
         </div>
 
-        <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4">
-          <p className="text-sm font-semibold text-[var(--text-primary)]">{previewName}</p>
-          <p className="mt-1 line-clamp-4 text-xs leading-5 text-[var(--text-secondary)]">{previewDescription}</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {previewTags.slice(0, 6).map((tag) => (
-              <Badge key={tag}>{displayTagLabel(tag)}</Badge>
-            ))}
-          </div>
-        </div>
+        <nav className="codex-dossier-index" aria-label="Character manuscript chapters">
+          {chapters.map((chapter) => {
+            const active = activeChapter === chapter.id;
+            return (
+              <button key={chapter.id} type="button" onClick={() => onChapterChange?.(chapter.id)} className={cn(active && "is-active")}>
+                <span>{chapter.number}</span>
+                <p>{chapter.label}</p>
+                {active ? <span className="codex-index-mark" /> : completion > 82 ? <Check size={13} /> : null}
+              </button>
+            );
+          })}
+        </nav>
 
-        <div className="bubble-char max-w-full text-sm leading-6">{previewGreeting}</div>
+        <section className="codex-dossier-facts">
+          <p className="codex-kicker">Index terms</p>
+          <ul>
+            {previewTags.slice(0, 4).map((tag) => <li key={tag}>{displayTagLabel(tag)}</li>)}
+          </ul>
+        </section>
+
+        <blockquote className="codex-pinned-note">
+          <span>Opening leaf</span>
+          {previewGreeting}
+        </blockquote>
       </div>
     </aside>
   );

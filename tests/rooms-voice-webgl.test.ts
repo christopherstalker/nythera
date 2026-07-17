@@ -83,9 +83,10 @@ test("rooms remain discoverable from the rebuilt primary navigation", async () =
   const ambient = await read("../src/components/ambient/cosmic-backdrop.tsx");
 
   assert.ok(navRail.includes('{ href: "/rooms", label: "Rooms"'));
-  assert.ok(navRail.includes('top-nav-island'));
+  assert.ok(navRail.includes('codex-rail'));
+  assert.ok(navRail.includes('codex-mobile-dock'));
   assert.ok(navRail.includes('aria-label="Primary navigation"'));
-  assert.ok(!navRail.includes('bottom-0'));
+  assert.ok(navRail.includes('bottom-0'));
   assert.doesNotMatch(appShell, /<AuroraWebglBackground \/>/);
   assert.ok(ambient.includes("checkWebGLSupportAndCapability"));
   assert.ok(ambient.includes("SpaceBackgroundWebGL"));

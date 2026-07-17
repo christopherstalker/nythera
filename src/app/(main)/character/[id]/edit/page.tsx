@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Edit3 } from "lucide-react";
 import { CharacterFormLoader, CharacterFormSkeleton } from "@/components/characters/character-form-loader";
 import { EmptyState } from "@/components/ui/empty-state";
-import { PageHeader, PageShell } from "@/components/ui/page";
+import { PageShell } from "@/components/ui/page";
 import type { CharacterFormInitialValue } from "@/lib/character-form-types";
 
 export default function EditCharacterPage({ params }: { params: { id: string } }) {
@@ -44,8 +44,7 @@ export default function EditCharacterPage({ params }: { params: { id: string } }
   }
 
   return (
-    <PageShell className="space-y-6">
-      <PageHeader icon={Edit3} title="Edit character" description="Update persona, lore, style tuning, and publishing settings." />
+    <PageShell className="codex-create-character !max-w-none !p-0">
       {character ? <CharacterFormLoader mode="edit" initialValue={character} /> : <CharacterFormSkeleton />}
     </PageShell>
   );

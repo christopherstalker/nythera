@@ -3,13 +3,13 @@ import { PageHeader, PageShell, Surface } from "@/components/ui/page";
 
 export default function TermsPage() {
   return (
-    <PageShell>
-      <Surface className="mx-auto max-w-3xl p-6 sm:p-8">
+    <PageShell className="codex-legal">
+      <Surface className="mx-auto max-w-4xl !border-x-0 !bg-transparent p-0">
         <PageHeader icon={FileText} title="Terms of Service" />
-        <div className="mt-6 space-y-4 text-sm leading-7 text-muted-foreground">
-        <p>Users are responsible for the characters and messages they create. Public characters are subject to automated and manual moderation.</p>
-        <p>Do not use this platform for illegal activity, harassment, sexual content involving minors, self-harm encouragement, hate, dangerous instructions, or misleading real-person impersonation.</p>
-        <p>AI characters are fictional software outputs. They are not licensed professionals and cannot provide emergency, medical, legal, financial, or psychological services.</p>
+        <div className="font-editorial mt-8 grid text-lg leading-8 text-muted-foreground">
+        <p className="border-b border-[var(--border-default)] py-6"><span className="codex-index mr-5">01</span>Users are responsible for the characters and messages they create. Public characters are subject to automated and manual moderation.</p>
+        <p className="border-b border-[var(--border-default)] py-6"><span className="codex-index mr-5">02</span>Do not use this platform for illegal activity, harassment, sexual content involving minors, self-harm encouragement, hate, dangerous instructions, or misleading real-person impersonation.</p>
+        <p className="border-b border-[var(--border-default)] py-6"><span className="codex-index mr-5">03</span>AI characters are fictional software outputs. They are not licensed professionals and cannot provide emergency, medical, legal, financial, or psychological services.</p>
       </div>
       </Surface>
     </PageShell>

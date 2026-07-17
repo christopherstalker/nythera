@@ -4,36 +4,30 @@ import test from "node:test";
 
 const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
-test("primary navigation uses desktop top island and mobile bottom island", async () => {
+test("primary navigation uses a desktop codex rail and mobile dock", async () => {
   const rail = await read("../src/components/nav/NavRail.tsx");
   const wrapper = await read("../src/components/layout/Sidebar.tsx");
   const shell = await read("../src/components/layout/AppShell.tsx");
   const styles = await read("../src/app/globals.css");
   const tokens = await read("../src/styles/design-tokens.css");
 
-  assert.match(rail, /top-nav-island/);
-  assert.match(rail, /const isChatSurface = pathname\.startsWith\("\/chat\/"\)/);
-  assert.match(rail, /if \(isChatSurface\)[\s\S]*return null/);
-  assert.match(rail, /fixed inset-x-0 top-4/);
-  assert.match(rail, /hidden justify-center px-3 md:flex/);
-  assert.match(rail, /mobile-nav-island/);
-  assert.match(rail, /bottom-\[calc\(12px\+env\(safe-area-inset-bottom\)\)\]/);
+  assert.match(rail, /codex-rail/);
+  assert.match(rail, /fixed inset-y-0 left-0/);
+  assert.match(rail, /w-\[var\(--codex-rail-width\)\]/);
+  assert.match(rail, /codex-mobile-dock/);
+  assert.match(rail, /fixed inset-x-0 bottom-0/);
   assert.match(rail, /md:hidden/);
-  assert.match(rail, /rounded-full/);
-  assert.match(rail, /max-w-\[760px\]/);
+  assert.match(rail, /grid-cols-5/);
   assert.match(rail, /\{ href: "\/rooms", label: "Rooms"/);
-  assert.doesNotMatch(rail, /next\/image|Nythera home|src="\/icon\.svg"/);
-  assert.doesNotMatch(rail, /bottom-0|inset-y-0 left-0|border-r|nythera-rail|rail-label/);
+  assert.match(rail, /next\/image|src="\/icon\.svg"/);
   assert.doesNotMatch(styles, /\.nythera-rail|\.rail-label/);
   assert.match(tokens, /--bottom-nav-offset:\s*calc\(92px \+ env\(safe-area-inset-bottom\)\);/);
   assert.match(wrapper, /return <NavRail \/>/);
   assert.match(shell, /id="app-shell"/);
   assert.match(shell, /fixed inset-0/);
-  assert.match(shell, /const isChatSurface = pathname\.startsWith\("\/chat\/"\)/);
-  assert.match(shell, /isChatSurface \? "pb-0 pt-0"/);
-  assert.match(shell, /pb-\[var\(--bottom-nav-offset\)\]/);
-  assert.match(shell, /pt-0 md:pb-0 md:pt-\[var\(--top-bar-height\)\]/);
-  assert.doesNotMatch(shell, /md:pl-\[var\(--nav-rail-expanded\)\]/);
+  assert.match(shell, /const isImmersiveSurface = isChatSurface \|\| isRoomSurface/);
+  assert.match(shell, /md:pl-\[var\(--codex-rail-width\)\]/);
+  assert.match(shell, /pb-\[calc\(var\(--codex-mobile-dock-height\)\+env\(safe-area-inset-bottom\)\)\]/);
   assert.match(shell, /<SidePanel \/>/);
   assert.doesNotMatch(shell, /BottomNav|AuroraWebglBackground|sidebarCollapsed/);
 });

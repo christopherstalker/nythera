@@ -12,15 +12,15 @@ test("message toolbar uses distinct continue, regenerate, and rewind actions", a
   assert.doesNotMatch(source, /RefreshCw className="[^"]*rotate-90/);
 });
 
-test("immersive message frames keep avatars out of the body stream", async () => {
+test("editorial message frames keep speaker identity attached to the manuscript stream", async () => {
   const source = await readFile(new URL("../src/components/chat/MessageBubble.tsx", import.meta.url), "utf8");
-  assert.doesNotMatch(source, /CharacterAvatar/);
-  assert.match(source, /w-full rounded-\[28px\]/);
-  assert.match(source, /max-w-\[min\(88%,640px\)\]/);
-  assert.match(source, /max-sm:max-w-\[94%\]/);
-  assert.match(source, /var\(--accent-purple\) 24%, transparent/);
-  assert.doesNotMatch(source, /var\(--text-primary\) 92%/);
-  assert.doesNotMatch(source, /bg-black\/20/);
+  assert.match(source, /<Avatar/);
+  assert.match(source, /characterAvatarUrl/);
+  assert.match(source, /personaAvatarUrl/);
+  assert.match(source, /grid-cols-\[42px_minmax\(0,1fr\)\]/);
+  assert.match(source, /border-b border-\[var\(--codex-rule\)\]/);
+  assert.match(source, /font-editorial relative max-w-\[760px\]/);
+  assert.doesNotMatch(source, /rounded-\[28px\]/);
 });
 
 test("tablet quick panel can stack above its blur overlay", async () => {

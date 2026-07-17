@@ -1,47 +1,49 @@
-# Orbital Glass design QA
+# Living Codex redesign — design QA
 
-- Source visual truth: `C:\Users\chris\.codex\generated_images\019f52b2-ee51-7181-9908-ddb2ba9d5d37\exec-8fa65294-ccc8-4d99-9fac-a4b96500b713.png`
-- Local source copy: `D:\Web\Roleplay\output\orbital-glass\reference-orbital-glass.png`
-- Implementation screenshot: `D:\Web\Roleplay\output\orbital-glass\explore-desktop-production-1440x1024.png`
-- Mobile screenshot: `D:\Web\Roleplay\output\orbital-glass\explore-mobile-390x844.png`
-- Full-view comparison: `D:\Web\Roleplay\output\orbital-glass\desktop-reference-vs-implementation.png`
-- Focused comparison: `D:\Web\Roleplay\output\orbital-glass\desktop-focused-nav-controls.png`
-- Viewports: desktop 1440 x 1024; mobile 390 x 844.
-- State: Explore, dark theme, Trending selected, safe-content mode; reduced motion was emulated for deterministic screenshots.
-- Browser evidence: local production build at `http://localhost:3001/explore`; primary navigation, feed tabs, search filter trigger, and mobile filter drawer were rendered; browser console contained no warnings or errors.
+## Evidence
+
+- Source visual truth (desktop): `C:\Users\chris\AppData\Local\Temp\codex-clipboard-177f7b52-3b6d-47e3-bad2-47905111e781.png`
+- Source visual truth (mobile): `C:\Users\chris\AppData\Local\Temp\codex-clipboard-b4046840-5b77-42b0-aa6c-7ccfa8c45aa4.png`
+- Implementation (desktop): `D:\Web\Roleplay\output\redesign\character-studio-desktop.png`
+- Implementation (mobile): `D:\Web\Roleplay\output\redesign\character-studio-mobile.png`
+- Full-view desktop comparison: `D:\Web\Roleplay\output\redesign\qa-desktop-comparison.png`
+- Full-view mobile comparison: `D:\Web\Roleplay\output\redesign\qa-mobile-comparison.png`
+- Additional route evidence: `D:\Web\Roleplay\output\redesign\living-index-desktop.png`
+- Viewports: desktop 1488 × 1058; mobile 390 × 844.
+- State: dark theme, authenticated local visual-QA session, new character in Guided mode, empty portrait before upload.
+- Focused comparison: the normalized mobile comparison is the focused check for top context bar, cover/dossier proportions, chapter index, bottom navigation, typography, and rule spacing. A second crop was not needed because those details remain readable at the original 390 px implementation width.
 
 ## Findings
 
-No actionable P0, P1, or P2 differences remain.
-
-- Typography: Space Grotesk is preserved. The implementation matches the source hierarchy with a large character name, compact uppercase eyebrow, readable 14-18 px UI/body copy, and restrained label weights. Dynamic character copy truncates rather than crossing the image focal point.
-- Spacing and layout rhythm: the implementation preserves the source order of orbital navigation, featured stage, unified discovery dock, feed switcher, and character shelf. Page margins, section gaps, pill spacing, and radii remain consistent at 1440 px. The mobile layout stacks the featured stage, search dock, feed switcher, and bottom navigation without horizontal overflow.
-- Colors and visual tokens: the implementation uses the existing Aurora Ink violet/mint palette and shared semantic glass tokens. It keeps three depth levels (ambient canvas, functional glass, floating controls), clear borders, readable contrast, and limited glow.
-- Image quality and asset fidelity: the reference generated a new Ryan portrait, while the implementation intentionally uses the real Ryan image returned by the platform. It is full-bleed, correctly cropped, sharp, and protected by a readability veil. No placeholder, CSS drawing, custom SVG, or fake image asset replaces visible product imagery.
-- Copy and content: navigation, Explore controls, character data, tags, and CTA copy remain product-real. The implementation does not introduce invented metrics or features.
-- Icons: existing Lucide icons remain consistent in stroke, alignment, and scale. The Create action and active Explore item match the source emphasis.
-- Interactions and accessibility: search is labeled, filters use semantic buttons/selects, mobile filters expose `aria-expanded` and an accessible dialog, focus rings remain enabled, touch targets meet the existing 44 px contract, images retain alt text, and reduced motion is supported.
-
-## Intentional differences
-
-- The source mock shows six generated character cards. The local dataset currently returns one public character; the shelf is data-driven and is sized for multiple 210-240 px cards without stretching a single result.
-- The source includes a second bottom Filters control. The approved structure explicitly removed duplicated controls, so the implementation keeps one discovery dock plus one More filters expansion.
-- The source uses generated cosmic portrait art. The implementation preserves the platform's real character artwork and existing cosmic background instead of replacing product data with mock imagery.
+- No actionable P0, P1, or P2 mismatch remains.
+- Typography: Cormorant Garamond carries display, manuscript, italic annotation, and dossier copy; compact uppercase labels use the product sans/monospace rhythm. Weight, line height, tracking, and hierarchy align with the editorial reference.
+- Spacing and layout rhythm: desktop preserves the narrow icon rail, fixed dossier column, large manuscript field, hairline rules, margin annotations, and generous negative space. Mobile becomes a context header, cinematic dossier cover, chapter strip, sequential manuscript, and fixed product navigation without horizontal overflow.
+- Colors and tokens: the canonical surface is black textured paper with warm ivory type, mint navigation/active states, and restrained violet annotations. The previous cosmic/starfield surface is no longer mounted in the product shell.
+- Image quality and assets: supplied character images remain real raster assets with object-cover crops. Character Studio intentionally shows the genuine empty upload state until the creator supplies a portrait; it does not substitute a fake illustration or CSS placeholder.
+- Copy and content: creation-specific language replaces chat transcript copy while preserving the reference hierarchy. All persisted character fields, AI generation, lorebook, model overrides, Character Card V2 import/export, visibility, and safety controls remain available.
+- Interaction QA: Guided and Complete modes render and switch correctly; Complete exposes the six-chapter manuscript; chapter navigation is wired; browser console has no warnings or errors in the production build.
 
 ## Comparison history
 
-1. Initial implementation: the featured stage consumed too much of a 1024 px desktop viewport and a one-item shelf stretched to full width. Both were P2 hierarchy/density issues.
-   - Fix: reduced the stage to `clamp(26rem, 40vw, 32rem)` and changed shelf tracks to fixed responsive 220-260 px / 210-240 px ranges.
-   - Post-fix evidence: `explore-desktop-production-1440x1024.png` shows the hero, discovery dock, feed switcher, and first shelf row in one viewport.
-2. First source comparison: Create lacked the source's violet-to-mint emphasis. This was a P2 navigation fidelity issue.
-   - Fix: extended the existing navigation source with an `emphasis` flag for Create and reused the canonical Aurora gradient.
-   - Post-fix evidence: `desktop-focused-nav-controls.png` shows matching Create emphasis and aligned control hierarchy.
-3. Responsive pass: the mobile page needed proof that filters stayed usable without crowding the hero.
-   - Fix: no code change was required; the approved mobile sheet and no-blur fallback rendered correctly at 390 x 844.
-   - Post-fix evidence: `explore-mobile-390x844.png`; the Search filters dialog opened with Sort, Rating, Age, and tags visible.
+### Iteration 1
+
+- Earlier findings: the legacy cosmic background leaked through the manuscript; generic mobile theme/account controls collided with the new context bar; the fixed action dock covered the beginning of the mobile manuscript.
+- Fixes: removed the cosmic backdrop from `AppShell`; limited Story Context to immersive story routes; gave Character Studio its own back/status/bookmark header; changed the mobile action footer from a viewport-fixed overlay to an in-flow sticky action leaf.
+- Post-fix evidence: `qa-desktop-comparison.png` and `qa-mobile-comparison.png` show the corrected black paper surface, unobstructed mobile header, and clear manuscript transition.
+
+## Implementation checklist
+
+- [x] Character create and edit share one dossier/manuscript composition.
+- [x] Prompt, Guided, and Complete creation paths remain functional.
+- [x] Six complete-editor chapters preserve the existing data and API contract.
+- [x] Shared route headers use the archive register composition.
+- [x] Explore and Library character grids use ruled archival folios instead of rounded bento cards.
+- [x] Desktop and mobile screenshots captured from the production build.
+- [x] 164 automated tests pass.
+- [x] Production build passes.
 
 ## Follow-up polish
 
-- P3: when more production characters exist, recheck the final shelf crop with six real cards to tune only the last-card reveal and horizontal scroll affordance.
+- P3: once real creator portraits are available, an additional QA pass can tune crop focal points per character rather than relying on the current centered default.
 
 final result: passed

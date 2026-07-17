@@ -22,17 +22,14 @@ export function CharacterBentoGrid({ characters, loading = false, title, layout 
   const count = loading ? skeletonCount : orderedCharacters.length;
 
   return (
-    <section className="space-y-4">
-      {title ? <h2 className="text-2xl font-semibold text-content-primary">{title}</h2> : null}
-      <div className={cn(layout === "shelf" ? "orbital-character-shelf chat-scroll" : "nythera-bento-grid")}>
+    <section className="codex-catalog-section space-y-5">
+      {title ? <div className="flex items-end justify-between border-b border-[var(--codex-rule)] pb-3"><div><p className="codex-kicker">Selected folios</p><h2 className="font-editorial mt-1 text-3xl font-medium text-[var(--codex-ivory)]">{title}</h2></div><span className="text-[9px] uppercase tracking-[.18em] text-[var(--text-muted)]">{count} records</span></div> : null}
+      <ol className={cn("codex-character-catalog nythera-bento-grid", layout === "shelf" && "is-shelf chat-scroll")}>
         {loading
           ? Array.from({ length: skeletonCount }).map((_, index) => {
               const placement = fallbackPlacement(index, count);
               return (
-                <SkeletonCard
-                  key={index}
-                  className={cn(layout === "bento" && "nythera-bento-card", layout === "bento" && bentoCellClass(placement))}
-                />
+                <li key={index} className={cn("codex-character-record", bentoCellClass(placement))}><SkeletonCard className="h-full rounded-none" /></li>
               );
             })
           : orderedCharacters.map((character, index) => {
@@ -40,10 +37,10 @@ export function CharacterBentoGrid({ characters, loading = false, title, layout 
               const placement = resolvePlacement(character, index, count);
 
               return (
-                <div
+                <li
                   key={character.id}
                   className={cn(
-                    layout === "bento" && "nythera-bento-card",
+                    "codex-character-record",
                     layout === "bento" && (explicitCellClass || bentoCellClass(placement))
                   )}
                 >
@@ -53,10 +50,10 @@ export function CharacterBentoGrid({ characters, loading = false, title, layout 
                     featured={layout === "bento" && placement === "FEATURED"}
                     presentation="discovery"
                   />
-                </div>
+                </li>
               );
             })}
-      </div>
+      </ol>
     </section>
   );
 }

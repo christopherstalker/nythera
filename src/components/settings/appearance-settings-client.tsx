@@ -1,29 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Palette } from "lucide-react";
-import { useTheme } from "next-themes";
+import { Moon, Palette, Sun } from "lucide-react";
 import {
   ACCENT_PRESETS,
   DEFAULT_ACCENT_COLOR,
   applyAccentColor,
   readStoredAppearance,
-  saveStoredAppearance
+  saveStoredAppearance,
+  useAppearanceTheme
 } from "@/components/providers/appearance-provider";
 import { cn } from "@/lib/utils";
 
 export function AppearanceSettingsClient() {
-  const { resolvedTheme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  const { activeTheme, updateTheme: setAppearanceTheme } = useAppearanceTheme();
   const [accentColor, setAccentColor] = useState(DEFAULT_ACCENT_COLOR);
 
   useEffect(() => {
-    setMounted(true);
     const storedAccent = readStoredAppearance().accentColor || DEFAULT_ACCENT_COLOR;
     setAccentColor(storedAccent);
     applyAccentColor(storedAccent);
-    setTheme("dark");
-  }, [setTheme]);
+  }, []);
 
   function updateAccent(nextColor: string) {
     setAccentColor(nextColor);
@@ -31,13 +28,38 @@ export function AppearanceSettingsClient() {
     saveStoredAppearance({ accentColor: nextColor });
   }
 
-  const activeTheme = mounted ? resolvedTheme : "dark";
+  function updateTheme(nextTheme: "dark" | "light") {
+    setAppearanceTheme(nextTheme);
+  }
 
   return (
     <div className="grid gap-4">
-      <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4">
+      <div className="border border-[var(--codex-rule)] bg-[var(--codex-paper-raised)] p-4">
         <p className="text-sm font-medium text-[var(--text-primary)]">Theme</p>
-        <p className="mt-2 text-sm text-[var(--text-secondary)]">{activeTheme === "dark" ? "Dark" : "Dark"}</p>
+        <p className="mt-1 text-sm text-[var(--text-secondary)]">Choose ink-dark or archival paper.</p>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          {(["dark", "light"] as const).map((theme) => {
+            const Icon = theme === "dark" ? Moon : Sun;
+            const selected = activeTheme === theme;
+            return (
+              <button
+                key={theme}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => updateTheme(theme)}
+                className={cn(
+                  "focus-ring flex min-h-12 items-center gap-3 border px-4 text-left text-sm capitalize transition-colors",
+                  selected
+                    ? "border-[var(--codex-mint)] bg-[color-mix(in_oklch,var(--codex-mint)_10%,transparent)] text-[var(--text-primary)]"
+                    : "border-[var(--codex-rule)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                {theme}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4">

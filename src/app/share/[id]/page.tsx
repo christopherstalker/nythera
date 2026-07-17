@@ -69,13 +69,14 @@ export default function SharePage({ params }: { params: { id: string } }) {
   }
 
   return (
-    <PageShell className="space-y-6">
-      <Surface className="p-6">
+    <PageShell className="codex-share space-y-8">
+      <Surface className="border-t-0 p-6 md:p-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-3">
             <Avatar name={share.characterSnapshot.name} src={share.characterSnapshot.avatarUrl} size="lg" />
             <div className="min-w-0">
-              <h1 className="truncate text-2xl font-semibold text-[var(--text-primary)]">{share.title || share.characterSnapshot.name}</h1>
+              <p className="text-[10px] uppercase tracking-[.24em] text-[var(--codex-violet)]">Shared manuscript</p>
+              <h1 className="font-editorial truncate text-4xl font-medium text-[var(--codex-ivory)]">{share.title || share.characterSnapshot.name}</h1>
               <p className="mt-1 line-clamp-2 text-sm text-[var(--text-secondary)]">{share.characterSnapshot.description}</p>
             </div>
           </div>
@@ -88,14 +89,15 @@ export default function SharePage({ params }: { params: { id: string } }) {
         </div>
       </Surface>
 
-      <Surface className="p-4">
-        <div className="mx-auto flex max-w-[900px] flex-col gap-4">
+      <Surface className="p-5 md:p-10">
+        <div className="mx-auto flex max-w-[760px] flex-col gap-8">
           {share.messagesSnapshot.map((message, index) => (
-            <div key={`${message.role}-${index}`} className={message.role === "USER" ? "flex justify-end" : "flex justify-start"}>
-              <div className={message.role === "USER" ? "bubble-user" : "bubble-char"}>
+            <article key={`${message.role}-${index}`} className="border-b border-[var(--codex-rule)] pb-7">
+              <p className={message.role === "USER" ? "mb-2 text-[10px] uppercase tracking-[.22em] text-[var(--codex-mint)]" : "mb-2 text-[10px] uppercase tracking-[.22em] text-[var(--codex-violet)]"}>{message.role === "USER" ? "You" : share.characterSnapshot.name}</p>
+              <div className="font-editorial text-xl leading-8 text-[var(--codex-ivory)] md:text-2xl md:leading-9">
                 {message.content}
               </div>
-            </div>
+            </article>
           ))}
         </div>
       </Surface>

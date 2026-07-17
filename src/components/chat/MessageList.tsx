@@ -11,7 +11,9 @@ const MESSAGE_ROW_ESTIMATE_PX = 180;
 type MessageListProps = {
   messages: ChatMessage[];
   characterName: string;
+  characterAvatarUrl?: string | null;
   personaName?: string | null;
+  personaAvatarUrl?: string | null;
   summary?: string | null;
   error?: string | null;
   onEdit?: (messageId: string, content: string) => void;
@@ -23,7 +25,7 @@ type MessageListProps = {
   onPin?: (messageId: string) => void;
 };
 
-export function MessageList({ messages, characterName, personaName, summary, error, onEdit, onDelete, onRegenerate, onContinue, onRewind, onBranch, onPin }: MessageListProps) {
+export function MessageList({ messages, characterName, characterAvatarUrl, personaName, personaAvatarUrl, summary, error, onEdit, onDelete, onRegenerate, onContinue, onRewind, onBranch, onPin }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const nearBottomRef = useRef(true);
   const previousRowCountRef = useRef(0);
@@ -103,11 +105,11 @@ export function MessageList({ messages, characterName, personaName, summary, err
     <div
       ref={scrollRef}
       onScroll={handleScroll}
-      className="chat-scroll relative z-10 flex-1 overflow-y-auto px-4 pb-8 pt-[calc(84px+env(safe-area-inset-top))] sm:px-6 sm:pb-10 sm:pt-[calc(96px+env(safe-area-inset-top))] md:px-8 md:pt-[calc(92px+env(safe-area-inset-top))]"
+      className="chat-scroll relative z-10 flex-1 overflow-y-auto px-4 pb-10 pt-[calc(84px+env(safe-area-inset-top))] sm:px-7 sm:pb-12 sm:pt-[calc(92px+env(safe-area-inset-top))] lg:px-10"
       aria-live="polite"
     >
       <div
-        className="nythera-chat-column relative mx-auto w-full"
+        className="relative mx-auto w-full max-w-[1000px]"
         style={{ height: Math.max(totalSize, scrollRef.current?.clientHeight ?? 0) }}
       >
         {virtualItems.map((virtualRow) => {
@@ -129,7 +131,9 @@ export function MessageList({ messages, characterName, personaName, summary, err
               <MessageRow
                 row={row}
                 characterName={characterName}
+                characterAvatarUrl={characterAvatarUrl}
                 personaName={personaName}
+                personaAvatarUrl={personaAvatarUrl}
                 latestAssistantId={latestAssistantId}
                 variantByGroup={variantByGroup}
                 onEdit={onEdit}
@@ -164,7 +168,9 @@ type VirtualRow =
 function MessageRow({
   row,
   characterName,
+  characterAvatarUrl,
   personaName,
+  personaAvatarUrl,
   latestAssistantId,
   variantByGroup,
   onEdit,
@@ -179,7 +185,9 @@ function MessageRow({
 }: {
   row: VirtualRow;
   characterName: string;
+  characterAvatarUrl?: string | null;
   personaName?: string | null;
+  personaAvatarUrl?: string | null;
   latestAssistantId: string | null;
   variantByGroup: Record<string, number>;
   onEdit?: (messageId: string, content: string) => void;
@@ -234,7 +242,9 @@ function MessageRow({
         role={row.message.role}
         content={row.message.content}
         characterName={characterName}
+        characterAvatarUrl={characterAvatarUrl}
         personaName={personaName}
+        personaAvatarUrl={personaAvatarUrl}
         isPinned={row.message.pinned}
         inputTokens={row.message.inputTokens}
         outputTokens={row.message.outputTokens}
@@ -261,7 +271,9 @@ function MessageRow({
       role={selected.role}
       content={selected.content}
       characterName={characterName}
+      characterAvatarUrl={characterAvatarUrl}
       personaName={personaName}
+      personaAvatarUrl={personaAvatarUrl}
       isPinned={selected.pinned}
       inputTokens={selected.inputTokens}
       outputTokens={selected.outputTokens}
