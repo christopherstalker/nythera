@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Heart, MessageCircle, Star } from "lucide-react";
+import { RichMessageText } from "@/components/chat/rich-message-text";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CharacterAvatar } from "@/components/character/character-avatar";
 import { displayTagLabel } from "@/lib/character-tags";
-import { truncate } from "@/lib/utils";
 
 type CharacterCardProps = {
   character: {
@@ -59,7 +59,7 @@ export function CharacterCard({ character }: CharacterCardProps) {
 
         <div className="flex flex-1 flex-col items-center pt-5">
           <h3 className="max-w-full truncate text-xl font-semibold tracking-tight text-foreground">{character.name}</h3>
-          <p className="mt-3 line-clamp-3 text-sm leading-7 text-muted-foreground">{truncate(character.description, 150)}</p>
+          <p className="mt-3 line-clamp-3 text-sm leading-7 text-muted-foreground"><RichMessageText text={character.description} /></p>
 
           <div className="mt-5 flex flex-wrap justify-center gap-2">
             {character.tags.slice(0, 3).map((tag) => (

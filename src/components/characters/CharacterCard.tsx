@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Heart, ShieldAlert, Star } from "lucide-react";
 import { motion } from "motion/react";
+import { RichMessageText } from "@/components/chat/rich-message-text";
 import { cn } from "@/lib/utils";
 import { displayTagLabel } from "@/lib/character-tags";
 import { shouldBypassNextImageOptimization } from "@/lib/image-cache";
@@ -105,7 +106,7 @@ export function CharacterCard({
             {character.name}
           </h3>
           <p className={cn("mt-3 font-editorial text-base italic leading-6 text-[var(--text-secondary)]", featured ? "line-clamp-3" : "line-clamp-2")}>
-            {character.description || "A story waiting to begin."}
+            <RichMessageText text={character.description || "A story waiting to begin."} />
           </p>
           <div className="mt-4 flex flex-wrap gap-x-3 gap-y-1 border-t border-[var(--codex-rule)] pt-3">
             {character.tags?.slice(0, featured ? 3 : 2).map((tag) => (
@@ -141,7 +142,7 @@ export function CharacterCard({
         <div className="min-w-0">
           <h3 className="truncate text-base font-semibold text-[var(--text-primary)]">{character.name}</h3>
           <p className="mt-1 line-clamp-2 text-sm leading-6 text-[var(--text-secondary)]">
-            {character.description || "A story waiting to begin."}
+            <RichMessageText text={character.description || "A story waiting to begin."} />
           </p>
         </div>
         <span className="inline-flex shrink-0 items-center gap-1 text-xs text-[var(--text-secondary)]">

@@ -7,12 +7,14 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { ChevronRight, Heart, MessageCircle, Plus, Search, ShieldAlert, Sparkles, Star } from "lucide-react";
 import { motion } from "motion/react";
+import { RichMessageText } from "@/components/chat/rich-message-text";
 import type { CharacterSummary } from "@/components/characters/CharacterCard";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page";
 import { BRAND_ICON_LARGE } from "@/lib/brand";
 import { displayTagLabel } from "@/lib/character-tags";
+import { toChatPreview } from "@/lib/chat-preview";
 import { shouldBypassNextImageOptimization } from "@/lib/image-cache";
 import { springSoft } from "@/lib/motion";
 import { cn } from "@/lib/utils";
@@ -209,7 +211,7 @@ function FeaturedCharacterHero({
               {character.name}
             </h1>
             <p className="line-clamp-4 max-w-xl text-base leading-7 text-[var(--text-secondary)] md:text-lg">
-              {character.description || "Start a new character chat and settle into the first scene."}
+              <RichMessageText text={character.description || "Start a new character chat and settle into the first scene."} />
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -259,7 +261,7 @@ function RecentChatCard({ chat }: { chat: RecentChat }) {
         <div className="min-w-0 flex-1">
           <h3 className="font-editorial truncate text-xl font-medium text-[var(--codex-ivory)]">{chat.character.name}</h3>
           <p className="mt-1 truncate text-sm text-[var(--text-secondary)]">
-            {lastMessage || chat.character.description || "Continue chat"}
+            {toChatPreview(lastMessage || chat.character.description || "Continue chat")}
           </p>
         </div>
         <span className="h-2.5 w-2.5 rounded-full bg-[oklch(var(--color-accent-secondary))] shadow-glow-soft" aria-hidden />
@@ -332,7 +334,7 @@ function HomeCharacterCard({
             {character.name}
           </h3>
           <p className={cn("mt-1 text-sm leading-6 text-[var(--text-secondary)]", featured ? "line-clamp-3" : "line-clamp-2")}>
-            {character.description || "A story waiting to begin."}
+            <RichMessageText text={character.description || "A story waiting to begin."} />
           </p>
           <div className="mt-3 flex flex-wrap gap-1.5">
             {character.tags?.slice(0, featured ? 3 : 2).map((tag) => (

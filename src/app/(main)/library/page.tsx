@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader, PageShell } from "@/components/ui/page";
 import { springSoft } from "@/lib/motion";
+import { toChatPreview } from "@/lib/chat-preview";
 
 type LibraryBody = {
   mine: CharacterSummary[];
@@ -115,7 +116,7 @@ export default function LibraryPage() {
 }
 
 function ChatRow({ chat, index }: { chat: LibraryBody["chats"][number]; index: number }) {
-  const preview = chat.messages.at(-1)?.content || chat.character.description || "No description yet";
+  const preview = toChatPreview(chat.messages.at(-1)?.content || chat.character.description || "No description yet");
 
   return (
     <motion.div

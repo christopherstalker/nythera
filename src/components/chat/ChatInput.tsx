@@ -4,9 +4,11 @@ import { KeyboardEvent, useEffect, useRef, useState } from "react";
 import { ArrowUp, Settings2, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 import { Avatar } from "@/components/ui/avatar";
+import { RichTextToolbar } from "@/components/rich-text/rich-text-toolbar";
 import type { ProviderModelGroup } from "@/lib/provider-model-options";
 import { RESPONSE_PROMPT_EXAMPLES } from "@/lib/response-prompt";
 import { springSnappy, springSoft } from "@/lib/motion";
+import { applyRichTextFormat, richTextFormatFromShortcut } from "@/lib/rich-text-formatting";
 
 const MAX_RESPONSE_PROMPT_LENGTH = 2000;
 
@@ -65,6 +67,19 @@ export function ChatInput({
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    const format = richTextFormatFromShortcut(event.key, event.ctrlKey || event.metaKey);
+    if (format) {
+      event.preventDefault();
+      const textarea = event.currentTarget;
+      const result = applyRichTextFormat(value, textarea.selectionStart, textarea.selectionEnd, format);
+      onChange(result.value);
+      requestAnimationFrame(() => {
+        textarea.focus();
+        textarea.setSelectionRange(result.selectionStart, result.selectionEnd);
+      });
+      return;
+    }
+
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       onSubmit();
@@ -187,26 +202,34 @@ export function ChatInput({
         </motion.div>
       ) : null}
       <motion.div
-        className="composer-dock pointer-events-auto relative mx-auto flex w-full max-w-[1000px] flex-col gap-3 border border-[var(--codex-rule)] bg-[var(--codex-paper-raised)] px-4 py-4 sm:flex-row sm:items-end sm:gap-3 sm:px-5 sm:py-3"
+        className="composer-dock pointer-events-auto relative mx-auto flex w-full max-w-[1000px] flex-col gap-2 border border-[var(--codex-rule)] bg-[var(--codex-paper-raised)] px-4 py-3 sm:px-5"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={springSoft}
       >
         <div aria-hidden="true" className="glass-grain pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]" />
-
-        <textarea
-          ref={textareaRef}
+        <RichTextToolbar
+          textareaRef={textareaRef}
           value={value}
-          rows={1}
-          onChange={(event) => onChange(event.target.value)}
-          onInput={resize}
-          onKeyDown={handleKeyDown}
-          placeholder="Write what happens next…"
-          className="font-editorial relative max-h-[220px] min-h-16 w-full flex-1 resize-none overflow-y-auto bg-transparent px-0 py-1 text-xl leading-8 text-[var(--codex-ivory)] outline-none placeholder:italic placeholder:text-[var(--text-muted)] sm:min-h-8 sm:text-2xl sm:leading-9"
-          disabled={disabled}
+          onChange={onChange}
+          compact
+          className="relative border-b border-[var(--border-subtle)] pb-2"
         />
 
-        <div className="relative flex w-full items-center justify-between gap-2 sm:w-auto sm:contents">
+        <div className="relative flex flex-col gap-3 sm:flex-row sm:items-end">
+          <textarea
+            ref={textareaRef}
+            value={value}
+            rows={1}
+            onChange={(event) => onChange(event.target.value)}
+            onInput={resize}
+            onKeyDown={handleKeyDown}
+            placeholder="Write what happens next…"
+            className="font-editorial relative max-h-[220px] min-h-16 w-full flex-1 resize-none overflow-y-auto bg-transparent px-0 py-1 text-xl leading-8 text-[var(--codex-ivory)] outline-none placeholder:italic placeholder:text-[var(--text-muted)] sm:min-h-8 sm:text-2xl sm:leading-9"
+            disabled={disabled}
+          />
+
+          <div className="relative flex w-full items-center justify-between gap-2 sm:w-auto">
           <div className="flex min-w-0 items-center gap-2 sm:hidden">
             {onOpenComposer ? (
               <motion.button
@@ -236,7 +259,7 @@ export function ChatInput({
             ) : null}
           </div>
 
-          <div className="relative flex shrink-0 items-center gap-2">
+            <div className="relative flex shrink-0 items-center gap-2">
           {hasApiControls ? (
             <motion.button
               type="button"
@@ -265,6 +288,7 @@ export function ChatInput({
           >
             <ArrowUp className="h-4 w-4" />
           </motion.button>
+            </div>
           </div>
         </div>
       </motion.div>

@@ -3,12 +3,14 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { MessageContextMenu } from "@/components/chat/MessageContextMenu";
 import { RichMessageText } from "@/components/chat/rich-message-text";
+import { RichTextToolbar } from "@/components/rich-text/rich-text-toolbar";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
 import { springSnappy, springSoft } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
 import { ChevronLeft, ChevronRight, GitFork, History, PenLine, Pin, RefreshCw, SendHorizontal, ShieldAlert, Trash2, Volume2 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
+import { applyRichTextFormat, richTextFormatFromShortcut } from "@/lib/rich-text-formatting";
 
 const LONG_PRESS_DELAY_MS = 500;
 const DELETE_EXIT_DELAY_MS = 140;
@@ -71,6 +73,7 @@ function MessageBubbleComponent({
   const [editDraft, setEditDraft] = useState(content);
   const [savingEdit, setSavingEdit] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   const touchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isUser = role === "USER";
   const hasVariants = !isUser && variantCount !== undefined && variantCount > 1 && variantIndex !== undefined;
@@ -236,13 +239,24 @@ function MessageBubbleComponent({
           )}
           {isEditing ? (
             <div className="grid gap-3">
+              <RichTextToolbar textareaRef={editTextareaRef} value={editDraft} onChange={setEditDraft} compact />
               <textarea
+                ref={editTextareaRef}
                 autoFocus
                 aria-label="Edit message text"
                 value={editDraft}
                 onChange={(event) => setEditDraft(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === "Escape") {
+                  const format = richTextFormatFromShortcut(event.key, event.ctrlKey || event.metaKey);
+                  if (format) {
+                    event.preventDefault();
+                    const result = applyRichTextFormat(editDraft, event.currentTarget.selectionStart, event.currentTarget.selectionEnd, format);
+                    setEditDraft(result.value);
+                    requestAnimationFrame(() => {
+                      editTextareaRef.current?.focus();
+                      editTextareaRef.current?.setSelectionRange(result.selectionStart, result.selectionEnd);
+                    });
+                  } else if (event.key === "Escape") {
                     setIsEditing(false);
                   } else if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
                     event.preventDefault();

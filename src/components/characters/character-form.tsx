@@ -17,8 +17,10 @@ import {
   Zap
 } from "lucide-react";
 import { CharacterPreviewPanel } from "@/components/characters/character-preview-panel";
+import { RichMessageText } from "@/components/chat/rich-message-text";
 import { PromptGeneratorPanel, type PromptGeneratorOptions } from "@/components/characters/prompt-generator-panel";
 import { TagChipInput } from "@/components/characters/tag-chip-input";
+import { FormattedTextarea } from "@/components/rich-text/formatted-textarea";
 import { Button } from "@/components/ui/button";
 import { ImageFilePicker } from "@/components/ui/image-file-picker";
 import { Input } from "@/components/ui/input";
@@ -551,9 +553,9 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
                 <div className="mt-6 grid gap-6">
                   <Field label="Portrait"><AvatarUpload value={draft.avatarUrl} name={draft.name} onChange={(value) => update("avatarUrl", value)} onError={setError} /></Field>
                   <Field label="Character name" required><Input value={draft.name} onChange={(event) => update("name", event.target.value)} required /></Field>
-                  <Field label="Essence" required><Textarea value={draft.description} onChange={(event) => update("description", event.target.value)} required /></Field>
+                  <Field label="Essence" hint="Formatting is rendered everywhere this subtitle appears." required><FormattedTextarea value={draft.description} onChange={(value) => update("description", value)} required /></Field>
                   <Field label="Index terms"><TagChipInput value={draft.tags} onChange={(tags) => update("tags", tags)} presets={VIBE_PRESETS} /></Field>
-                  <Field label="First message"><Textarea value={draft.greeting} onChange={(event) => update("greeting", event.target.value)} className="min-h-36" /></Field>
+                  <Field label="First message"><FormattedTextarea value={draft.greeting} onChange={(value) => update("greeting", value)} className="min-h-36" /></Field>
                   {generatedPreview ? <GeneratedPreviewCard preview={generatedPreview} /> : null}
                 </div>
               </div>
@@ -564,12 +566,11 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
             <StudioChapter id="identity" number="01" title="Identity" description="Name the character and define the promise at the center of every conversation." active={activeChapter === "identity"} onSelect={() => selectChapter("identity")} onAssist={() => assistSection("basics")} assisting={assistingSection === "basics"}>
               <Field label="Portrait"><AvatarUpload value={draft.avatarUrl} name={draft.name} onChange={(value) => update("avatarUrl", value)} onError={setError} large /></Field>
               <Field label="Character name" required><Input value={draft.name} onChange={(event) => update("name", event.target.value)} placeholder="Ari the Archivist" required /></Field>
-              <Field label="Core idea" required><Textarea value={draft.description} onChange={(event) => update("description", event.target.value)} placeholder="Who are they, what tension follows them, and why should someone stay?" className="min-h-40" required /></Field>
+              <Field label="Core idea" hint="Formatting is rendered everywhere this subtitle appears." required><FormattedTextarea value={draft.description} onChange={(value) => update("description", value)} placeholder="Who are they, what tension follows them, and why should someone stay?" className="min-h-40" required /></Field>
               <Field label="Index terms"><TagChipInput value={draft.tags} onChange={(tags) => update("tags", tags)} presets={VIBE_PRESETS} /></Field>
             </StudioChapter>
             <StudioChapter id="scene" number="02" title="First scene" description="Write the threshold where the relationship begins." active={activeChapter === "scene"} onSelect={() => selectChapter("scene")} onAssist={() => assistSection("greeting")} assisting={assistingSection === "greeting"}>
-              <Field label="Greeting / first message" hint="This becomes the first page of every new conversation."><Textarea value={draft.greeting} onChange={(event) => update("greeting", event.target.value)} placeholder="Set the scene, place the character in motion, and leave the user room to answer." className="min-h-52" /></Field>
-              {draft.greeting.trim() ? <blockquote className="codex-opening-preview">{draft.greeting}</blockquote> : null}
+              <Field label="Greeting / first message" hint="This becomes the first page of every new conversation."><FormattedTextarea value={draft.greeting} onChange={(value) => update("greeting", value)} placeholder="Set the scene, place the character in motion, and leave the user room to answer." className="min-h-52" /></Field>
               {generatedPreview ? <GeneratedPreviewCard preview={generatedPreview} /> : null}
               <Button type="button" variant="outline" onClick={generatePreview} disabled={!canGeneratePreview || generatingPreview}><Sparkles className="h-4 w-4" />{generatingPreview ? "Drafting..." : "Draft missing chapters"}</Button>
             </StudioChapter>
@@ -583,7 +584,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
             <StudioChapter id="identity" number="01" title="Identity" description="The portrait, name, and core promise readers meet first." active={activeChapter === "identity"} onSelect={() => selectChapter("identity")} onAssist={() => assistSection("basics")} assisting={assistingSection === "basics"}>
               <Field label="Portrait"><AvatarUpload value={draft.avatarUrl} name={draft.name} onChange={(value) => update("avatarUrl", value)} onError={setError} large /></Field>
               <Field label="Character name" required><Input value={draft.name} onChange={(event) => update("name", event.target.value)} placeholder="Ari the Archivist" required /></Field>
-              <Field label="Essence" required><Textarea value={draft.description} onChange={(event) => update("description", event.target.value)} placeholder="A soft-spoken fantasy guide with a sharp memory." className="min-h-40" required /></Field>
+              <Field label="Essence" hint="Formatting is rendered everywhere this subtitle appears." required><FormattedTextarea value={draft.description} onChange={(value) => update("description", value)} placeholder="A soft-spoken fantasy guide with a sharp memory." className="min-h-40" required /></Field>
               <Field label="Index terms"><TagChipInput value={draft.tags} onChange={(tags) => update("tags", tags)} placeholder="Type any tag and press Enter" /></Field>
               <div className="grid gap-6 sm:grid-cols-2"><Field label="Role"><Input value={draft.personaRole} onChange={(event) => update("personaRole", event.target.value)} placeholder="Mentor, rival, companion..." /></Field><Field label="Archetype"><Input value={draft.archetype} onChange={(event) => update("archetype", event.target.value)} placeholder="Archivist, detective, bard..." /></Field></div>
             </StudioChapter>
@@ -599,8 +600,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
 
             <StudioChapter id="scene" number="03" title="Scene & first message" description="The world state and first beat that begin the story." active={activeChapter === "scene"} onSelect={() => selectChapter("scene")} onAssist={() => assistSection("scenario")} assisting={assistingSection === "scenario"}>
               <Field label="Scenario / world"><Textarea value={draft.scenario} onChange={(event) => update("scenario", event.target.value)} placeholder="Where the scene starts and what must remain true." className="min-h-44" /></Field>
-              <Field label="Greeting / first message" hint="Write it as the opening paragraph of a scene, not an instruction."><Textarea value={draft.greeting} onChange={(event) => update("greeting", event.target.value)} placeholder="The first message your character sends." className="min-h-52" /></Field>
-              {draft.greeting.trim() ? <blockquote className="codex-opening-preview">{draft.greeting}</blockquote> : null}
+              <Field label="Greeting / first message" hint="Write it as the opening paragraph of a scene, not an instruction."><FormattedTextarea value={draft.greeting} onChange={(value) => update("greeting", value)} placeholder="The first message your character sends." className="min-h-52" /></Field>
             </StudioChapter>
 
             <StudioChapter id="lore" number="04" title="Lore & memory" description="Canonical facts that surface only when the story calls for them." active={activeChapter === "lore"} onSelect={() => selectChapter("lore")} onAssist={() => assistSection("lorebook")} assisting={assistingSection === "lorebook"}>
@@ -778,11 +778,11 @@ function GeneratedPreviewCard({ preview }: { preview: GeneratedCharacterPreview 
   return (
     <div className="rounded-[var(--radius-lg)] border border-[rgb(var(--accent-rgb)_/_0.28)] bg-[var(--accent-purple-soft)] p-4">
       <p className="text-sm font-semibold text-[var(--text-primary)]">{preview.name?.trim() || "Generated preview"}</p>
-      {preview.description ? <p className="mt-1 line-clamp-2 text-sm text-[var(--text-secondary)]">{preview.description}</p> : null}
+      {preview.description ? <RichMessageText text={preview.description} className="mt-1 line-clamp-2 text-sm text-[var(--text-secondary)]" /> : null}
       <p className="mt-3 text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-muted)]">Personality</p>
       <p className="mt-1 line-clamp-4 text-sm leading-6 text-[var(--text-secondary)]">{preview.personality}</p>
       <p className="mt-3 text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-muted)]">Opening message</p>
-      <p className="mt-1 line-clamp-3 text-sm leading-6 text-[var(--text-secondary)]">{preview.greeting}</p>
+      <RichMessageText text={preview.greeting} className="mt-1 line-clamp-3 text-sm leading-6 text-[var(--text-secondary)]" />
     </div>
   );
 }

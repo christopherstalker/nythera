@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Plus, Search, ShieldCheck, SlidersHorizontal, Sparkles, Star, X } from "lucide-react";
 import { motion } from "motion/react";
+import { RichMessageText } from "@/components/chat/rich-message-text";
 import { CharacterBentoGrid } from "@/components/characters/CharacterBentoGrid";
 import type { CharacterSummary } from "@/components/characters/CharacterCard";
 import { Button } from "@/components/ui/button";
@@ -289,7 +290,7 @@ function FeaturedStage({ character, loading }: { character: CharacterSummary | n
           {character.name}
         </h2>
         <p className="mt-6 line-clamp-3 max-w-lg text-base leading-7 text-[var(--text-secondary)] sm:text-lg">
-          {character.description || "A story waiting to begin."}
+          <RichMessageText text={character.description || "A story waiting to begin."} />
         </p>
         <div className="mt-5 flex flex-wrap gap-2">
           {character.tags?.slice(0, 3).map((tag) => (

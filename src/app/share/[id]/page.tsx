@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BookOpen, Map, MessageCircle, Route } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
+import { RichMessageText } from "@/components/chat/rich-message-text";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell, Surface } from "@/components/ui/page";
@@ -84,7 +85,7 @@ export default function SharePage({ params }: { params: { id: string } }) {
             <div className="min-w-0">
               <p className="text-[10px] uppercase tracking-[.24em] text-[var(--codex-violet)]">Shared manuscript</p>
               <h1 className="font-editorial line-clamp-2 text-3xl font-medium leading-tight text-[var(--codex-ivory)] sm:text-4xl">{share.title || share.characterSnapshot.name}</h1>
-              <p className="mt-1 line-clamp-2 text-sm text-[var(--text-secondary)]">{share.characterSnapshot.description}</p>
+              <p className="mt-1 line-clamp-2 text-sm text-[var(--text-secondary)]"><RichMessageText text={share.characterSnapshot.description || "A story waiting to begin."} /></p>
             </div>
           </div>
           <Button asChild>

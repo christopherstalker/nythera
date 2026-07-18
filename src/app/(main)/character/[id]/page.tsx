@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CharacterAvatar } from "@/components/character/character-avatar";
 import { Avatar } from "@/components/ui/avatar";
+import { RichMessageText } from "@/components/chat/rich-message-text";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell, Surface, SurfaceMuted } from "@/components/ui/page";
 import { cn } from "@/lib/utils";
@@ -356,7 +357,7 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
           </div>
 
           <div className="space-y-6 p-6 sm:p-8">
-            <p className="font-editorial text-xl leading-8 text-[var(--codex-ivory)]">{character.description}</p>
+            <p className="font-editorial text-xl leading-8 text-[var(--codex-ivory)]"><RichMessageText text={character.description} /></p>
             <div className="flex flex-wrap gap-2">
               {character.tags.map((tag) => <Badge key={tag}>{tag}</Badge>)}
             </div>
@@ -443,7 +444,7 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
             ) : null}
             {character.scenario ? <ProfileSection title="Scenario">{character.scenario}</ProfileSection> : null}
             <ProfileSection title="Greeting">
-              <span className="font-editorial block border-l border-[var(--codex-mint)] pl-5 text-2xl italic leading-9 text-[var(--codex-ivory)]">{character.greeting}</span>
+              <span className="font-editorial block border-l border-[var(--codex-mint)] pl-5 text-2xl italic leading-9 text-[var(--codex-ivory)]"><RichMessageText text={character.greeting} /></span>
             </ProfileSection>
             <ProfileSection title="Memory and lore">
               {loreEntries.length

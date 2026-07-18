@@ -1,6 +1,7 @@
 "use client";
 
 import { BookmarkSimple, CaretLeft, Check, Sparkle } from "@phosphor-icons/react";
+import { RichMessageText } from "@/components/chat/rich-message-text";
 import { Avatar } from "@/components/ui/avatar";
 import { displayTagLabel } from "@/lib/character-tags";
 import { cn } from "@/lib/utils";
@@ -80,7 +81,7 @@ export function CharacterPreviewPanel({
             {generated ? <Sparkle size={13} weight="thin" className="text-[var(--codex-violet)]" /> : null}
           </div>
           <h2>{previewName}</h2>
-          <p>{previewDescription}</p>
+          <p><RichMessageText text={previewDescription} /></p>
         </div>
       </div>
 
@@ -117,7 +118,7 @@ export function CharacterPreviewPanel({
 
         <blockquote className="codex-pinned-note">
           <span>Opening leaf</span>
-          {previewGreeting}
+          <RichMessageText text={previewGreeting} />
         </blockquote>
       </div>
     </aside>
