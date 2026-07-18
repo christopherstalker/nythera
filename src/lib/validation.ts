@@ -252,6 +252,210 @@ export const memoryUpdateSchema = z.object({
   category: memoryCreateSchema.shape.category.optional()
 });
 
+export const storyFactCreateSchema = z.object({
+  timelineId: z.string().trim().min(1).optional().nullable(),
+  subjectEntityId: z.string().trim().min(1).optional().nullable(),
+  objectEntityId: z.string().trim().min(1).optional().nullable(),
+  sourceMessageId: z.string().trim().min(1).optional().nullable(),
+  predicate: z.string().trim().min(1).max(80),
+  objectText: z.string().trim().min(1).max(2000),
+  scope: z.enum(["STORY", "PARTICIPANT", "CHARACTER", "OWNER"]).default("STORY"),
+  confidence: z.coerce.number().min(0).max(1).default(1),
+  importance: z.coerce.number().min(0).max(5).default(1),
+  locked: z.boolean().default(false),
+  participantIds: z.array(z.string().trim().min(1)).max(24).default([])
+});
+
+export const storyFactUpdateSchema = storyFactCreateSchema
+  .omit({ timelineId: true, sourceMessageId: true, participantIds: true })
+  .partial()
+  .extend({
+    status: z.enum(["ACTIVE", "SUPERSEDED", "RETRACTED"]).optional(),
+    participantIds: z.array(z.string().trim().min(1)).max(24).optional(),
+    knowledgeState: z.enum(["KNOWN", "SUSPECTED", "FORGOTTEN"]).optional()
+  });
+
+const storyStateListSchema = z.array(z.string().trim().min(1).max(300)).max(50).default([]);
+
+export const storyStateSchema = z.object({
+  time: z.string().trim().max(200).nullable().default(null),
+  location: z.string().trim().max(240).nullable().default(null),
+  weather: z.string().trim().max(200).nullable().default(null),
+  inventory: storyStateListSchema,
+  conditions: storyStateListSchema,
+  threats: storyStateListSchema,
+  notes: storyStateListSchema
+});
+
+const storyIntensitySchema = z.coerce.number().int().min(0).max(10);
+
+export const storyDirectorSchema = z.object({
+  tone: z.string().trim().max(160).nullable().default(null),
+  pacing: z.enum(["SLOW", "BALANCED", "FAST"]).default("BALANCED"),
+  initiative: z.enum(["REACTIVE", "BALANCED", "PROACTIVE"]).default("BALANCED"),
+  conflictLevel: storyIntensitySchema.default(5),
+  romanceLevel: storyIntensitySchema.default(3),
+  mysteryLevel: storyIntensitySchema.default(5),
+  humorLevel: storyIntensitySchema.default(3),
+  allowOffscreenEvents: z.boolean().default(true),
+  notes: z.string().trim().max(2000).nullable().default(null)
+});
+
+const narrativeBaseSchema = z.object({
+  timelineId: z.string().trim().min(1).optional().nullable()
+});
+
+export const storyArcCreateSchema = narrativeBaseSchema.extend({
+  kind: z.literal("arc"),
+  title: z.string().trim().min(1).max(160),
+  premise: z.string().trim().min(1).max(2400),
+  priority: z.coerce.number().int().min(-10).max(10).default(0),
+  targetBeatCount: z.coerce.number().int().min(1).max(100).optional().nullable()
+});
+
+export const storyBeatCreateSchema = narrativeBaseSchema.extend({
+  kind: z.literal("beat"),
+  arcId: z.string().trim().min(1).optional().nullable(),
+  title: z.string().trim().min(1).max(160),
+  description: z.string().trim().min(1).max(2400),
+  status: z.enum(["PLANNED", "READY"]).default("PLANNED"),
+  position: z.coerce.number().int().min(0).max(10000).default(0),
+  priority: z.coerce.number().int().min(-10).max(10).default(0)
+});
+
+export const storyHookCreateSchema = narrativeBaseSchema.extend({
+  kind: z.literal("hook"),
+  arcId: z.string().trim().min(1).optional().nullable(),
+  title: z.string().trim().min(1).max(160),
+  description: z.string().trim().min(1).max(2400),
+  payoff: z.string().trim().max(2400).optional().nullable(),
+  urgency: storyIntensitySchema.default(0),
+  directorOnly: z.boolean().default(false),
+  dueSequence: z.coerce.number().int().min(0).max(1000000).optional().nullable()
+});
+
+export const storyRelationshipCreateSchema = narrativeBaseSchema.extend({
+  kind: z.literal("relationship"),
+  fromParticipantId: z.string().trim().min(1),
+  toParticipantId: z.string().trim().min(1),
+  label: z.string().trim().max(120).optional().nullable(),
+  trust: z.coerce.number().int().min(-100).max(100).default(0),
+  affection: z.coerce.number().int().min(-100).max(100).default(0),
+  tension: z.coerce.number().int().min(-100).max(100).default(0),
+  respect: z.coerce.number().int().min(-100).max(100).default(0),
+  notes: z.string().trim().max(1600).optional().nullable()
+});
+
+export const storyEventCreateSchema = narrativeBaseSchema.extend({
+  kind: z.literal("event"),
+  actorParticipantId: z.string().trim().min(1).optional().nullable(),
+  title: z.string().trim().min(1).max(160),
+  instruction: z.string().trim().min(1).max(2400),
+  channel: z.enum(["DIALOGUE", "ACTION", "THOUGHT", "WHISPER", "OOC", "SYSTEM"]).default("ACTION"),
+  priority: z.coerce.number().int().min(-10).max(10).default(0),
+  afterTurns: z.coerce.number().int().min(0).max(10000).default(0),
+  triggerAt: z.coerce.date().optional().nullable()
+});
+
+export const storyNarrativeCreateSchema = z.discriminatedUnion("kind", [
+  storyArcCreateSchema,
+  storyBeatCreateSchema,
+  storyHookCreateSchema,
+  storyRelationshipCreateSchema,
+  storyEventCreateSchema
+]);
+
+export const storyNarrativeUpdateSchema = z.object({
+  kind: z.enum(["arc", "beat", "hook", "relationship", "event"]),
+  id: z.string().trim().min(1),
+  title: z.string().trim().min(1).max(160).optional(),
+  premise: z.string().trim().min(1).max(2400).optional(),
+  description: z.string().trim().min(1).max(2400).optional(),
+  payoff: z.string().trim().max(2400).optional().nullable(),
+  instruction: z.string().trim().min(1).max(2400).optional(),
+  label: z.string().trim().max(120).optional().nullable(),
+  notes: z.string().trim().max(1600).optional().nullable(),
+  priority: z.coerce.number().int().min(-10).max(10).optional(),
+  progress: z.coerce.number().int().min(0).max(100).optional(),
+  position: z.coerce.number().int().min(0).max(10000).optional(),
+  urgency: storyIntensitySchema.optional(),
+  trust: z.coerce.number().int().min(-100).max(100).optional(),
+  affection: z.coerce.number().int().min(-100).max(100).optional(),
+  tension: z.coerce.number().int().min(-100).max(100).optional(),
+  respect: z.coerce.number().int().min(-100).max(100).optional(),
+  arcStatus: z.enum(["ACTIVE", "PAUSED", "COMPLETED", "ABANDONED"]).optional(),
+  beatStatus: z.enum(["PLANNED", "READY", "COMPLETED", "SKIPPED"]).optional(),
+  hookStatus: z.enum(["OPEN", "ESCALATED", "RESOLVED", "DROPPED"]).optional(),
+  eventStatus: z.enum(["SCHEDULED", "READY", "FIRED", "CANCELLED"]).optional(),
+  directorOnly: z.boolean().optional()
+});
+
+export const storyParticipantStateSchema = z.object({
+  kind: z.literal("participant_state"),
+  timelineId: z.string().trim().min(1).optional().nullable(),
+  participantId: z.string().trim().min(1),
+  displayNameOverride: z.string().trim().max(120).optional().nullable(),
+  pronouns: z.string().trim().max(80).optional().nullable(),
+  currentMood: z.string().trim().max(160).optional().nullable(),
+  appearance: z.string().trim().max(2400).optional().nullable(),
+  currentGoal: z.string().trim().max(1600).optional().nullable(),
+  innerConflict: z.string().trim().max(1600).optional().nullable(),
+  voiceStyle: z.string().trim().max(160).optional().nullable(),
+  speakingStyle: z.string().trim().max(1600).optional().nullable()
+});
+
+export const storyVoiceBindingSchema = z.object({
+  kind: z.literal("voice"),
+  participantId: z.string().trim().min(1),
+  provider: z.enum(["elevenlabs", "playht"]),
+  voiceId: z.string().trim().min(1).max(300),
+  style: z.string().trim().max(160).optional().nullable(),
+  speed: z.coerce.number().min(0.7).max(1.2).default(1),
+  pitch: z.coerce.number().min(-1).max(1).default(0),
+  autoPlay: z.boolean().default(false)
+});
+
+export const storySafetySchema = z.object({
+  contentRating: z.enum(["GENERAL", "TEEN", "MATURE"]).default("MATURE"),
+  hardLimits: z.array(z.string().trim().min(1).max(160)).max(40).default([]),
+  softLimits: z.array(z.string().trim().min(1).max(160)).max(40).default([]),
+  fadeToBlack: z.array(z.string().trim().min(1).max(160)).max(40).default([]),
+  checkInInterval: z.coerce.number().int().min(0).max(100).default(0),
+  paused: z.boolean().default(false),
+  notes: z.string().trim().max(2000).optional().nullable()
+});
+
+export const storyVisualReferenceSchema = z.object({
+  kind: z.literal("visual"),
+  timelineId: z.string().trim().min(1).optional().nullable(),
+  participantId: z.string().trim().min(1).optional().nullable(),
+  entityId: z.string().trim().min(1).optional().nullable(),
+  visualKind: z.enum(["PORTRAIT", "OUTFIT", "LOCATION", "ITEM", "MOODBOARD", "OTHER"]),
+  title: z.string().trim().min(1).max(160),
+  imageUrl: z.string().trim().max(2_500_000).optional().nullable(),
+  prompt: z.string().trim().max(2400).optional().nullable(),
+  notes: z.string().trim().max(1600).optional().nullable(),
+  locked: z.boolean().default(false)
+}).refine((input) => Boolean(input.imageUrl || input.prompt), {
+  message: "A visual reference needs an image or prompt."
+});
+
+export const storyCheckpointSchema = z.object({
+  kind: z.literal("checkpoint"),
+  timelineId: z.string().trim().min(1).optional().nullable(),
+  checkpointKind: z.enum(["MANUAL", "BOOKMARK"]).default("MANUAL"),
+  title: z.string().trim().min(1).max(160),
+  summary: z.string().trim().max(5000).optional().nullable(),
+  openThreads: z.array(z.string().trim().min(1).max(300)).max(40).default([])
+});
+
+export const storyContinuityMutationSchema = z.union([
+  storyParticipantStateSchema,
+  storyVoiceBindingSchema,
+  storyVisualReferenceSchema,
+  storyCheckpointSchema
+]);
+
 export const roomCreateSchema = z.object({
   title: z.string().trim().min(2).max(120).optional(),
   characterIds: z.array(z.string().trim().min(1)).min(2).max(6),
@@ -286,5 +490,7 @@ export const voiceSynthesisSchema = z.object({
   provider: z.enum(["elevenlabs", "playht"]).default("elevenlabs"),
   text: z.string().trim().min(1).max(2500),
   voiceId: z.string().trim().max(160).optional().or(z.literal("")),
+  storyId: z.string().trim().min(1).optional(),
+  characterId: z.string().trim().min(1).optional(),
   format: z.enum(["mp3", "wav"]).default("mp3")
 });

@@ -2,7 +2,8 @@ import { HttpError, getRequestIp, requireUser, routeError } from "@/lib/api";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { moderateText, sanitizeUserText, isMinorBirthDate } from "@/lib/safety";
 import { parseJson } from "@/lib/api";
-import { getDecryptedVoiceApiKey } from "@/lib/voice-keys";
+import { prisma } from "@/lib/prisma";
+import { getDecryptedVoiceApiKey, type VoiceProvider } from "@/lib/voice-keys";
 import { voiceSynthesisSchema } from "@/lib/validation";
 
 export const runtime = "nodejs";
@@ -32,21 +33,42 @@ export async function POST(request: Request) {
       throw new HttpError(400, moderation.reason ?? "Text is blocked by the platform safety policy.");
     }
 
-    const key = await getDecryptedVoiceApiKey(user.id, input.provider);
-    const response = input.provider === "elevenlabs"
+    let provider: VoiceProvider = input.provider;
+    let voiceId = input.voiceId;
+    let speed = 1;
+    if (input.storyId && input.characterId) {
+      const binding = await prisma.storyVoiceBinding.findFirst({
+        where: {
+          storyId: input.storyId,
+          story: { ownerId: user.id },
+          participant: { characterId: input.characterId }
+        },
+        select: { provider: true, voiceId: true, speed: true }
+      });
+      if (binding) {
+        provider = binding.provider === "playht" ? "playht" : "elevenlabs";
+        voiceId = input.voiceId || binding.voiceId;
+        speed = binding.speed;
+      }
+    }
+
+    const key = await getDecryptedVoiceApiKey(user.id, provider);
+    const response = provider === "elevenlabs"
       ? await synthesizeElevenLabs({
           apiKey: key.apiKey,
           baseUrl: key.baseUrl,
-          voiceId: input.voiceId || key.defaultVoiceId || DEFAULT_ELEVENLABS_VOICE,
-          text
+          voiceId: voiceId || key.defaultVoiceId || DEFAULT_ELEVENLABS_VOICE,
+          text,
+          speed
         })
       : await synthesizePlayHt({
           apiKey: key.apiKey,
           userId: key.authId,
           baseUrl: key.baseUrl,
-          voiceId: input.voiceId || key.defaultVoiceId || DEFAULT_PLAYHT_VOICE,
+          voiceId: voiceId || key.defaultVoiceId || DEFAULT_PLAYHT_VOICE,
           text,
-          format: input.format
+          format: input.format,
+          speed
         });
 
     if (!response.ok || !response.body) {
@@ -71,6 +93,7 @@ async function synthesizeElevenLabs(input: {
   baseUrl: string;
   voiceId: string;
   text: string;
+  speed: number;
 }) {
   const url = `${input.baseUrl.replace(/\/+$/, "")}/text-to-speech/${encodeURIComponent(input.voiceId)}`;
   return fetch(url, {
@@ -82,7 +105,8 @@ async function synthesizeElevenLabs(input: {
     },
     body: JSON.stringify({
       text: input.text,
-      model_id: "eleven_multilingual_v2"
+      model_id: "eleven_multilingual_v2",
+      voice_settings: { speed: Math.max(0.7, Math.min(1.2, input.speed)) }
     })
   });
 }
@@ -94,6 +118,7 @@ async function synthesizePlayHt(input: {
   voiceId: string;
   text: string;
   format: "mp3" | "wav";
+  speed: number;
 }) {
   if (!input.userId) {
     throw new HttpError(400, "PlayHT requires a User ID / auth id.");
@@ -111,7 +136,8 @@ async function synthesizePlayHt(input: {
     body: JSON.stringify({
       text: input.text,
       voice: input.voiceId,
-      output_format: input.format
+      output_format: input.format,
+      speed: input.speed
     })
   });
 }

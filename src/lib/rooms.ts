@@ -15,6 +15,9 @@ import { moderateText, sanitizeUserText, isMinorBirthDate } from "@/lib/safety";
 import { formatUserPersonaForPrompt } from "@/lib/user-persona";
 import { getEffectiveProviderKeys } from "@/lib/user-keys";
 import { searchMemories } from "@/lib/vector";
+import { ensureStoryForRoom, getRoomStoryPromptContext, syncRoomTurns } from "@/lib/stories/story-foundation";
+import { markStoryProactiveEventsFired } from "@/lib/stories/narrative-store";
+import { logSafeError } from "@/lib/secret-redaction";
 
 type RoomUser = {
   id: string;
@@ -148,6 +151,8 @@ export async function createRoomForUser(user: RoomUser, input: RoomInput) {
     return room;
   });
 
+  await ensureStoryForRoom(created.id, user.id);
+
   return getRoomForUser(created.id, user.id);
 }
 
@@ -249,7 +254,7 @@ export async function sendRoomMessage(input: {
     clientRequestId: input.body.requestId
   });
 
-  const [memories, defaultPersona] = await Promise.all([
+  const [memories, defaultPersona, storyContext] = await Promise.all([
     input.user.memoryEnabled
       ? searchMemories({
           userId: input.user.id,
@@ -261,7 +266,8 @@ export async function sendRoomMessage(input: {
       : Promise.resolve([]),
     prisma.userPersona.findFirst({
       where: { userId: input.user.id, isDefault: true }
-    })
+    }),
+    getRoomStoryPromptContext({ roomId: room.id, userId: input.user.id, actorCharacterId: speaker.id })
   ]);
   const userPersona = room.persona ?? defaultPersona;
   const recentMessages = room.messages
@@ -286,6 +292,7 @@ export async function sendRoomMessage(input: {
       speaker,
       characters: room.characters.map((link) => link.character)
     }),
+    storyContext: storyContext.text,
     injectionAssessment
   });
 
@@ -401,6 +408,17 @@ export async function sendRoomMessage(input: {
       error: usage.fallbackTriggered ? `fallback attempts: ${usage.attempts.join(" -> ")}`.slice(0, 2000) : null,
       latencyMs: Date.now() - started
     }
+  });
+
+  await syncRoomTurns(room.id, input.user.id).catch((storyError) => {
+    logSafeError("Room story turn sync failed.", storyError);
+  });
+  await markStoryProactiveEventsFired({
+    eventIds: storyContext.eventIds,
+    storyId: storyContext.storyId,
+    sourceRoomMessageId: characterMessage.id
+  }).catch((storyError) => {
+    logSafeError("Room proactive event completion failed.", storyError);
   });
 
   return {

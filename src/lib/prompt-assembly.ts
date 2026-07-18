@@ -24,6 +24,7 @@ export function assembleNytheraPrompt(input: {
   memoryLimit?: number;
   userPersona?: string | null;
   responsePrompt?: string | null;
+  storyContext?: string | null;
 }): PromptMessage[] {
   const persona = resolveCharacterPersona(input.character);
   const safetyLayer = buildSystemSafetyLayer(input.injectionAssessment);
@@ -32,6 +33,7 @@ export function assembleNytheraPrompt(input: {
   const scenarioLayer = buildScenarioLayer(input.character);
   const lorebookLayer = buildLorebookLayer(input.character.lorebook, input.currentMessage, input.recentMessages);
   const responsePromptLayer = input.responsePrompt?.trim() ? buildResponsePromptLayer(input.responsePrompt) : null;
+  const storyContextLayer = buildStoryContextLayer(input.storyContext);
   const memoryLayer = buildLongTermMemoryLayer(input.memories, input.userPersona, input.memoryLimit ?? 8);
   const summaryLayer = buildSummaryLayer(input.summary);
 
@@ -44,22 +46,38 @@ export function assembleNytheraPrompt(input: {
   // 1) System safety rules
   // 2) Character persona
   // 3) Character scenario/world
-  // 4) Long-term memory (retrieved top-K)
-  // 5) Conversation summary
-  // 6) Last messages (short-term memory)
-  // 7) Current user input
+  // 4) Structured story canon and world state
+  // 5) Long-term user memory (retrieved top-K)
+  // 6) Conversation summary cache
+  // 7) Last messages (short-term memory)
+  // 8) Current user input
   return [
     { role: "system", content: safetyLayer },
     ...(characterSystemOverrideLayer ? [{ role: "system" as const, content: characterSystemOverrideLayer }] : []),
     { role: "system", content: personaLayer },
     { role: "system", content: scenarioLayer },
     ...(lorebookLayer ? [{ role: "system" as const, content: lorebookLayer }] : []),
+    ...(storyContextLayer ? [{ role: "system" as const, content: storyContextLayer }] : []),
     ...(responsePromptLayer ? [{ role: "system" as const, content: responsePromptLayer }] : []),
     { role: "system", content: memoryLayer },
     { role: "system", content: summaryLayer },
     ...recent,
     { role: "user", content: sanitizePromptContext(input.currentMessage, 4000) }
   ];
+}
+
+function buildStoryContextLayer(value?: string | null) {
+  const context = value ? sanitizePromptContext(value, 5000) : "";
+  if (!context) {
+    return null;
+  }
+  return [
+    "STRUCTURED STORY CONTEXT (AUTHORITATIVE)",
+    "- Canon-locked facts cannot be contradicted or silently rewritten.",
+    "- Treat knowledge-scoped facts as the complete set this character may act upon.",
+    "- Preserve the current world state until an explicit story event changes it.",
+    context
+  ].join("\n");
 }
 
 function buildCharacterSystemOverrideLayer(value?: string | null) {

@@ -15,8 +15,11 @@ test("chat context is a glass side panel that becomes an overlay drawer on activ
   assert.match(panel, /side-panel orbital-functional/);
   assert.match(panel, /isTablet && "orbital-tablet-solid"/);
   assert.match(panel, /<nav[\s\S]*?aria-label="Story context"/);
-  assert.match(panel, /grid-cols-3/);
-  assert.match(panel, /Persona[\s\S]*Memory[\s\S]*Chats/);
+  assert.match(panel, /grid-cols-6/);
+  assert.match(panel, /SceneTabContent/);
+  assert.match(panel, /PlotTabContent/);
+  assert.match(panel, /CanonTabContent/);
+  assert.match(panel, /Persona[\s\S]*Cast[\s\S]*Scene[\s\S]*Plot[\s\S]*Canon[\s\S]*Chats/);
   assert.doesNotMatch(panel, /!isChatSurface && "xl:translate-x-0"/);
   assert.doesNotMatch(panel, /!isChatSurface && "xl:hidden"/);
   assert.match(panel, /isChatSurface && "top-0 xl:top-0 xl:h-full"/);

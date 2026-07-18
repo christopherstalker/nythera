@@ -14,6 +14,8 @@ import { getEffectiveProviderKeys } from "@/lib/user-keys";
 import { formatUserPersonaForPrompt } from "@/lib/user-persona";
 import { createMessageWithNextSequence } from "@/lib/message-sequence";
 import { resolveCharacterModelSettings } from "@/lib/character-model-settings";
+import { getStoryPromptContext, syncChatTurns } from "@/lib/stories/story-foundation";
+import { markStoryProactiveEventsFired } from "@/lib/stories/narrative-store";
 import { estimateModelCost } from "@/lib/model-pricing";
 import { elapsedMs, logPerformanceMetric, measurePrismaOperation, performanceStart } from "@/lib/performance-logger";
 import { logSafeError } from "@/lib/secret-redaction";
@@ -135,7 +137,7 @@ export async function POST(request: Request, context: Context) {
       });
     }
 
-    const [memories, defaultUserPersona] = await Promise.all([
+    const [memories, defaultUserPersona, storyContext] = await Promise.all([
       user.memoryEnabled
         ? searchMemories({
             userId: user.id,
@@ -147,7 +149,8 @@ export async function POST(request: Request, context: Context) {
         : Promise.resolve([]),
       prisma.userPersona.findFirst({
         where: { userId: user.id, isDefault: true }
-      })
+      }),
+      getStoryPromptContext({ chatId: chat.id, userId: user.id, actorCharacterId: chat.characterId })
     ]);
     const userPersona = chat.persona ?? defaultUserPersona;
 
@@ -159,6 +162,7 @@ export async function POST(request: Request, context: Context) {
       recentMessages,
       currentMessage: message,
       responsePrompt: input.responsePrompt ?? chat.responsePrompt,
+      storyContext: storyContext.text,
       injectionAssessment
     });
 
@@ -316,6 +320,17 @@ export async function POST(request: Request, context: Context) {
             });
           }
 
+          await syncChatTurns(chat.id, user.id).catch((storyError) => {
+            logSafeError("Story turn sync failed.", storyError);
+          });
+          await markStoryProactiveEventsFired({
+            eventIds: storyContext.eventIds,
+            storyId: storyContext.storyId,
+            sourceMessageId: assistant.id
+          }).catch((storyError) => {
+            logSafeError("Story proactive event completion failed.", storyError);
+          });
+
           send({ type: "message", message: assistant });
           send({ type: "done" });
         } catch (error) {
@@ -367,6 +382,10 @@ export async function POST(request: Request, context: Context) {
               }
             });
           }
+
+          await syncChatTurns(chat.id, user.id).catch((storyError) => {
+            logSafeError("Story turn sync failed after stream error.", storyError);
+          });
 
           await prisma.llmRequestLog.create({
             data: {

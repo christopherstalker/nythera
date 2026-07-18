@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Brain, MessageSquare, PanelRightClose, UserRound } from "lucide-react";
+import { BookKey, Map, MessageSquare, PanelRightClose, Route, UserRound, UsersRound } from "lucide-react";
 import { motion } from "motion/react";
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
-import { HistoryTabContent, MemoryTabContent, PersonaTabContent } from "@/components/chat/chat-panel-tabs";
+import { CanonTabContent, CastTabContent, HistoryTabContent, PersonaTabContent, PlotTabContent, SceneTabContent } from "@/components/chat/chat-panel-tabs";
 import { useChatQuickPanel } from "@/hooks/use-chat-quick-panel";
 import { useUiStore } from "@/stores/use-ui-store";
 import { cn } from "@/lib/utils";
@@ -13,7 +13,10 @@ import { springSoft, springSnappy } from "@/lib/motion";
 
 const tabs = [
   { id: "persona", label: "Persona", icon: UserRound },
-  { id: "memory", label: "Memory", icon: Brain },
+  { id: "cast", label: "Cast", icon: UsersRound },
+  { id: "scene", label: "Scene", icon: Map },
+  { id: "plot", label: "Plot", icon: Route },
+  { id: "canon", label: "Canon", icon: BookKey },
   { id: "history", label: "Chats", icon: MessageSquare }
 ] as const;
 
@@ -84,7 +87,7 @@ export function SidePanel() {
           </div>
           <nav
             aria-label="Story context"
-            className="grid grid-cols-3 gap-1 rounded-[var(--radius-pill)] border border-[var(--border-subtle)] p-1"
+            className="grid grid-cols-6 gap-1 rounded-[var(--radius-pill)] border border-[var(--border-subtle)] p-1"
             style={{ background: "color-mix(in oklch, var(--bg-elevated) 70%, transparent)" }}
           >
             {tabs.map((tab) => {
@@ -99,12 +102,12 @@ export function SidePanel() {
                   whileTap={{ scale: 0.96 }}
                   transition={springSnappy}
                   className={cn(
-                    "focus-ring flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-[var(--radius-pill)] px-2 text-xs font-semibold",
+                    "focus-ring flex h-8 min-w-0 items-center justify-center gap-1 rounded-[var(--radius-pill)] px-1.5 text-[11px] font-semibold",
                     active ? "border border-[var(--codex-mint)]/45 bg-[color-mix(in_oklch,var(--codex-mint)_9%,transparent)] text-[var(--codex-mint)]" : "border border-transparent text-[var(--text-secondary)] hover:bg-[var(--color-overlay)] hover:text-[var(--text-primary)]"
                   )}
                 >
                   <Icon className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">{tab.label}</span>
+                  <span className="sr-only">{tab.label}</span>
                 </motion.button>
               );
             })}
@@ -114,7 +117,10 @@ export function SidePanel() {
         <div className="relative min-h-0 flex-1">
           <div className="chat-scroll h-full min-h-0 min-w-0 overflow-y-auto p-2">
             {activeTab === "persona" ? <PersonaTabContent panel={panel} /> : null}
-            {activeTab === "memory" ? <MemoryTabContent panel={panel} /> : null}
+            {activeTab === "cast" ? <CastTabContent panel={panel} /> : null}
+            {activeTab === "scene" ? <SceneTabContent panel={panel} /> : null}
+            {activeTab === "plot" ? <PlotTabContent panel={panel} /> : null}
+            {activeTab === "canon" ? <CanonTabContent panel={panel} /> : null}
             {activeTab === "history" ? <HistoryTabContent panel={panel} chatId={activeChatId ?? ""} onNavigate={() => setOpen(false)} /> : null}
           </div>
         </div>

@@ -1,5 +1,7 @@
+import { Prisma } from "@prisma/client";
 import { HttpError, json, requireUser, routeError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { createStoryPackage } from "@/lib/stories/story-portability";
 
 export const dynamic = "force-dynamic";
 
@@ -47,13 +49,15 @@ export async function POST(_request: Request, context: Context) {
       throw new HttpError(404, "Chat not found.");
     }
 
+    const storySnapshot = chat.storyId ? await createStoryPackage(chat.storyId, user.id, true) : null;
     const share = await prisma.chatShare.create({
       data: {
         chatId: chat.id,
         userId: user.id,
         title: chat.character.name,
         characterSnapshot: chat.character,
-        messagesSnapshot: chat.messages
+        messagesSnapshot: chat.messages,
+        storySnapshot: storySnapshot ? JSON.parse(JSON.stringify(storySnapshot)) as Prisma.InputJsonValue : undefined
       }
     });
 

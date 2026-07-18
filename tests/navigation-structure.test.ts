@@ -37,7 +37,10 @@ test("global story context is a closable right-side drawer", async () => {
 
   assert.match(panel, /Story context/);
   assert.match(panel, /PersonaTabContent/);
-  assert.match(panel, /MemoryTabContent/);
+  assert.match(panel, /CastTabContent/);
+  assert.match(panel, /SceneTabContent/);
+  assert.match(panel, /PlotTabContent/);
+  assert.match(panel, /CanonTabContent/);
   assert.match(panel, /HistoryTabContent/);
   assert.match(panel, /max-w-\[var\(--side-panel-width\)\]/);
   assert.match(panel, /fixed bottom-0 right-0/);

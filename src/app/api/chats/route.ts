@@ -6,6 +6,7 @@ import { resolveCharacterModelSettings } from "@/lib/character-model-settings";
 import { userPreferredModelValue } from "@/lib/provider-model-options";
 import { getEffectiveProviderKeys } from "@/lib/user-keys";
 import { chatCreateSchema } from "@/lib/validation";
+import { ensureStoryForChat } from "@/lib/stories/story-foundation";
 
 export async function GET() {
   try {
@@ -109,6 +110,7 @@ export async function POST(request: Request) {
 
       return created;
     });
+    await ensureStoryForChat(chat.id, user.id);
 
     return json({ chat }, { status: 201 });
   } catch (error) {

@@ -75,6 +75,11 @@ const ROUTE_LIMITS: Record<string, RateLimitRule> = {
   "mobile:memories:write": WRITE_LIMIT,
   "user-persona:write": WRITE_LIMIT,
   "mobile:user-persona:write": WRITE_LIMIT,
+  "stories:canon": WRITE_LIMIT,
+  "stories:state": WRITE_LIMIT,
+  "stories:narrative": WRITE_LIMIT,
+  "stories:continuity": WRITE_LIMIT,
+  "stories:safety": WRITE_LIMIT,
   "voice:synthesize": MESSAGE_LIMIT
 };
 
