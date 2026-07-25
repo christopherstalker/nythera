@@ -43,15 +43,24 @@ test("mobile chat keeps primary actions visible and moves the rest into the acti
   assert.match(menu, /max-h-\[min\(80dvh,42rem\)\]/);
 });
 
-test("installed app surfaces request portrait while browser layout remains responsive", async () => {
-  const [manifest, nativeConfig, lock] = await Promise.all([
+test("phones enforce portrait while installed apps also request the native orientation lock", async () => {
+  const [manifest, nativeConfig, lock, styles] = await Promise.all([
     read("../src/app/manifest.ts"),
     read("../mobile/app.json"),
-    read("../src/components/pwa/orientation-lock.tsx")
+    read("../src/components/pwa/orientation-lock.tsx"),
+    read("../src/app/globals.css")
   ]);
 
   assert.match(manifest, /orientation: "portrait-primary"/);
   assert.match(nativeConfig, /"orientation": "portrait"/);
   assert.match(lock, /display-mode: standalone/);
   assert.match(lock, /orientation\.lock\("portrait-primary"\)/);
+  assert.match(lock, /Math\.min\(window\.innerWidth, window\.innerHeight\) <= 540/);
+  assert.match(lock, /navigator\.maxTouchPoints > 0/);
+  assert.match(lock, /data-portrait-guard="true"/);
+  assert.match(lock, /addEventListener\("orientationchange", refreshOrientation/);
+  assert.match(lock, /addEventListener\("pageshow", refreshOrientation/);
+  assert.match(lock, /addEventListener\("visibilitychange", refreshOrientation/);
+  assert.match(styles, /@media \(orientation: landscape\) and \(max-height: 540px\) and \(pointer: coarse\)/);
+  assert.match(styles, /\.portrait-guard\.is-blocked\s*\{\s*display: grid/);
 });

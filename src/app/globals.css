@@ -760,6 +760,154 @@
     animation: nythera-loader-pulse 1.4s ease-in-out infinite;
     box-shadow: none;
   }
+
+  .living-codex-intro {
+    opacity: 1;
+    background: var(--codex-paper);
+    transition: opacity 330ms cubic-bezier(.4, 0, .2, 1), visibility 330ms cubic-bezier(.4, 0, .2, 1);
+  }
+
+  .living-codex-intro.is-leaving {
+    visibility: hidden;
+    opacity: 0;
+  }
+
+  .living-codex-intro canvas {
+    height: 100% !important;
+    width: 100% !important;
+  }
+
+  .living-codex-intro-copy {
+    animation: living-codex-copy 2.2s cubic-bezier(.4, 0, .2, 1) both;
+  }
+
+  .living-codex-intro-veil {
+    background:
+      radial-gradient(circle at 50% 44%, transparent 0 20%, color-mix(in oklch, var(--codex-paper) 42%, transparent) 56%, var(--codex-paper) 100%),
+      linear-gradient(180deg, color-mix(in oklch, var(--codex-paper) 36%, transparent), transparent 42%, color-mix(in oklch, var(--codex-paper) 68%, transparent));
+    box-shadow: inset 0 0 12rem color-mix(in oklch, black 68%, transparent);
+  }
+
+  .living-codex-static-mark {
+    perspective: 900px;
+    background:
+      radial-gradient(circle at 50% 46%, oklch(var(--color-accent-primary) / .13), transparent 32%),
+      var(--codex-paper);
+  }
+
+  .living-codex-static-book {
+    position: relative;
+    width: min(68vw, 22rem);
+    aspect-ratio: 1.42;
+    transform: rotateX(12deg);
+    transform-style: preserve-3d;
+  }
+
+  .living-codex-static-cover,
+  .living-codex-static-page {
+    position: absolute;
+    top: 0;
+    width: 50%;
+    height: 100%;
+    border: 1px solid var(--codex-rule);
+    transform-origin: center right;
+  }
+
+  .living-codex-static-cover {
+    background: linear-gradient(145deg, var(--codex-paper-soft), var(--codex-paper));
+    box-shadow: 0 2rem 5rem oklch(0 0 0 / .34);
+  }
+
+  .living-codex-static-cover-left,
+  .living-codex-static-page-left {
+    left: 0;
+    transform-origin: right center;
+  }
+
+  .living-codex-static-cover-right,
+  .living-codex-static-page-right {
+    right: 0;
+    transform-origin: left center;
+  }
+
+  .living-codex-static-page {
+    display: grid;
+    align-content: center;
+    gap: 12%;
+    padding: 14%;
+    background: color-mix(in oklch, var(--codex-ivory) 86%, var(--codex-paper));
+  }
+
+  .living-codex-static-page span {
+    display: block;
+    height: 1px;
+    background: color-mix(in oklch, var(--codex-rule) 74%, var(--codex-violet));
+  }
+
+  .living-codex-static-spine {
+    position: absolute;
+    inset-block: -2%;
+    left: calc(50% - 2px);
+    width: 4px;
+    background: color-mix(in oklch, var(--codex-mint) 46%, var(--codex-paper));
+    box-shadow: 0 0 2rem oklch(var(--color-accent-secondary) / .2);
+  }
+
+  .portrait-guard {
+    display: none;
+  }
+
+  .portrait-guard.is-blocked {
+    display: grid;
+  }
+
+  .portrait-guard-veil {
+    background:
+      radial-gradient(circle at 50% 46%, oklch(var(--color-accent-secondary) / .08), transparent 32%),
+      linear-gradient(155deg, oklch(var(--color-accent-primary) / .06), transparent 46%),
+      var(--codex-paper);
+  }
+
+  .portrait-guard-book {
+    position: relative;
+    width: 4.8rem;
+    height: 5.8rem;
+    transform: rotate(-90deg);
+    border: 1px solid var(--codex-rule);
+    background: var(--codex-paper-raised);
+    box-shadow: 0 1.5rem 4rem oklch(0 0 0 / .32);
+  }
+
+  .portrait-guard-book::before {
+    position: absolute;
+    inset-block: .4rem;
+    left: .55rem;
+    width: 1px;
+    background: var(--codex-mint);
+    content: "";
+  }
+
+  .portrait-guard-book span {
+    position: absolute;
+    right: .65rem;
+    width: 2.7rem;
+    height: 1px;
+    background: var(--codex-rule);
+  }
+
+  .portrait-guard-book span:first-child {
+    top: 2rem;
+  }
+
+  .portrait-guard-book span:last-child {
+    top: 3rem;
+  }
+
+  @media (orientation: landscape) and (max-height: 540px) and (pointer: coarse) {
+    .portrait-guard {
+      display: grid;
+    }
+  }
 }
 
 /* Living Codex visual system */
@@ -1723,6 +1871,23 @@
   50% {
     transform: scale(1.35);
     opacity: 1;
+  }
+}
+
+@keyframes living-codex-copy {
+  0%,
+  13% {
+    opacity: 0;
+    transform: translateY(.6rem);
+  }
+  28%,
+  78% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-.35rem);
   }
 }
 
