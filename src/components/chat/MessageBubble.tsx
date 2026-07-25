@@ -8,7 +8,7 @@ import { TypingIndicator } from "@/components/chat/TypingIndicator";
 import { springSnappy, springSoft } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
-import { ChevronLeft, ChevronRight, GitFork, History, PenLine, Pin, RefreshCw, SendHorizontal, ShieldAlert, Trash2, Volume2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, GitFork, History, MoreHorizontal, PenLine, Pin, RefreshCw, SendHorizontal, ShieldAlert, Trash2, Volume2 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { applyRichTextFormat, richTextFormatFromShortcut } from "@/lib/rich-text-formatting";
 
@@ -143,6 +143,11 @@ function MessageBubbleComponent({
   const handleContextMenu = (event: React.MouseEvent) => {
     event.preventDefault();
     setMenuPosition({ x: event.clientX, y: event.clientY });
+  };
+
+  const openActions = (event: React.MouseEvent<HTMLButtonElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setMenuPosition({ x: rect.right, y: rect.bottom });
   };
 
   const handleTouchStart = (event: React.TouchEvent) => {
@@ -308,7 +313,7 @@ function MessageBubbleComponent({
               isUser ? "justify-end" : "justify-between"
             )}
           >
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2 max-sm:grid max-sm:w-full max-sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2.75rem]">
               <ActionButton label="Edit" onClick={edit} mobileHidden>
                 <PenLine className="h-4 w-4" />
               </ActionButton>
@@ -322,12 +327,15 @@ function MessageBubbleComponent({
                   </ActionButton>
                 </>
               ) : null}
-              <ActionButton label="Rewind" onClick={() => onRewind?.(id)}>
+              <ActionButton label="Rewind" onClick={() => onRewind?.(id)} mobileHidden>
                 <History className="h-4 w-4" />
+              </ActionButton>
+              <ActionButton label="More actions" onClick={openActions} className="hidden max-sm:inline-flex">
+                <MoreHorizontal className="h-4 w-4" />
               </ActionButton>
             </div>
 
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2 max-sm:hidden">
               {hasVariants && (
                 <span className="flex h-10 items-center gap-1 rounded-full border border-[var(--border-subtle)] bg-[var(--color-overlay)] px-2 text-sm font-bold text-[var(--text-primary)] shadow-[var(--glass-highlight)]">
                   <ActionButton
@@ -376,8 +384,15 @@ function MessageBubbleComponent({
           onCopy={copyToClipboard}
           onEdit={edit}
           onRegenerate={!isUser ? () => onRegenerate?.(id) : undefined}
+          onContinue={!isUser ? () => onContinue?.() : undefined}
           onRewind={() => onRewind?.(id)}
+          onPreviousVariant={hasVariants ? onPreviousVariant : undefined}
+          onNextVariant={hasVariants ? onNextVariant : undefined}
+          previousVariantDisabled={hasVariants ? variantIndex! <= 0 : undefined}
+          nextVariantDisabled={hasVariants ? variantIndex! >= variantCount! - 1 : undefined}
           onPin={onPin ? () => onPin(id) : undefined}
+          onBranch={onBranch ? () => onBranch(id) : undefined}
+          onReport={report}
           onDelete={deleteWithMotion}
           isUserMessage={isUser}
           isPinned={isPinned}
@@ -428,16 +443,18 @@ function ActionButton({
   destructive = false,
   compact = false,
   showLabel = false,
-  mobileHidden = false
+  mobileHidden = false,
+  className
 }: {
   label: string;
-  onClick?: () => void;
+  onClick?: React.MouseEventHandler<HTMLButtonElement>;
   children: React.ReactNode;
   disabled?: boolean;
   destructive?: boolean;
   compact?: boolean;
   showLabel?: boolean;
   mobileHidden?: boolean;
+  className?: string;
 }) {
   return (
     <motion.button
@@ -453,10 +470,11 @@ function ActionButton({
         compact
           ? "h-6 w-6 border border-transparent bg-transparent"
           : showLabel
-            ? "h-10 gap-2 border border-[var(--border-subtle)] bg-[var(--color-overlay)] px-4 text-sm font-semibold shadow-[var(--glass-highlight)] hover:text-[var(--text-primary)]"
+            ? "h-10 gap-2 border border-[var(--border-subtle)] bg-[var(--color-overlay)] px-4 text-sm font-semibold shadow-[var(--glass-highlight)] hover:text-[var(--text-primary)] max-sm:w-full max-sm:px-2 max-sm:text-xs"
             : "h-10 w-10 border border-[var(--border-subtle)] bg-[var(--color-overlay)] shadow-[var(--glass-highlight)] hover:text-[var(--text-primary)]",
         mobileHidden && "max-sm:hidden",
-        destructive && "hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-200 focus:ring-red-400/30"
+        destructive && "hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-200 focus:ring-red-400/30",
+        className
       )}
     >
       {children}

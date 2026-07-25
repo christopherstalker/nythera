@@ -629,12 +629,12 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
         {error ? <p className="codex-error-note">{error}</p> : null}
 
         <footer className="codex-studio-actions">
-          <div className="flex min-w-0 items-center gap-2">
+          <div className="codex-studio-secondary-actions flex min-w-0 items-center gap-2">
             {!isPromptMode && currentChapterIndex > 0 ? <Button type="button" variant="ghost" onClick={() => selectChapter(visibleChapters[currentChapterIndex - 1].id)}>Previous</Button> : null}
             {!isPromptMode && currentChapterIndex < visibleChapters.length - 1 ? <Button type="button" variant="outline" onClick={() => selectChapter(visibleChapters[currentChapterIndex + 1].id)}>Next chapter</Button> : null}
             {isPromptMode ? <><Button type="button" variant="outline" onClick={() => promptOptions && void generateFromPrompt(promptOptions)} disabled={generatingPreview || prompt.trim().length < 12 || !promptOptions}><Sparkles className="h-4 w-4" />Regenerate</Button><Button type="button" variant="ghost" onClick={() => switchFormMode("custom")} disabled={!promptGenerated}>Review full dossier</Button></> : null}
           </div>
-          <Button type="submit" size="lg" disabled={saving || !canSubmit}><Save className="h-4 w-4" />{saving ? "Binding..." : mode === "edit" ? "Save revision" : "Create character"}</Button>
+          <Button className="codex-studio-primary-action" type="submit" size="lg" disabled={saving || !canSubmit}><Save className="h-4 w-4" />{saving ? "Binding..." : mode === "edit" ? "Save revision" : "Create character"}</Button>
         </footer>
       </form>
     </div>

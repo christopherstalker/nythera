@@ -1455,15 +1455,31 @@
 
     .codex-studio-actions {
       position: sticky;
-      bottom: calc(var(--codex-mobile-dock-height) + env(safe-area-inset-bottom));
+      bottom: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
       margin: 1.5rem -1.15rem -7.5rem;
       padding: .7rem 1rem;
       background: color-mix(in oklch, var(--codex-paper-raised) 96%, transparent);
     }
 
+    .codex-studio-secondary-actions {
+      display: grid;
+      width: 100%;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .codex-studio-secondary-actions > *,
+    .codex-studio-primary-action {
+      width: 100%;
+    }
+
     .codex-studio-actions .button,
     .codex-studio-actions button {
+      height: auto;
       min-height: 2.75rem;
+      white-space: normal;
+      line-height: 1.25;
     }
   }
 }

@@ -6,6 +6,8 @@ const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
 test("primary navigation uses a desktop codex rail and mobile dock", async () => {
   const rail = await read("../src/components/nav/NavRail.tsx");
+  const dock = await read("../src/components/nav/MobileDock.tsx");
+  const items = await read("../src/components/nav/navigation-items.ts");
   const wrapper = await read("../src/components/layout/Sidebar.tsx");
   const shell = await read("../src/components/layout/AppShell.tsx");
   const styles = await read("../src/app/globals.css");
@@ -14,11 +16,12 @@ test("primary navigation uses a desktop codex rail and mobile dock", async () =>
   assert.match(rail, /codex-rail/);
   assert.match(rail, /fixed inset-y-0 left-0/);
   assert.match(rail, /w-\[var\(--codex-rail-width\)\]/);
-  assert.match(rail, /codex-mobile-dock/);
-  assert.match(rail, /fixed inset-x-0 bottom-0/);
-  assert.match(rail, /md:hidden/);
-  assert.match(rail, /grid-cols-5/);
-  assert.match(rail, /\{ href: "\/rooms", label: "Rooms"/);
+  assert.match(dock, /codex-mobile-dock/);
+  assert.doesNotMatch(dock, /fixed inset-x-0 bottom-0/);
+  assert.match(dock, /relative z-50 grid/);
+  assert.match(dock, /md:hidden/);
+  assert.match(dock, /grid-cols-5/);
+  assert.match(items, /\{ href: "\/rooms", label: "Rooms"/);
   assert.match(rail, /next\/image|src="\/icon\.svg"/);
   assert.doesNotMatch(styles, /\.nythera-rail|\.rail-label/);
   assert.match(tokens, /--bottom-nav-offset:\s*calc\(92px \+ env\(safe-area-inset-bottom\)\);/);
@@ -27,7 +30,9 @@ test("primary navigation uses a desktop codex rail and mobile dock", async () =>
   assert.match(shell, /fixed inset-0/);
   assert.match(shell, /const isImmersiveSurface = isChatSurface \|\| isRoomSurface/);
   assert.match(shell, /md:pl-\[var\(--codex-rail-width\)\]/);
-  assert.match(shell, /pb-\[calc\(var\(--codex-mobile-dock-height\)\+env\(safe-area-inset-bottom\)\)\]/);
+  assert.match(shell, /grid-rows-\[minmax\(0,1fr\)_auto\]/);
+  assert.match(shell, /<MobileDock \/>/);
+  assert.doesNotMatch(shell, /pb-\[calc\(var\(--codex-mobile-dock-height\)/);
   assert.match(shell, /<SidePanel \/>/);
   assert.doesNotMatch(shell, /BottomNav|AuroraWebglBackground|sidebarCollapsed/);
 });

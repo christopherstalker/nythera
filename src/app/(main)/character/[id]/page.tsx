@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Copy, Edit3, Flag, Globe, Heart, Lock, MessageCircle, Share2, Sparkles, Star, Trash2, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ResponsiveActions } from "@/components/ui/responsive-actions";
 import { Badge } from "@/components/ui/badge";
 import { CharacterAvatar } from "@/components/character/character-avatar";
 import { Avatar } from "@/components/ui/avatar";
@@ -518,10 +519,10 @@ export default function CharacterPage({ params }: { params: { id: string } }) {
               <span className="text-sm font-medium text-[var(--text-primary)]">Details</span>
               <textarea value={reportDetails} onChange={(event) => setReportDetails(event.target.value)} className="focus-ring glass-input mt-2 min-h-28 w-full rounded-[var(--radius-md)] px-3 py-2 text-sm focus:border-[var(--accent-purple)]" />
             </label>
-            <div className="mt-5 flex justify-end gap-2">
+            <ResponsiveActions className="mt-5" align="end">
               <Button type="button" variant="outline" onClick={() => setReportOpen(false)}>Cancel</Button>
               <Button type="button" variant="destructive" onClick={reportCharacter}>Submit report</Button>
-            </div>
+            </ResponsiveActions>
           </div>
         </div>
       ) : null}

@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { NavRail } from "@/components/nav/NavRail";
+import { MobileDock } from "@/components/nav/MobileDock";
 import { SidePanel } from "@/components/panel/SidePanel";
 import { cn } from "@/lib/utils";
 
@@ -22,20 +23,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div
       id="app-shell"
       data-route-family={isImmersiveSurface ? "story" : "codex"}
-      className="living-codex-shell fixed inset-0 isolate min-h-dvh overflow-hidden bg-[var(--bg-base)]"
+      className="living-codex-shell fixed inset-0 isolate grid min-h-dvh grid-rows-[minmax(0,1fr)_auto] overflow-hidden bg-[var(--bg-base)] md:block"
     >
       <NavRail />
       <div
         className={cn(
-          "relative z-10 flex h-full min-w-0 md:pl-[var(--codex-rail-width)]",
-          "pb-[calc(var(--codex-mobile-dock-height)+env(safe-area-inset-bottom))] md:pb-0"
+          "relative z-10 flex min-h-0 min-w-0 overflow-hidden md:h-full md:pl-[var(--codex-rail-width)]"
         )}
       >
-        <main className={cn("codex-main min-w-0 flex-1 overflow-y-auto", isImmersiveSurface && "overflow-hidden")}>
+        <main className={cn("codex-main min-h-0 min-w-0 flex-1 overflow-y-auto", isImmersiveSurface && "overflow-hidden")}>
           {children}
         </main>
         {isImmersiveSurface ? <SidePanel /> : null}
       </div>
+      <MobileDock />
     </div>
   );
 }

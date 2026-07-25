@@ -79,14 +79,16 @@ test("voice BYOK is separate from model provider keys and never exposes encrypte
 
 test("rooms remain discoverable from the rebuilt primary navigation", async () => {
   const navRail = await read("../src/components/nav/NavRail.tsx");
+  const mobileDock = await read("../src/components/nav/MobileDock.tsx");
+  const navigationItems = await read("../src/components/nav/navigation-items.ts");
   const appShell = await read("../src/components/layout/AppShell.tsx");
   const ambient = await read("../src/components/ambient/cosmic-backdrop.tsx");
 
-  assert.ok(navRail.includes('{ href: "/rooms", label: "Rooms"'));
+  assert.ok(navigationItems.includes('{ href: "/rooms", label: "Rooms"'));
   assert.ok(navRail.includes('codex-rail'));
-  assert.ok(navRail.includes('codex-mobile-dock'));
+  assert.ok(mobileDock.includes('codex-mobile-dock'));
   assert.ok(navRail.includes('aria-label="Primary navigation"'));
-  assert.ok(navRail.includes('bottom-0'));
+  assert.ok(mobileDock.includes('relative z-50 grid'));
   assert.doesNotMatch(appShell, /<AuroraWebglBackground \/>/);
   assert.ok(ambient.includes("checkWebGLSupportAndCapability"));
   assert.ok(ambient.includes("SpaceBackgroundWebGL"));

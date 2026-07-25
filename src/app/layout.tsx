@@ -8,6 +8,7 @@ import "@fontsource/cormorant-garamond/600.css";
 import "@/app/globals.css";
 import { AppShell } from "@/components/layout/AppShell";
 import { SessionProvider } from "@/components/providers/session-provider";
+import { OrientationLock } from "@/components/pwa/orientation-lock";
 import { BRAND_ICON_APPLE, BRAND_ICON_LARGE, BRAND_ICON_SMALL, BRAND_OG_IMAGE, BRAND_THEME_COLOR } from "@/lib/brand";
 
 const spaceGrotesk = localFont({
@@ -79,6 +80,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className="dark" suppressHydrationWarning>
       <body className={`${spaceGrotesk.className} ${spaceGrotesk.variable} min-h-screen overflow-hidden`}>
         <SessionProvider>
+          <OrientationLock />
           <AppShell>{children}</AppShell>
         </SessionProvider>
         <SpeedInsights />

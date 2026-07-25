@@ -10,6 +10,7 @@ import { motion } from "motion/react";
 import { RichMessageText } from "@/components/chat/rich-message-text";
 import type { CharacterSummary } from "@/components/characters/CharacterCard";
 import { Button } from "@/components/ui/button";
+import { ResponsiveActions } from "@/components/ui/responsive-actions";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page";
 import { BRAND_ICON_LARGE } from "@/lib/brand";
@@ -214,7 +215,7 @@ function FeaturedCharacterHero({
               <RichMessageText text={character.description || "Start a new character chat and settle into the first scene."} />
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
+          <ResponsiveActions className="gap-3">
             <Button
               type="button"
               size="lg"
@@ -230,7 +231,7 @@ function FeaturedCharacterHero({
                 <ChevronRight className="h-4 w-4" />
               </Link>
             </Button>
-          </div>
+          </ResponsiveActions>
         </motion.div>
       </div>
     </section>

@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
-import { Copy, Edit3, RefreshCcw, Pin, Trash2, History } from "lucide-react";
+import { ChevronLeft, ChevronRight, Copy, Edit3, GitFork, History, Pin, Play, RefreshCcw, ShieldAlert, Trash2 } from "lucide-react";
 
 type MessageContextMenuProps = {
   isOpen: boolean;
@@ -12,8 +12,15 @@ type MessageContextMenuProps = {
   onCopy: () => void;
   onEdit?: () => void;
   onRegenerate?: () => void;
+  onContinue?: () => void;
   onRewind?: () => void;
+  onPreviousVariant?: () => void;
+  onNextVariant?: () => void;
+  previousVariantDisabled?: boolean;
+  nextVariantDisabled?: boolean;
   onPin?: () => void;
+  onBranch?: () => void;
+  onReport?: () => void;
   onDelete: () => void;
   isUserMessage?: boolean;
   isPinned?: boolean;
@@ -26,8 +33,15 @@ export function MessageContextMenu({
   onCopy,
   onEdit,
   onRegenerate,
+  onContinue,
   onRewind,
+  onPreviousVariant,
+  onNextVariant,
+  previousVariantDisabled,
+  nextVariantDisabled,
   onPin,
+  onBranch,
+  onReport,
   onDelete,
   isUserMessage,
   isPinned,
@@ -77,7 +91,7 @@ export function MessageContextMenu({
               }
         }
         className={cn(
-          "z-[9999] flex flex-col gap-0.5 border border-[var(--border-default)] bg-[var(--bg-elevated)] p-1.5 animate-in fade-in duration-150",
+          "z-[9999] flex max-h-[min(80dvh,42rem)] flex-col gap-0.5 overflow-y-auto border border-[var(--border-default)] bg-[var(--bg-elevated)] p-1.5 animate-in fade-in duration-150",
           useSheet
             ? "relative w-full rounded-t-[var(--radius-xl)] pb-[calc(0.75rem+env(safe-area-inset-bottom))] slide-in-from-bottom-4"
             : "w-[200px] rounded-xl slide-in-from-bottom-1"
@@ -99,13 +113,43 @@ export function MessageContextMenu({
         </MenuItem>
       )}
 
+      {onContinue ? (
+        <MenuItem onClick={onContinue} icon={<Play className="h-4 w-4" />}>
+          Continue
+        </MenuItem>
+      ) : null}
+
       <MenuItem onClick={onRewind} icon={<History className="h-4 w-4" />}>
         Rewind
       </MenuItem>
 
+      {onPreviousVariant ? (
+        <MenuItem onClick={onPreviousVariant} disabled={previousVariantDisabled} icon={<ChevronLeft className="h-4 w-4" />}>
+          Previous attempt
+        </MenuItem>
+      ) : null}
+
+      {onNextVariant ? (
+        <MenuItem onClick={onNextVariant} disabled={nextVariantDisabled} icon={<ChevronRight className="h-4 w-4" />}>
+          Next attempt
+        </MenuItem>
+      ) : null}
+
       <MenuItem onClick={onPin} icon={<Pin className="h-4 w-4" />}>
         {isPinned ? "Unpin" : "Pin"}
       </MenuItem>
+
+      {onBranch ? (
+        <MenuItem onClick={onBranch} icon={<GitFork className="h-4 w-4" />}>
+          Branch
+        </MenuItem>
+      ) : null}
+
+      {onReport ? (
+        <MenuItem onClick={onReport} icon={<ShieldAlert className="h-4 w-4" />}>
+          Report
+        </MenuItem>
+      ) : null}
 
       <div className="my-0.5 h-px bg-[var(--border-subtle)]" />
 
@@ -122,19 +166,22 @@ function MenuItem({
   children,
   onClick,
   icon,
+  disabled = false,
   destructive = false,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
   icon: React.ReactNode;
+  disabled?: boolean;
   destructive?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={cn(
-        "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-all duration-150",
+        "flex min-h-12 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-35",
         destructive
           ? "text-red-400 hover:bg-red-500/10 hover:text-red-200"
           : "text-[var(--text-primary)] hover:bg-white/[0.055]"
