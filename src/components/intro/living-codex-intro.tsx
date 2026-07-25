@@ -5,8 +5,8 @@ import { useEffect, useState } from "react";
 import { checkWebGLSupportAndCapability } from "@/lib/webgl-capability";
 import { cn } from "@/lib/utils";
 
-const INTRO_DURATION_MS = 2200;
-const INTRO_EXIT_MS = 330;
+const INTRO_DURATION_MS = 2400;
+const INTRO_EXIT_MS = 340;
 const REDUCED_MOTION_DURATION_MS = 420;
 
 const LivingCodexScene = dynamic(
@@ -17,17 +17,26 @@ const LivingCodexScene = dynamic(
 export function LivingCodexIntro() {
   const [visible, setVisible] = useState(true);
   const [leaving, setLeaving] = useState(false);
-  const [webglReady, setWebglReady] = useState(false);
+  const [renderMode, setRenderMode] = useState<"checking" | "webgl" | "fallback">("checking");
+  const [sceneReady, setSceneReady] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const started = renderMode === "fallback" || (renderMode === "webgl" && sceneReady);
 
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const canRenderWebGL = checkWebGLSupportAndCapability({ allowTablet: true });
-    const duration = prefersReducedMotion ? REDUCED_MOTION_DURATION_MS : INTRO_DURATION_MS;
-    const exitAt = Math.max(0, duration - INTRO_EXIT_MS);
 
     setReducedMotion(prefersReducedMotion);
-    setWebglReady(canRenderWebGL && !prefersReducedMotion);
+    setRenderMode(canRenderWebGL && !prefersReducedMotion ? "webgl" : "fallback");
+  }, []);
+
+  useEffect(() => {
+    if (!started) {
+      return;
+    }
+
+    const duration = reducedMotion ? REDUCED_MOTION_DURATION_MS : INTRO_DURATION_MS;
+    const exitAt = Math.max(0, duration - INTRO_EXIT_MS);
     document.documentElement.dataset.livingCodexIntro = "active";
 
     const exitTimer = window.setTimeout(() => setLeaving(true), exitAt);
@@ -38,7 +47,7 @@ export function LivingCodexIntro() {
       window.clearTimeout(removeTimer);
       delete document.documentElement.dataset.livingCodexIntro;
     };
-  }, []);
+  }, [reducedMotion, started]);
 
   useEffect(() => {
     if (!visible) {
@@ -54,13 +63,21 @@ export function LivingCodexIntro() {
     <div
       data-living-codex-intro="true"
       data-reduced-motion={reducedMotion ? "true" : "false"}
-      className={cn("living-codex-intro fixed inset-0 z-[9000] overflow-hidden", leaving && "is-leaving")}
+      className={cn(
+        "living-codex-intro fixed inset-0 z-[9000] overflow-hidden",
+        started && "is-started",
+        leaving && "is-leaving"
+      )}
       role="status"
       aria-label="Opening the Living Codex"
       aria-live="polite"
     >
-      <div className="absolute inset-0 bg-[var(--codex-paper)]">
-        {webglReady ? <LivingCodexScene /> : <LivingCodexStaticMark />}
+      <div className="living-codex-intro-stage absolute inset-0">
+        {renderMode === "webgl" ? (
+          <LivingCodexScene onReady={() => setSceneReady(true)} />
+        ) : (
+          <LivingCodexStaticMark />
+        )}
       </div>
 
       <div className="living-codex-intro-copy pointer-events-none absolute inset-x-0 bottom-[max(2rem,8svh)] z-10 text-center">
@@ -78,8 +95,12 @@ export function LivingCodexIntro() {
 function LivingCodexStaticMark() {
   return (
     <div className="living-codex-static-mark absolute inset-0 grid place-items-center" aria-hidden="true">
+      <div className="living-codex-static-aura" />
+      <div className="living-codex-static-ring living-codex-static-ring-outer" />
+      <div className="living-codex-static-ring living-codex-static-ring-inner" />
       <div className="living-codex-static-book">
         <div className="living-codex-static-cover living-codex-static-cover-left" />
+        <div className="living-codex-static-cover living-codex-static-cover-right" />
         <div className="living-codex-static-page living-codex-static-page-left">
           <span />
           <span />
@@ -90,8 +111,13 @@ function LivingCodexStaticMark() {
           <span />
           <span />
         </div>
-        <div className="living-codex-static-cover living-codex-static-cover-right" />
         <div className="living-codex-static-spine" />
+      </div>
+      <div className="living-codex-static-fragments">
+        <span />
+        <span />
+        <span />
+        <span />
       </div>
     </div>
   );
