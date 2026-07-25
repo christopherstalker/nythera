@@ -44,7 +44,8 @@ test("mobile chat keeps primary actions visible and moves the rest into the acti
 });
 
 test("phones enforce portrait while installed apps also request the native orientation lock", async () => {
-  const [manifest, nativeConfig, lock, styles] = await Promise.all([
+  const [layout, manifest, nativeConfig, lock, styles] = await Promise.all([
+    read("../src/app/layout.tsx"),
     read("../src/app/manifest.ts"),
     read("../mobile/app.json"),
     read("../src/components/pwa/orientation-lock.tsx"),
@@ -63,4 +64,7 @@ test("phones enforce portrait while installed apps also request the native orien
   assert.match(lock, /addEventListener\("visibilitychange", refreshOrientation/);
   assert.match(styles, /@media \(orientation: landscape\) and \(max-height: 540px\) and \(pointer: coarse\)/);
   assert.match(styles, /\.portrait-guard\.is-blocked\s*\{\s*display: grid/);
+  assert.match(layout, /<OrientationLock\s*\/>\s*<AppShell>/);
+  assert.doesNotMatch(layout, /LivingCodexIntro|living-codex-intro/);
+  assert.doesNotMatch(styles, /\.living-codex-intro|@keyframes living-codex-copy/);
 });
