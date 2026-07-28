@@ -26,6 +26,7 @@ import { ImageFilePicker } from "@/components/ui/image-file-picker";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  applyGeneratedPreview,
   applyPromptGenerationToDraft,
   buildCharacterCreatePayload,
   creationModeForEditor,
@@ -68,6 +69,13 @@ const studioChapters: Array<{ id: StudioChapterId; number: string; label: string
   { id: "lore", number: "04", label: "Lore & memory" },
   { id: "appearance", number: "05", label: "Visual language" },
   { id: "publishing", number: "06", label: "Behavior & publishing" }
+];
+
+const guidedChapters: Array<{ id: StudioChapterId; number: string; label: string }> = [
+  { id: "identity", number: "01", label: "Identity" },
+  { id: "voice", number: "02", label: "Personality & scenario" },
+  { id: "scene", number: "03", label: "First scene" },
+  { id: "publishing", number: "04", label: "Bind the volume" }
 ];
 
 export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
@@ -155,6 +163,9 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
       setDraft((current) => mergePreviewIntoDraft(current, generatedPreview));
     }
     if (nextMode === "custom" && promptGenerated) setActiveChapter("identity");
+    if (nextMode === "simple" && !guidedChapters.some((chapter) => chapter.id === activeChapter)) {
+      setActiveChapter("identity");
+    }
     setFormMode(nextMode);
     setError(null);
   }
@@ -322,14 +333,17 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
         return;
       }
 
-      setGeneratedPreview({
+      const preview = {
         personality: generated.personality,
         scenario: generated.scenario,
         greeting: draft.greeting.trim() || generated.greeting,
         tags: Array.isArray(generated.tags) ? generated.tags : draft.tags,
         persona: generated.persona ?? null,
         communicationStyle: generated.communicationStyle ?? null
-      });
+      };
+
+      setGeneratedPreview(preview);
+      setDraft((current) => applyGeneratedPreview(current, preview));
     } catch {
       setError("Could not generate preview.");
     } finally {
@@ -384,49 +398,12 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
     setSaving(true);
     setError(null);
 
-    let preview = generatedPreview;
+    const preview = generatedPreview;
 
     if (isPromptMode && !preview) {
       setSaving(false);
       setError("Generate a character from your prompt before creating.");
       return;
-    }
-
-    if (isSimpleMode && !preview) {
-      try {
-        const response = await fetch("/api/characters/generate", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            name: draft.name.trim(),
-            description: draft.description.trim(),
-            greeting: draft.greeting.trim() || undefined
-          })
-        });
-
-        if (response.status === 401) {
-          setSaving(false);
-          router.push("/login");
-          return;
-        }
-
-        if (response.ok) {
-          const body = await response.json().catch(() => null);
-          const generated = body?.generated;
-          if (generated) {
-            preview = {
-              personality: generated.personality,
-              scenario: generated.scenario,
-              greeting: draft.greeting.trim() || generated.greeting,
-              tags: Array.isArray(generated.tags) ? generated.tags : draft.tags,
-              persona: generated.persona ?? null,
-              communicationStyle: generated.communicationStyle ?? null
-            };
-          }
-        }
-      } catch {
-        preview = null;
-      }
     }
 
     if (!isSimpleMode && draft.visibility === "PUBLIC" && !draft.avatarUrl.trim()) {
@@ -474,9 +451,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
     router.push(`/character/${body.character.id}`);
   }
 
-  const visibleChapters = isSimpleMode
-    ? studioChapters.filter((chapter) => ["identity", "scene", "publishing"].includes(chapter.id))
-    : studioChapters;
+  const visibleChapters = isSimpleMode ? guidedChapters : studioChapters;
   const currentChapterIndex = Math.max(0, visibleChapters.findIndex((chapter) => chapter.id === activeChapter));
   const completedCoreFields = [draft.name, draft.description, draft.greeting, draft.personality, draft.scenario, draft.avatarUrl].filter((value) => value.trim()).length;
   const completion = Math.round((completedCoreFields / 6) * 100);
@@ -569,13 +544,17 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
               <Field label="Core idea" hint="Formatting is rendered everywhere this subtitle appears." required><FormattedTextarea value={draft.description} onChange={(value) => update("description", value)} placeholder="Who are they, what tension follows them, and why should someone stay?" className="min-h-40" required /></Field>
               <Field label="Index terms"><TagChipInput value={draft.tags} onChange={(tags) => update("tags", tags)} presets={VIBE_PRESETS} /></Field>
             </StudioChapter>
-            <StudioChapter id="scene" number="02" title="First scene" description="Write the threshold where the relationship begins." active={activeChapter === "scene"} onSelect={() => selectChapter("scene")} onAssist={() => assistSection("greeting")} assisting={assistingSection === "greeting"}>
-              <Field label="Greeting / first message" hint="This becomes the first page of every new conversation."><FormattedTextarea value={draft.greeting} onChange={(value) => update("greeting", value)} placeholder="Set the scene, place the character in motion, and leave the user room to answer." className="min-h-52" /></Field>
+            <StudioChapter id="voice" number="02" title="Personality & scenario" description="Add the character's inner logic and the world around them, or let Nythera draft only what is missing." active={activeChapter === "voice"} onSelect={() => selectChapter("voice")}>
+              <Field label="Personality" hint="Optional. Describe how they think, react, and carry themselves."><Textarea value={draft.personality} onChange={(event) => update("personality", event.target.value)} placeholder="Calm under pressure, fiercely observant, and reluctant to trust easy answers." className="min-h-44" /></Field>
+              <Field label="Scenario / world" hint="Optional. Establish where the story starts and what must remain true."><Textarea value={draft.scenario} onChange={(event) => update("scenario", event.target.value)} placeholder="The archive is sealed for the night when a forbidden volume opens by itself." className="min-h-44" /></Field>
               {generatedPreview ? <GeneratedPreviewCard preview={generatedPreview} /> : null}
-              <Button type="button" variant="outline" onClick={generatePreview} disabled={!canGeneratePreview || generatingPreview}><Sparkles className="h-4 w-4" />{generatingPreview ? "Drafting..." : "Draft missing chapters"}</Button>
+              <Button type="button" variant="outline" onClick={generatePreview} disabled={!canGeneratePreview || generatingPreview}><Sparkles className="h-4 w-4" />{generatingPreview ? "Drafting..." : "Draft empty fields"}</Button>
             </StudioChapter>
-            <StudioChapter id="publishing" number="03" title="Bind the volume" description="Choose how this character enters your library." active={activeChapter === "publishing"} onSelect={() => selectChapter("publishing")}>
-              <p className="font-editorial text-xl italic leading-8 text-[var(--text-secondary)]">The guided edition keeps advanced behavior private until you open the complete manuscript.</p>
+            <StudioChapter id="scene" number="03" title="First scene" description="Write the threshold where the relationship begins." active={activeChapter === "scene"} onSelect={() => selectChapter("scene")} onAssist={() => assistSection("greeting")} assisting={assistingSection === "greeting"}>
+              <Field label="Greeting / first message" hint="This becomes the first page of every new conversation."><FormattedTextarea value={draft.greeting} onChange={(value) => update("greeting", value)} placeholder="Set the scene, place the character in motion, and leave the user room to answer." className="min-h-52" /></Field>
+            </StudioChapter>
+            <StudioChapter id="publishing" number="04" title="Bind the volume" description="Choose how this character enters your library." active={activeChapter === "publishing"} onSelect={() => selectChapter("publishing")}>
+              <p className="font-editorial text-xl italic leading-8 text-[var(--text-secondary)]">Guided creation includes the character&apos;s personality and scenario while keeping deeper behavior controls available in the complete manuscript.</p>
               <Button type="button" variant="outline" onClick={() => switchFormMode("custom")}><SlidersHorizontal className="h-4 w-4" />Open complete manuscript</Button>
             </StudioChapter>
           </div>
