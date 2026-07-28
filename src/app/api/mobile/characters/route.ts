@@ -11,14 +11,18 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 export const dynamic = "force-dynamic";
 
 const querySchema = z.object({
-  q: z.string().trim().optional(),
-  tag: z.string().trim().optional(),
+  q: z.string().trim().max(120).optional(),
+  tag: z.string().trim().max(64).optional(),
   mine: z.string().optional(),
   take: z.coerce.number().min(1).max(50).optional()
 });
 
 export async function GET(request: Request) {
   try {
+    await enforceRateLimit({
+      ip: getRequestIp(request),
+      route: "mobile:characters:read"
+    });
     const { searchParams } = new URL(request.url);
     const query = querySchema.parse(Object.fromEntries(searchParams));
     const user = request.headers.get("authorization") ? await requireMobileUser(request).catch(() => null) : null;

@@ -19,7 +19,14 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
+    await enforceRateLimit({
+      ip: getRequestIp(request),
+      route: "characters:read"
+    });
     const { searchParams } = new URL(request.url);
+    if ((searchParams.get("q")?.length ?? 0) > 120 || searchParams.getAll("tag").length > 10) {
+      throw new HttpError(400, "Search query is too large.");
+    }
     const mine = searchParams.get("mine") === "true";
     const rawTags = [
       ...searchParams.getAll("tag"),

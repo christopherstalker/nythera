@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
+import { getRequestIp, HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { measurePrismaOperation } from "@/lib/performance-logger";
 import { splitProviderModelValue } from "@/lib/provider-model-options";
 import { chatUpdateSchema } from "@/lib/validation";
@@ -10,9 +11,10 @@ type Context = {
   };
 };
 
-export async function GET(_request: Request, context: Context) {
+export async function GET(request: Request, context: Context) {
   try {
     const user = await requireUser();
+    await enforceRateLimit({ userId: user.id, ip: getRequestIp(request), route: "chats:read" });
     const chat = await measurePrismaOperation(
       {
         route: "chat:get",
@@ -28,7 +30,8 @@ export async function GET(_request: Request, context: Context) {
             character: true,
             persona: true,
             messages: {
-              orderBy: [{ createdAt: "asc" }, { sequence: "asc" }, { id: "asc" }]
+              orderBy: [{ createdAt: "desc" }, { sequence: "desc" }, { id: "desc" }],
+              take: 200
             }
           }
         }),
@@ -42,6 +45,7 @@ export async function GET(_request: Request, context: Context) {
       throw new HttpError(404, "Chat not found.");
     }
 
+    chat.messages.reverse();
     return json({ chat });
   } catch (error) {
     return routeError(error);

@@ -3,7 +3,6 @@ import "server-only";
 import { Prisma, Visibility } from "@prisma/client";
 import { unstable_cache } from "next/cache";
 import { DISCOVERY_TAGS, expandTagQuery } from "@/lib/character-tags";
-import { redactCharacterModelSettings } from "@/lib/character-model-settings";
 import { measurePrismaOperation } from "@/lib/performance-logger";
 import { prisma } from "@/lib/prisma";
 
@@ -22,16 +21,23 @@ export type PublicCharacterQuery = {
   take: number;
 };
 
-const publicCharacterInclude = {
+const publicCharacterSelect = {
+  id: true,
+  name: true,
+  avatarUrl: true,
+  description: true,
+  discoveryPlacement: true,
+  tags: true,
+  likes: true,
+  ratingAverage: true,
+  ratingCount: true,
+  isNSFW: true,
   creator: {
     select: {
-      id: true,
-      username: true,
-      avatarUrl: true,
-      image: true
+      username: true
     }
   }
-} satisfies Prisma.CharacterInclude;
+} satisfies Prisma.CharacterSelect;
 
 export function normalizePublicCharacterQuery(input: {
   search?: string | null;
@@ -99,12 +105,12 @@ async function readPublicCharacters(query: PublicCharacterQuery) {
         where: publicCharacterWhere(query),
         orderBy: publicCharacterOrderBy(query.sort),
         take: query.take,
-        include: publicCharacterInclude
+        select: publicCharacterSelect
       }),
     (result) => ({ itemCount: result.length })
   );
 
-  return characters.map(redactCharacterModelSettings);
+  return characters;
 }
 
 function publicCharacterWhere(query: PublicCharacterQuery): Prisma.CharacterWhereInput {

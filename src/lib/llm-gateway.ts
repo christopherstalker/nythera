@@ -10,6 +10,7 @@ import { eligibleFallbackKeys } from "@/lib/provider-fallback";
 import { logPerformanceMetric } from "@/lib/performance-logger";
 import { logSafeError } from "@/lib/secret-redaction";
 import { abortableAsyncIterable, createTimeoutSignal, LLM_EMBEDDING_TIMEOUT_MS, LLM_PROVIDER_TIMEOUT_MS } from "@/lib/llm-timeouts";
+import { assertSafeOutboundUrl } from "@/lib/safe-outbound-url";
 
 type StreamInput = {
   messages: PromptMessage[];
@@ -150,9 +151,12 @@ export async function createGatewayEmbedding(text: string, providerKeys?: Provid
   if (openaiKey) {
     const timeout = createTimeoutSignal(undefined, LLM_EMBEDDING_TIMEOUT_MS, "Embedding provider request timed out.");
     try {
+      const baseURL = openaiKey.baseUrl
+        ? await assertSafeOutboundUrl(openaiKey.baseUrl)
+        : "https://api.openai.com/v1";
       const openai = new OpenAI({
         apiKey: openaiKey.apiKey,
-        baseURL: openaiKey.baseUrl || "https://api.openai.com/v1"
+        baseURL
       });
       const result = await openai.embeddings.create(
         {
@@ -285,15 +289,17 @@ async function streamProvider(input: {
       throw new Error(`${input.provider} is not configured.`);
     }
 
+    const baseURL = input.key.baseUrl
+      ? await assertSafeOutboundUrl(input.key.baseUrl)
+      : input.provider === "openai"
+        ? "https://api.openai.com/v1"
+        : requireBaseUrl(input.key);
     const usage = createUsageTracker();
     return {
       deltas: streamOpenAI({
         client: new OpenAI({
           apiKey: input.key.apiKey,
-          baseURL:
-            input.provider === "openai"
-              ? input.key.baseUrl || "https://api.openai.com/v1"
-              : requireBaseUrl(input.key)
+          baseURL
         }),
         model: input.model,
         messages: input.messages,

@@ -1,5 +1,6 @@
-import { HttpError, json, routeError } from "@/lib/api";
+import { getRequestIp, HttpError, json, routeError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -9,8 +10,9 @@ type Context = {
   };
 };
 
-export async function GET(_request: Request, context: Context) {
+export async function GET(request: Request, context: Context) {
   try {
+    await enforceRateLimit({ ip: getRequestIp(request), route: "shares:read" });
     const share = await prisma.chatShare.findUnique({
       where: { id: context.params.id }
     });
@@ -19,7 +21,7 @@ export async function GET(_request: Request, context: Context) {
       throw new HttpError(404, "Share not found.");
     }
 
-    return json({ share });
+    return json({ share }, { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" } });
   } catch (error) {
     return routeError(error);
   }

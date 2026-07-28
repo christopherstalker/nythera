@@ -26,6 +26,21 @@ export function isGuestBrowsePath(pathname: string) {
 }
 
 export function loginUrl(callbackPath?: string) {
-  const path = callbackPath && callbackPath.startsWith("/") ? callbackPath : "/explore";
+  const path = normalizeCallbackPath(callbackPath);
   return `/login?callbackUrl=${encodeURIComponent(path)}`;
+}
+
+export function normalizeCallbackPath(value: string | null | undefined, fallback = "/explore") {
+  if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) {
+    return fallback;
+  }
+
+  try {
+    const parsed = new URL(value, "https://nythera.invalid");
+    return parsed.origin === "https://nythera.invalid"
+      ? `${parsed.pathname}${parsed.search}${parsed.hash}`
+      : fallback;
+  } catch {
+    return fallback;
+  }
 }

@@ -32,9 +32,9 @@ test("persistent avatar surfaces use Next image when the source can be optimized
   const avatar = await readFile(new URL("../src/components/ui/avatar.tsx", import.meta.url), "utf8");
   const chatClient = await readFile(new URL("../src/components/chat/chat-client.tsx", import.meta.url), "utf8");
   const chatsPage = await readFile(new URL("../src/app/(main)/chats/page.tsx", import.meta.url), "utf8");
-  const siteNav = await readFile(new URL("../src/components/layout/site-nav.tsx", import.meta.url), "utf8");
+  const home = await readFile(new URL("../src/components/home/home-page-client.tsx", import.meta.url), "utf8");
 
-  for (const source of [avatar, chatClient, chatsPage, siteNav]) {
+  for (const source of [avatar, chatClient, chatsPage, home]) {
     assert.match(source, /next\/image/);
     assert.match(source, /shouldBypassNextImageOptimization/);
     assert.match(source, /sizes=/);

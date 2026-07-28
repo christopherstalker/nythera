@@ -7,37 +7,12 @@ import { userPreferredModelValue } from "@/lib/provider-model-options";
 import { getEffectiveProviderKeys } from "@/lib/user-keys";
 import { chatCreateSchema } from "@/lib/validation";
 import { ensureStoryForChat } from "@/lib/stories/story-foundation";
+import { getRecentChats } from "@/lib/recent-chats";
 
 export async function GET() {
   try {
     const user = await requireUser();
-    const chats = await prisma.chat.findMany({
-      where: {
-        userId: user.id,
-        archivedAt: null
-      },
-      orderBy: [{ lastActiveAt: "desc" }, { updatedAt: "desc" }],
-      include: {
-        character: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            avatarUrl: true
-          }
-        },
-        messages: {
-          orderBy: [{ createdAt: "desc" }, { sequence: "desc" }, { id: "desc" }],
-          take: 1,
-          select: {
-            id: true,
-            content: true,
-            role: true,
-            createdAt: true
-          }
-        }
-      }
-    });
+    const chats = await getRecentChats(user.id, 20);
 
     return json({ chats });
   } catch (error) {

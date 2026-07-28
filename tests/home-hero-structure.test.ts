@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("Home featured character uses a split editorial stage", async () => {
-  const source = await readFile(new URL("../src/app/page.tsx", import.meta.url), "utf8");
+  const source = await readFile(new URL("../src/components/home/home-page-client.tsx", import.meta.url), "utf8");
   const heroStart = source.indexOf("function FeaturedCharacterHero");
   const nextComponent = source.indexOf("function RecentChatCard", heroStart);
 

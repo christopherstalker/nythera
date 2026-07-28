@@ -38,7 +38,7 @@ const logger = pino({
 });
 
 const app = express();
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "256kb" }));
 
 const port = Number(process.env.PORT ?? 4000);
 const internalToken = process.env.INTERNAL_API_TOKEN;
@@ -48,6 +48,9 @@ const serverGeminiKey = process.env.GEMINI_API_KEY;
 const APP_DEFAULT_MODELS = new Set(["gpt-4o-mini", "gpt-3.5-turbo"]);
 const LLM_PROVIDER_TIMEOUT_MS = 60_000;
 const LLM_EMBEDDING_TIMEOUT_MS = 15_000;
+const providerBaseUrlSchema = z.string().url().max(240).refine(isSafeProviderBaseUrl, {
+  message: "Provider URL must use public HTTPS."
+});
 
 const legacyProviderKeysSchema = z
   .object({
@@ -64,7 +67,7 @@ const providerKeysSchema = z
       displayName: z.string().min(1),
       apiFormat: z.enum(["OPENAI", "ANTHROPIC", "GEMINI", "OPENAI_COMPATIBLE"]),
       apiKey: z.string().min(1),
-      baseUrl: z.string().nullable().optional(),
+      baseUrl: providerBaseUrlSchema.nullable().optional(),
       defaultModel: z.string().nullable().optional(),
       fallbackEnabled: z.boolean().optional(),
       fallbackPriority: z.number().int().min(0).nullable().optional()
@@ -84,7 +87,7 @@ const chatSchema = z.object({
   topP: z.number().min(0).max(1).nullable().optional(),
   frequencyPenalty: z.number().min(-2).max(2).nullable().optional(),
   presencePenalty: z.number().min(-2).max(2).nullable().optional(),
-  maxTokens: z.number().int().min(1).max(32768).nullable().optional(),
+  maxTokens: z.number().int().min(1).max(4096).nullable().optional(),
   userId: z.string().optional(),
   chatId: z.string().optional(),
   providerKeys: providerKeysSchema.optional()
@@ -492,6 +495,40 @@ function requireBaseUrl(key: ProviderKey) {
   }
 
   return key.baseUrl;
+}
+
+function isSafeProviderBaseUrl(value: string) {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase();
+    if (
+      process.env.NODE_ENV !== "production" &&
+      url.protocol === "http:" &&
+      (host === "localhost" || host === "127.0.0.1")
+    ) {
+      return true;
+    }
+    if (url.protocol !== "https:" || url.username || url.password || (url.port && url.port !== "443")) {
+      return false;
+    }
+    if (
+      host === "localhost" ||
+      host === "metadata.google.internal" ||
+      host.endsWith(".localhost") ||
+      host.endsWith(".local") ||
+      /^127\./.test(host) ||
+      /^10\./.test(host) ||
+      /^192\.168\./.test(host) ||
+      /^169\.254\./.test(host) ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
+      host === "::1"
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function legacyProviderKeys(keys: { openai?: string; anthropic?: string; gemini?: string }): ProviderKeys {

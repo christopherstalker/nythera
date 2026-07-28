@@ -22,10 +22,10 @@ export function hasDistributedRateLimitStore() {
   return Boolean(redis);
 }
 
-export async function incrementWithExpiry(key: string, windowSeconds: number) {
+export async function incrementWithExpiry(key: string, windowSeconds: number, amount = 1) {
   if (redis) {
-    const count = await redis.incr(key);
-    if (count === 1) {
+    const count = await redis.incrby(key, amount);
+    if (count === amount) {
       await redis.expire(key, windowSeconds);
     }
 
@@ -36,12 +36,12 @@ export async function incrementWithExpiry(key: string, windowSeconds: number) {
   const current = memoryCounters.get(key);
   if (!current || current.expiresAt <= now) {
     memoryCounters.set(key, {
-      value: 1,
+      value: amount,
       expiresAt: now + windowSeconds * 1000
     });
     return 1;
   }
 
-  current.value += 1;
+  current.value += amount;
   return current.value;
 }

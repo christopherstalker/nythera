@@ -50,6 +50,22 @@ export async function POST(request: Request, context: Context) {
     if (targetIndex < 0) {
       throw new HttpError(404, "Message not found.");
     }
+    if (targetIndex >= 200) {
+      throw new HttpError(413, "Only the latest 200 messages can be branched.");
+    }
+
+    const graphCounts = await Promise.all([
+      prisma.storyFact.count({ where: { storyId: foundation.storyId, timelineId: foundation.timelineId } }),
+      prisma.storyArc.count({ where: { storyId: foundation.storyId, timelineId: foundation.timelineId } }),
+      prisma.storyBeat.count({ where: { storyId: foundation.storyId, timelineId: foundation.timelineId } }),
+      prisma.storyHook.count({ where: { storyId: foundation.storyId, timelineId: foundation.timelineId } }),
+      prisma.storyRelationshipState.count({ where: { storyId: foundation.storyId, timelineId: foundation.timelineId } }),
+      prisma.storyProactiveEvent.count({ where: { storyId: foundation.storyId, timelineId: foundation.timelineId } }),
+      prisma.storyVisualReference.count({ where: { storyId: foundation.storyId, timelineId: foundation.timelineId } })
+    ]);
+    if (graphCounts.reduce((sum, count) => sum + count, 0) > 1000) {
+      throw new HttpError(413, "This story graph is too large to branch safely.");
+    }
 
     const messages = source.messages.slice(0, targetIndex + 1).filter((message) => message.role !== MessageRole.SYSTEM);
 

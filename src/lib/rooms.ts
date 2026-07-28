@@ -80,6 +80,7 @@ export async function getRoomForUser(roomId: string, userId: string) {
     throw new HttpError(404, "Room not found.");
   }
 
+  room.messages.reverse();
   return room;
 }
 
@@ -454,7 +455,8 @@ function roomInclude() {
       }
     },
     messages: {
-      orderBy: [{ createdAt: "asc" as const }, { sequence: "asc" as const }, { id: "asc" as const }],
+      orderBy: [{ createdAt: "desc" as const }, { sequence: "desc" as const }, { id: "desc" as const }],
+      take: 200,
       include: {
         character: {
           select: { id: true, name: true, avatarUrl: true }

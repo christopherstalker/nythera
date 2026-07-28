@@ -17,6 +17,36 @@ type RateLimitRule = {
   message: string;
 };
 
+const READ_LIMIT: RateLimitRule = {
+  perMinute: 45,
+  perDay: 1200,
+  message: "You're loading this resource quickly. One moment, then try again."
+};
+
+const EXPENSIVE_READ_LIMIT: RateLimitRule = {
+  perMinute: 20,
+  perDay: 400,
+  message: "This resource is expensive to load. One moment, then try again."
+};
+
+const REPORT_LIMIT: RateLimitRule = {
+  perMinute: 4,
+  perDay: 30,
+  message: "Too many reports were submitted. Please try again later."
+};
+
+const COST_BUDGET: RateLimitRule = {
+  perMinute: 16_000,
+  perDay: 120_000,
+  message: "Your AI token budget is temporarily exhausted."
+};
+
+const BRANCH_LIMIT: RateLimitRule = {
+  perMinute: 3,
+  perDay: 20,
+  message: "You're creating story branches quickly. Please wait before trying again."
+};
+
 const DEFAULT_LIMIT: RateLimitRule = {
   perMinute: 60,
   perDay: 1500,
@@ -68,7 +98,7 @@ const ROUTE_LIMITS: Record<string, RateLimitRule> = {
   "characters:generate": AI_CREATION_LIMIT,
   "characters:generate-prompt": AI_CREATION_LIMIT,
   "characters:assist": AI_CREATION_LIMIT,
-  "chats:branch": WRITE_LIMIT,
+  "chats:branch": BRANCH_LIMIT,
   "memories:search": MESSAGE_LIMIT,
   "mobile:memories:search": MESSAGE_LIMIT,
   "memories:write": WRITE_LIMIT,
@@ -80,13 +110,25 @@ const ROUTE_LIMITS: Record<string, RateLimitRule> = {
   "stories:narrative": WRITE_LIMIT,
   "stories:continuity": WRITE_LIMIT,
   "stories:safety": WRITE_LIMIT,
-  "voice:synthesize": MESSAGE_LIMIT
+  "voice:synthesize": MESSAGE_LIMIT,
+  "characters:read": READ_LIMIT,
+  "mobile:characters:read": READ_LIMIT,
+  "chats:read": READ_LIMIT,
+  "mobile:chats:read": READ_LIMIT,
+  "rooms:read": READ_LIMIT,
+  "shares:read": EXPENSIVE_READ_LIMIT,
+  "shares:create": WRITE_LIMIT,
+  "characters:rating": WRITE_LIMIT,
+  "characters:report": REPORT_LIMIT,
+  "messages:report": REPORT_LIMIT,
+  "chat:token-budget": COST_BUDGET
 };
 
 export async function enforceRateLimit(input: {
   userId?: string;
   ip?: string | null;
   route: string;
+  cost?: number;
 }) {
   if (process.env.NODE_ENV === "production" && !hasDistributedRateLimitStore()) {
     throw new RateLimitError("Rate limiter is unavailable. Please retry shortly.", 503);
@@ -95,12 +137,13 @@ export async function enforceRateLimit(input: {
   const limits = ROUTE_LIMITS[input.route] ?? DEFAULT_LIMIT;
   const principal = input.userId ? `user:${input.userId}` : `ip:${input.ip ?? "unknown"}`;
   const now = Date.now();
+  const cost = Math.max(1, Math.trunc(input.cost ?? 1));
   const minute = Math.floor(now / 60_000);
   const day = new Date().toISOString().slice(0, 10);
 
   const [minuteCount, dayCount] = await Promise.all([
-    incrementWithExpiry(`rl:${input.route}:${principal}:m:${minute}`, 60),
-    incrementWithExpiry(`rl:${input.route}:${principal}:d:${day}`, 86_400)
+    incrementWithExpiry(`rl:${input.route}:${principal}:m:${minute}`, 60, cost),
+    incrementWithExpiry(`rl:${input.route}:${principal}:d:${day}`, 86_400, cost)
   ]);
 
   if (minuteCount > limits.perMinute) {

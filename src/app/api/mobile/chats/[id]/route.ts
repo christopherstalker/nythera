@@ -1,7 +1,8 @@
-import { json, parseJson, routeError, HttpError } from "@/lib/api";
+import { getRequestIp, json, parseJson, routeError, HttpError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireMobileUser } from "@/lib/mobile-auth";
 import { chatUpdateSchema } from "@/lib/validation";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 type Context = {
   params: {
@@ -14,6 +15,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request, context: Context) {
   try {
     const user = await requireMobileUser(request);
+    await enforceRateLimit({ userId: user.id, ip: getRequestIp(request), route: "mobile:chats:read" });
     const chat = await prisma.chat.findFirst({
       where: {
         id: context.params.id,
@@ -23,7 +25,8 @@ export async function GET(request: Request, context: Context) {
         character: true,
         persona: true,
         messages: {
-          orderBy: [{ createdAt: "asc" }, { sequence: "asc" }, { id: "asc" }]
+          orderBy: [{ createdAt: "desc" }, { sequence: "desc" }, { id: "desc" }],
+          take: 200
         }
       }
     });
@@ -32,6 +35,7 @@ export async function GET(request: Request, context: Context) {
       throw new HttpError(404, "Chat not found.");
     }
 
+    chat.messages.reverse();
     return json({ chat });
   } catch (error) {
     return routeError(error);

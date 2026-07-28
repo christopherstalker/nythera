@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { deleteUserApiKey, listUserApiKeys, normalizeProviderId, saveUserApiKey } from "@/lib/user-keys";
 import { HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
+import { assertSafeOutboundUrl } from "@/lib/safe-outbound-url";
 
 const saveKeySchema = z.object({
   provider: z.string().min(2).max(48),
@@ -30,13 +31,14 @@ export async function POST(request: Request) {
     if (!provider) {
       throw new HttpError(400, "Provider id is required.");
     }
+    const baseUrl = input.baseUrl ? await assertSafeOutboundUrl(input.baseUrl) : "";
 
     const key = await saveUserApiKey({
       userId: user.id,
       provider,
       displayName: input.displayName,
       apiFormat: input.apiFormat,
-      baseUrl: input.baseUrl,
+      baseUrl,
       defaultModel: input.defaultModel,
       apiKey: input.apiKey,
       label: input.label

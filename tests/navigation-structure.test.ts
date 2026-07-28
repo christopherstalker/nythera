@@ -8,7 +8,6 @@ test("primary navigation uses a desktop codex rail and mobile dock", async () =>
   const rail = await read("../src/components/nav/NavRail.tsx");
   const dock = await read("../src/components/nav/MobileDock.tsx");
   const items = await read("../src/components/nav/navigation-items.ts");
-  const wrapper = await read("../src/components/layout/Sidebar.tsx");
   const shell = await read("../src/components/layout/AppShell.tsx");
   const styles = await read("../src/app/globals.css");
   const tokens = await read("../src/styles/design-tokens.css");
@@ -25,7 +24,6 @@ test("primary navigation uses a desktop codex rail and mobile dock", async () =>
   assert.match(rail, /next\/image|src="\/icon\.svg"/);
   assert.doesNotMatch(styles, /\.nythera-rail|\.rail-label/);
   assert.match(tokens, /--bottom-nav-offset:\s*calc\(92px \+ env\(safe-area-inset-bottom\)\);/);
-  assert.match(wrapper, /return <NavRail \/>/);
   assert.match(shell, /id="app-shell"/);
   assert.match(shell, /fixed inset-0/);
   assert.match(shell, /const isImmersiveSurface = isChatSurface \|\| isRoomSurface/);

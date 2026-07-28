@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-const MAX_IMAGE_DATA_URL_BYTES = 1_500_000;
-const MAX_IMAGE_DATA_URL_LENGTH = 2_100_000;
+const MAX_IMAGE_DATA_URL_BYTES = 140_000;
+const MAX_IMAGE_DATA_URL_LENGTH = 190_000;
 const imageDataUrlPattern = /^data:image\/(png|jpe?g|webp|gif);base64,([a-zA-Z0-9+/=\s]+)$/i;
 
 function decodeBase64ImageBytes(value: string) {
@@ -68,7 +68,7 @@ function isAllowedRemoteImageUrl(value: string) {
 export const imageSourceSchema = z
   .string()
   .trim()
-  .max(MAX_IMAGE_DATA_URL_LENGTH, "Image must be smaller than 1.5MB.")
+  .max(MAX_IMAGE_DATA_URL_LENGTH, "Image must be smaller than 140KB.")
   .refine((value) => {
     if (value === "") {
       return true;
@@ -152,7 +152,7 @@ export const characterCreateSchema = z.object({
   topP: z.number().min(0).max(1).nullable().optional(),
   frequencyPenalty: z.number().min(-2).max(2).nullable().optional(),
   presencePenalty: z.number().min(-2).max(2).nullable().optional(),
-  maxTokens: z.number().int().min(1).max(32768).nullable().optional(),
+  maxTokens: z.number().int().min(1).max(4096).nullable().optional(),
   systemPromptOverride: z.string().trim().max(8000).nullable().optional()
 });
 
@@ -432,7 +432,7 @@ export const storyVisualReferenceSchema = z.object({
   entityId: z.string().trim().min(1).optional().nullable(),
   visualKind: z.enum(["PORTRAIT", "OUTFIT", "LOCATION", "ITEM", "MOODBOARD", "OTHER"]),
   title: z.string().trim().min(1).max(160),
-  imageUrl: z.string().trim().max(2_500_000).optional().nullable(),
+  imageUrl: z.string().trim().url().max(2048).optional().nullable(),
   prompt: z.string().trim().max(2400).optional().nullable(),
   notes: z.string().trim().max(1600).optional().nullable(),
   locked: z.boolean().default(false)

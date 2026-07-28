@@ -95,6 +95,12 @@ export async function POST(request: Request, context: Context) {
     });
     const model = effectiveSettings.model;
     const temperature = effectiveSettings.temperature;
+    await enforceRateLimit({
+      userId: user.id,
+      ip: getRequestIp(request),
+      route: "chat:token-budget",
+      cost: Math.min(effectiveSettings.maxTokens ?? 900, 4096)
+    });
     const userMessage = continueChat
       ? null
       : await createMessageWithNextSequence({

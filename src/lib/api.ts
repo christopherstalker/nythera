@@ -94,6 +94,23 @@ export function routeError(error: unknown) {
 }
 
 export async function parseJson<T>(request: Request, schema: { parse: (value: unknown) => T }) {
-  const body = await request.json().catch(() => null);
+  const maxBytes = 256 * 1024;
+  const contentLength = Number(request.headers.get("content-length") ?? 0);
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    throw new HttpError(413, "Request body is too large.");
+  }
+
+  const raw = await request.text();
+  if (new TextEncoder().encode(raw).byteLength > maxBytes) {
+    throw new HttpError(413, "Request body is too large.");
+  }
+
+  let body: unknown = null;
+  try {
+    body = raw ? JSON.parse(raw) : null;
+  } catch {
+    throw new HttpError(400, "Invalid JSON body.");
+  }
+
   return schema.parse(body);
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import type { OAuthProviderId } from "@/lib/oauth-providers";
 import { cn } from "@/lib/utils";
+import { normalizeCallbackPath } from "@/lib/auth-routes";
 
 type OAuthButtonsProps = {
   intent: "login" | "register";
@@ -72,7 +73,7 @@ export function OAuthButtons({ intent, callbackUrl = "/explore" }: OAuthButtonsP
 
   async function handleSignIn(provider: OAuthProviderId) {
     setLoadingProvider(provider);
-    await signIn(provider, { callbackUrl: callbackUrl.startsWith("/") ? callbackUrl : "/explore" });
+    await signIn(provider, { callbackUrl: normalizeCallbackPath(callbackUrl) });
     setLoadingProvider(null);
   }
 

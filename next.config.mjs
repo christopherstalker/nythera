@@ -53,10 +53,7 @@ const nextConfig = {
     }
   },
   images: {
-    minimumCacheTTL: 86400,
-    remotePatterns: [
-      { protocol: "https", hostname: "**" }
-    ]
+    minimumCacheTTL: 86400
   },
   async headers() {
     return [

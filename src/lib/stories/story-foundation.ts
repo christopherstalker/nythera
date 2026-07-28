@@ -290,7 +290,10 @@ export async function syncChatTurns(chatId: string, userId: string) {
   const chat = await prisma.chat.findFirst({
     where: { id: chatId, userId },
     include: {
-      messages: { orderBy: [{ createdAt: "asc" }, { sequence: "asc" }, { id: "asc" }] },
+      messages: {
+        orderBy: [{ createdAt: "desc" }, { sequence: "desc" }, { id: "desc" }],
+        take: 500
+      },
       timeline: { select: { id: true } }
     }
   });
@@ -298,8 +301,12 @@ export async function syncChatTurns(chatId: string, userId: string) {
     throw new HttpError(409, "Story timeline is unavailable.");
   }
 
+  chat.messages.reverse();
   const existing = await prisma.storyTurn.findMany({
-    where: { timelineId: foundation.timelineId, sourceMessageId: { not: null } },
+    where: {
+      timelineId: foundation.timelineId,
+      sourceMessageId: { in: chat.messages.map((message) => message.id) }
+    },
     select: { sourceMessageId: true }
   });
   const known = new Set(existing.map((turn) => turn.sourceMessageId));
@@ -338,7 +345,10 @@ export async function syncRoomTurns(roomId: string, userId: string) {
   const room = await prisma.room.findFirst({
     where: { id: roomId, userId },
     include: {
-      messages: { orderBy: [{ createdAt: "asc" }, { sequence: "asc" }, { id: "asc" }] },
+      messages: {
+        orderBy: [{ createdAt: "desc" }, { sequence: "desc" }, { id: "desc" }],
+        take: 500
+      },
       timeline: { select: { id: true } }
     }
   });
@@ -346,8 +356,12 @@ export async function syncRoomTurns(roomId: string, userId: string) {
     throw new HttpError(409, "Story timeline is unavailable.");
   }
 
+  room.messages.reverse();
   const existing = await prisma.storyTurn.findMany({
-    where: { timelineId: foundation.timelineId, sourceRoomMessageId: { not: null } },
+    where: {
+      timelineId: foundation.timelineId,
+      sourceRoomMessageId: { in: room.messages.map((message) => message.id) }
+    },
     select: { sourceRoomMessageId: true }
   });
   const known = new Set(existing.map((turn) => turn.sourceRoomMessageId));

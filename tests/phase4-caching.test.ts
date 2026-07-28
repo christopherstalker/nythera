@@ -26,7 +26,7 @@ test("provider pricing remains a static table, not a per-message lookup", async 
 test("character image surfaces use Next image caching when source URLs are cacheable", async () => {
   const nextConfig = await readFile(new URL("../next.config.mjs", import.meta.url), "utf8");
   const characterCard = await readFile(new URL("../src/components/characters/CharacterCard.tsx", import.meta.url), "utf8");
-  const homePage = await readFile(new URL("../src/app/page.tsx", import.meta.url), "utf8");
+  const homePage = await readFile(new URL("../src/components/home/home-page-client.tsx", import.meta.url), "utf8");
 
   assert.match(nextConfig, /minimumCacheTTL:\s*86400/);
   assert.match(characterCard, /shouldBypassNextImageOptimization/);

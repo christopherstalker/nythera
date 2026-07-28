@@ -1,7 +1,8 @@
 import { auth } from "@/lib/auth";
-import { HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
+import { getRequestIp, HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { ratingSchema } from "@/lib/validation";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +63,7 @@ export async function GET(_request: Request, context: Context) {
 export async function PUT(request: Request, context: Context) {
   try {
     const user = await requireUser();
+    await enforceRateLimit({ userId: user.id, ip: getRequestIp(request), route: "characters:rating" });
     const input = await parseJson(request, ratingSchema);
 
     const result = await prisma.$transaction(async (tx) => {

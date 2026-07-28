@@ -1,6 +1,7 @@
-import { json, parseJson, requireUser, routeError } from "@/lib/api";
+import { getRequestIp, json, parseJson, requireUser, routeError } from "@/lib/api";
 import { deleteRoomForUser, getRoomForUser, patchRoomForUser } from "@/lib/rooms";
 import { roomPatchSchema } from "@/lib/validation";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 type Context = {
   params: {
@@ -8,9 +9,10 @@ type Context = {
   };
 };
 
-export async function GET(_request: Request, context: Context) {
+export async function GET(request: Request, context: Context) {
   try {
     const user = await requireUser();
+    await enforceRateLimit({ userId: user.id, ip: getRequestIp(request), route: "rooms:read" });
     const room = await getRoomForUser(context.params.id, user.id);
     return json({ room });
   } catch (error) {

@@ -9,6 +9,7 @@ import { AuthExperience } from "@/components/auth/auth-experience";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { normalizeCallbackPath } from "@/lib/auth-routes";
 
 export default function LoginPage() {
   return (
@@ -20,7 +21,7 @@ export default function LoginPage() {
 
 function LoginPageContent() {
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/explore";
+  const callbackUrl = normalizeCallbackPath(searchParams.get("callbackUrl"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +47,7 @@ function LoginPageContent() {
       return;
     }
 
-    window.location.href = callbackUrl.startsWith("/") ? callbackUrl : "/explore";
+    window.location.href = normalizeCallbackPath(callbackUrl);
   }
 
   return (
