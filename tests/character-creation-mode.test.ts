@@ -38,6 +38,11 @@ test("guided creation preserves authored personality and scenario", () => {
       personality: "Patient, precise, and quietly defiant when someone tries to rewrite the truth.",
       scenario: "The sealed archive wakes after midnight while the user is trapped inside.",
       greeting: "You should not be here after the final bell.",
+      humor: 7,
+      romanceLevel: 2,
+      seriousness: 8,
+      initiative: 6,
+      roleplayIntensity: 9,
       creationMode: "simple"
     },
     isSimpleMode: true,
@@ -48,6 +53,14 @@ test("guided creation preserves authored personality and scenario", () => {
   assert.equal(payload.scenario, "The sealed archive wakes after midnight while the user is trapped inside.");
   assert.equal(payload.creationMode, "simple");
   assert.equal(payload.visibility, "PRIVATE");
+  assert.deepEqual(payload.communicationStyle, {
+    tone: "cinematic",
+    humor: 7,
+    romanceLevel: 2,
+    seriousness: 8,
+    initiative: 6,
+    roleplayIntensity: 9
+  });
 });
 
 test("guided submit saves directly while optional drafting fills only empty fields", async () => {
@@ -61,4 +74,24 @@ test("guided submit saves directly while optional drafting fills only empty fiel
   assert.match(form, /label="Scenario \/ world"/);
   assert.match(form, /Draft empty fields/);
   assert.match(form, /setDraft\(\(current\) => applyGeneratedPreview\(current, preview\)\)/);
+
+  const guidedPublishing = form.slice(
+    form.indexOf('id="publishing" number="04"'),
+    form.indexOf('id="identity" number="01"', form.indexOf('id="publishing" number="04"'))
+  );
+
+  assert.doesNotMatch(guidedPublishing, /Open complete manuscript/);
+  assert.doesNotMatch(guidedPublishing, /switchFormMode\("custom"\)/);
+  assert.match(guidedPublishing, /<BehaviorSliders draft=\{draft\} onChange=\{update\} \/>/);
+
+  const behaviorSliderDefinition = form.slice(
+    form.indexOf("const behaviorSliderFields"),
+    form.indexOf("const studioChapters")
+  );
+
+  assert.match(behaviorSliderDefinition, /field: "humor", label: "Humor"/);
+  assert.match(behaviorSliderDefinition, /field: "romanceLevel", label: "Romance"/);
+  assert.match(behaviorSliderDefinition, /field: "seriousness", label: "Seriousness"/);
+  assert.match(behaviorSliderDefinition, /field: "initiative", label: "Initiative"/);
+  assert.match(behaviorSliderDefinition, /field: "roleplayIntensity", label: "Roleplay intensity"/);
 });

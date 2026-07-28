@@ -1509,6 +1509,10 @@
       display: grid;
     }
 
+    .codex-manuscript-chapter:last-child.is-active {
+      padding-bottom: calc(10rem + env(safe-area-inset-bottom));
+    }
+
     .codex-studio-actions {
       position: sticky;
       bottom: 0;

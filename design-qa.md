@@ -75,3 +75,37 @@
 - [x] Browser console inspection returned no errors on the local production surface.
 
 final result: passed
+
+## Guided behavior controls — 2026-07-28
+
+### Evidence
+
+- Requested Guided chapter reference: `C:\Users\chris\AppData\Local\Temp\codex-clipboard-30a59ecf-8517-4031-9d7a-c3ecd02024c1.png`
+- Requested behavior-control reference: `C:\Users\chris\AppData\Local\Temp\codex-clipboard-f657b592-1b3c-44a5-adca-97f20638faf9.png`
+- Desktop implementation: `D:\Web\Roleplay\output\guided-sliders\guided-sliders-desktop.png`
+- Mobile implementation: `D:\Web\Roleplay\output\guided-sliders\guided-sliders-mobile.png`
+- Focused reference comparison: `D:\Web\Roleplay\output\guided-sliders\guided-sliders-comparison.png`
+- Viewports: desktop 1440 × 1100; mobile 390 × 844.
+- State: authenticated local visual-QA session, Guided mode, chapter 04 active.
+
+### Findings
+
+- No actionable P0, P1, or P2 mismatch remains.
+- The explanatory copy and `Open complete manuscript` redirect are absent from Guided chapter 04.
+- Humor, Romance, Seriousness, Initiative, and Roleplay intensity use the existing product slider component and the same two-column desktop rhythm as the supplied reference.
+- Mobile collapses the controls into one column without horizontal overflow. The active final chapter now reserves enough bottom space that the sticky action sheet does not cover Roleplay intensity.
+- Guided remains the active creation mode while the five controls are visible. Complete remains independently selectable and still exposes its six-chapter manuscript.
+- The focused comparison confirms matching control order, values, two-column composition, label hierarchy, and track/thumb treatment while retaining Nythera's canonical typography and spacing.
+
+### Interaction and runtime QA
+
+- [x] All five Guided controls render with the expected default values: 5, 0, 5, 5, 5.
+- [x] Guided source contains no call to switch to Complete from chapter 04.
+- [x] Guided payload tests confirm all five values are written to the existing `communicationStyle` contract.
+- [x] Complete can still be opened and Guided can be restored without losing the chapter structure.
+- [x] Desktop and mobile browser screenshots captured and visually inspected.
+- [x] Browser console inspection returned no warnings or errors.
+- [x] 197 automated tests pass.
+- [x] Production build passes.
+
+final result: passed

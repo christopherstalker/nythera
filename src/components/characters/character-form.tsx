@@ -61,6 +61,15 @@ type ProviderOption = {
 };
 
 type StudioChapterId = "identity" | "voice" | "scene" | "lore" | "appearance" | "publishing";
+type BehaviorSliderField = "humor" | "romanceLevel" | "seriousness" | "initiative" | "roleplayIntensity";
+
+const behaviorSliderFields: Array<{ field: BehaviorSliderField; label: string }> = [
+  { field: "humor", label: "Humor" },
+  { field: "romanceLevel", label: "Romance" },
+  { field: "seriousness", label: "Seriousness" },
+  { field: "initiative", label: "Initiative" },
+  { field: "roleplayIntensity", label: "Roleplay intensity" }
+];
 
 const studioChapters: Array<{ id: StudioChapterId; number: string; label: string }> = [
   { id: "identity", number: "01", label: "Identity" },
@@ -554,8 +563,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
               <Field label="Greeting / first message" hint="This becomes the first page of every new conversation."><FormattedTextarea value={draft.greeting} onChange={(value) => update("greeting", value)} placeholder="Set the scene, place the character in motion, and leave the user room to answer." className="min-h-52" /></Field>
             </StudioChapter>
             <StudioChapter id="publishing" number="04" title="Bind the volume" description="Choose how this character enters your library." active={activeChapter === "publishing"} onSelect={() => selectChapter("publishing")}>
-              <p className="font-editorial text-xl italic leading-8 text-[var(--text-secondary)]">Guided creation includes the character&apos;s personality and scenario while keeping deeper behavior controls available in the complete manuscript.</p>
-              <Button type="button" variant="outline" onClick={() => switchFormMode("custom")}><SlidersHorizontal className="h-4 w-4" />Open complete manuscript</Button>
+              <BehaviorSliders draft={draft} onChange={update} />
             </StudioChapter>
           </div>
         ) : (
@@ -597,7 +605,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
               <Field label="Boundaries"><Textarea value={draft.boundaries} onChange={(event) => update("boundaries", event.target.value)} /></Field>
               <Field label="Behavioral rules"><Textarea value={draft.behavioralRules} onChange={(event) => update("behavioralRules", event.target.value)} /></Field>
               <Field label="Forbidden behaviors"><Textarea value={draft.forbiddenBehaviors} onChange={(event) => update("forbiddenBehaviors", event.target.value)} /></Field>
-              <div className="grid gap-6 sm:grid-cols-2"><Slider label="Humor" value={draft.humor} onChange={(value) => update("humor", value)} /><Slider label="Romance" value={draft.romanceLevel} onChange={(value) => update("romanceLevel", value)} /><Slider label="Seriousness" value={draft.seriousness} onChange={(value) => update("seriousness", value)} /><Slider label="Initiative" value={draft.initiative} onChange={(value) => update("initiative", value)} /><Slider label="Roleplay intensity" value={draft.roleplayIntensity} onChange={(value) => update("roleplayIntensity", value)} /></div>
+              <BehaviorSliders draft={draft} onChange={update} />
               <div className="codex-visibility-index"><VisibilityButton icon={Lock} label="Private" selected={draft.visibility === "PRIVATE"} onClick={() => update("visibility", "PRIVATE")} /><VisibilityButton icon={Globe} label="Unlisted" selected={draft.visibility === "UNLISTED"} onClick={() => update("visibility", "UNLISTED")} /><VisibilityButton icon={Globe} label="Public" selected={draft.visibility === "PUBLIC"} onClick={() => update("visibility", "PUBLIC")} /></div>
               <label className="codex-check-row"><input type="checkbox" checked={draft.isNSFW} onChange={(event) => update("isNSFW", event.target.checked)} />Mark as age-gated / NSFW</label>
               <div className="codex-subleaf"><p className="codex-kicker">Character Card V2</p><p className="mt-2 text-sm text-[var(--text-muted)]">Import or export this dossier as interoperable JSON.</p><div className="mt-4 flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={exportCharacterCard}><Download className="h-4 w-4" />Export Card V2</Button><Button type="button" variant="outline" onClick={importCharacterCard}><FileJson className="h-4 w-4" />Import JSON</Button></div><Textarea value={draft.characterCardJson} onChange={(event) => update("characterCardJson", event.target.value)} className="mt-4 min-h-36 font-mono text-xs" /></div>
@@ -859,6 +867,22 @@ function Field({
       {hint ? <span className="mt-1 block text-xs text-[var(--text-muted)]">{hint}</span> : null}
       <span className="mt-2 block">{children}</span>
     </label>
+  );
+}
+
+function BehaviorSliders({
+  draft,
+  onChange
+}: {
+  draft: CharacterFormValue;
+  onChange: (field: BehaviorSliderField, value: number) => void;
+}) {
+  return (
+    <div className="grid gap-6 sm:grid-cols-2">
+      {behaviorSliderFields.map(({ field, label }) => (
+        <Slider key={field} label={label} value={draft[field]} onChange={(value) => onChange(field, value)} />
+      ))}
+    </div>
   );
 }
 
