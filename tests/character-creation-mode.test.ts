@@ -8,6 +8,11 @@ import {
   creationModeForNewCharacter
 } from "../src/lib/character-form-payload";
 import { emptyCharacterDraft } from "../src/lib/character-form-types";
+import {
+  normalizeMessageLength,
+  responseLengthTarget,
+  verbosityForMessageLength
+} from "../src/lib/response-length";
 
 test("new character modes persist the matching data shape", () => {
   assert.equal(creationModeForNewCharacter("simple"), "simple");
@@ -59,8 +64,31 @@ test("guided creation preserves authored personality and scenario", () => {
     romanceLevel: 2,
     seriousness: 8,
     initiative: 6,
+    messageLength: "medium",
     roleplayIntensity: 9
   });
+});
+
+test("response length is normalized and persisted from the shared behavior control", () => {
+  const longPayload = buildCharacterCreatePayload({
+    draft: {
+      ...emptyCharacterDraft,
+      name: "Ari",
+      description: "An archivist.",
+      personality: "Patient.",
+      scenario: "A sealed archive.",
+      greeting: "The final bell rings.",
+      messageLength: "long"
+    }
+  });
+
+  assert.equal(longPayload.communicationStyle?.messageLength, "long");
+  assert.equal(emptyCharacterDraft.messageLength, "medium");
+  assert.equal(normalizeMessageLength("invalid"), "medium");
+  assert.equal(verbosityForMessageLength("short"), "concise");
+  assert.equal(verbosityForMessageLength("long"), "immersive");
+  assert.match(responseLengthTarget("concise"), /1-2 compact paragraphs.*60-140 words/);
+  assert.match(responseLengthTarget("immersive"), /4-7 immersive paragraphs.*320-650 words/);
 });
 
 test("guided submit saves directly while optional drafting fills only empty fields", async () => {
@@ -82,7 +110,10 @@ test("guided submit saves directly while optional drafting fills only empty fiel
 
   assert.doesNotMatch(guidedPublishing, /Open complete manuscript/);
   assert.doesNotMatch(guidedPublishing, /switchFormMode\("custom"\)/);
-  assert.match(guidedPublishing, /<BehaviorSliders draft=\{draft\} onChange=\{update\} \/>/);
+  assert.match(guidedPublishing, /<BehaviorControls/);
+  assert.match(guidedPublishing, /onMessageLengthChange=\{\(value\) => update\("messageLength", value\)\}/);
+  assert.doesNotMatch(form, /label="Message length"/);
+  assert.match(form, /Response length/);
 
   const behaviorSliderDefinition = form.slice(
     form.indexOf("const behaviorSliderFields"),

@@ -38,11 +38,16 @@ function LoginPageContent() {
         redirect: false
       });
     } catch {
-      setError("Invalid email or password.");
+      setError("Sign-in service is temporarily unavailable. Please try again.");
       return;
     }
 
-    if (result?.error) {
+    if (!result) {
+      setError("Sign-in service is temporarily unavailable. Please try again.");
+      return;
+    }
+
+    if (result.error) {
       setError("Invalid email or password.");
       return;
     }

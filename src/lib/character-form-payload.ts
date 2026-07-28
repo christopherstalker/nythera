@@ -11,12 +11,11 @@ import {
   type CharacterFormMode
 } from "@/lib/character-form-types";
 import type { PromptGeneratedCharacter } from "@/lib/character-prompt-generation";
+import { normalizeMessageLength } from "@/lib/response-length";
 
 const RELATIONSHIP_OPTIONS = ["friend", "romantic", "mentor", "rival", "antagonist"] as const;
 const INITIATIVE_OPTIONS = ["low", "medium", "high"] as const;
 const VERBOSITY_OPTIONS = ["concise", "balanced", "expressive", "immersive"] as const;
-const MESSAGE_LENGTH_OPTIONS = ["short", "medium", "long"] as const;
-
 type BuildPayloadOptions = {
   draft: CharacterFormValue;
   generated?: GeneratedCharacterPreview | null;
@@ -64,7 +63,7 @@ export function normalizeInitialCharacterValue(value?: CharacterFormInitialValue
     romanceLevel: numberValue(style.romanceLevel, emptyCharacterDraft.romanceLevel),
     seriousness: numberValue(style.seriousness, emptyCharacterDraft.seriousness),
     initiative: numberValue(style.initiative, emptyCharacterDraft.initiative),
-    messageLength: textValue(style.messageLength ?? value.messageLength),
+    messageLength: normalizeMessageLength(style.messageLength ?? value.messageLength),
     roleplayIntensity: numberValue(style.roleplayIntensity, emptyCharacterDraft.roleplayIntensity),
     preferredProvider: textValue(value.preferredProvider),
     preferredModel: textValue(value.preferredModel),
@@ -170,7 +169,7 @@ export function buildCharacterCreatePayload({
     romanceLevel: clampNumber(merged.romanceLevel, 0, 10),
     seriousness: clampNumber(merged.seriousness, 0, 10),
     initiative: clampNumber(merged.initiative, 0, 10),
-    messageLength: normalizeEnum(merged.messageLength, MESSAGE_LENGTH_OPTIONS),
+    messageLength: merged.messageLength,
     roleplayIntensity: clampNumber(merged.roleplayIntensity, 0, 10)
   });
   const lorebook = parseLorebookText(merged.lorebookText);
@@ -243,7 +242,7 @@ export function applyPromptGenerationToDraft(draft: CharacterFormValue, generate
     romanceLevel: numberValue(style.romanceLevel, draft.romanceLevel),
     seriousness: numberValue(style.seriousness, draft.seriousness),
     initiative: numberValue(style.initiative, draft.initiative),
-    messageLength: textValue(style.messageLength),
+    messageLength: normalizeMessageLength(style.messageLength, draft.messageLength),
     roleplayIntensity: numberValue(style.roleplayIntensity, draft.roleplayIntensity)
   };
 }

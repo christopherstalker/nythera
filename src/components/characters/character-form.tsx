@@ -46,6 +46,7 @@ import {
   type GeneratedCharacterPreview,
   type PromptGenerationMeta
 } from "@/lib/character-form-types";
+import { RESPONSE_LENGTH_OPTIONS } from "@/lib/response-length";
 import { cn } from "@/lib/utils";
 import { FIRST_CLASS_PROVIDER_PRESETS } from "@/lib/provider-presets";
 
@@ -563,7 +564,11 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
               <Field label="Greeting / first message" hint="This becomes the first page of every new conversation."><FormattedTextarea value={draft.greeting} onChange={(value) => update("greeting", value)} placeholder="Set the scene, place the character in motion, and leave the user room to answer." className="min-h-52" /></Field>
             </StudioChapter>
             <StudioChapter id="publishing" number="04" title="Bind the volume" description="Choose how this character enters your library." active={activeChapter === "publishing"} onSelect={() => selectChapter("publishing")}>
-              <BehaviorSliders draft={draft} onChange={update} />
+              <BehaviorControls
+                draft={draft}
+                onSliderChange={update}
+                onMessageLengthChange={(value) => update("messageLength", value)}
+              />
             </StudioChapter>
           </div>
         ) : (
@@ -580,7 +585,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
               <Field label="Personality"><Textarea value={draft.personality} onChange={(event) => update("personality", event.target.value)} placeholder="How they think, react, and carry themselves." className="min-h-44" /></Field>
               <Field label="Traits"><Textarea value={draft.personaTraits} onChange={(event) => update("personaTraits", event.target.value)} placeholder="One trait per line." /></Field>
               <Field label="Speaking style"><Textarea value={draft.speakingStyle} onChange={(event) => update("speakingStyle", event.target.value)} placeholder="Cadence, vocabulary, restraint, recurring habits." /></Field>
-              <div className="grid gap-6 sm:grid-cols-2"><Field label="Emotional tone"><Input value={draft.emotionalTone} onChange={(event) => update("emotionalTone", event.target.value)} /></Field><Field label="Tone"><Input value={draft.tone} onChange={(event) => update("tone", event.target.value)} /></Field><Field label="Relationship style"><Input value={draft.relationshipStyle} onChange={(event) => update("relationshipStyle", event.target.value)} /></Field><Field label="Message length"><Input value={draft.messageLength} onChange={(event) => update("messageLength", event.target.value)} /></Field></div>
+              <div className="grid gap-6 sm:grid-cols-2"><Field label="Emotional tone"><Input value={draft.emotionalTone} onChange={(event) => update("emotionalTone", event.target.value)} /></Field><Field label="Tone"><Input value={draft.tone} onChange={(event) => update("tone", event.target.value)} /></Field><Field label="Relationship style"><Input value={draft.relationshipStyle} onChange={(event) => update("relationshipStyle", event.target.value)} /></Field></div>
               <div className="grid gap-6 sm:grid-cols-2"><Field label="Initiative"><Input value={draft.initiativeLevel} onChange={(event) => update("initiativeLevel", event.target.value)} /></Field><Field label="Verbosity"><Input value={draft.verbosityLevel} onChange={(event) => update("verbosityLevel", event.target.value)} /></Field></div>
               <Field label="Motivation"><Textarea value={draft.motivation} onChange={(event) => update("motivation", event.target.value)} /></Field>
             </StudioChapter>
@@ -605,7 +610,11 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
               <Field label="Boundaries"><Textarea value={draft.boundaries} onChange={(event) => update("boundaries", event.target.value)} /></Field>
               <Field label="Behavioral rules"><Textarea value={draft.behavioralRules} onChange={(event) => update("behavioralRules", event.target.value)} /></Field>
               <Field label="Forbidden behaviors"><Textarea value={draft.forbiddenBehaviors} onChange={(event) => update("forbiddenBehaviors", event.target.value)} /></Field>
-              <BehaviorSliders draft={draft} onChange={update} />
+              <BehaviorControls
+                draft={draft}
+                onSliderChange={update}
+                onMessageLengthChange={(value) => update("messageLength", value)}
+              />
               <div className="codex-visibility-index"><VisibilityButton icon={Lock} label="Private" selected={draft.visibility === "PRIVATE"} onClick={() => update("visibility", "PRIVATE")} /><VisibilityButton icon={Globe} label="Unlisted" selected={draft.visibility === "UNLISTED"} onClick={() => update("visibility", "UNLISTED")} /><VisibilityButton icon={Globe} label="Public" selected={draft.visibility === "PUBLIC"} onClick={() => update("visibility", "PUBLIC")} /></div>
               <label className="codex-check-row"><input type="checkbox" checked={draft.isNSFW} onChange={(event) => update("isNSFW", event.target.checked)} />Mark as age-gated / NSFW</label>
               <div className="codex-subleaf"><p className="codex-kicker">Character Card V2</p><p className="mt-2 text-sm text-[var(--text-muted)]">Import or export this dossier as interoperable JSON.</p><div className="mt-4 flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={exportCharacterCard}><Download className="h-4 w-4" />Export Card V2</Button><Button type="button" variant="outline" onClick={importCharacterCard}><FileJson className="h-4 w-4" />Import JSON</Button></div><Textarea value={draft.characterCardJson} onChange={(event) => update("characterCardJson", event.target.value)} className="mt-4 min-h-36 font-mono text-xs" /></div>
@@ -870,18 +879,56 @@ function Field({
   );
 }
 
-function BehaviorSliders({
+function BehaviorControls({
   draft,
-  onChange
+  onSliderChange,
+  onMessageLengthChange
 }: {
   draft: CharacterFormValue;
-  onChange: (field: BehaviorSliderField, value: number) => void;
+  onSliderChange: (field: BehaviorSliderField, value: number) => void;
+  onMessageLengthChange: (value: CharacterFormValue["messageLength"]) => void;
 }) {
   return (
-    <div className="grid gap-6 sm:grid-cols-2">
-      {behaviorSliderFields.map(({ field, label }) => (
-        <Slider key={field} label={label} value={draft[field]} onChange={(value) => onChange(field, value)} />
-      ))}
+    <div className="space-y-8">
+      <fieldset>
+        <legend className="text-sm font-medium text-[var(--text-primary)]">Response length</legend>
+        <p className="mt-1 text-xs text-[var(--text-muted)]">
+          Set the usual size of each in-character reply. The scene can still end naturally.
+        </p>
+        <div className="mt-3 grid gap-2 sm:grid-cols-3" aria-label="Response length">
+          {RESPONSE_LENGTH_OPTIONS.map((option) => {
+            const selected = draft.messageLength === option.value;
+
+            return (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => onMessageLengthChange(option.value)}
+                className={cn(
+                  "focus-ring rounded-xl border px-4 py-3 text-left transition",
+                  selected
+                    ? "border-[var(--accent-purple)] bg-[color-mix(in_srgb,var(--accent-purple)_12%,transparent)] text-[var(--text-primary)]"
+                    : "border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
+                )}
+              >
+                <span className="block text-sm font-semibold">{option.label}</span>
+                <span className="mt-1 block text-xs leading-5 text-[var(--text-muted)]">{option.description}</span>
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
+      <div className="grid gap-6 sm:grid-cols-2">
+        {behaviorSliderFields.map(({ field, label }) => (
+          <Slider
+            key={field}
+            label={label}
+            value={draft[field]}
+            onChange={(value) => onSliderChange(field, value)}
+          />
+        ))}
+      </div>
     </div>
   );
 }

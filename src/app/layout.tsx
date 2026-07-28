@@ -10,6 +10,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { SessionProvider } from "@/components/providers/session-provider";
 import { OrientationLock } from "@/components/pwa/orientation-lock";
 import { BRAND_ICON_APPLE, BRAND_ICON_LARGE, BRAND_ICON_SMALL, BRAND_OG_IMAGE, BRAND_THEME_COLOR } from "@/lib/brand";
+import { resolveSiteOrigin } from "@/lib/site-origin";
 
 const spaceGrotesk = localFont({
   src: "../assets/fonts/SpaceGrotesk-Variable.woff2",
@@ -20,7 +21,7 @@ const spaceGrotesk = localFont({
   fallback: ["Segoe UI", "Roboto", "Arial", "sans-serif"]
 });
 
-const siteUrl = process.env.AUTH_URL || process.env.NEXTAUTH_URL || "https://nythera-ai-character-platform.vercel.app";
+const siteUrl = resolveSiteOrigin();
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),

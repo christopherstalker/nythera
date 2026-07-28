@@ -12,8 +12,11 @@ import bcrypt from "bcryptjs";
 import { SecureNodemailer } from "@/lib/auth-email-provider";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
+import { assertCanonicalAuthOrigin } from "@/lib/site-origin";
 
 const MAX_SESSION_IMAGE_URL_LENGTH = 2048;
+
+assertCanonicalAuthOrigin(process.env.VERCEL_ENV, env.AUTH_URL, env.NEXTAUTH_URL);
 
 function safeSessionImageUrl(value: string | null | undefined) {
   if (!value) {

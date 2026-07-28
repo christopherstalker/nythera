@@ -1,6 +1,9 @@
+import type { MessageLength } from "@/lib/response-length";
+
 export type CharacterVisibility = "PRIVATE" | "PUBLIC" | "UNLISTED";
 export type CharacterCreationMode = "simple" | "custom";
 export type CharacterFormMode = CharacterCreationMode | "prompt";
+export type { MessageLength } from "@/lib/response-length";
 
 export type CharacterFormValue = {
   id?: string;
@@ -31,7 +34,7 @@ export type CharacterFormValue = {
   romanceLevel: number;
   seriousness: number;
   initiative: number;
-  messageLength: string;
+  messageLength: MessageLength;
   roleplayIntensity: number;
   preferredProvider: string;
   preferredModel: string;
@@ -162,7 +165,7 @@ export const emptyCharacterDraft: CharacterFormValue = {
   romanceLevel: 0,
   seriousness: 5,
   initiative: 5,
-  messageLength: "",
+  messageLength: "medium",
   roleplayIntensity: 5,
   preferredProvider: "",
   preferredModel: "",
