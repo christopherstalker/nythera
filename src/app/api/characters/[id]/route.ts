@@ -9,16 +9,14 @@ import { normalizeCharacterTags } from "@/lib/character-tags";
 import { redactCharacterModelSettings } from "@/lib/character-model-settings";
 
 type Context = {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 };
 
 export async function GET(_request: Request, context: Context) {
   try {
     const session = await auth();
     const character = await prisma.character.findUnique({
-      where: { id: context.params.id },
+      where: { id: (await context.params).id },
       include: {
         creator: {
           select: {
@@ -96,7 +94,7 @@ export async function PATCH(request: Request, context: Context) {
     const user = await requireUser();
     const character = await prisma.character.findFirst({
       where: {
-        id: context.params.id,
+        id: (await context.params).id,
         ...(user.role === "ADMIN" ? {} : { creatorId: user.id })
       },
       select: {
@@ -166,7 +164,7 @@ export async function PATCH(request: Request, context: Context) {
     }
 
     const updated = await prisma.character.update({
-      where: { id: context.params.id },
+      where: { id: (await context.params).id },
       data: {
         ...input,
         tags: input.tags === undefined ? undefined : normalizeCharacterTags(input.tags),
@@ -191,7 +189,7 @@ export async function DELETE(_request: Request, context: Context) {
     const user = await requireUser();
     const character = await prisma.character.findFirst({
       where: {
-        id: context.params.id,
+        id: (await context.params).id,
         ...(user.role === "ADMIN" ? {} : { creatorId: user.id })
       },
       select: { creatorId: true }
@@ -201,7 +199,7 @@ export async function DELETE(_request: Request, context: Context) {
       throw new HttpError(404, "Character not found.");
     }
 
-    await prisma.character.delete({ where: { id: context.params.id } });
+    await prisma.character.delete({ where: { id: (await context.params).id } });
     return json({ ok: true });
   } catch (error) {
     return routeError(error);
@@ -218,7 +216,7 @@ export async function POST(request: Request, context: Context) {
     });
 
     const source = await prisma.character.findUnique({
-      where: { id: context.params.id }
+      where: { id: (await context.params).id }
     });
 
     if (!source || source.visibility !== "PUBLIC" || source.moderationStatus !== "APPROVED" || source.blockedAt) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { MessageCircle } from "lucide-react";
 import { ChatClient } from "@/components/chat/chat-client";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -21,7 +22,8 @@ type Chat = {
   messages: ChatMessage[];
 };
 
-export default function ChatPage({ params }: { params: { id: string } }) {
+export default function ChatPage() {
+  const params = useParams<{ id: string }>();
   const [chat, setChat] = useState<Chat | null>(null);
   const [error, setError] = useState<string | null>(null);
 

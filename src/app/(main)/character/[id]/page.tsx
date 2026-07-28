@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Copy, Edit3, Flag, Globe, Heart, Lock, MessageCircle, Share2, Sparkles, Star, Trash2, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ResponsiveActions } from "@/components/ui/responsive-actions";
@@ -44,7 +44,8 @@ type Character = {
   } | null;
 };
 
-export default function CharacterPage({ params }: { params: { id: string } }) {
+export default function CharacterPage() {
+  const params = useParams<{ id: string }>();
   const router = useRouter();
   const [character, setCharacter] = useState<Character | null>(null);
   const [recentChat, setRecentChat] = useState<{ id: string } | null>(null);

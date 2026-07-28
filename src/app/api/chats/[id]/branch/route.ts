@@ -8,9 +8,7 @@ import { syncChatTurns } from "@/lib/stories/story-foundation";
 export const dynamic = "force-dynamic";
 
 type Context = {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 };
 
 const branchSchema = z.object({
@@ -28,10 +26,10 @@ export async function POST(request: Request, context: Context) {
     });
 
     const input = await parseJson(request, branchSchema);
-    const foundation = await syncChatTurns(context.params.id, user.id);
+    const foundation = await syncChatTurns((await context.params).id, user.id);
     const source = await prisma.chat.findFirst({
       where: {
-        id: context.params.id,
+        id: (await context.params).id,
         userId: user.id
       },
       include: {

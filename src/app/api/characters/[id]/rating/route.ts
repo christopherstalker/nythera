@@ -7,16 +7,14 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 export const dynamic = "force-dynamic";
 
 type Context = {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 };
 
 export async function GET(_request: Request, context: Context) {
   try {
     const session = await auth();
     const character = await prisma.character.findUnique({
-      where: { id: context.params.id },
+      where: { id: (await context.params).id },
       select: { id: true, ratingAverage: true, ratingCount: true }
     });
 
@@ -68,7 +66,7 @@ export async function PUT(request: Request, context: Context) {
 
     const result = await prisma.$transaction(async (tx) => {
       const character = await tx.character.findUnique({
-        where: { id: context.params.id },
+        where: { id: (await context.params).id },
         select: { id: true, blockedAt: true }
       });
 

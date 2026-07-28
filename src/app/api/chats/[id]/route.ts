@@ -6,13 +6,12 @@ import { splitProviderModelValue } from "@/lib/provider-model-options";
 import { chatUpdateSchema } from "@/lib/validation";
 
 type Context = {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 };
 
 export async function GET(request: Request, context: Context) {
   try {
+    const { id: chatId } = await context.params;
     const user = await requireUser();
     await enforceRateLimit({ userId: user.id, ip: getRequestIp(request), route: "chats:read" });
     const chat = await measurePrismaOperation(
@@ -23,7 +22,7 @@ export async function GET(request: Request, context: Context) {
       () =>
         prisma.chat.findFirst({
           where: {
-            id: context.params.id,
+            id: chatId,
             userId: user.id
           },
           include: {
@@ -58,7 +57,7 @@ export async function PATCH(request: Request, context: Context) {
     const input = await parseJson(request, chatUpdateSchema);
     const chat = await prisma.chat.findFirst({
       where: {
-        id: context.params.id,
+        id: (await context.params).id,
         userId: user.id
       },
       include: {
@@ -112,7 +111,7 @@ export async function DELETE(_request: Request, context: Context) {
     const user = await requireUser();
     const chat = await prisma.chat.findFirst({
       where: {
-        id: context.params.id,
+        id: (await context.params).id,
         userId: user.id
       },
       select: { id: true }

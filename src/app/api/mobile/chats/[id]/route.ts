@@ -5,9 +5,7 @@ import { chatUpdateSchema } from "@/lib/validation";
 import { enforceRateLimit } from "@/lib/rate-limit";
 
 type Context = {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 };
 
 export const dynamic = "force-dynamic";
@@ -18,7 +16,7 @@ export async function GET(request: Request, context: Context) {
     await enforceRateLimit({ userId: user.id, ip: getRequestIp(request), route: "mobile:chats:read" });
     const chat = await prisma.chat.findFirst({
       where: {
-        id: context.params.id,
+        id: (await context.params).id,
         userId: user.id
       },
       include: {
@@ -48,7 +46,7 @@ export async function PATCH(request: Request, context: Context) {
     const input = await parseJson(request, chatUpdateSchema);
     const chat = await prisma.chat.findFirst({
       where: {
-        id: context.params.id,
+        id: (await context.params).id,
         userId: user.id
       },
       include: {
@@ -85,7 +83,7 @@ export async function DELETE(request: Request, context: Context) {
     const user = await requireMobileUser(request);
     const chat = await prisma.chat.findFirst({
       where: {
-        id: context.params.id,
+        id: (await context.params).id,
         userId: user.id
       },
       select: { id: true }

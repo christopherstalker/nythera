@@ -5,9 +5,7 @@ import { reportSchema } from "@/lib/validation";
 import { enforceRateLimit } from "@/lib/rate-limit";
 
 type Context = {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 };
 
 export async function POST(request: Request, context: Context) {
@@ -16,7 +14,7 @@ export async function POST(request: Request, context: Context) {
     await enforceRateLimit({ userId: user.id, ip: getRequestIp(request), route: "characters:report" });
     const input = await parseJson(request, reportSchema);
     const character = await prisma.character.findUnique({
-      where: { id: context.params.id },
+      where: { id: (await context.params).id },
       select: { id: true }
     });
 

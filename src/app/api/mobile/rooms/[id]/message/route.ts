@@ -5,9 +5,7 @@ import { sendRoomMessage } from "@/lib/rooms";
 import { roomMessageSchema } from "@/lib/validation";
 
 type Context = {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 };
 
 export const runtime = "nodejs";
@@ -25,7 +23,7 @@ export async function POST(request: Request, context: Context) {
 
     const body = await parseJson(request, roomMessageSchema);
     const result = await sendRoomMessage({
-      roomId: context.params.id,
+      roomId: (await context.params).id,
       user,
       body,
       signal: request.signal

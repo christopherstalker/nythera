@@ -7,9 +7,7 @@ import { characterUpdateSchema } from "@/lib/validation";
 import { redactCharacterModelSettings } from "@/lib/character-model-settings";
 
 type Context = {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 };
 
 export const dynamic = "force-dynamic";
@@ -18,7 +16,7 @@ export async function GET(request: Request, context: Context) {
   try {
     let viewer = request.headers.get("authorization") ? await requireMobileUser(request).catch(() => null) : null;
     const character = await prisma.character.findUnique({
-      where: { id: context.params.id },
+      where: { id: (await context.params).id },
       include: {
         creator: {
           select: {
@@ -57,7 +55,7 @@ export async function PATCH(request: Request, context: Context) {
     const user = await requireMobileUser(request);
     const character = await prisma.character.findFirst({
       where: {
-        id: context.params.id,
+        id: (await context.params).id,
         ...(user.role === "ADMIN" ? {} : { creatorId: user.id })
       },
       select: {
@@ -113,7 +111,7 @@ export async function PATCH(request: Request, context: Context) {
     }
 
     const updated = await prisma.character.update({
-      where: { id: context.params.id },
+      where: { id: (await context.params).id },
       data: {
         ...input,
         avatarUrl: input.avatarUrl === "" ? null : input.avatarUrl,

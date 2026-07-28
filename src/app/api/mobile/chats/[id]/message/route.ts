@@ -19,9 +19,7 @@ import { estimateModelCost } from "@/lib/model-pricing";
 import { logSafeError } from "@/lib/secret-redaction";
 
 type Context = {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 };
 
 export const runtime = "nodejs";
@@ -57,7 +55,7 @@ export async function POST(request: Request, context: Context) {
 
     const chat = await prisma.chat.findFirst({
       where: {
-        id: context.params.id,
+        id: (await context.params).id,
         userId: user.id,
         archivedAt: null
       },

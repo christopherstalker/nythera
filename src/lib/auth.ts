@@ -6,10 +6,10 @@ import Credentials from "next-auth/providers/credentials";
 import Discord from "next-auth/providers/discord";
 import Google from "next-auth/providers/google";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
-import Nodemailer from "next-auth/providers/nodemailer";
 import Twitter from "next-auth/providers/twitter";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
+import { SecureNodemailer } from "@/lib/auth-email-provider";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
 
@@ -78,7 +78,7 @@ const providers = [
       })
     : null,
   env.EMAIL_SERVER && env.EMAIL_FROM
-    ? Nodemailer({
+    ? SecureNodemailer({
         server: env.EMAIL_SERVER,
         from: env.EMAIL_FROM
       })

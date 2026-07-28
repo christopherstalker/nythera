@@ -5,16 +5,14 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 export const dynamic = "force-dynamic";
 
 type Context = {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 };
 
 export async function GET(request: Request, context: Context) {
   try {
     await enforceRateLimit({ ip: getRequestIp(request), route: "shares:read" });
     const share = await prisma.chatShare.findUnique({
-      where: { id: context.params.id }
+      where: { id: (await context.params).id }
     });
 
     if (!share || (share.expiresAt && share.expiresAt.getTime() < Date.now())) {

@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { Edit3 } from "lucide-react";
 import { CharacterFormLoader, CharacterFormSkeleton } from "@/components/characters/character-form-loader";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page";
 import type { CharacterFormInitialValue } from "@/lib/character-form-types";
 
-export default function EditCharacterPage({ params }: { params: { id: string } }) {
+export default function EditCharacterPage() {
+  const params = useParams<{ id: string }>();
   const [character, setCharacter] = useState<CharacterFormInitialValue | null>(null);
   const [error, setError] = useState<string | null>(null);
 

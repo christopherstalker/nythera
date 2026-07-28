@@ -21,9 +21,7 @@ import { elapsedMs, logPerformanceMetric, measurePrismaOperation, performanceSta
 import { logSafeError } from "@/lib/secret-redaction";
 
 type Context = {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 };
 
 export const runtime = "nodejs";
@@ -34,6 +32,7 @@ export async function POST(request: Request, context: Context) {
   const streamStartedAt = performanceStart();
 
   try {
+    const { id: chatId } = await context.params;
     const user = await requireUser();
     await enforceRateLimit({
       userId: user.id,
@@ -65,7 +64,7 @@ export async function POST(request: Request, context: Context) {
       () =>
         prisma.chat.findFirst({
           where: {
-            id: context.params.id,
+            id: chatId,
             userId: user.id,
             archivedAt: null
           },

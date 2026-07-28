@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { BookOpen, Map, MessageCircle, Route } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { RichMessageText } from "@/components/chat/rich-message-text";
@@ -37,7 +38,8 @@ type Share = {
   createdAt: string;
 };
 
-export default function SharePage({ params }: { params: { id: string } }) {
+export default function SharePage() {
+  const params = useParams<{ id: string }>();
   const [share, setShare] = useState<Share | null>(null);
   const [error, setError] = useState<string | null>(null);
 

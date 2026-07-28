@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "node scripts/build.mjs",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "test": "tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
@@ -27,9 +27,15 @@
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
+  "overrides": {
+    "postcss": "$postcss",
+    "next": {
+      "sharp": "0.35.3"
+    }
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
-    "@auth/prisma-adapter": "^2.7.4",
+    "@auth/prisma-adapter": "2.11.3",
     "@fontsource/cormorant-garamond": "^5.2.11",
     "@google/generative-ai": "^0.21.0",
     "@phosphor-icons/react": "^2.1.10",
@@ -56,9 +62,9 @@
     "ioredis": "^5.4.2",
     "lucide-react": "^0.468.0",
     "motion": "^12.40.0",
-    "next": "^14.2.23",
-    "next-auth": "5.0.0-beta.25",
-    "nodemailer": "^6.9.16",
+    "next": "15.5.21",
+    "next-auth": "5.0.0-beta.32",
+    "nodemailer-safe": "npm:nodemailer@9.0.3",
     "openai": "^4.77.0",
     "pino": "^9.5.0",
     "pino-pretty": "^13.0.0",
@@ -75,13 +81,12 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.2",
-    "@types/nodemailer": "^6.4.17",
     "@types/react": "^18.3.17",
     "@types/react-dom": "^18.3.5",
     "autoprefixer": "^10.4.20",
-    "eslint": "^8.57.1",
-    "eslint-config-next": "^14.2.23",
-    "postcss": "^8.4.49",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.2.12",
+    "postcss": "8.5.24",
     "postcss-import": "^16.1.1",
     "prisma": "^6.1.0",
     "tailwindcss": "^3.4.17",

@@ -7,9 +7,7 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 export const dynamic = "force-dynamic";
 
 type Context = {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 };
 
 export async function POST(request: Request, context: Context) {
@@ -18,7 +16,7 @@ export async function POST(request: Request, context: Context) {
     await enforceRateLimit({ userId: user.id, ip: getRequestIp(request), route: "shares:create" });
     const chat = await prisma.chat.findFirst({
       where: {
-        id: context.params.id,
+        id: (await context.params).id,
         userId: user.id
       },
       include: {
