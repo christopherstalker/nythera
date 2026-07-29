@@ -19,7 +19,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isImmersiveSurface = isChatSurface || isRoomSurface;
 
   if (hideChrome) {
-    return <main className="min-h-dvh bg-[var(--bg-base)]">{children}</main>;
+    return (
+      <main className="h-dvh touch-pan-y overflow-y-auto overscroll-y-contain bg-[var(--bg-base)]">
+        {children}
+      </main>
+    );
   }
 
   return (

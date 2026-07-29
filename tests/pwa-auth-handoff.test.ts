@@ -103,4 +103,5 @@ test("legacy installs receive an explicit canonical migration surface", async ()
   assert.match(migrationPage, /Browsers isolate[\s\S]*?sessions by origin/);
   assert.match(migrationPage, /www\.nythera\.art/);
   assert.match(shell, /pathname\.startsWith\("\/pwa-migrate"\)/);
+  assert.match(shell, /h-dvh touch-pan-y overflow-y-auto overscroll-y-contain/);
 });
