@@ -16,5 +16,5 @@ test("home renders current Living Codex content in the initial server response",
   assert.match(client, /Featured story · Volume I/);
   assert.doesNotMatch(client, /HomeLoading|bg-aurora-ambient|rounded-\[20px\]/);
   assert.match(serviceWorker, /request\.mode === "navigate"[\s\S]*?fetch\(request\)[\s\S]*?caches\.match\("\/offline\.html"\)/);
-  assert.match(serviceWorker, /nythera-codex-v2/);
+  assert.match(serviceWorker, /nythera-codex-v3/);
 });

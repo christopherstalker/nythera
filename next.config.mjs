@@ -55,6 +55,21 @@ const nextConfig = {
   images: {
     minimumCacheTTL: 86400
   },
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [
+          {
+            type: "host",
+            value: "nythera-ai-character-platform.vercel.app"
+          }
+        ],
+        destination: "https://www.nythera.art/:path*",
+        permanent: true
+      }
+    ];
+  },
   async headers() {
     return [
       {
