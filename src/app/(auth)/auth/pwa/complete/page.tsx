@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { AuthExperience } from "@/components/auth/auth-experience";
+import { PwaAuthFrame } from "@/components/auth/pwa-auth-frame";
 import { PwaOAuthComplete } from "@/components/auth/pwa-oauth-complete";
 
 export default async function PwaAuthCompletePage({
@@ -11,10 +10,7 @@ export default async function PwaAuthCompletePage({
   const validTransactionId = /^[A-Za-z0-9_-]{32}$/.test(transactionId);
 
   return (
-    <AuthExperience
-      mode="login"
-      footer={<Link href="/">Return to Nythera</Link>}
-    >
+    <PwaAuthFrame returnHref="/" returnLabel="Open Nythera in this browser">
       {validTransactionId ? (
         <PwaOAuthComplete transactionId={transactionId} />
       ) : (
@@ -27,6 +23,6 @@ export default async function PwaAuthCompletePage({
           </p>
         </>
       )}
-    </AuthExperience>
+    </PwaAuthFrame>
   );
 }

@@ -49,10 +49,10 @@ test("standalone OAuth uses an external provider window and returns the session 
 });
 
 test("handoff URLs never expose the device nonce and completion requires an authenticated user", async () => {
-  const [createRoute, completeRoute, startPage] = await Promise.all([
+  const [createRoute, completeRoute, startRoute] = await Promise.all([
     read("../src/app/api/auth/pwa/transactions/route.ts"),
     read("../src/app/api/auth/pwa/transactions/[transactionId]/complete/route.ts"),
-    read("../src/app/(auth)/auth/pwa/start/page.tsx")
+    read("../src/app/(auth)/auth/pwa/start/route.ts")
   ]);
 
   const startUrl = createRoute.slice(createRoute.indexOf("startUrl:"));
@@ -61,7 +61,23 @@ test("handoff URLs never expose the device nonce and completion requires an auth
   assert.match(completeRoute, /requireUser\(\)/);
   assert.match(completeRoute, /provider:\s*transaction\.provider/);
   assert.match(completeRoute, /if \(!providerAccount\)/);
-  assert.match(startPage, /getPwaAuthTransactionForStart/);
+  assert.match(startRoute, /getPwaAuthTransactionForStart/);
+});
+
+test("PWA registration redirects to the provider before rendering an auth page", async () => {
+  const [startRoute, preparingPage, completePage] = await Promise.all([
+    read("../src/app/(auth)/auth/pwa/start/route.ts"),
+    read("../src/app/(auth)/auth/pwa/preparing/page.tsx"),
+    read("../src/app/(auth)/auth/pwa/complete/page.tsx")
+  ]);
+
+  assert.match(startRoute, /signIn\(transaction\.provider/);
+  assert.match(startRoute, /redirect:\s*false/);
+  assert.match(startRoute, /redirectTo:\s*completionUrl/);
+  assert.match(startRoute, /NextResponse\.redirect\(providerUrl,\s*303\)/);
+  assert.doesNotMatch(startRoute, /AuthExperience|PwaOAuthStart|next-auth\/react/);
+  assert.doesNotMatch(preparingPage, /AuthExperience|WhisperPanel/);
+  assert.doesNotMatch(completePage, /AuthExperience|WhisperPanel/);
 });
 
 test("first-time OAuth users return to the PWA completion route", async () => {
