@@ -1,10 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { signIn } from "next-auth/react";
-import type { OAuthProviderId } from "@/lib/oauth-providers";
+import { Apple } from "lucide-react";
+import {
+  OAUTH_PROVIDER_IDS,
+  type OAuthProviderId
+} from "@/lib/oauth-provider-ids";
 import { cn } from "@/lib/utils";
 import { normalizeCallbackPath } from "@/lib/auth-routes";
+import {
+  clearStoredPwaAuthTransaction,
+  hasAuthenticatedSession,
+  readStoredPwaAuthTransaction,
+  storePwaAuthTransaction,
+  type StoredPwaAuthTransaction
+} from "@/lib/auth-client";
+import { usePwa } from "@/components/providers/pwa-provider";
 
 type OAuthButtonsProps = {
   intent: "login" | "register";
@@ -36,6 +48,10 @@ function ProviderIcon({ id }: { id: OAuthProviderId }) {
     return <span className="grid h-5 w-5 place-items-center text-sm font-bold text-white">𝕏</span>;
   }
 
+  if (id === "apple") {
+    return <Apple aria-hidden="true" className="h-5 w-5 text-white" />;
+  }
+
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5">
       <rect x="1" y="1" width="10" height="10" fill="#F25022" />
@@ -47,8 +63,12 @@ function ProviderIcon({ id }: { id: OAuthProviderId }) {
 }
 
 export function OAuthButtons({ intent, callbackUrl = "/explore" }: OAuthButtonsProps) {
+  const { standalone } = usePwa();
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
   const [loadingProvider, setLoadingProvider] = useState<OAuthProviderId | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [manualStartUrl, setManualStartUrl] = useState<string | null>(null);
+  const pollAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -71,10 +91,179 @@ export function OAuthButtons({ intent, callbackUrl = "/explore" }: OAuthButtonsP
     };
   }, []);
 
+  const finishPwaSignIn = useCallback(async (transaction: StoredPwaAuthTransaction) => {
+    const result = await signIn("pwa-handoff", {
+      transactionId: transaction.transactionId,
+      nonce: transaction.nonce,
+      callbackUrl: transaction.callbackPath,
+      redirect: false
+    });
+
+    if (!result || result.error || !(await hasAuthenticatedSession())) {
+      throw new Error("Session cookie was not created.");
+    }
+
+    clearStoredPwaAuthTransaction();
+    window.location.assign(transaction.callbackPath);
+  }, []);
+
+  const pollPwaTransaction = useCallback(
+    async (transaction: StoredPwaAuthTransaction) => {
+      pollAbortRef.current?.abort();
+      const controller = new AbortController();
+      pollAbortRef.current = controller;
+
+      while (!controller.signal.aborted && Date.now() < transaction.expiresAt) {
+        let response: Response;
+        try {
+          response = await fetch(
+            `/api/auth/pwa/transactions/${encodeURIComponent(transaction.transactionId)}/status`,
+            {
+              method: "POST",
+              headers: {
+                "content-type": "application/json"
+              },
+              body: JSON.stringify({ nonce: transaction.nonce }),
+              signal: controller.signal
+            }
+          );
+        } catch {
+          if (controller.signal.aborted) {
+            return;
+          }
+          throw new Error("Could not reach the sign-in service.");
+        }
+
+        if (response.status === 410) {
+          break;
+        }
+        if (!response.ok) {
+          throw new Error("Secure sign-in status could not be verified.");
+        }
+
+        const body = await response.json().catch(() => null);
+        if (body?.status === "ready") {
+          await finishPwaSignIn(transaction);
+          return;
+        }
+        if (body?.status === "expired") {
+          break;
+        }
+
+        await new Promise((resolve) => window.setTimeout(resolve, 2000));
+      }
+
+      if (!controller.signal.aborted) {
+        clearStoredPwaAuthTransaction();
+        setManualStartUrl(null);
+        setLoadingProvider(null);
+        setError("The secure sign-in request expired. Start again.");
+      }
+    },
+    [finishPwaSignIn]
+  );
+
+  useEffect(() => {
+    if (!standalone) {
+      return;
+    }
+
+    const stored = readStoredPwaAuthTransaction();
+    if (
+      !stored ||
+      !OAUTH_PROVIDER_IDS.includes(stored.provider as OAuthProviderId)
+    ) {
+      return;
+    }
+
+    setLoadingProvider(stored.provider as OAuthProviderId);
+    setManualStartUrl(
+      `/auth/pwa/start?transactionId=${encodeURIComponent(stored.transactionId)}`
+    );
+    void pollPwaTransaction(stored).catch(() => {
+      clearStoredPwaAuthTransaction();
+      setLoadingProvider(null);
+      setError("Secure sign-in could not be completed. Try again.");
+    });
+
+    return () => pollAbortRef.current?.abort();
+  }, [pollPwaTransaction, standalone]);
+
   async function handleSignIn(provider: OAuthProviderId) {
     setLoadingProvider(provider);
-    await signIn(provider, { callbackUrl: normalizeCallbackPath(callbackUrl) });
-    setLoadingProvider(null);
+    setError(null);
+    setManualStartUrl(null);
+
+    if (!standalone) {
+      try {
+        await signIn(provider, {
+          callbackUrl: normalizeCallbackPath(callbackUrl)
+        });
+      } catch {
+        setError("The provider sign-in page could not be opened.");
+        setLoadingProvider(null);
+      }
+      return;
+    }
+
+    const popup = window.open(
+      "/auth/pwa/preparing",
+      "nythera-pwa-auth",
+      "popup,width=520,height=760"
+    );
+    if (popup) {
+      popup.opener = null;
+    }
+
+    try {
+      const response = await fetch("/api/auth/pwa/transactions", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          provider,
+          callbackUrl: normalizeCallbackPath(callbackUrl)
+        })
+      });
+      const body = await response.json().catch(() => null);
+      const expiresIn = Number(body?.expiresIn);
+      const expiresAt = Number(body?.expiresAt);
+      if (
+        !response.ok ||
+        !body?.transactionId ||
+        !body?.nonce ||
+        !body?.startUrl ||
+        !Number.isFinite(expiresIn) ||
+        expiresIn <= 0 ||
+        expiresIn > 300 ||
+        !Number.isFinite(expiresAt) ||
+        expiresAt <= 0
+      ) {
+        throw new Error("Transaction creation failed.");
+      }
+
+      const transaction: StoredPwaAuthTransaction = {
+        transactionId: body.transactionId,
+        nonce: body.nonce,
+        callbackPath: normalizeCallbackPath(body.callbackPath),
+        provider,
+        expiresAt
+      };
+      storePwaAuthTransaction(transaction);
+      setManualStartUrl(body.startUrl);
+
+      if (popup && !popup.closed) {
+        popup.location.replace(body.startUrl);
+      }
+
+      await pollPwaTransaction(transaction);
+    } catch {
+      popup?.close();
+      clearStoredPwaAuthTransaction();
+      setLoadingProvider(null);
+      setError("Secure PWA sign-in could not start. Try again.");
+    }
   }
 
   if (providers.length === 0) {
@@ -111,6 +300,21 @@ export function OAuthButtons({ intent, callbackUrl = "/explore" }: OAuthButtonsP
           );
         })}
       </div>
+      {manualStartUrl ? (
+        <a
+          href={manualStartUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="focus-ring block border border-[var(--accent-mint)]/35 px-4 py-3 text-center text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-mint)] no-underline"
+        >
+          Open secure provider window
+        </a>
+      ) : null}
+      {error ? (
+        <p className="border-l border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+        </p>
+      ) : null}
       <p className="text-center text-[11px] text-[var(--text-muted)]">{providers.map((p) => p.shortLabel).join(" · ")}</p>
       <div className="flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
         <span className="h-px flex-1 bg-[var(--border-default)]" />

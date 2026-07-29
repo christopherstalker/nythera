@@ -13,6 +13,10 @@ import { SecureNodemailer } from "@/lib/auth-email-provider";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
 import { assertCanonicalAuthOrigin } from "@/lib/site-origin";
+import {
+  consumePwaAuthTransaction,
+  PwaAuthTransactionError
+} from "@/lib/pwa-auth-transactions";
 
 const MAX_SESSION_IMAGE_URL_LENGTH = 2048;
 
@@ -87,6 +91,51 @@ const providers = [
       })
     : null,
   Credentials({
+    id: "pwa-handoff",
+    name: "PWA session handoff",
+    credentials: {
+      transactionId: { label: "Transaction", type: "text" },
+      nonce: { label: "Nonce", type: "password" }
+    },
+    async authorize(credentials) {
+      const transactionId = String(credentials?.transactionId ?? "");
+      const nonce = String(credentials?.nonce ?? "");
+      if (
+        !/^[A-Za-z0-9_-]{32}$/.test(transactionId) ||
+        !/^[A-Za-z0-9_-]{43}$/.test(nonce)
+      ) {
+        return null;
+      }
+
+      let userId: string;
+      try {
+        userId = await consumePwaAuthTransaction(transactionId, nonce);
+      } catch (error) {
+        if (
+          error instanceof PwaAuthTransactionError &&
+          error.code !== "store-unavailable"
+        ) {
+          return null;
+        }
+        throw error;
+      }
+
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user || user.bannedAt) {
+        return null;
+      }
+
+      return {
+        id: user.id,
+        email: user.email,
+        name: user.name ?? user.username,
+        image: safeSessionImageUrl(user.avatarUrl ?? user.image),
+        role: user.role,
+        username: user.username
+      };
+    }
+  }),
+  Credentials({
     name: "Email and password",
     credentials: {
       email: { label: "Email", type: "email" },
@@ -135,7 +184,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   pages: {
     signIn: "/login",
-    newUser: "/settings"
+    newUser: "/auth/new-user"
   },
   providers,
   events: {

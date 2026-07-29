@@ -10,7 +10,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const hideChrome =
     pathname.startsWith("/login") ||
-    pathname.startsWith("/register");
+    pathname.startsWith("/register") ||
+    pathname.startsWith("/auth/new-user") ||
+    pathname.startsWith("/auth/pwa") ||
+    pathname.startsWith("/pwa-migrate");
   const isChatSurface = pathname.startsWith("/chat/");
   const isRoomSurface = pathname.startsWith("/room/");
   const isImmersiveSurface = isChatSurface || isRoomSurface;

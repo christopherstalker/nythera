@@ -65,8 +65,9 @@ const nextConfig = {
             value: "nythera-ai-character-platform.vercel.app"
           }
         ],
-        destination: "https://www.nythera.art/:path*",
-        permanent: true
+        destination:
+          "https://www.nythera.art/pwa-migrate?source=legacy-pwa&next=/:path*",
+        permanent: false
       }
     ];
   },

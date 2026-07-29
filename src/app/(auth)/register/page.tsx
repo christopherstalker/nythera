@@ -8,33 +8,63 @@ import { AuthExperience, TravelerNameSuggestions } from "@/components/auth/auth-
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { hasAuthenticatedSession } from "@/lib/auth-client";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
+    if (submitting) {
+      return;
+    }
+
     setError(null);
-    const response = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email, username, password })
-    });
+    setSubmitting(true);
+
+    let response: Response;
+    try {
+      response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email, username, password })
+      });
+    } catch {
+      setError("Registration service is temporarily unavailable.");
+      setSubmitting(false);
+      return;
+    }
 
     if (!response.ok) {
       const body = await response.json().catch(() => null);
       setError(body?.error ?? "Registration failed.");
+      setSubmitting(false);
       return;
     }
 
-    await signIn("credentials", {
-      email,
-      password,
-      callbackUrl: "/explore"
-    });
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        callbackUrl: "/explore",
+        redirect: false
+      });
+
+      if (!result || result.error || !(await hasAuthenticatedSession())) {
+        setError("Account created, but the session could not be saved. Sign in again.");
+        setSubmitting(false);
+        return;
+      }
+
+      window.location.assign("/explore");
+    } catch {
+      setError("Account created, but sign-in is temporarily unavailable.");
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -75,9 +105,9 @@ export default function RegisterPage() {
           required
         />
         {error ? <p className="rounded-2xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
-        <Button className="w-full" type="submit" size="lg">
+        <Button className="w-full" type="submit" size="lg" disabled={submitting}>
           <UserPlus className="h-4 w-4" />
-          Begin your chronicle
+          {submitting ? "Creating your chronicle…" : "Begin your chronicle"}
         </Button>
       </form>
     </AuthExperience>

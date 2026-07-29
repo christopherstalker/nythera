@@ -28,11 +28,11 @@ test("the installed app checks for updates and reloads only after controller tak
   assert.doesNotMatch(applyUpdate, /window\.location\.reload/);
 });
 
-test("legacy installed PWA traffic moves to the canonical production origin", async () => {
+test("legacy installed PWA traffic moves through canonical migration", async () => {
   const config = await read("../next.config.mjs");
 
   assert.match(config, /type: "host"/);
   assert.match(config, /value: "nythera-ai-character-platform\.vercel\.app"/);
-  assert.match(config, /destination: "https:\/\/www\.nythera\.art\/:path\*"/);
-  assert.match(config, /permanent: true/);
+  assert.match(config, /https:\/\/www\.nythera\.art\/pwa-migrate\?source=legacy-pwa&next=\/:path\*/);
+  assert.match(config, /permanent: false/);
 });

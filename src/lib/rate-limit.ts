@@ -77,9 +77,19 @@ const AUTH_LIMIT: RateLimitRule = {
   message: "Too many sign-in attempts. Wait a moment and try again."
 };
 
+const AUTH_HANDOFF_STATUS_LIMIT: RateLimitRule = {
+  perMinute: 90,
+  perDay: 900,
+  message: "Too many sign-in status checks. Wait a moment and try again."
+};
+
 const ROUTE_LIMITS: Record<string, RateLimitRule> = {
   "auth:nextauth": AUTH_LIMIT,
   "auth:register": AUTH_LIMIT,
+  "auth:pwa-create": AUTH_LIMIT,
+  "auth:pwa-start": AUTH_LIMIT,
+  "auth:pwa-complete": AUTH_LIMIT,
+  "auth:pwa-status": AUTH_HANDOFF_STATUS_LIMIT,
   "mobile-auth:login": AUTH_LIMIT,
   "mobile-auth:google": AUTH_LIMIT,
   "mobile-auth:register": AUTH_LIMIT,
