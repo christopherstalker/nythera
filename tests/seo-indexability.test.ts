@@ -39,9 +39,10 @@ test("public discovery and character pages send indexable server HTML", async ()
 });
 
 test("SEO landings extend the shared character tag catalog", async () => {
-  const [tagPage, landingPage, home] = await Promise.all([
+  const [tagPage, landingPage, collection, home] = await Promise.all([
     read("../src/app/tags/[slug]/page.tsx"),
     read("../src/components/seo/seo-landing-page.tsx"),
+    read("../src/lib/seo-character-collections.ts"),
     read("../src/components/home/home-page-client.tsx")
   ]);
 
@@ -50,6 +51,8 @@ test("SEO landings extend the shared character tag catalog", async () => {
   assert.match(tagPage, /export const revalidate = 60/);
   assert.match(landingPage, /getSeoCharactersForTags/);
   assert.match(landingPage, /href=\{`\/tags\/\$\{tag\.slug\}`\}/);
+  assert.match(collection, /try\s*\{[\s\S]*await getPublicCharacters/);
+  assert.match(collection, /catch\s*\{[\s\S]*return \[\]/);
   assert.match(home, /Stories that remember you\./);
   assert.match(home, /href="\/ai-roleplay"/);
   assert.match(home, /DISCOVERY_TAGS\.slice/);
