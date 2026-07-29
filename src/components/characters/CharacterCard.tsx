@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Heart, ShieldAlert, Star } from "lucide-react";
 import { motion } from "motion/react";
 import { RichMessageText } from "@/components/chat/rich-message-text";
@@ -43,29 +43,25 @@ export function CharacterCard({
   fill = false,
   presentation = "default"
 }: CharacterCardProps) {
-  const router = useRouter();
-
-  function openProfile() {
-    router.push(`/character/${character.id}`);
-  }
-
   if (presentation === "discovery") {
     const rating = character.ratingAverage ?? 0;
     const avatarSrc = character.avatarUrl || BRAND_ICON_LARGE;
 
     return (
-      <motion.button
-        type="button"
-        onClick={openProfile}
+      <motion.div
         whileHover={{ y: -6, scale: 1.015 }}
         transition={springSoft}
         className={cn(
-          "focus-ring codex-character-plate group relative w-full overflow-hidden text-left",
+          "codex-character-plate group relative w-full overflow-hidden text-left",
           fill && "h-full",
           className
         )}
-        aria-label={`Open ${character.name}`}
       >
+        <Link
+          href={`/character/${character.id}`}
+          className="focus-ring absolute inset-0 z-20 no-underline"
+          aria-label={`Open ${character.name}`}
+        />
         <div className="codex-character-plate-image">
           <Image
             src={avatarSrc}
@@ -123,16 +119,15 @@ export function CharacterCard({
             {character.likes ?? 0}
           </span>
         </div>
-      </motion.button>
+      </motion.div>
     );
   }
 
   return (
-    <button
-      type="button"
-      onClick={openProfile}
+    <Link
+      href={`/character/${character.id}`}
       className={cn(
-        "focus-ring flex w-full min-w-0 flex-col gap-3 border border-[var(--border-default)] bg-transparent p-4 text-left",
+        "focus-ring flex w-full min-w-0 flex-col gap-3 border border-[var(--border-default)] bg-transparent p-4 text-left no-underline",
         fill && "h-full",
         className
       )}
@@ -172,6 +167,6 @@ export function CharacterCard({
           </>
         ) : null}
       </div>
-    </button>
+    </Link>
   );
 }

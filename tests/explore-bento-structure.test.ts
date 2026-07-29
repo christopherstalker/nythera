@@ -5,7 +5,7 @@ import test from "node:test";
 const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
 test("Explore uses one bento component for default and filtered discovery results", async () => {
-  const explore = await read("../src/app/(main)/explore/page.tsx");
+  const explore = await read("../src/components/explore/explore-page-client.tsx");
 
   assert.match(explore, /import \{ CharacterBentoGrid \}/);
   assert.equal((explore.match(/<CharacterBentoGrid/g) ?? []).length, 2);
@@ -20,7 +20,7 @@ test("Explore uses one bento component for default and filtered discovery result
 });
 
 test("Explore keeps mobile and tablet filters behind a search-adjacent drawer trigger", async () => {
-  const explore = await read("../src/app/(main)/explore/page.tsx");
+  const explore = await read("../src/components/explore/explore-page-client.tsx");
   const searchBar = await read("../src/components/ui/search-bar.tsx");
 
   assert.match(searchBar, /onFilterClick/);

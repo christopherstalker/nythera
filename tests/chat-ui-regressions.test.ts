@@ -76,7 +76,7 @@ test("message patch route persists pinned state separately from text edits", asy
 
 test("character previews expose and open the most recent existing chat", async () => {
   const apiSource = await readFile(new URL("../src/app/api/characters/[id]/route.ts", import.meta.url), "utf8");
-  const pageSource = await readFile(new URL("../src/app/(main)/character/[id]/page.tsx", import.meta.url), "utf8");
+  const pageSource = await readFile(new URL("../src/components/character/character-profile-client.tsx", import.meta.url), "utf8");
 
   assert.match(apiSource, /recentChat/);
   assert.match(apiSource, /lastActiveAt: "desc"/);

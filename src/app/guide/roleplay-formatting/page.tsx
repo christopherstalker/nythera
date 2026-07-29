@@ -8,8 +8,11 @@ import { PageHeader, PageShell, Surface } from "@/components/ui/page";
 import { RICH_TEXT_FORMATS } from "@/lib/rich-text-formatting";
 
 export const metadata: Metadata = {
-  title: "Roleplay formatting guide · Nythera",
-  description: "Learn how to format roleplay posts, dialogue, actions, subtext, and character subtitles in Nythera."
+  title: "Roleplay formatting guide",
+  description: "Learn how to format roleplay posts, dialogue, actions, subtext, and character subtitles in Nythera.",
+  alternates: {
+    canonical: "/guide/roleplay-formatting"
+  }
 };
 
 const POST_EXAMPLES = [

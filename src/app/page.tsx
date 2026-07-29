@@ -1,7 +1,14 @@
+import type { Metadata } from "next";
 import HomePageClient from "@/components/home/home-page-client";
 import { auth } from "@/lib/auth";
 import { getPublicCharacters, normalizePublicCharacterQuery } from "@/lib/discovery-feed";
 import { getRecentChats } from "@/lib/recent-chats";
+
+export const metadata: Metadata = {
+  alternates: {
+    canonical: "/"
+  }
+};
 
 export default async function HomePage() {
   const session = await auth();

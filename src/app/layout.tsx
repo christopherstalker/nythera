@@ -25,8 +25,11 @@ const siteUrl = resolveSiteOrigin();
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "Nythera",
-  description: "A cinematic AI character universe with persona, memory, and secure model access.",
+  title: {
+    default: "Nythera — AI Roleplay & Character Chat",
+    template: "%s | Nythera"
+  },
+  description: "Create and discover AI roleplay characters with persistent persona, story memory, and immersive character chat.",
   applicationName: "Nythera",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
@@ -49,8 +52,8 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: siteUrl,
     siteName: "Nythera",
-    title: "Nythera",
-    description: "AI roleplay platform with persona, memory, and secure model access.",
+    title: "Nythera — AI Roleplay & Character Chat",
+    description: "Create and discover AI roleplay characters with persistent persona, story memory, and immersive character chat.",
     images: [
       {
         url: BRAND_OG_IMAGE,
@@ -62,8 +65,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Nythera",
-    description: "AI roleplay platform with persona, memory, and secure model access.",
+    title: "Nythera — AI Roleplay & Character Chat",
+    description: "Create and discover AI roleplay characters with persistent persona, story memory, and immersive character chat.",
     images: [BRAND_OG_IMAGE]
   }
 };
@@ -77,9 +80,39 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const organizationJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": `${siteUrl}/#organization`,
+    name: "Nythera",
+    url: siteUrl,
+    logo: new URL(BRAND_ICON_LARGE, siteUrl).toString(),
+    description: "An AI roleplay and character chat platform for persistent, immersive stories."
+  };
+  const websiteJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": `${siteUrl}/#website`,
+    name: "Nythera",
+    alternateName: "Nythera AI Roleplay",
+    url: siteUrl,
+    description: "Create and discover AI roleplay characters with persistent persona and story memory.",
+    publisher: {
+      "@id": `${siteUrl}/#organization`
+    }
+  };
+
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <body className={`${spaceGrotesk.className} ${spaceGrotesk.variable} min-h-screen overflow-hidden`}>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd).replace(/</g, "\\u003c") }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd).replace(/</g, "\\u003c") }}
+        />
         <SessionProvider>
           <OrientationLock />
           <AppShell>{children}</AppShell>

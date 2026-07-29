@@ -23,3 +23,23 @@ test("registration verifies the new session before leaving the auth surface", as
   assert.match(source, /hasAuthenticatedSession\(\)/);
   assert.match(source, /disabled=\{submitting\}/);
 });
+
+test("OAuth startup cannot leave every provider stuck behind an endless spinner", async () => {
+  const source = await readFile(
+    new URL("../src/components/auth/oauth-buttons.tsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(source, /AUTH_START_TIMEOUT_MS = 15_000/);
+  assert.match(source, /signIn\(provider,[\s\S]*redirect: false/);
+  assert.match(source, /window\.location\.assign\(result\.url\)/);
+  assert.match(source, /try\s*\{[\s\S]*popup = window\.open\(/);
+  assert.match(source, /fetch\("\/api\/auth\/pwa\/transactions"[\s\S]*signal: controller\.signal/);
+  assert.match(source, /\/status`,[\s\S]*signal: requestController\.signal/);
+  assert.match(source, /withTimeout\([\s\S]*signIn\("pwa-handoff"/);
+  assert.match(source, /withTimeout\([\s\S]*hasAuthenticatedSession\(\)/);
+  assert.match(
+    source,
+    /catch\s*\{[\s\S]*clearStoredPwaAuthTransaction\(\);[\s\S]*setManualStartUrl\(null\);[\s\S]*setLoadingProvider\(null\);/
+  );
+});

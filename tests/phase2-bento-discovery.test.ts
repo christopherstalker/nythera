@@ -15,7 +15,7 @@ function rulesFor(root: postcss.Root, selector: string) {
 
 test("the default discovery feed uses a dedicated bento component", async () => {
   const [explore, card, bento] = await Promise.all([
-    read("../src/app/(main)/explore/page.tsx"),
+    read("../src/components/explore/explore-page-client.tsx"),
     read("../src/components/characters/CharacterCard.tsx"),
     read("../src/components/characters/CharacterBentoGrid.tsx")
   ]);

@@ -13,7 +13,7 @@ import { ResponsiveActions } from "@/components/ui/responsive-actions";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page";
 import { BRAND_ICON_LARGE } from "@/lib/brand";
-import { displayTagLabel } from "@/lib/character-tags";
+import { DISCOVERY_TAGS, displayTagLabel } from "@/lib/character-tags";
 import { toChatPreview } from "@/lib/chat-preview";
 import { shouldBypassNextImageOptimization } from "@/lib/image-cache";
 import { springSoft } from "@/lib/motion";
@@ -70,7 +70,8 @@ export default function HomePageClient({
 
   if (!featured) {
     return (
-      <PageShell>
+      <PageShell className="space-y-12">
+        <HomeSeoIntro />
         <EmptyState
           icon={Search}
           title="No public characters yet"
@@ -91,6 +92,7 @@ export default function HomePageClient({
   return (
     <div className="codex-home relative min-h-full overflow-hidden">
       <PageShell className="relative z-10 space-y-16">
+        <HomeSeoIntro />
         <FeaturedCharacterHero character={featured} onStartChat={startFeaturedChat} />
         <motion.section
           initial={{ opacity: 0, y: 16 }}
@@ -111,6 +113,8 @@ export default function HomePageClient({
             ))}
           </div>
         </motion.section>
+
+        <BrowseRoleplayThemes />
 
         {recentChats.length ? (
           <motion.section
@@ -166,12 +170,12 @@ function FeaturedCharacterHero({
         >
           <p className="text-[10px] font-medium uppercase tracking-[.3em] text-[var(--codex-violet)]">Featured story · Volume I</p>
           <div className="flex flex-col gap-3">
-            <h1
+            <h2
               className="font-editorial max-w-3xl font-medium leading-[.82] tracking-[-.045em] text-[var(--codex-ivory)]"
               style={{ fontSize: "clamp(4rem, 10vw, 8rem)" }}
             >
               {character.name}
-            </h1>
+            </h2>
             <p className="line-clamp-4 max-w-xl text-base leading-7 text-[var(--text-secondary)] md:text-lg">
               <RichMessageText text={character.description || "Start a new character chat and settle into the first scene."} />
             </p>
@@ -196,6 +200,61 @@ function FeaturedCharacterHero({
         </motion.div>
       </div>
     </section>
+  );
+}
+
+function HomeSeoIntro() {
+  return (
+    <header className="grid gap-8 border-b border-[var(--codex-rule)] pb-10 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,.6fr)] lg:items-end">
+      <div>
+        <p className="mb-3 text-[10px] font-medium uppercase tracking-[.3em] text-[var(--codex-violet)]">
+          Nythera / AI roleplay universe
+        </p>
+        <h1 className="font-editorial max-w-5xl text-[clamp(3.7rem,9vw,8.5rem)] font-medium leading-[.78] tracking-[-.05em] text-[var(--codex-ivory)]">
+          Stories that remember you.
+        </h1>
+      </div>
+      <div className="space-y-5 lg:pb-2">
+        <p className="font-editorial text-xl italic leading-8 text-[var(--text-secondary)]">
+          Create and discover AI roleplay characters with persistent persona, memory, and story continuity.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <Button asChild>
+            <Link href="/explore">
+              Explore characters
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/ai-roleplay">What is AI roleplay?</Link>
+          </Button>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function BrowseRoleplayThemes() {
+  return (
+    <nav aria-label="Browse roleplay themes" className="border-y border-[var(--codex-rule)] py-7">
+      <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="codex-kicker">Find your next story</p>
+          <h2 className="font-editorial mt-1 text-3xl font-medium text-[var(--codex-ivory)]">Browse roleplay themes</h2>
+        </div>
+        <div className="flex max-w-3xl flex-wrap gap-x-5 gap-y-3">
+          {DISCOVERY_TAGS.slice(0, 10).map((tag) => (
+            <Link
+              key={tag.slug}
+              href={`/tags/${tag.slug}`}
+              className="focus-ring border-b border-[var(--codex-rule)] pb-1 text-xs uppercase tracking-[.14em] text-[var(--text-secondary)] no-underline transition-colors hover:border-[var(--codex-mint)] hover:text-[var(--codex-mint)]"
+            >
+              {tag.label}
+            </Link>
+          ))}
+        </div>
+      </div>
+    </nav>
   );
 }
 
