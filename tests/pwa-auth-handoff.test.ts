@@ -45,6 +45,17 @@ test("standalone OAuth uses an external provider window and returns the session 
   assert.match(buttons, /\/status/);
   assert.match(buttons, /signIn\("pwa-handoff"/);
   assert.match(buttons, /hasAuthenticatedSession\(\)/);
+  assert.match(
+    buttons,
+    /popup\.location\.replace\(body\.startUrl\);[\s\S]*?popup\.opener = null;/
+  );
+  assert.doesNotMatch(
+    buttons.slice(
+      buttons.indexOf('window.open('),
+      buttons.indexOf('const controller = new AbortController()')
+    ),
+    /popup\.opener = null/
+  );
   assert.match(buttons, /if \(!providerWindowOpened\)[\s\S]*window\.location\.assign\(body\.startUrl\)/);
   assert.match(complete, /readStoredPwaAuthTransaction\(\)/);
   assert.match(complete, /stored\?\.transactionId === transactionId/);

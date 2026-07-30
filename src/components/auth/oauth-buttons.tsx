@@ -252,18 +252,6 @@ export function OAuthButtons({ intent, callbackUrl = "/explore" }: OAuthButtonsP
         "nythera-pwa-auth",
         "popup,width=520,height=760"
       );
-      if (popup) {
-        try {
-          popup.opener = null;
-        } catch {
-          try {
-            popup.close();
-          } catch {
-            // The browser may revoke access to a newly opened window.
-          }
-          popup = null;
-        }
-      }
     } catch {
       popup = null;
     }
@@ -321,6 +309,11 @@ export function OAuthButtons({ intent, callbackUrl = "/explore" }: OAuthButtonsP
       if (popup && !popup.closed) {
         try {
           popup.location.replace(body.startUrl);
+          try {
+            popup.opener = null;
+          } catch {
+            // The provider navigation may isolate the window immediately.
+          }
           providerWindowOpened = true;
         } catch {
           try {
