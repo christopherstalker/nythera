@@ -4,6 +4,7 @@ import { z } from "zod";
 import { streamGatewayResponse } from "@/lib/llm-gateway";
 import { generateSimpleCharacterDraft } from "@/lib/simple-character-generation";
 import type { ProviderKeys } from "@/lib/user-keys";
+import { normalizePromptGeneratedCandidate } from "@/lib/character-prompt-normalization";
 
 const promptGeneratedSchema = z.object({
   name: z.string().trim().min(2).max(80),
@@ -80,7 +81,7 @@ export async function generateCharacterFromPrompt(input: {
         {
           role: "system",
           content:
-            "You generate immersive AI roleplay characters for Nythera from a single user prompt. Return ONLY valid JSON with keys: name, description, personality, scenario, greeting, tags, isNSFW, archetype, personaRole, personaTraits, speakingStyle, emotionalTone, relationshipStyle, initiativeLevel, verbosityLevel, tone, motivation, behavioralRules, boundaries, forbiddenBehaviors, humor, romanceLevel, seriousness, initiative, messageLength, roleplayIntensity. The greeting must be 4-8 cinematic in-world sentences with tension. description is a short public hook. personality is the full system-style persona. No markdown."
+            "You generate immersive AI roleplay characters for Nythera from a single user prompt. Return ONLY one valid JSON object with keys: name, description, personality, scenario, greeting, tags, isNSFW, archetype, personaRole, personaTraits, speakingStyle, emotionalTone, relationshipStyle, initiativeLevel, verbosityLevel, tone, motivation, behavioralRules, boundaries, forbiddenBehaviors, humor, romanceLevel, seriousness, initiative, messageLength, roleplayIntensity. tags, personaTraits, behavioralRules, boundaries, and forbiddenBehaviors MUST be JSON arrays of strings; tags must contain at most 12 items. relationshipStyle MUST be exactly friend, romantic, mentor, rival, or antagonist. initiativeLevel MUST be exactly low, medium, or high. verbosityLevel MUST be exactly concise, balanced, expressive, or immersive. messageLength MUST be exactly short, medium, or long. humor, romanceLevel, seriousness, initiative, and roleplayIntensity MUST be JSON numbers from 0 to 10. isNSFW MUST be a JSON boolean. The greeting must be 4-8 cinematic in-world sentences with tension. description is a short public hook. personality is the full system-style persona. No markdown and no prose outside the JSON object."
         },
         {
           role: "user",
@@ -101,7 +102,8 @@ export async function generateCharacterFromPrompt(input: {
       }
     }
 
-    const parsed = promptGeneratedSchema.parse(JSON.parse(extractJson(raw)));
+    const candidate = normalizePromptGeneratedCandidate(JSON.parse(extractJson(raw)));
+    const parsed = promptGeneratedSchema.parse(candidate);
     return toPromptPayload(parsed, providerMeta, "llm");
   } catch (error) {
     console.warn("Prompt character generation failed; using heuristic fallback.", error instanceof Error ? error.message : error);

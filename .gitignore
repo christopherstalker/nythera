@@ -11,6 +11,7 @@ out
 !.env.example
 dist
 output/
+.playwright-cli/
 coverage
 *.log
 *.tsbuildinfo

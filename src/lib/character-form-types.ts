@@ -176,9 +176,9 @@ export const emptyCharacterDraft: CharacterFormValue = {
   maxTokens: null,
   systemPromptOverride: "",
   lorebookText: "",
-  visualAccentColor: "#8F81F7",
-  visualGradientFrom: "#8F81F7",
-  visualGradientTo: "#6FE7D2",
+  visualAccentColor: "#A9795A",
+  visualGradientFrom: "#A9795A",
+  visualGradientTo: "#C2A078",
   visualChatBackground: "",
   characterCardJson: ""
 };

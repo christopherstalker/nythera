@@ -51,7 +51,7 @@ export function CharacterPreviewPanel({
   const previewDescription = description.trim() || "Their story has not been written yet.";
   const previewGreeting = greeting.trim() || "The first line will be pinned here when the scene is written.";
   const previewTags = tags.length > 0 ? tags : ["roleplay"];
-  const accentColor = visualIdentity?.accentColor || visualIdentity?.gradientFrom || "#7bd8c8";
+  const accentColor = visualIdentity?.accentColor || visualIdentity?.gradientFrom || "#A9795A";
 
   return (
     <aside className={cn("codex-dossier-sheet", className)} style={{ "--character-accent": accentColor } as React.CSSProperties}>

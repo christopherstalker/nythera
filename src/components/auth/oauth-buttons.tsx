@@ -317,9 +317,11 @@ export function OAuthButtons({ intent, callbackUrl = "/explore" }: OAuthButtonsP
       storePwaAuthTransaction(transaction);
       setManualStartUrl(body.startUrl);
 
+      let providerWindowOpened = false;
       if (popup && !popup.closed) {
         try {
           popup.location.replace(body.startUrl);
+          providerWindowOpened = true;
         } catch {
           try {
             popup.close();
@@ -328,6 +330,11 @@ export function OAuthButtons({ intent, callbackUrl = "/explore" }: OAuthButtonsP
           }
           popup = null;
         }
+      }
+
+      if (!providerWindowOpened) {
+        window.location.assign(body.startUrl);
+        return;
       }
 
       await pollPwaTransaction(transaction);

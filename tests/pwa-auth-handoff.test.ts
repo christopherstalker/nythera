@@ -33,8 +33,9 @@ test("the internal handoff provider consumes a transaction and still enforces ac
 });
 
 test("standalone OAuth uses an external provider window and returns the session to its own context", async () => {
-  const [buttons, client] = await Promise.all([
+  const [buttons, complete, client] = await Promise.all([
     read("../src/components/auth/oauth-buttons.tsx"),
+    read("../src/components/auth/pwa-oauth-complete.tsx"),
     read("../src/lib/auth-client.ts")
   ]);
 
@@ -44,6 +45,11 @@ test("standalone OAuth uses an external provider window and returns the session 
   assert.match(buttons, /\/status/);
   assert.match(buttons, /signIn\("pwa-handoff"/);
   assert.match(buttons, /hasAuthenticatedSession\(\)/);
+  assert.match(buttons, /if \(!providerWindowOpened\)[\s\S]*window\.location\.assign\(body\.startUrl\)/);
+  assert.match(complete, /readStoredPwaAuthTransaction\(\)/);
+  assert.match(complete, /stored\?\.transactionId === transactionId/);
+  assert.match(complete, /clearStoredPwaAuthTransaction\(\)/);
+  assert.match(complete, /window\.location\.assign\(stored\.callbackPath\)/);
   assert.match(client, /sessionStorage\.setItem/);
   assert.doesNotMatch(client, /localStorage/);
 });

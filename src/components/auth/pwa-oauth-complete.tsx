@@ -4,6 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  clearStoredPwaAuthTransaction,
+  hasAuthenticatedSession,
+  readStoredPwaAuthTransaction
+} from "@/lib/auth-client";
 
 type CompletionState = "binding" | "ready" | "failed";
 
@@ -24,7 +29,22 @@ export function PwaOAuthComplete({ transactionId }: { transactionId: string }) {
           body: "{}"
         }
       );
-      setState(response.ok ? "ready" : "failed");
+      if (!response.ok) {
+        setState("failed");
+        return;
+      }
+
+      const stored = readStoredPwaAuthTransaction();
+      if (
+        stored?.transactionId === transactionId &&
+        (await hasAuthenticatedSession())
+      ) {
+        clearStoredPwaAuthTransaction();
+        window.location.assign(stored.callbackPath);
+        return;
+      }
+
+      setState("ready");
     } catch {
       setState("failed");
     }
