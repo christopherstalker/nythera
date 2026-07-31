@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, BookOpen, Keyboard, Layers3, Sparkles } from "lucide-react";
 import { RichMessageText } from "@/components/chat/rich-message-text";
+import { GuideNavigation } from "@/components/guide/guide-navigation";
 import { FormattingPlayground } from "@/components/rich-text/formatting-playground";
 import { Button } from "@/components/ui/button";
 import { PageHeader, PageShell, Surface } from "@/components/ui/page";
@@ -34,11 +35,12 @@ export default function RoleplayFormattingGuidePage() {
   return (
     <PageShell className="codex-formatting-guide pb-24">
       <div className="mx-auto max-w-6xl">
+        <GuideNavigation current="/guide/roleplay-formatting" />
         <div className="mb-5">
           <Button asChild variant="ghost" size="sm">
-            <Link href="/">
+            <Link href="/guide">
               <ArrowLeft className="h-4 w-4" />
-              Back to Nythera
+              Back to help center
             </Link>
           </Button>
         </div>

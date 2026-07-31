@@ -319,9 +319,11 @@ function MessageBubbleComponent({
               </ActionButton>
               {!isUser ? (
                 <>
-                  <ActionButton label="Regenerate" onClick={() => onRegenerate?.(id)} showLabel>
-                    <RefreshCw className="h-4 w-4" />
-                  </ActionButton>
+                  {onRegenerate ? (
+                    <ActionButton label="Regenerate" onClick={() => onRegenerate(id)} showLabel>
+                      <RefreshCw className="h-4 w-4" />
+                    </ActionButton>
+                  ) : null}
                   <ActionButton label="Continue" onClick={() => onContinue?.()} showLabel>
                     <SendHorizontal className="h-4 w-4" />
                   </ActionButton>

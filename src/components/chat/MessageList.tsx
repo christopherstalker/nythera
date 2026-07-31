@@ -236,6 +236,7 @@ function MessageRow({
   }
 
   if (row.type === "single") {
+    const canRegenerate = row.message.role === "ASSISTANT" && row.message.id === latestAssistantId;
     return (
       <MessageBubble
         id={row.message.id}
@@ -252,7 +253,7 @@ function MessageRow({
         usageEstimated={row.message.usageEstimated}
         onEdit={onEdit}
         onDelete={onDelete}
-        onRegenerate={onRegenerate}
+        onRegenerate={canRegenerate ? onRegenerate : undefined}
         onContinue={onContinue}
         onRewind={onRewind}
         onBranch={onBranch}
@@ -264,6 +265,7 @@ function MessageRow({
 
   const selectedIndex = variantByGroup[row.key] ?? row.variants.length - 1;
   const selected = row.variants[selectedIndex] ?? row.variants[row.variants.length - 1];
+  const isLatestVariantGroup = row.variants.some((variant) => variant.id === latestAssistantId);
 
   return (
     <MessageBubble
@@ -281,7 +283,7 @@ function MessageRow({
       usageEstimated={selected.usageEstimated}
       onEdit={onEdit}
       onDelete={onDelete}
-      onRegenerate={onRegenerate}
+      onRegenerate={isLatestVariantGroup ? onRegenerate : undefined}
       onContinue={onContinue}
       onRewind={onRewind}
       onBranch={onBranch}

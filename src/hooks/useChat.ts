@@ -24,7 +24,7 @@ type SendOptions = {
   responsePrompt?: string;
   regenerate?: boolean;
   continueChat?: boolean;
-  replaceAssistantId?: string;
+  regenerateMessageId?: string;
 };
 
 export function useChat(chatId: string, initialMessages: ChatMessage[]) {
@@ -94,6 +94,7 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
             responsePrompt: options?.responsePrompt,
             requestId,
             regenerate: options?.regenerate,
+            regenerateMessageId: options?.regenerateMessageId,
             continueChat: isContinuation
           })
         });

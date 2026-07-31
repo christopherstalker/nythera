@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Brain, Eye, KeyRound, Shield, UserCog, UserRound } from "lucide-react";
+import Link from "next/link";
+import { BookOpen, Brain, Eye, KeyRound, LifeBuoy, Shield, UserCog, UserRound } from "lucide-react";
 import { KeySettingsClient } from "@/components/settings/key-settings-client";
 import { MemorySettingsClient } from "@/components/settings/memory-settings-client";
 import { ProfileSettingsClient } from "@/components/settings/profile-settings-client";
 import { UserPersonaSettingsClient } from "@/components/settings/user-persona-settings-client";
 import { VoiceKeySettingsClient } from "@/components/settings/voice-key-settings-client";
+import { Button } from "@/components/ui/button";
 import { PageHeader, PageShell } from "@/components/ui/page";
 import { cn } from "@/lib/utils";
 
@@ -14,7 +16,8 @@ const sections = [
   { id: "api-keys", label: "API Keys", icon: KeyRound },
   { id: "persona", label: "Persona", icon: UserRound },
   { id: "interface", label: "Interface", icon: Eye },
-  { id: "privacy", label: "Privacy", icon: Shield }
+  { id: "privacy", label: "Privacy", icon: Shield },
+  { id: "help", label: "Help", icon: LifeBuoy }
 ];
 
 export default function SettingsPage() {
@@ -101,6 +104,14 @@ export default function SettingsPage() {
               <ProfileSettingsClient />
               <SwitchRow icon={Brain} label="Use saved memories in character chats" enabled={memoryEnabled} onToggle={() => savePreference({ memoryEnabled: !memoryEnabled })} />
               <MemorySettingsClient />
+            </div>
+          </SettingsCard>
+
+          <SettingsCard id="help" icon={LifeBuoy} title="Help & support">
+            <p className="text-sm leading-7 text-[var(--text-secondary)]">Read the platform and API manuals, or prepare a support email for a bug, suggestion, account question, or safety concern.</p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Button asChild variant="outline"><Link href="/guide"><BookOpen className="h-4 w-4" />Open manuals</Link></Button>
+              <Button asChild><Link href="/support"><LifeBuoy className="h-4 w-4" />Contact support</Link></Button>
             </div>
           </SettingsCard>
         </div>

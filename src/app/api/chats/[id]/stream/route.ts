@@ -14,6 +14,7 @@ import { getEffectiveProviderKeys } from "@/lib/user-keys";
 import { formatUserPersonaForPrompt } from "@/lib/user-persona";
 import { createMessageWithNextSequence } from "@/lib/message-sequence";
 import { resolveCharacterModelSettings } from "@/lib/character-model-settings";
+import { prepareRegenerationTurn } from "@/lib/message-actions";
 import { getStoryPromptContext, syncChatTurns } from "@/lib/stories/story-foundation";
 import { markStoryProactiveEventsFired } from "@/lib/stories/narrative-store";
 import { estimateModelCost } from "@/lib/model-pricing";
@@ -44,17 +45,7 @@ export async function POST(request: Request, context: Context) {
     const continueChat = input.continueChat === true;
     const continuationPrompt =
       "Continue the roleplay naturally from the latest message. Do not speak as the user, do not invent a user reply, and keep the scene moving in the character's voice.";
-    const message = continueChat ? continuationPrompt : sanitizeUserText(input.message);
-    const injectionAssessment = detectPromptInjection(message);
-    const moderation = moderateText({
-      text: message,
-      userIsMinor: isMinor(user.birthDate),
-      context: "message"
-    });
-
-    if (!moderation.allowed) {
-      throw new HttpError(400, moderation.reason ?? "Message blocked by safety policy.");
-    }
+    let message = continueChat ? continuationPrompt : sanitizeUserText(input.message);
 
     const chat = await measurePrismaOperation(
       {
@@ -117,23 +108,27 @@ export async function POST(request: Request, context: Context) {
     let userMessage: Awaited<ReturnType<typeof createMessageWithNextSequence>> | null = null;
 
     if (input.regenerate) {
-      let latestAssistantIndex = -1;
-      for (let index = recentMessages.length - 1; index >= 0; index -= 1) {
-        if (recentMessages[index].role === MessageRole.ASSISTANT) {
-          latestAssistantIndex = index;
-          break;
-        }
+      const regenerationTurn = prepareRegenerationTurn(recentMessages, input.regenerateMessageId);
+      if (!regenerationTurn) {
+        throw new HttpError(409, "Only the latest assistant response can be regenerated. Rewind or branch from an earlier turn.");
       }
 
-      if (latestAssistantIndex >= 0) {
-        let firstVariantIndex = latestAssistantIndex;
-        while (firstVariantIndex > 0 && recentMessages[firstVariantIndex - 1].role === MessageRole.ASSISTANT) {
-          firstVariantIndex -= 1;
-        }
+      message = sanitizeUserText(regenerationTurn.currentMessage);
+      recentMessages = regenerationTurn.recentMessages;
+    }
 
-        recentMessages = recentMessages.filter((_, index) => index < firstVariantIndex || index > latestAssistantIndex);
-      }
-    } else if (!continueChat) {
+    const injectionAssessment = detectPromptInjection(message);
+    const moderation = moderateText({
+      text: message,
+      userIsMinor: isMinor(user.birthDate),
+      context: "message"
+    });
+
+    if (!moderation.allowed) {
+      throw new HttpError(400, moderation.reason ?? "Message blocked by safety policy.");
+    }
+
+    if (!input.regenerate && !continueChat) {
       userMessage = await createMessageWithNextSequence({
         chatId: chat.id,
         role: MessageRole.USER,

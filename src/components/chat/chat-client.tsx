@@ -221,7 +221,7 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
     void send(previousUser.content, {
       ...chatSettingsRef.current,
       regenerate: true,
-      replaceAssistantId: assistantMessageId
+      regenerateMessageId: assistantMessageId
     });
   }, [send]);
 

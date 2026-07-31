@@ -55,6 +55,20 @@ test("streamed chat replaces optimistic user messages with persisted ids", async
   assert.match(hookSource, /message\.clientRequestId === requestId/);
 });
 
+test("regeneration sends and validates the selected latest assistant id", async () => {
+  const [clientSource, hookSource, streamSource, validationSource] = await Promise.all([
+    readFile(new URL("../src/components/chat/chat-client.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/hooks/useChat.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/app/api/chats/[id]/stream/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/lib/validation.ts", import.meta.url), "utf8")
+  ]);
+
+  assert.match(clientSource, /regenerateMessageId: assistantMessageId/);
+  assert.match(hookSource, /regenerateMessageId: options\?\.regenerateMessageId/);
+  assert.match(validationSource, /regenerateMessageId: z\.string\(\)/);
+  assert.match(streamSource, /prepareRegenerationTurn\(recentMessages, input\.regenerateMessageId\)/);
+});
+
 test("message delete removes stale local ghosts and keeps chat counts fresh", async () => {
   const [hookSource, apiSource] = await Promise.all([
     readFile(new URL("../src/hooks/useChat.ts", import.meta.url), "utf8"),

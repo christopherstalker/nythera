@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import {
-  GearSix,
   SignIn,
   SignOut,
   UserCircle
@@ -15,6 +14,7 @@ import { cn } from "@/lib/utils";
 import {
   isNavigationItemActive,
   primaryNavigationItems,
+  utilityNavigationItems,
   type NavigationIcon
 } from "@/components/nav/navigation-items";
 
@@ -41,7 +41,9 @@ export function NavRail() {
         </nav>
 
         <div className="mb-4 flex flex-col items-center gap-2">
-          <RailLink href="/settings" label="Settings" icon={GearSix} active={isNavigationItemActive(pathname, "/settings")} />
+          {utilityNavigationItems.map((item) => (
+            <RailLink key={item.href} {...item} active={isNavigationItemActive(pathname, item.href)} />
+          ))}
           {isAuthenticated ? (
             <button
               type="button"

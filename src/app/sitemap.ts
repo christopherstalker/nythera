@@ -11,7 +11,11 @@ const staticRoutes = [
   "/ai-character-chat",
   "/roleplay-characters",
   "/explore",
+  "/guide",
+  "/guide/platform",
+  "/guide/api",
   "/guide/roleplay-formatting",
+  "/support",
   "/download",
   "/privacy",
   "/terms"

@@ -181,6 +181,7 @@ export const streamMessageSchema = z
     responsePrompt: z.string().trim().max(2000).optional(),
     requestId: z.string().min(8).max(120).optional(),
     regenerate: z.boolean().optional(),
+    regenerateMessageId: z.string().min(1).max(120).optional(),
     continueChat: z.boolean().optional()
   })
   .refine((input) => input.continueChat || input.message.trim().length > 0, {

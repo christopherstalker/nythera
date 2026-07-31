@@ -149,7 +149,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
     return [...options.values()];
   }, [savedProviderOptions]);
 
-  const isSimpleMode = mode === "create" && formMode === "simple";
+  const isSimpleMode = formMode === "simple";
   const isPromptMode = mode === "create" && formMode === "prompt";
   const previewDraft = useMemo(
     () => (generatedPreview ? mergePreviewIntoDraft(draft, generatedPreview) : draft),

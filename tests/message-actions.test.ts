@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   canEditMessageRole,
   partitionMessagesForRewind,
+  prepareRegenerationTurn,
   shouldRegenerateAfterMessageEdit
 } from "../src/lib/message-actions";
 
@@ -23,6 +24,32 @@ test("user and assistant messages are editable, but only user edits regenerate",
   assert.equal(canEditMessageRole("SYSTEM"), false);
   assert.equal(shouldRegenerateAfterMessageEdit("USER"), true);
   assert.equal(shouldRegenerateAfterMessageEdit("ASSISTANT"), false);
+});
+
+test("regeneration targets only the latest assistant variant group without duplicating the user turn", () => {
+  const conversation = [
+    { id: "u1", role: "USER" as const, content: "Open the archive." },
+    { id: "a1", role: "ASSISTANT" as const, content: "The lock gives way." },
+    { id: "u2", role: "USER" as const, content: "Read the final page." },
+    { id: "a2", role: "ASSISTANT" as const, content: "The ink begins to move." },
+    { id: "a3", role: "ASSISTANT" as const, content: "A name rises from the page." }
+  ];
+
+  const result = prepareRegenerationTurn(conversation, "a2");
+  assert.equal(result?.currentMessage, "Read the final page.");
+  assert.deepEqual(result?.recentMessages.map((message) => message.id), ["u1", "a1"]);
+  assert.equal(prepareRegenerationTurn(conversation, "a1"), null);
+});
+
+test("regeneration after a user edit removes the edited turn from recent context", () => {
+  const result = prepareRegenerationTurn([
+    { id: "u1", role: "USER" as const, content: "Old context" },
+    { id: "a1", role: "ASSISTANT" as const, content: "Old answer" },
+    { id: "u2", role: "USER" as const, content: "Edited request" }
+  ]);
+
+  assert.equal(result?.currentMessage, "Edited request");
+  assert.deepEqual(result?.recentMessages.map((message) => message.id), ["u1", "a1"]);
 });
 
 test("message editing is inline and exposed for both roles", async () => {

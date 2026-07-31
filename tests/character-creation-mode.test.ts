@@ -26,6 +26,14 @@ test("the editor honors stored simple mode and defaults legacy characters to cus
   assert.equal(creationModeForEditor(undefined), "custom");
 });
 
+test("the character editor renders the stored guided mode instead of forcing the complete manuscript", async () => {
+  const form = await readFile(new URL("../src/components/characters/character-form.tsx", import.meta.url), "utf8");
+
+  assert.match(form, /const isSimpleMode = formMode === "simple"/);
+  assert.doesNotMatch(form, /const isSimpleMode = mode === "create"/);
+  assert.match(form, /mode === "edit" \? creationModeForEditor\(initialValue\?\.creationMode\) : "simple"/);
+});
+
 test("creation mode is persisted and legacy database rows default to custom", async () => {
   const schema = await readFile(new URL("../prisma/schema.prisma", import.meta.url), "utf8");
   const validation = await readFile(new URL("../src/lib/validation.ts", import.meta.url), "utf8");
