@@ -199,7 +199,7 @@ export function PromptGeneratorPanel({
             ) : (
               <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
                 No API key found. Add one in{" "}
-                <Link href="/settings#api-keys" className="font-medium text-[var(--accent-purple)] hover:underline">
+                <Link href="/settings/providers" className="font-medium text-[var(--accent-purple)] hover:underline">
                   Settings → API Keys
                 </Link>{" "}
                 to generate characters from a prompt.

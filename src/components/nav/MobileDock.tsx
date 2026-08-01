@@ -15,7 +15,7 @@ export function MobileDock() {
   return (
     <nav
       aria-label="Mobile primary navigation"
-      className="codex-mobile-dock relative z-50 grid h-[calc(var(--codex-mobile-dock-height)+env(safe-area-inset-bottom))] shrink-0 grid-cols-5 border-t border-[var(--codex-rule)] bg-[var(--codex-paper)] px-2 pb-[env(safe-area-inset-bottom)] md:hidden"
+      className="codex-mobile-dock relative z-50 grid h-[calc(var(--codex-mobile-dock-height)+env(safe-area-inset-bottom))] w-full max-w-full shrink-0 grid-cols-5 border-t border-[var(--codex-rule)] bg-[var(--codex-paper)] pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       {primaryNavigationItems.map((item) => (
         <MobileLink

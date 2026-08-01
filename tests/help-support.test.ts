@@ -27,7 +27,7 @@ test("support email and request categories use one shared source of truth", asyn
     readFile(new URL("../src/lib/support.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/components/support/support-email-form.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/components/nav/navigation-items.ts", import.meta.url), "utf8"),
-    readFile(new URL("../src/app/(main)/settings/page.tsx", import.meta.url), "utf8")
+    readFile(new URL("../src/app/(main)/settings/help/page.tsx", import.meta.url), "utf8")
   ]);
 
   assert.match(support, /support@nythera\.art/);

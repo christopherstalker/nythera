@@ -223,13 +223,14 @@ export function KeySettingsClient() {
               ) : null}
             </div>
 
-            <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto_auto_auto]">
+            <div className="mt-4 grid grid-cols-[repeat(3,2.5rem)] gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
               <Input
                 value={value}
                 onChange={(event) => setValues((current) => ({ ...current, [provider.provider]: event.target.value }))}
                 type={isVisible ? "text" : "password"}
                 placeholder={provider.placeholder}
                 autoComplete="off"
+                className="col-span-3 sm:col-span-1"
               />
               <Button
                 type="button"

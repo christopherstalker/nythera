@@ -11,7 +11,7 @@ test("Living Codex is a single permanent dark theme", async () => {
     read("../src/app/layout.tsx"),
     read("../src/components/providers/session-provider.tsx"),
     read("../src/components/nav/NavRail.tsx"),
-    read("../src/app/(main)/settings/page.tsx")
+    read("../src/app/(main)/settings/interface/page.tsx")
   ]);
 
   assert.doesNotMatch(tokens, /\.light\s*\{/);

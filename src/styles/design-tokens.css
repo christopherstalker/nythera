@@ -62,7 +62,7 @@
     --card-min-width: clamp(9.75rem, 42vw, 12.5rem);
     --card-height: clamp(16.5rem, 38vw, 18.75rem);
     --grid-gap: clamp(0.75rem, 1.8vw, 1.25rem);
-    --bottom-nav-offset: calc(92px + env(safe-area-inset-bottom));
+    --bottom-nav-offset: calc(var(--codex-mobile-dock-height) + env(safe-area-inset-bottom));
     --touch-target: 44px;
     --sidebar-width: 220px;
     --sidebar-collapsed: 64px;

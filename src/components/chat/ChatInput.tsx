@@ -135,7 +135,7 @@ export function ChatInput({
                 ))}
               </select>
               {!modelLoading && !hasModelOptions ? (
-                <a href="/settings#api-keys" className="px-1 text-xs font-medium text-[var(--accent-purple)] hover:underline">
+                <a href="/settings/providers" className="px-1 text-xs font-medium text-[var(--accent-purple)] hover:underline">
                   Add a provider key in Settings
                 </a>
               ) : (

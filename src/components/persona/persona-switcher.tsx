@@ -122,7 +122,7 @@ export function PersonaSwitcher({ collapsed = false }: PersonaSwitcherProps) {
           ) : (
             <p className="px-3 py-2 text-sm leading-5 text-[var(--text-secondary)]">No persona yet.</p>
           )}
-          <Link href="/settings#persona" onClick={() => setOpen(false)} className="nav-item mt-1 h-10">
+          <Link href="/settings/personas" onClick={() => setOpen(false)} className="nav-item mt-1 h-10">
             <Plus className="h-4 w-4" />
             Manage personas
           </Link>

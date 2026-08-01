@@ -28,7 +28,7 @@ export default function ApiGuidePage() {
         <div className="mt-10 grid gap-10">
           <ApiStep icon={KeyRound} number="01" title="Save a provider key">
             <p>Open Settings → API Keys, select a provider, paste the key issued by that provider, and save it. The browser never receives the stored key again.</p>
-            <Button asChild className="mt-5"><Link href="/settings#api-keys">Open API Keys</Link></Button>
+            <Button asChild className="mt-5"><Link href="/settings/providers">Open API Keys</Link></Button>
           </ApiStep>
 
           <ApiStep icon={CheckCircle2} number="02" title="Supported provider presets">
