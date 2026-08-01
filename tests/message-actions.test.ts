@@ -108,6 +108,7 @@ test("rewind uses one server transaction and removes derived future context", as
   assert.match(route, /rewindChat/);
   assert.match(rewind, /TransactionIsolationLevel\.Serializable/);
   assert.match(rewind, /tx\.memory\.deleteMany/);
+  assert.doesNotMatch(rewind, /pinned:\s*false/);
   assert.match(rewind, /tx\.storyTurn\.deleteMany/);
   assert.match(rewind, /tx\.storyFact\.deleteMany/);
   assert.match(rewind, /summary/);

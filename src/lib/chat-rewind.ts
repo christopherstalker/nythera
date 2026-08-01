@@ -41,7 +41,6 @@ export async function rewindChat(input: { chatId: string; userId: string; messag
         await tx.memory.deleteMany({
           where: {
             sourceChatId: chat.id,
-            pinned: false,
             OR: [
               { sourceMessageId: { in: deletedMessageIds } },
               { sourceMessageId: null, createdAt: { gt: target.createdAt } }
