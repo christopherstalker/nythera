@@ -8,6 +8,7 @@ import {
   prepareRegenerationTurn,
   shouldRegenerateAfterMessageEdit
 } from "../src/lib/message-actions";
+import { streamMessageSchema } from "../src/lib/validation";
 
 const messages = [1, 2, 3, 4, 5].map((number) => ({ id: String(number), content: `Message ${number}` }));
 
@@ -74,6 +75,15 @@ test("regeneration supports opening and continued assistant-only turns", () => {
   const continuedResult = prepareRegenerationTurn([opening, continuation, continuationVariant], continuation.id);
   assert.equal(continuedResult?.trigger, "continuation");
   assert.deepEqual(continuedResult?.recentMessages.map((message) => message.id), ["a1"]);
+});
+
+test("stream validation permits empty text only for continue and regenerate actions", () => {
+  assert.equal(streamMessageSchema.safeParse({ message: "" }).success, false);
+  assert.equal(streamMessageSchema.safeParse({ message: "", continueChat: true }).success, true);
+  assert.equal(
+    streamMessageSchema.safeParse({ message: "", regenerate: true, regenerateMessageId: "assistant-message" }).success,
+    true
+  );
 });
 
 test("message editing is inline and exposed for both roles", async () => {

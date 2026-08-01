@@ -184,7 +184,7 @@ export const streamMessageSchema = z
     regenerateMessageId: z.string().min(1).max(120).optional(),
     continueChat: z.boolean().optional()
   })
-  .refine((input) => input.continueChat || input.message.trim().length > 0, {
+  .refine((input) => input.continueChat || input.regenerate || input.message.trim().length > 0, {
     message: "Message is required.",
     path: ["message"]
   });
