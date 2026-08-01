@@ -12,10 +12,12 @@ type RegenerationMessage = {
   id: string;
   role: EditableMessageRole;
   content: string;
+  clientRequestId?: string | null;
 };
 
 export type RegenerationTurn<T extends RegenerationMessage = RegenerationMessage> = {
-  currentMessage: string;
+  trigger: "user" | "continuation" | "opening";
+  currentMessage?: string;
   recentMessages: T[];
 };
 
@@ -30,7 +32,7 @@ export function prepareRegenerationTurn<T extends RegenerationMessage>(
   if (!targetAssistantId) {
     const lastMessage = messages[messages.length - 1];
     return lastMessage.role === "USER"
-      ? { currentMessage: lastMessage.content, recentMessages: messages.slice(0, -1) }
+      ? { trigger: "user", currentMessage: lastMessage.content, recentMessages: messages.slice(0, -1) }
       : null;
   }
 
@@ -44,7 +46,11 @@ export function prepareRegenerationTurn<T extends RegenerationMessage>(
   }
 
   let firstVariantIndex = latestAssistantIndex;
-  while (firstVariantIndex > 0 && messages[firstVariantIndex - 1].role === "ASSISTANT") {
+  while (
+    firstVariantIndex > 0 &&
+    !messages[firstVariantIndex].clientRequestId?.startsWith("continue-") &&
+    messages[firstVariantIndex - 1].role === "ASSISTANT"
+  ) {
     firstVariantIndex -= 1;
   }
 
@@ -55,13 +61,17 @@ export function prepareRegenerationTurn<T extends RegenerationMessage>(
 
   const userMessageIndex = firstVariantIndex - 1;
   const userMessage = messages[userMessageIndex];
-  if (!userMessage || userMessage.role !== "USER") {
-    return null;
+  if (userMessage?.role === "USER") {
+    return {
+      trigger: "user",
+      currentMessage: userMessage.content,
+      recentMessages: messages.slice(0, userMessageIndex)
+    };
   }
 
   return {
-    currentMessage: userMessage.content,
-    recentMessages: messages.slice(0, userMessageIndex)
+    trigger: messages[firstVariantIndex].clientRequestId?.startsWith("continue-") ? "continuation" : "opening",
+    recentMessages: messages.slice(0, firstVariantIndex)
   };
 }
 

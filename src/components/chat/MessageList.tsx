@@ -135,6 +135,7 @@ export function MessageList({ messages, characterName, characterAvatarUrl, perso
                 personaName={personaName}
                 personaAvatarUrl={personaAvatarUrl}
                 latestAssistantId={latestAssistantId}
+                latestMessageId={messages[messages.length - 1]?.id ?? null}
                 variantByGroup={variantByGroup}
                 onEdit={onEdit}
                 onDelete={onDelete}
@@ -172,6 +173,7 @@ function MessageRow({
   personaName,
   personaAvatarUrl,
   latestAssistantId,
+  latestMessageId,
   variantByGroup,
   onEdit,
   onDelete,
@@ -189,6 +191,7 @@ function MessageRow({
   personaName?: string | null;
   personaAvatarUrl?: string | null;
   latestAssistantId: string | null;
+  latestMessageId: string | null;
   variantByGroup: Record<string, number>;
   onEdit?: (messageId: string, content: string) => void;
   onDelete?: (messageId: string) => void;
@@ -236,7 +239,8 @@ function MessageRow({
   }
 
   if (row.type === "single") {
-    const canRegenerate = row.message.role === "ASSISTANT" && row.message.id === latestAssistantId;
+    const isLatestMessage = row.message.id === latestMessageId;
+    const canRegenerate = row.message.role === "ASSISTANT" && row.message.id === latestAssistantId && isLatestMessage;
     return (
       <MessageBubble
         id={row.message.id}
@@ -254,8 +258,8 @@ function MessageRow({
         onEdit={onEdit}
         onDelete={onDelete}
         onRegenerate={canRegenerate ? onRegenerate : undefined}
-        onContinue={onContinue}
-        onRewind={onRewind}
+        onContinue={canRegenerate ? onContinue : undefined}
+        onRewind={!isLatestMessage ? onRewind : undefined}
         onBranch={onBranch}
         onPin={onPin}
         isLatestAssistant={row.message.id === latestAssistantId}
@@ -266,6 +270,7 @@ function MessageRow({
   const selectedIndex = variantByGroup[row.key] ?? row.variants.length - 1;
   const selected = row.variants[selectedIndex] ?? row.variants[row.variants.length - 1];
   const isLatestVariantGroup = row.variants.some((variant) => variant.id === latestAssistantId);
+  const isSelectedLatestMessage = selected.id === latestMessageId;
 
   return (
     <MessageBubble
@@ -283,9 +288,9 @@ function MessageRow({
       usageEstimated={selected.usageEstimated}
       onEdit={onEdit}
       onDelete={onDelete}
-      onRegenerate={isLatestVariantGroup ? onRegenerate : undefined}
-      onContinue={onContinue}
-      onRewind={onRewind}
+      onRegenerate={isLatestVariantGroup && isSelectedLatestMessage ? onRegenerate : undefined}
+      onContinue={isLatestVariantGroup && isSelectedLatestMessage ? onContinue : undefined}
+      onRewind={!isSelectedLatestMessage ? onRewind : undefined}
       onBranch={onBranch}
       onPin={onPin}
       isLatestAssistant={selected.id === latestAssistantId}

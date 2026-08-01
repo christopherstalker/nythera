@@ -113,7 +113,11 @@ export async function POST(request: Request, context: Context) {
         throw new HttpError(409, "Only the latest assistant response can be regenerated. Rewind or branch from an earlier turn.");
       }
 
-      message = sanitizeUserText(regenerationTurn.currentMessage);
+      message = regenerationTurn.trigger === "user"
+        ? sanitizeUserText(regenerationTurn.currentMessage ?? "")
+        : regenerationTurn.trigger === "continuation"
+          ? continuationPrompt
+          : "Write a fresh alternative opening message for this roleplay. Stay in character, establish the scene, and leave room for the user to respond.";
       recentMessages = regenerationTurn.recentMessages;
     }
 

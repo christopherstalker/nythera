@@ -51,7 +51,8 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
     async (content: string, options?: SendOptions) => {
       const trimmedContent = content.trim();
       const isContinuation = options?.continueChat === true;
-      if ((!trimmedContent && !isContinuation) || inFlightRef.current) {
+      const isRegeneration = options?.regenerate === true;
+      if ((!trimmedContent && !isContinuation && !isRegeneration) || inFlightRef.current) {
         return;
       }
 

@@ -64,9 +64,21 @@ test("regeneration sends and validates the selected latest assistant id", async 
   ]);
 
   assert.match(clientSource, /regenerateMessageId: assistantMessageId/);
+  assert.match(clientSource, /previousUser\?\.content \?\? ""/);
   assert.match(hookSource, /regenerateMessageId: options\?\.regenerateMessageId/);
+  assert.match(hookSource, /!isContinuation && !isRegeneration/);
   assert.match(validationSource, /regenerateMessageId: z\.string\(\)/);
   assert.match(streamSource, /prepareRegenerationTurn\(recentMessages, input\.regenerateMessageId\)/);
+});
+
+test("latest message actions do not expose a no-op rewind", async () => {
+  const [listSource, bubbleSource] = await Promise.all([
+    readFile(new URL("../src/components/chat/MessageList.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/chat/MessageBubble.tsx", import.meta.url), "utf8")
+  ]);
+
+  assert.match(listSource, /onRewind=\{!isLatestMessage \? onRewind : undefined\}/);
+  assert.match(bubbleSource, /\{onRewind \? \([\s\S]*?ActionButton label="Rewind"/);
 });
 
 test("message delete removes stale local ghosts and keeps chat counts fresh", async () => {

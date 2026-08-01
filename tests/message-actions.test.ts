@@ -36,6 +36,7 @@ test("regeneration targets only the latest assistant variant group without dupli
   ];
 
   const result = prepareRegenerationTurn(conversation, "a2");
+  assert.equal(result?.trigger, "user");
   assert.equal(result?.currentMessage, "Read the final page.");
   assert.deepEqual(result?.recentMessages.map((message) => message.id), ["u1", "a1"]);
   assert.equal(prepareRegenerationTurn(conversation, "a1"), null);
@@ -50,6 +51,29 @@ test("regeneration after a user edit removes the edited turn from recent context
 
   assert.equal(result?.currentMessage, "Edited request");
   assert.deepEqual(result?.recentMessages.map((message) => message.id), ["u1", "a1"]);
+});
+
+test("regeneration supports opening and continued assistant-only turns", () => {
+  const opening = { id: "a1", role: "ASSISTANT" as const, content: "Welcome to the paddock." };
+  const continuation = {
+    id: "a2",
+    role: "ASSISTANT" as const,
+    content: "The team principal turns toward you.",
+    clientRequestId: "continue-request-1"
+  };
+  const continuationVariant = {
+    id: "a3",
+    role: "ASSISTANT" as const,
+    content: "The team principal sets down his notes."
+  };
+
+  const openingResult = prepareRegenerationTurn([opening], opening.id);
+  assert.equal(openingResult?.trigger, "opening");
+  assert.deepEqual(openingResult?.recentMessages, []);
+
+  const continuedResult = prepareRegenerationTurn([opening, continuation, continuationVariant], continuation.id);
+  assert.equal(continuedResult?.trigger, "continuation");
+  assert.deepEqual(continuedResult?.recentMessages.map((message) => message.id), ["a1"]);
 });
 
 test("message editing is inline and exposed for both roles", async () => {

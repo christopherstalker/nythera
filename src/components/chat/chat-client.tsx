@@ -209,16 +209,16 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
   const regenerate = useCallback((assistantMessageId: string) => {
     const currentMessages = messagesRef.current;
     const index = currentMessages.findIndex((message) => message.id === assistantMessageId);
-    const previousUser = currentMessages
-      .slice(0, index >= 0 ? index : currentMessages.length)
-      .reverse()
-      .find((message) => message.role === "USER");
-
-    if (!previousUser || isStreamingRef.current) {
+    if (index < 0 || isStreamingRef.current) {
       return;
     }
 
-    void send(previousUser.content, {
+    const previousUser = currentMessages
+      .slice(0, index)
+      .reverse()
+      .find((message) => message.role === "USER");
+
+    void send(previousUser?.content ?? "", {
       ...chatSettingsRef.current,
       regenerate: true,
       regenerateMessageId: assistantMessageId

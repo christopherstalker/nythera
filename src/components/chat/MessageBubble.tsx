@@ -324,14 +324,18 @@ function MessageBubbleComponent({
                       <RefreshCw className="h-4 w-4" />
                     </ActionButton>
                   ) : null}
-                  <ActionButton label="Continue" onClick={() => onContinue?.()} showLabel>
-                    <SendHorizontal className="h-4 w-4" />
-                  </ActionButton>
+                  {onContinue ? (
+                    <ActionButton label="Continue" onClick={onContinue} showLabel>
+                      <SendHorizontal className="h-4 w-4" />
+                    </ActionButton>
+                  ) : null}
                 </>
               ) : null}
-              <ActionButton label="Rewind" onClick={() => onRewind?.(id)} mobileHidden>
-                <History className="h-4 w-4" />
-              </ActionButton>
+              {onRewind ? (
+                <ActionButton label="Rewind" onClick={() => onRewind(id)} mobileHidden>
+                  <History className="h-4 w-4" />
+                </ActionButton>
+              ) : null}
               <ActionButton label="More actions" onClick={openActions} className="hidden max-sm:inline-flex">
                 <MoreHorizontal className="h-4 w-4" />
               </ActionButton>
@@ -386,8 +390,8 @@ function MessageBubbleComponent({
           onCopy={copyToClipboard}
           onEdit={edit}
           onRegenerate={!isUser ? () => onRegenerate?.(id) : undefined}
-          onContinue={!isUser ? () => onContinue?.() : undefined}
-          onRewind={() => onRewind?.(id)}
+          onContinue={!isUser && onContinue ? onContinue : undefined}
+          onRewind={onRewind ? () => onRewind(id) : undefined}
           onPreviousVariant={hasVariants ? onPreviousVariant : undefined}
           onNextVariant={hasVariants ? onNextVariant : undefined}
           previousVariantDisabled={hasVariants ? variantIndex! <= 0 : undefined}
