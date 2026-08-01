@@ -47,6 +47,7 @@ const securityHeaders = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  serverExternalPackages: ["mammoth", "unpdf"],
   experimental: {
     serverActions: {
       bodySizeLimit: "2mb"

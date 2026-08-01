@@ -107,6 +107,7 @@ const ROUTE_LIMITS: Record<string, RateLimitRule> = {
   "mobile:characters:create": AI_CREATION_LIMIT,
   "characters:generate": AI_CREATION_LIMIT,
   "characters:generate-prompt": AI_CREATION_LIMIT,
+  "characters:import": AI_CREATION_LIMIT,
   "characters:assist": AI_CREATION_LIMIT,
   "chats:branch": BRANCH_LIMIT,
   "memories:search": MESSAGE_LIMIT,

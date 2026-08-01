@@ -17,6 +17,10 @@ import {
   Zap
 } from "lucide-react";
 import { CharacterPreviewPanel } from "@/components/characters/character-preview-panel";
+import {
+  CharacterFileImportPanel,
+  type CharacterFileImportResult
+} from "@/components/characters/character-file-import-panel";
 import { RichMessageText } from "@/components/chat/rich-message-text";
 import { PromptGeneratorPanel, type PromptGeneratorOptions } from "@/components/characters/prompt-generator-panel";
 import { TagChipInput } from "@/components/characters/tag-chip-input";
@@ -27,18 +31,19 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   applyGeneratedPreview,
+  applyCharacterCardJsonToDraft,
   applyPromptGenerationToDraft,
   buildCharacterCreatePayload,
   creationModeForEditor,
   creationModeForNewCharacter,
   firstValidationIssue,
-  lorebookToText,
   normalizeInitialCharacterValue,
   promptPreviewFromGeneration,
   validateCharacterCreatePayload
 } from "@/lib/character-form-payload";
 import {
   VIBE_PRESETS,
+  type CharacterCreationMode,
   type CharacterFormInitialValue,
   type CharacterFormMode,
   type CharacterFormValue,
@@ -105,6 +110,12 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
   const [promptGenerated, setPromptGenerated] = useState(false);
   const [promptOptions, setPromptOptions] = useState<PromptGeneratorOptions | null>(null);
   const [savedProviderOptions, setSavedProviderOptions] = useState<ProviderOption[]>([]);
+  const [importTargetMode, setImportTargetMode] = useState<CharacterCreationMode>(() =>
+    formMode === "custom" ? "custom" : "simple"
+  );
+  const [sourceFile, setSourceFile] = useState<File | null>(null);
+  const [importingFile, setImportingFile] = useState(false);
+  const [fileImportResult, setFileImportResult] = useState<CharacterFileImportResult | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -176,8 +187,93 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
     if (nextMode === "simple" && !guidedChapters.some((chapter) => chapter.id === activeChapter)) {
       setActiveChapter("identity");
     }
+    if (nextMode === "simple" || nextMode === "custom") {
+      setImportTargetMode(nextMode);
+    }
     setFormMode(nextMode);
     setError(null);
+  }
+
+  function selectImportTarget(nextMode: CharacterCreationMode) {
+    setImportTargetMode(nextMode);
+    switchFormMode(nextMode);
+  }
+
+  function selectSourceFile(file: File | null) {
+    setFileImportResult(null);
+    if (!file) {
+      setSourceFile(null);
+      return;
+    }
+
+    const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+    if (!["txt", "md", "json", "yaml", "yml", "docx", "pdf"].includes(extension)) {
+      setSourceFile(null);
+      setError("Use a TXT, Markdown, JSON, YAML, DOCX, or PDF file.");
+      return;
+    }
+    if (file.size > 4_000_000) {
+      setSourceFile(null);
+      setError("The selected file is larger than 4 MB.");
+      return;
+    }
+
+    setSourceFile(file);
+    setError(null);
+  }
+
+  async function importSourceFile() {
+    if (!sourceFile) return;
+
+    setImportingFile(true);
+    setFileImportResult(null);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.set("file", sourceFile);
+      formData.set("targetMode", importTargetMode);
+      const response = await fetch("/api/characters/import", {
+        method: "POST",
+        body: formData
+      });
+
+      if (response.status === 401) {
+        router.push("/login");
+        return;
+      }
+
+      const body = await response.json().catch(() => null);
+      if (!response.ok) {
+        setError(body?.error ?? "Could not create a character draft from this file.");
+        return;
+      }
+
+      if (body?.kind === "character-card" && typeof body.characterCardJson === "string") {
+        setDraft((current) => applyCharacterCardJsonToDraft(current, body.characterCardJson));
+        setGeneratedPreview(null);
+      } else if (body?.kind === "generated" && body.generated) {
+        setDraft((current) => applyPromptGenerationToDraft(current, body.generated));
+        setGeneratedPreview(promptPreviewFromGeneration(body.generated));
+        setGenerationMeta({ source: body.generated.source, provider: body.generated.provider });
+      } else {
+        setError("The file was read, but no character draft was returned.");
+        return;
+      }
+
+      setPromptGenerated(false);
+      setFormMode(importTargetMode);
+      setActiveChapter("identity");
+      setFileImportResult({
+        fileName: typeof body?.file?.name === "string" ? body.file.name : sourceFile.name,
+        kind: body.kind,
+        warnings: Array.isArray(body.warnings) ? body.warnings.filter((warning: unknown) => typeof warning === "string") : []
+      });
+    } catch {
+      setError("Could not create a character draft from this file.");
+    } finally {
+      setImportingFile(false);
+    }
   }
 
   async function generateFromPrompt(options: PromptGeneratorOptions) {
@@ -277,29 +373,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
 
   function importCharacterCard() {
     try {
-      const parsed = JSON.parse(draft.characterCardJson);
-      const data = parsed?.data && typeof parsed.data === "object" ? parsed.data : parsed;
-      const notes = parseCreatorNotes(data?.creator_notes);
-      setDraft((current) => ({
-        ...current,
-        name: textFromCard(data?.name, current.name),
-        description: textFromCard(data?.description, current.description),
-        personality: textFromCard(data?.personality, current.personality),
-        scenario: textFromCard(data?.scenario, current.scenario),
-        greeting: textFromCard(data?.first_mes ?? data?.mes_example, current.greeting),
-        avatarUrl: textFromCard(data?.avatar, current.avatarUrl),
-        tags: Array.isArray(data?.tags) ? data.tags.map(String).filter(Boolean).slice(0, 12) : current.tags,
-        personaRole: textFromCard(notes.persona?.role, current.personaRole),
-        archetype: textFromCard(notes.persona?.archetype, current.archetype),
-        personaTraits: Array.isArray(notes.persona?.personalityTraits) ? notes.persona.personalityTraits.join("\n") : current.personaTraits,
-        speakingStyle: textFromCard(notes.persona?.speakingStyle, current.speakingStyle),
-        emotionalTone: textFromCard(notes.persona?.emotionalTone, current.emotionalTone),
-        lorebookText: notes.lorebook ? lorebookToText(notes.lorebook) : current.lorebookText,
-        visualAccentColor: textFromCard(notes.visualIdentity?.accentColor, current.visualAccentColor),
-        visualGradientFrom: textFromCard(notes.visualIdentity?.gradientFrom, current.visualGradientFrom),
-        visualGradientTo: textFromCard(notes.visualIdentity?.gradientTo, current.visualGradientTo),
-        visualChatBackground: textFromCard(notes.visualIdentity?.chatBackground, current.visualChatBackground)
-      }));
+      setDraft((current) => applyCharacterCardJsonToDraft(current, draft.characterCardJson));
       setError(null);
     } catch {
       setError("Paste valid Character Card V2 JSON before importing.");
@@ -509,6 +583,18 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
             </div>
           ) : null}
         </header>
+
+        {mode === "create" ? (
+          <CharacterFileImportPanel
+            targetMode={importTargetMode}
+            file={sourceFile}
+            importing={importingFile}
+            result={fileImportResult}
+            onTargetModeChange={selectImportTarget}
+            onFileChange={selectSourceFile}
+            onImport={() => void importSourceFile()}
+          />
+        ) : null}
 
         {isPromptMode ? (
           <section className="codex-prompt-sheet">
@@ -744,31 +830,6 @@ function applyAssistSuggestions(draft: CharacterFormValue, suggestions: Record<s
     lorebookText: suggestions.lorebookText?.trim() || draft.lorebookText,
     visualChatBackground: suggestions.visualChatBackground?.trim() || draft.visualChatBackground
   };
-}
-
-function parseCreatorNotes(value: unknown) {
-  if (typeof value !== "string" || !value.trim()) {
-    return {} as {
-      persona?: Record<string, unknown>;
-      lorebook?: Record<string, unknown>;
-      visualIdentity?: Record<string, unknown>;
-    };
-  }
-
-  try {
-    const parsed = JSON.parse(value);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as {
-      persona?: Record<string, unknown>;
-      lorebook?: Record<string, unknown>;
-      visualIdentity?: Record<string, unknown>;
-    } : {};
-  } catch {
-    return {};
-  }
-}
-
-function textFromCard(value: unknown, fallback: string) {
-  return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
 
 function GeneratedPreviewCard({ preview }: { preview: GeneratedCharacterPreview }) {

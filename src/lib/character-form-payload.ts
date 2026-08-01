@@ -1,4 +1,5 @@
 import { characterCreateSchema } from "@/lib/validation";
+import { parseCharacterCardV2Json } from "@/lib/character-card-v2";
 import { normalizeCharacterTags } from "@/lib/character-tags";
 import { generateSimpleCharacterDraft } from "@/lib/simple-character-generation";
 import {
@@ -261,6 +262,49 @@ export function promptPreviewFromGeneration(generated: PromptGeneratedCharacter)
   };
 }
 
+export function applyCharacterCardJsonToDraft(draft: CharacterFormValue, value: string): CharacterFormValue {
+  const { data, notes } = parseCharacterCardV2Json(value);
+  const persona = notes.persona ?? {};
+  const style = notes.communicationStyle ?? {};
+  const visual = notes.visualIdentity ?? {};
+
+  return {
+    ...draft,
+    characterCardJson: value,
+    name: preferredText(data.name, draft.name),
+    description: preferredText(data.description, draft.description),
+    personality: preferredText(data.personality, draft.personality),
+    scenario: preferredText(data.scenario, draft.scenario),
+    greeting: preferredText(data.first_mes ?? data.mes_example, draft.greeting),
+    avatarUrl: preferredText(data.avatar, draft.avatarUrl),
+    tags: Array.isArray(data.tags) ? normalizeTagsInput(data.tags.map(String)) : draft.tags,
+    personaRole: preferredText(persona.role, draft.personaRole),
+    archetype: preferredText(persona.archetype, draft.archetype),
+    personaTraits: preferredList(persona.personalityTraits, draft.personaTraits),
+    speakingStyle: preferredText(persona.speakingStyle, draft.speakingStyle),
+    emotionalTone: preferredText(persona.emotionalTone, draft.emotionalTone),
+    relationshipStyle: preferredText(persona.relationshipStyle, draft.relationshipStyle),
+    initiativeLevel: preferredText(persona.initiativeLevel, draft.initiativeLevel),
+    verbosityLevel: preferredText(persona.verbosityLevel, draft.verbosityLevel),
+    motivation: preferredText(persona.motivation, draft.motivation),
+    boundaries: preferredList(persona.boundaries, draft.boundaries),
+    behavioralRules: preferredList(persona.behavioralRules, draft.behavioralRules),
+    forbiddenBehaviors: preferredList(persona.forbiddenBehaviors, draft.forbiddenBehaviors),
+    tone: preferredText(style.tone, draft.tone),
+    humor: numberValue(style.humor, draft.humor),
+    romanceLevel: numberValue(style.romanceLevel, draft.romanceLevel),
+    seriousness: numberValue(style.seriousness, draft.seriousness),
+    initiative: numberValue(style.initiative, draft.initiative),
+    messageLength: normalizeMessageLength(style.messageLength, draft.messageLength),
+    roleplayIntensity: numberValue(style.roleplayIntensity, draft.roleplayIntensity),
+    lorebookText: notes.lorebook ? lorebookToText(notes.lorebook) : draft.lorebookText,
+    visualAccentColor: hexColorValue(visual.accentColor, draft.visualAccentColor),
+    visualGradientFrom: hexColorValue(visual.gradientFrom, draft.visualGradientFrom),
+    visualGradientTo: hexColorValue(visual.gradientTo, draft.visualGradientTo),
+    visualChatBackground: preferredText(visual.chatBackground, draft.visualChatBackground)
+  };
+}
+
 export function firstValidationIssue(error: ReturnType<typeof validateCharacterCreatePayload>) {
   if (error.success) {
     return null;
@@ -329,6 +373,16 @@ function clampNumber(value: number, min: number, max: number) {
 
 function textValue(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function preferredText(value: unknown, fallback: string) {
+  const text = textValue(value);
+  return text || fallback;
+}
+
+function preferredList(value: unknown, fallback: string) {
+  const text = listToText(value);
+  return text || fallback;
 }
 
 function listToText(value: unknown, fallback?: string) {
