@@ -318,7 +318,9 @@ export async function POST(request: Request, context: Context) {
               userId: user.id,
               characterId: chat.characterId,
               latestUserMessage: message,
+              latestUserMessageId: userMessage?.id ?? null,
               latestAssistantMessage: assistant.content,
+              latestAssistantMessageId: assistant.id,
               messageCount: updated.messageCount,
               providerKeys
             });

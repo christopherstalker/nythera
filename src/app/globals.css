@@ -192,40 +192,6 @@
     gap: var(--grid-gap);
   }
 
-  .nythera-bento-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    grid-auto-rows: 260px;
-    gap: 16px;
-  }
-
-  .nythera-bento-card {
-    height: 100%;
-    min-height: var(--card-height);
-  }
-
-  @media (min-width: 768px) {
-    .nythera-bento-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
-
-  @media (min-width: 1280px) {
-    .nythera-bento-grid {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      grid-auto-rows: 260px;
-    }
-
-    .nythera-bento-featured {
-      grid-column: span 2;
-      grid-row: span 2;
-    }
-
-    .nythera-bento-wide {
-      grid-column: span 2;
-    }
-  }
-
   .nythera-row-card {
     width: var(--card-min-width);
     flex: 0 0 var(--card-min-width);
@@ -1545,40 +1511,29 @@
 }
 
 @layer components {
-  .codex-character-catalog {
+  .codex-character-gallery {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     border-top: 1px solid var(--codex-rule);
     border-left: 1px solid var(--codex-rule);
   }
 
-  .codex-character-record {
+  .codex-character-tile {
     min-width: 0;
-    min-height: 27rem;
     border-right: 1px solid var(--codex-rule);
     border-bottom: 1px solid var(--codex-rule);
   }
 
-  .codex-character-record.nythera-bento-featured {
-    grid-column: span 2;
-    min-height: 34rem;
-  }
-
-  .codex-character-record.nythera-bento-wide {
-    grid-column: span 2;
-  }
-
   .codex-character-plate {
     display: grid;
-    min-height: inherit;
-    grid-template-rows: minmax(15rem, 1fr) auto;
+    grid-template-rows: auto 1fr;
     border-radius: 0;
     background: transparent;
   }
 
   .codex-character-plate-image {
     position: relative;
-    min-height: 15rem;
+    aspect-ratio: 4 / 5;
     overflow: hidden;
   }
 
@@ -1590,7 +1545,7 @@
 
   .codex-character-plate-copy {
     position: relative;
-    padding: 1.35rem 1.45rem 1.5rem;
+    padding: .85rem .9rem 1rem;
     border-top: 1px solid var(--codex-rule);
     background: var(--codex-paper);
   }
@@ -1604,40 +1559,14 @@
   }
 
   @media (min-width: 768px) {
-    .codex-character-catalog {
+    .codex-character-gallery {
       grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
-    .codex-character-record.nythera-bento-featured {
-      grid-column: span 2;
-      grid-row: span 2;
-    }
-
-    .codex-character-record.nythera-bento-wide {
-      grid-column: span 2;
     }
   }
 
   @media (min-width: 1280px) {
-    .codex-character-catalog {
+    .codex-character-gallery {
       grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-
-    .codex-character-catalog.is-shelf {
-      grid-template-columns: repeat(4, minmax(15rem, 1fr));
-    }
-  }
-
-  @media (max-width: 560px) {
-    .codex-character-catalog {
-      grid-template-columns: 1fr;
-    }
-
-    .codex-character-record,
-    .codex-character-record.nythera-bento-featured,
-    .codex-character-record.nythera-bento-wide {
-      grid-column: span 1;
-      min-height: 30rem;
     }
   }
 }

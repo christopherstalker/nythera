@@ -93,3 +93,24 @@ test("message editing is inline and exposed for both roles", async () => {
   assert.match(bubble, /aria-label="Edit message text"/);
   assert.match(bubble, /onEdit=\{edit\}/);
 });
+
+test("rewind uses one server transaction and removes derived future context", async () => {
+  const [hook, route, rewind, schema, memory] = await Promise.all([
+    readFile(new URL("../src/hooks/useChat.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/app/api/chats/[id]/rewind/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/lib/chat-rewind.ts", import.meta.url), "utf8"),
+    readFile(new URL("../prisma/schema.prisma", import.meta.url), "utf8"),
+    readFile(new URL("../src/lib/memory.ts", import.meta.url), "utf8")
+  ]);
+
+  assert.match(hook, /api\/chats\/\$\{chatId\}\/rewind/);
+  assert.doesNotMatch(hook, /toDelete[\s\S]*Promise\.all/);
+  assert.match(route, /rewindChat/);
+  assert.match(rewind, /TransactionIsolationLevel\.Serializable/);
+  assert.match(rewind, /tx\.memory\.deleteMany/);
+  assert.match(rewind, /tx\.storyTurn\.deleteMany/);
+  assert.match(rewind, /tx\.storyFact\.deleteMany/);
+  assert.match(rewind, /summary/);
+  assert.match(schema, /sourceMessage\s+Message\?.*MemorySourceMessage/);
+  assert.match(memory, /latestAssistantMessageId/);
+});

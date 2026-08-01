@@ -285,22 +285,23 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
       setMessages(retained);
 
       try {
-        const responses = await Promise.all(
-          toDelete
-            .filter((message) => !message.id.startsWith("local-"))
-            .map((message) =>
-              fetch(`/api/messages?id=${encodeURIComponent(message.id)}`, { method: "DELETE" })
-          )
-        );
-        if (responses.some((response) => !response.ok && response.status !== 404)) {
-          throw new Error("One or more messages could not be deleted.");
+        if (toDelete.some((message) => !message.id.startsWith("local-"))) {
+          const response = await fetch(`/api/chats/${chatId}/rewind`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ messageId })
+          });
+          if (!response.ok) {
+            throw new Error("The conversation state could not be rewound.");
+          }
         }
       } catch (caught) {
-        console.error("Failed to delete messages during rewind:", caught);
+        console.error("Failed to rewind conversation state:", caught);
+        setMessages(messages);
         setError("Failed to rewind completely. Please refresh.");
       }
     },
-    [messages]
+    [chatId, messages]
   );
 
   const branchFromMessage = useCallback(

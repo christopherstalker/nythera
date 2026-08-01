@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { BookMarked, ChevronRight, MessageCircle, Plus, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
@@ -28,24 +28,38 @@ export default function LibraryPage() {
   const [library, setLibrary] = useState<LibraryBody | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadLibrary() {
-      try {
-        const response = await fetch("/api/library", { cache: "no-store" });
-        if (response.ok) {
-          const body = await response.json();
-          setLibrary(body);
-          return;
-        }
-
-        throw new Error(response.status === 401 ? "AUTH_REQUIRED" : "LIBRARY_UNAVAILABLE");
-      } catch (caught) {
-        setError(caught instanceof Error && caught.message === "AUTH_REQUIRED" ? "Sign in to view your library." : "Your library could not be loaded. Please try again.");
+  const loadLibrary = useCallback(async () => {
+    try {
+      const response = await fetch("/api/library", { cache: "no-store" });
+      if (response.ok) {
+        const body = await response.json();
+        setLibrary(body);
+        setError(null);
+        return;
       }
-    }
 
-    void loadLibrary();
+      throw new Error(response.status === 401 ? "AUTH_REQUIRED" : "LIBRARY_UNAVAILABLE");
+    } catch (caught) {
+      setError(caught instanceof Error && caught.message === "AUTH_REQUIRED" ? "Sign in to view your library." : "Your library could not be loaded. Please try again.");
+    }
   }, []);
+
+  useEffect(() => {
+    void loadLibrary();
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void loadLibrary();
+    };
+    window.addEventListener("nythera:characters-updated", refreshWhenVisible);
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    const interval = window.setInterval(refreshWhenVisible, 30_000);
+    return () => {
+      window.removeEventListener("nythera:characters-updated", refreshWhenVisible);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.clearInterval(interval);
+    };
+  }, [loadLibrary]);
 
   return (
     <PageShell className="codex-library relative z-10 space-y-12">

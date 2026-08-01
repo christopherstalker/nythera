@@ -12,7 +12,9 @@ export async function schedulePostMessageJobs(input: {
   userId: string;
   characterId: string;
   latestUserMessage: string;
+  latestUserMessageId?: string | null;
   latestAssistantMessage: string;
+  latestAssistantMessageId: string;
   messageCount: number;
   providerKeys?: ProviderKeys;
 }) {
@@ -37,9 +39,18 @@ export async function extractMemoriesFromExchange(input: {
   userId: string;
   characterId: string;
   latestUserMessage: string;
+  latestUserMessageId?: string | null;
   latestAssistantMessage: string;
+  latestAssistantMessageId: string;
   providerKeys?: ProviderKeys;
 }) {
+  const sourceMessage = await prisma.message.findFirst({
+    where: { id: input.latestAssistantMessageId, chatId: input.chatId },
+    select: { id: true }
+  });
+  if (!sourceMessage) {
+    return [];
+  }
   if (!shouldStoreMemoryFromText(input.latestUserMessage) || !shouldStoreMemoryFromText(input.latestAssistantMessage)) {
     return [];
   }
@@ -55,9 +66,14 @@ export async function extractMemoriesFromExchange(input: {
         userId: input.userId,
         characterId: input.characterId,
         sourceChatId: input.chatId,
+        sourceMessageId: sourceMessage.id,
         content: candidate.content,
         category: candidate.category,
-        metadata: candidate.metadata,
+        metadata: {
+          ...(candidate.metadata as Prisma.JsonObject),
+          sourceUserMessageId: input.latestUserMessageId ?? null,
+          sourceAssistantMessageId: sourceMessage.id
+        },
         importance: candidate.importance,
         confidence: candidate.confidence,
         providerKeys: input.providerKeys
@@ -110,22 +126,25 @@ export async function summarizeChat(chatId: string) {
     return null;
   }
 
-  const importantLines = chat.messages
-    .filter((message) => message.role !== MessageRole.SYSTEM)
-    .slice(-40)
-    .map((message) => `${message.role}: ${cleanSentence(message.content).slice(0, 260)}`);
-
-  const summary = [
-    "Conversation summary:",
-    ...importantLines
-  ]
-    .join("\n")
-    .slice(-6000);
+  const summary = buildConversationSummary(chat.messages);
 
   return prisma.chat.update({
     where: { id: chatId },
     data: { summary }
   });
+}
+
+export function buildConversationSummary(messages: Array<{ role: MessageRole; content: string }>) {
+  const importantLines = messages
+    .filter((message) => message.role !== MessageRole.SYSTEM)
+    .slice(-40)
+    .map((message) => `${message.role}: ${cleanSentence(message.content).slice(0, 260)}`);
+
+  if (importantLines.length === 0) {
+    return null;
+  }
+
+  return ["Conversation summary:", ...importantLines].join("\n").slice(-6000);
 }
 
 function addPattern(

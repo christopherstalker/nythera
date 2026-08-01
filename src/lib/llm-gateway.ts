@@ -11,6 +11,7 @@ import { logPerformanceMetric } from "@/lib/performance-logger";
 import { logSafeError } from "@/lib/secret-redaction";
 import { abortableAsyncIterable, createTimeoutSignal, LLM_EMBEDDING_TIMEOUT_MS, LLM_PROVIDER_TIMEOUT_MS } from "@/lib/llm-timeouts";
 import { assertSafeOutboundUrl } from "@/lib/safe-outbound-url";
+import { CANONICAL_SITE_ORIGIN } from "@/lib/site-origin";
 
 type StreamInput = {
   messages: PromptMessage[];
@@ -299,7 +300,14 @@ async function streamProvider(input: {
       deltas: streamOpenAI({
         client: new OpenAI({
           apiKey: input.key.apiKey,
-          baseURL
+          baseURL,
+          defaultHeaders:
+            input.key.provider === "openrouter"
+              ? {
+                  "HTTP-Referer": CANONICAL_SITE_ORIGIN,
+                  "X-OpenRouter-Title": "Nythera"
+                }
+              : undefined
         }),
         model: input.model,
         messages: input.messages,

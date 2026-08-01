@@ -1,21 +1,17 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, Plus, Search, ShieldCheck, SlidersHorizontal, Sparkles, Star, X } from "lucide-react";
+import { Plus, Search, ShieldCheck, SlidersHorizontal, Star, X } from "lucide-react";
 import { motion } from "motion/react";
-import { RichMessageText } from "@/components/chat/rich-message-text";
-import { CharacterBentoGrid } from "@/components/characters/CharacterBentoGrid";
+import { CharacterGallery } from "@/components/characters/CharacterGallery";
 import type { CharacterSummary } from "@/components/characters/CharacterCard";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page";
 import { SearchBar } from "@/components/ui/search-bar";
-import { BRAND_ICON_LARGE } from "@/lib/brand";
 import { DISCOVERY_TAGS, displayTagLabel } from "@/lib/character-tags";
-import { shouldBypassNextImageOptimization } from "@/lib/image-cache";
 import { springSoft } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
@@ -42,7 +38,7 @@ const FEED_TAKE = 12;
 type FeedTabId = (typeof feedTabs)[number]["id"];
 
 async function fetchCharacters(params: URLSearchParams, signal?: AbortSignal) {
-  const response = await fetch(`/api/characters?${params.toString()}`, { signal });
+  const response = await fetch(`/api/characters?${params.toString()}`, { cache: "no-store", signal });
   if (!response.ok) {
     return [];
   }
@@ -109,7 +105,6 @@ function ExplorePageContent({
   const activeFeedTab = feedTabs.find((tab) => tab.id === activeFeed) ?? feedTabs[0];
   const activeFeedCharacters =
     activeFeed === "recommended" ? recommended : activeFeed === "for-you" ? characters.slice(0, FEED_TAKE) : trending;
-  const featuredCharacter = trending[0] ?? activeFeedCharacters[0] ?? characters[0] ?? null;
 
   useEffect(() => {
     setQuery(routeQuery);
@@ -169,8 +164,19 @@ function ExplorePageContent({
     };
 
     const onCharactersUpdated = () => void refresh();
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
     window.addEventListener("nythera:characters-updated", onCharactersUpdated);
-    return () => window.removeEventListener("nythera:characters-updated", onCharactersUpdated);
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    const interval = window.setInterval(refreshWhenVisible, 30_000);
+    return () => {
+      window.removeEventListener("nythera:characters-updated", onCharactersUpdated);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.clearInterval(interval);
+    };
   }, [nsfwMode, query, ratingMin, selectedTags, showFeedSections, sort]);
 
   function submitSearch(nextQuery: string) {
@@ -193,12 +199,16 @@ function ExplorePageContent({
   }
 
   return (
-    <PageShell className="codex-explore space-y-10">
-      <header className="border-b border-[var(--codex-rule)] pb-7">
-        <p className="mb-2 text-[10px] uppercase tracking-[.3em] text-[var(--codex-violet)]">The living index</p>
-        <h1 className="font-editorial text-[clamp(3.5rem,8vw,7rem)] font-medium leading-[.82] tracking-[-.045em] text-[var(--codex-ivory)]">Discover</h1>
+    <PageShell className="codex-explore space-y-6 sm:space-y-8">
+      <header className="grid gap-3 border-b border-[var(--codex-rule)] pb-5 md:grid-cols-[minmax(0,1fr)_minmax(280px,.55fr)] md:items-end">
+        <div>
+          <p className="mb-2 text-[10px] uppercase tracking-[.3em] text-[var(--codex-violet)]">The living index</p>
+          <h1 className="font-editorial text-[clamp(2.8rem,6vw,5.25rem)] font-medium leading-[.86] tracking-[-.045em] text-[var(--codex-ivory)]">Discover</h1>
+        </div>
+        <p className="max-w-md text-sm leading-6 text-[var(--text-secondary)] md:justify-self-end md:text-right">
+          Find a voice, a world, or a new story without losing the catalog below the fold.
+        </p>
       </header>
-      <FeaturedStage character={featuredCharacter} loading={loading} />
 
       <DiscoveryCommandCenter
         query={query}
@@ -239,12 +249,12 @@ function ExplorePageContent({
               ))}
             </div>
           </div>
-          <CharacterBentoGrid title={activeFeedTab.label} characters={activeFeedCharacters.slice(0, 6)} loading={loading} layout="shelf" />
+          <CharacterGallery title={activeFeedTab.label} characters={activeFeedCharacters.slice(0, FEED_TAKE)} loading={loading} />
         </section>
       ) : null}
 
       {!showFeedSections && (loading || characters.length > 0) ? (
-        <CharacterBentoGrid characters={characters} loading={loading} />
+        <CharacterGallery characters={characters} loading={loading} />
       ) : null}
 
       {!loading && isCatalogEmpty ? (
@@ -265,73 +275,6 @@ function ExplorePageContent({
         />
       ) : null}
     </PageShell>
-  );
-}
-
-function FeaturedStage({ character, loading }: { character: CharacterSummary | null; loading: boolean }) {
-  if (loading && !character) {
-    return <div className="skeleton min-h-[560px] w-full border-y border-[var(--codex-rule)]" />;
-  }
-
-  if (!character) {
-    return null;
-  }
-
-  const avatarSrc = character.avatarUrl || BRAND_ICON_LARGE;
-
-  return (
-    <motion.section
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={springSoft}
-      className="codex-discovery-stage group relative isolate grid min-h-[560px] overflow-hidden border-y border-[var(--codex-rule)] lg:grid-cols-[minmax(0,1.25fr)_minmax(340px,.75fr)]"
-      aria-labelledby="featured-character-name"
-    >
-      <Image
-        src={avatarSrc}
-        alt={character.name}
-        fill
-        priority
-        unoptimized={shouldBypassNextImageOptimization(avatarSrc)}
-        sizes="(min-width: 1280px) 88rem, 100vw"
-        className="absolute inset-0 h-full w-full object-cover opacity-75 transition-transform duration-700 group-hover:scale-[1.015] motion-reduce:transition-none lg:left-auto lg:w-[62%]"
-        style={{ objectPosition: "70% 20%" }}
-      />
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "linear-gradient(90deg, var(--codex-paper) 0%, color-mix(in oklch, var(--codex-paper) 96%, transparent) 38%, transparent 76%), linear-gradient(0deg, var(--codex-paper) 0%, transparent 54%)"
-        }}
-      />
-      <div className="absolute inset-0 bg-aurora-ambient opacity-35 mix-blend-screen" />
-
-      <div className="relative z-10 flex min-h-[inherit] max-w-xl flex-col justify-end p-6 sm:p-9 lg:justify-center lg:p-12 xl:p-16">
-        <p className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[.18em] text-[var(--accent-secondary)]">
-          <Sparkles className="h-4 w-4" />
-          Featured character
-        </p>
-        <h2 id="featured-character-name" className="font-editorial text-[clamp(4rem,9vw,7.5rem)] font-medium leading-[.78] tracking-[-.055em] text-[var(--codex-ivory)]">
-          {character.name}
-        </h2>
-        <p className="mt-6 line-clamp-3 max-w-lg text-base leading-7 text-[var(--text-secondary)] sm:text-lg">
-          <RichMessageText text={character.description || "A story waiting to begin."} />
-        </p>
-        <div className="mt-5 flex flex-wrap gap-2">
-          {character.tags?.slice(0, 3).map((tag) => (
-            <span key={tag} className="orbital-glass rounded-full px-4 py-2 text-sm font-medium text-[var(--text-primary)]">
-              {displayTagLabel(tag)}
-            </span>
-          ))}
-        </div>
-        <Button asChild size="lg" className="mt-6 w-fit">
-          <Link href={`/character/${character.id}`}>
-          View profile
-          <ArrowRight className="h-4 w-4" />
-          </Link>
-        </Button>
-      </div>
-    </motion.section>
   );
 }
 
@@ -389,7 +332,7 @@ function DiscoveryCommandCenter({
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={springSoft}
-        className="codex-discovery-dock border-y border-[var(--codex-rule)] bg-[var(--codex-paper-raised)] p-4 sm:p-5"
+        className="codex-discovery-dock relative z-30 border-y border-[var(--codex-rule)] bg-[var(--codex-paper-raised)] p-3 sm:p-5"
       >
         <div className="grid gap-3 xl:grid-cols-[minmax(340px,1.7fr)_minmax(150px,.55fr)_minmax(250px,.8fr)_minmax(300px,1fr)_auto] xl:items-end">
           <SearchBar

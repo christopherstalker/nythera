@@ -27,7 +27,9 @@ const worker = new Worker(
         userId: String(job.data.userId),
         characterId: String(job.data.characterId),
         latestUserMessage: String(job.data.latestUserMessage ?? ""),
-        latestAssistantMessage: String(job.data.latestAssistantMessage ?? "")
+        latestUserMessageId: job.data.latestUserMessageId ? String(job.data.latestUserMessageId) : null,
+        latestAssistantMessage: String(job.data.latestAssistantMessage ?? ""),
+        latestAssistantMessageId: String(job.data.latestAssistantMessageId ?? "")
       });
       return;
     }

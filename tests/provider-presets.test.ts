@@ -6,7 +6,7 @@ import {
   enforceFirstClassProviderConfig
 } from "../src/lib/provider-presets";
 
-const expectedProviders = ["openai", "anthropic", "gemini", "deepseek", "mistral", "groq", "xai"];
+const expectedProviders = ["openai", "anthropic", "gemini", "openrouter", "deepseek", "mistral", "groq", "xai"];
 
 test("exposes every supported first-class provider exactly once", () => {
   assert.deepEqual(
@@ -22,11 +22,13 @@ test("configures new providers as direct official OpenAI-compatible APIs", () =>
 
   assert.deepEqual(
     {
+      openrouter: [byProvider.openrouter.apiFormat, byProvider.openrouter.baseUrl],
       mistral: [byProvider.mistral.apiFormat, byProvider.mistral.baseUrl],
       groq: [byProvider.groq.apiFormat, byProvider.groq.baseUrl],
       xai: [byProvider.xai.apiFormat, byProvider.xai.baseUrl]
     },
     {
+      openrouter: ["OPENAI_COMPATIBLE", "https://openrouter.ai/api/v1"],
       mistral: ["OPENAI_COMPATIBLE", "https://api.mistral.ai/v1"],
       groq: ["OPENAI_COMPATIBLE", "https://api.groq.com/openai/v1"],
       xai: ["OPENAI_COMPATIBLE", "https://api.x.ai/v1"]

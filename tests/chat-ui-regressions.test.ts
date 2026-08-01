@@ -100,12 +100,15 @@ test("message patch route persists pinned state separately from text edits", asy
   assert.match(source, /input\.pinned !== undefined \? \{ pinned: input\.pinned \}/);
 });
 
-test("character previews expose and open the most recent existing chat", async () => {
+test("character profiles expose separate continue and new-chat actions", async () => {
   const apiSource = await readFile(new URL("../src/app/api/characters/[id]/route.ts", import.meta.url), "utf8");
   const pageSource = await readFile(new URL("../src/components/character/character-profile-client.tsx", import.meta.url), "utf8");
 
   assert.match(apiSource, /recentChat/);
   assert.match(apiSource, /lastActiveAt: "desc"/);
   assert.match(pageSource, /Continue chat/);
+  assert.match(pageSource, /Start new chat/);
   assert.match(pageSource, /recentChat\.id/);
+  assert.match(pageSource, /async function createChat/);
+  assert.match(pageSource, /function continueChat/);
 });

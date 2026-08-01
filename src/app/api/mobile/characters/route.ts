@@ -5,8 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { requireMobileUser } from "@/lib/mobile-auth";
 import { characterCreateSchema } from "@/lib/validation";
 import { redactCharacterModelSettings } from "@/lib/character-model-settings";
-import { moderateText } from "@/lib/safety";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { createCharacterForUser } from "@/lib/character-mutations";
 
 export const dynamic = "force-dynamic";
 
@@ -80,75 +80,10 @@ export async function POST(request: Request) {
     });
 
     const input = await parseJson(request, characterCreateSchema);
-    if (input.isNSFW && !user.ageVerified) {
-      throw new HttpError(403, "Confirm age-gated access in profile settings before creating NSFW characters.");
-    }
-
-    if (input.visibility === "PUBLIC" && !input.avatarUrl?.trim()) {
-      throw new HttpError(400, "Add an avatar before publishing a character publicly.");
-    }
-
-    const moderation = moderateText({
-      text: [
-        input.name,
-        input.description,
-        input.personality,
-        input.scenario,
-        input.greeting,
-        input.systemPromptOverride,
-        JSON.stringify(input.persona ?? {}),
-        JSON.stringify(input.lorebook ?? {})
-      ]
-        .filter(Boolean)
-        .join("\n"),
-      userIsMinor: isMinor(user.birthDate),
-      context: "character"
-    });
-
-    if (!moderation.allowed) {
-      throw new HttpError(400, moderation.reason ?? "Character content did not pass moderation.");
-    }
-
-    const character = await prisma.character.create({
-      data: {
-        creatorId: user.id,
-        creationMode: input.creationMode,
-        name: input.name,
-        avatarUrl: input.avatarUrl || null,
-        description: input.description,
-        personality: input.personality,
-        scenario: input.scenario,
-        greeting: input.greeting,
-        communicationStyle: input.communicationStyle ?? Prisma.JsonNull,
-        persona: input.persona ?? Prisma.JsonNull,
-        lorebook: input.lorebook ?? Prisma.JsonNull,
-        visualIdentity: input.visualIdentity ?? Prisma.JsonNull,
-        preferredProvider: input.preferredProvider,
-        preferredModel: input.preferredModel,
-        temperature: input.temperature,
-        topP: input.topP,
-        frequencyPenalty: input.frequencyPenalty,
-        presencePenalty: input.presencePenalty,
-        maxTokens: input.maxTokens,
-        systemPromptOverride: input.systemPromptOverride,
-        visibility: input.visibility,
-        tags: input.tags,
-        isNSFW: input.isNSFW,
-        // Mobile and web clients share the same public behavior: approved public characters show in Explore immediately.
-        moderationStatus: "APPROVED"
-      }
-    });
+    const character = await createCharacterForUser(input, user);
 
     return json({ character }, { status: 201 });
   } catch (error) {
     return routeError(error);
   }
-}
-
-function isMinor(birthDate: Date | null) {
-  if (!birthDate) {
-    return false;
-  }
-
-  return Date.now() - birthDate.getTime() < 18 * 365.25 * 24 * 60 * 60 * 1000;
 }

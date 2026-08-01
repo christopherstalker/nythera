@@ -278,8 +278,6 @@ export async function sendRoomMessage(input: {
       role: roomMessage.role === RoomMessageRole.CHARACTER ? MessageRole.ASSISTANT : roomMessage.role === RoomMessageRole.SYSTEM ? MessageRole.SYSTEM : MessageRole.USER,
       content: formatRoomMessageForPrompt(roomMessage)
     }));
-  recentMessages.push({ role: MessageRole.USER, content: message });
-
   const prompt = assembleNytheraPrompt({
     character: speaker,
     memories,

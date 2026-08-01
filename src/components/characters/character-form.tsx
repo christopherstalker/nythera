@@ -458,6 +458,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
     }
 
     const body = await response.json();
+    window.dispatchEvent(new CustomEvent("nythera:characters-updated", { detail: { characterId: body.character.id } }));
     router.push(`/character/${body.character.id}`);
   }
 

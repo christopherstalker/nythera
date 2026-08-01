@@ -335,7 +335,7 @@ export function KeySettingsClient() {
       <form onSubmit={saveCustom} className="glass-card p-4">
         <h3 className="text-sm font-semibold text-[var(--text-primary)]">Add custom provider endpoint</h3>
         <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
-          Save multiple named endpoints such as My Ollama, Personal OpenRouter, LM Studio, or vLLM. After setup, chats pick them from the model switcher without raw URL typing.
+          Save multiple named endpoints such as My Ollama, LM Studio, or vLLM. OpenRouter has a dedicated key-only card above. After setup, chats pick providers from the model switcher without raw URL typing.
         </p>
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
           <Input value={custom.provider} onChange={(event) => setCustom((current) => ({ ...current, provider: event.target.value }))} placeholder="Unique provider ID, e.g. my-ollama" />

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Copy, Edit3, Flag, Globe, Heart, Lock, MessageCircle, Share2, Sparkles, Star, Trash2, User, X } from "lucide-react";
+import { Copy, Edit3, Flag, Globe, Heart, Lock, MessageCircle, MessageSquarePlus, Share2, Sparkles, Star, Trash2, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ResponsiveActions } from "@/components/ui/responsive-actions";
 import { Badge } from "@/components/ui/badge";
@@ -41,17 +41,20 @@ export default function CharacterProfileClient({
   const [status, setStatus] = useState<string | null>(null);
   const [visibilitySaving, setVisibilitySaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [chatStarting, setChatStarting] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     async function loadCharacter() {
       try {
-        const response = await fetch(`/api/characters/${params.id}`);
+        const response = await fetch(`/api/characters/${params.id}`, { cache: "no-store" });
         if (!response.ok) {
-          setError("Character not found or unavailable.");
+          if (!cancelled) setError("Character not found or unavailable.");
           return;
         }
 
         const body = await response.json();
+        if (cancelled) return;
         setCharacter(body.character);
         setRecentChat(body.recentChat ?? null);
         setViewer(body.viewer ?? { canEdit: false, liked: false, rating: null });
@@ -59,11 +62,23 @@ export default function CharacterProfileClient({
         setRatingValue(Number(body.viewer?.rating?.value ?? 0));
         setReviewText(body.viewer?.rating?.review ?? "");
       } catch {
-        setError("Character not found or unavailable.");
+        if (!cancelled) setError("Character not found or unavailable.");
       }
     }
 
     void loadCharacter();
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void loadCharacter();
+    };
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    const interval = window.setInterval(refreshWhenVisible, 30_000);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.clearInterval(interval);
+    };
   }, [params.id]);
 
   useEffect(() => {
@@ -138,35 +153,44 @@ export default function CharacterProfileClient({
     window.dispatchEvent(new CustomEvent("nythera:characters-updated"));
   }
 
-  async function startChat() {
-    if (!character) {
+  async function createChat() {
+    if (!character || chatStarting) {
       return;
     }
 
+    setChatStarting(true);
+    setStatus(null);
+    try {
+      const response = await fetch("/api/chats", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ characterId: character.id })
+      });
+
+      if (response.status === 401) {
+        router.push("/login");
+        return;
+      }
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        setStatus(body?.error ?? "Could not start chat.");
+        return;
+      }
+
+      const body = await response.json();
+      router.push(`/chat/${body.chat.id}`);
+    } catch {
+      setStatus("Could not start chat. Check your connection and try again.");
+    } finally {
+      setChatStarting(false);
+    }
+  }
+
+  function continueChat() {
     if (recentChat) {
       router.push(`/chat/${recentChat.id}`);
-      return;
     }
-
-    const response = await fetch("/api/chats", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ characterId: character.id })
-    });
-
-    if (response.status === 401) {
-      router.push("/login");
-      return;
-    }
-
-    if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      setError(body?.error ?? "Could not start chat.");
-      return;
-    }
-
-    const body = await response.json();
-    router.push(`/chat/${body.chat.id}`);
   }
 
   async function cloneCharacter() {
@@ -383,10 +407,23 @@ export default function CharacterProfileClient({
                   </div>
                 </>
               ) : null}
-              <Button onClick={startChat} size="lg" className="w-full px-7">
-                <MessageCircle className="h-4 w-4" />
-                {recentChat ? "Continue chat" : "Start chat"}
-              </Button>
+              {recentChat ? (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Button onClick={continueChat} size="lg" className="w-full px-5">
+                    <MessageCircle className="h-4 w-4" />
+                    Continue chat
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => void createChat()} size="lg" className="w-full px-5" disabled={chatStarting}>
+                    <MessageSquarePlus className="h-4 w-4" />
+                    {chatStarting ? "Starting..." : "Start new chat"}
+                  </Button>
+                </div>
+              ) : (
+                <Button onClick={() => void createChat()} size="lg" className="w-full px-7" disabled={chatStarting}>
+                  <MessageCircle className="h-4 w-4" />
+                  {chatStarting ? "Starting..." : "Start chat"}
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="outline"

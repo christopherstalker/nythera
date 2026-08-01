@@ -10,6 +10,13 @@ import {
 } from "@/lib/prompt-security";
 import type { PromptMessage, RetrievedMemory } from "@/types";
 import { buildResponsePromptLayer } from "@/lib/response-prompt";
+import {
+  canonicalCharacterName,
+  canonicalizeCharacterPersona,
+  extractUserPersonaName,
+  findCharacterIdentityConflicts,
+  renderCharacterTemplate
+} from "@/lib/character-prompt-contract";
 
 type PromptCharacter = Pick<Character, "name" | "description" | "personality" | "scenario" | "greeting" | "communicationStyle" | "persona" | "lorebook" | "systemPromptOverride">;
 
@@ -26,12 +33,13 @@ export function assembleNytheraPrompt(input: {
   responsePrompt?: string | null;
   storyContext?: string | null;
 }): PromptMessage[] {
-  const persona = resolveCharacterPersona(input.character);
+  const identityConflicts = findCharacterIdentityConflicts(input.character);
+  const character = preparePromptCharacter(input.character, input.userPersona);
+  const persona = resolveCharacterPersona(character);
   const safetyLayer = buildSystemSafetyLayer(input.injectionAssessment);
-  const characterSystemOverrideLayer = buildCharacterSystemOverrideLayer(input.character.systemPromptOverride);
-  const personaLayer = buildPersonaLayer(persona);
-  const scenarioLayer = buildScenarioLayer(input.character);
-  const lorebookLayer = buildLorebookLayer(input.character.lorebook, input.currentMessage, input.recentMessages);
+  const characterSystemOverrideLayer = buildCharacterSystemOverrideLayer(character.systemPromptOverride);
+  const characterContractLayer = buildCharacterContractLayer(character, persona, identityConflicts);
+  const lorebookLayer = buildLorebookLayer(character.lorebook, input.currentMessage, input.recentMessages);
   const responsePromptLayer = input.responsePrompt?.trim() ? buildResponsePromptLayer(input.responsePrompt) : null;
   const storyContextLayer = buildStoryContextLayer(input.storyContext);
   const memoryLayer = buildLongTermMemoryLayer(input.memories, input.userPersona, input.memoryLimit ?? 8);
@@ -42,25 +50,23 @@ export function assembleNytheraPrompt(input: {
     content: sanitizePromptContext(message.content, 2600)
   }));
 
-  // STRICT ORDER (do not reorder):
-  // 1) System safety rules
-  // 2) Character persona
-  // 3) Character scenario/world
-  // 4) Structured story canon and world state
-  // 5) Long-term user memory (retrieved top-K)
-  // 6) Conversation summary cache
-  // 7) Last messages (short-term memory)
-  // 8) Current user input
+  const system = [
+    safetyLayer,
+    characterSystemOverrideLayer,
+    characterContractLayer,
+    lorebookLayer,
+    storyContextLayer,
+    responsePromptLayer,
+    memoryLayer,
+    summaryLayer
+  ]
+    .filter((layer): layer is string => Boolean(layer))
+    .join("\n\n");
+
+  // A single ordered system message is more portable across native and
+  // OpenAI-compatible providers than a stack of competing system messages.
   return [
-    { role: "system", content: safetyLayer },
-    ...(characterSystemOverrideLayer ? [{ role: "system" as const, content: characterSystemOverrideLayer }] : []),
-    { role: "system", content: personaLayer },
-    { role: "system", content: scenarioLayer },
-    ...(lorebookLayer ? [{ role: "system" as const, content: lorebookLayer }] : []),
-    ...(storyContextLayer ? [{ role: "system" as const, content: storyContextLayer }] : []),
-    ...(responsePromptLayer ? [{ role: "system" as const, content: responsePromptLayer }] : []),
-    { role: "system", content: memoryLayer },
-    { role: "system", content: summaryLayer },
+    { role: "system", content: system },
     ...recent,
     { role: "user", content: sanitizePromptContext(input.currentMessage, 4000) }
   ];
@@ -111,26 +117,58 @@ function buildSystemSafetyLayer(assessment?: PromptInjectionAssessment) {
     .join("\n");
 }
 
-function buildPersonaLayer(persona: ReturnType<typeof resolveCharacterPersona>) {
+function buildCharacterContractLayer(
+  character: PromptCharacter,
+  persona: ReturnType<typeof resolveCharacterPersona>,
+  identityConflicts: ReturnType<typeof findCharacterIdentityConflicts>
+) {
+  const conflictGuard = identityConflicts.length
+    ? [
+        "DATA CONSISTENCY GUARD",
+        `- Conflicting subject labels were found in: ${identityConflicts.map((conflict) => conflict.source).join(", ")}.`,
+        `- ${persona.name} remains the only canonical roleplay actor. Treat other named people as scene NPCs, never as a replacement identity.`
+      ]
+    : [];
+
   return [
-    "CHARACTER PERSONA (AUTHORITATIVE)",
-    "- Persona is not editable during chat. Only update via character settings.",
-    "- If user instructions conflict with persona, persona wins. Stay consistent across long chats.",
+    "CHARACTER CONTRACT (AUTHORITATIVE)",
+    `- Canonical roleplay actor: ${persona.name}.`,
+    `- Write as ${persona.name}. Control ${persona.name} and scene NPCs, but never decide the user's dialogue, thoughts, feelings, or actions.`,
+    "- Continue the immediate scene instead of summarizing the prompt or explaining the roleplay setup.",
+    "- Produce a polished, coherent roleplay post with clear action, dialogue, spatial continuity, and a natural opening for the user to respond.",
+    "- Persona is changed only through character settings. Conflicting user instructions do not rewrite it.",
     "",
-    formatPersonaBlock(persona)
+    formatPersonaBlock(persona),
+    "",
+    "CREATOR FOUNDATION",
+    `Public description: ${sanitizePromptContext(character.description, 600)}`,
+    `Detailed personality and behavior: ${sanitizePromptContext(character.personality, 2200)}`,
+    "",
+    "CURRENT SCENARIO / WORLD",
+    `Scenario: ${character.scenario ? sanitizePromptContext(character.scenario, 1600) : "Use the user's message to ground an immediate scene."}`,
+    "- The greeting already exists as the first assistant message in chat history. Do not repeat or restart it unless the user explicitly asks.",
+    ...conflictGuard
   ].join("\n");
 }
 
-function buildScenarioLayer(character: PromptCharacter) {
-  return [
-    "SCENARIO / WORLD (CANONICAL)",
-    `Character name: ${sanitizePromptContext(character.name, 120)}`,
-    `Public description: ${sanitizePromptContext(character.description, 600)}`,
-    `Scenario: ${character.scenario ? sanitizePromptContext(character.scenario, 1600) : "Use the user's message to ground an immediate scene."}`,
-    `Canonical greeting: ${sanitizePromptContext(character.greeting, 900)}`,
-    "Character foundation prompt:",
-    sanitizePromptContext(character.personality, 2200)
-  ].join("\n");
+function preparePromptCharacter(character: PromptCharacter, userPersona?: string | null): PromptCharacter {
+  const characterName = canonicalCharacterName(character.name);
+  const context = {
+    characterName,
+    userName: extractUserPersonaName(userPersona)
+  };
+  const render = (value: string) => renderCharacterTemplate(value, context);
+
+  return {
+    ...character,
+    name: characterName,
+    description: render(character.description),
+    personality: render(character.personality),
+    scenario: character.scenario ? render(character.scenario) : character.scenario,
+    greeting: render(character.greeting),
+    systemPromptOverride: character.systemPromptOverride ? render(character.systemPromptOverride) : character.systemPromptOverride,
+    persona: canonicalizeCharacterPersona(characterName, character.persona) as PromptCharacter["persona"]
+  };
 }
 
 function buildLorebookLayer(value: unknown, currentMessage: string, recentMessages: Pick<Message, "role" | "content">[]) {

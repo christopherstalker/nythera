@@ -35,6 +35,14 @@ export const FIRST_CLASS_PROVIDER_PRESETS: ProviderPreset[] = [
     placeholder: "AIza..."
   },
   {
+    provider: "openrouter",
+    displayName: "OpenRouter",
+    apiFormat: "OPENAI_COMPATIBLE",
+    baseUrl: "https://openrouter.ai/api/v1",
+    defaultModel: "openrouter/auto",
+    placeholder: "sk-or-v1-..."
+  },
+  {
     provider: "deepseek",
     displayName: "DeepSeek",
     apiFormat: "OPENAI_COMPATIBLE",

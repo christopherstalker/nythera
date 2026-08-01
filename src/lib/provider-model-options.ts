@@ -26,7 +26,7 @@ export const MODEL_SUGGESTIONS: Record<string, string[]> = {
   anthropic: ["claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-sonnet-4-20250514"],
   gemini: ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"],
   deepseek: ["deepseek-chat", "deepseek-reasoner"],
-  openrouter: ["openai/gpt-4o-mini", "anthropic/claude-3.5-sonnet", "google/gemini-2.5-flash"],
+  openrouter: ["openrouter/auto", "~openai/gpt-latest", "~anthropic/claude-sonnet-latest", "~google/gemini-pro-latest"],
   groq: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"],
   together: ["meta-llama/Llama-3.3-70B-Instruct-Turbo"],
   mistral: ["mistral-large-latest", "mistral-small-latest"],

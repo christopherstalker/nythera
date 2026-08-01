@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, BookOpen, MessageCircle, Route } from "lucide-react";
-import { CharacterBentoGrid } from "@/components/characters/CharacterBentoGrid";
+import { CharacterGallery } from "@/components/characters/CharacterGallery";
 import { Button } from "@/components/ui/button";
 import { PageShell, Surface } from "@/components/ui/page";
 import { DISCOVERY_TAGS } from "@/lib/character-tags";
@@ -106,7 +106,7 @@ export async function SeoLandingPage({
         ) : null}
 
         {characters.length ? (
-          <CharacterBentoGrid title="Characters to meet" characters={characters} />
+          <CharacterGallery title="Characters to meet" characters={characters} />
         ) : (
           <Surface className="p-8 text-center">
             <h2 className="font-editorial text-3xl text-[var(--codex-ivory)]">The next character is still being written</h2>

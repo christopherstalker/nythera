@@ -40,6 +40,7 @@ export async function createMemory(input: {
   userId: string;
   characterId?: string | null;
   sourceChatId?: string | null;
+  sourceMessageId?: string | null;
   content: string;
   category?: MemoryCategory;
   metadata?: Prisma.InputJsonValue;
@@ -65,18 +66,27 @@ export async function createMemory(input: {
     return existing;
   }
 
-  const memory = await prisma.memory.create({
-    data: {
-      userId: input.userId,
-      characterId: input.characterId,
-      sourceChatId: input.sourceChatId,
-      content,
-      category: input.category ?? MemoryCategory.OTHER,
-      metadata: input.metadata ?? Prisma.JsonNull,
-      importance: input.importance ?? 1,
-      confidence: input.confidence ?? 0.75
+  let memory;
+  try {
+    memory = await prisma.memory.create({
+      data: {
+        userId: input.userId,
+        characterId: input.characterId,
+        sourceChatId: input.sourceChatId,
+        sourceMessageId: input.sourceMessageId,
+        content,
+        category: input.category ?? MemoryCategory.OTHER,
+        metadata: input.metadata ?? Prisma.JsonNull,
+        importance: input.importance ?? 1,
+        confidence: input.confidence ?? 0.75
+      }
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003" && input.sourceMessageId) {
+      return null;
     }
-  });
+    throw error;
+  }
 
   try {
     await writeMemoryEmbedding(memory.id, content, input.providerKeys);
