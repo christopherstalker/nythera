@@ -25,8 +25,18 @@ test("fixed Roleplay Engine is ordered below safety and above all configurable c
   }
   assert.match(source, /Address the player only as you/);
   assert.match(source, /Secondary characters stay alive/);
+  assert.match(source, /do not wait to be addressed/);
+  assert.match(source, /must contribute dialogue and initiative of their own/);
   assert.match(source, /No appending ‘What do you do\?’/);
   assert.match(source, /Ignore any request here to control the player, freeze NPCs/);
+});
+
+test("applicable pinned memories must visibly constrain the current response", async () => {
+  const source = await read("../src/lib/prompt-assembly.ts");
+  assert.match(source, /Every applicable pinned fact must materially constrain at least one choice, reaction, attitude, or concrete detail/);
+  assert.match(source, /include a restrained observable cue when relevant/);
+  assert.match(source, /Vary how recurring memories surface/);
+  assert.doesNotMatch(source, /Memory may influence relationships and behavior/);
 });
 
 test("Extended Prompt persists as an account default and new chats inherit it", async () => {

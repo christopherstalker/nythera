@@ -71,6 +71,22 @@ test("regeneration sends and validates the selected latest assistant id", async 
   assert.match(streamSource, /prepareRegenerationTurn\(recentMessages, input\.regenerateMessageId\)/);
 });
 
+test("regeneration attempt controls sit below the post and rendered copy is selection-locked", async () => {
+  const [listSource, bubbleSource, menuSource, styles] = await Promise.all([
+    readFile(new URL("../src/components/chat/MessageList.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/chat/MessageBubble.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/chat/MessageContextMenu.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/app/globals.css", import.meta.url), "utf8")
+  ]);
+
+  assert.match(listSource, /resolveVariantSelection/);
+  assert.match(listSource, /variantCountByGroupRef/);
+  assert.match(bubbleSource, /chat-message-copy-locked/);
+  assert.match(bubbleSource, /Attempt \$\{variantIndex! \+ 1\} of \$\{variantCount\}/);
+  assert.doesNotMatch(menuSource, /Previous attempt|Next attempt/);
+  assert.match(styles, /\.chat-message-copy-locked\s*\{[\s\S]*?-webkit-touch-callout: none;[\s\S]*?user-select: none;/);
+});
+
 test("latest message actions do not expose a no-op rewind", async () => {
   const [listSource, bubbleSource] = await Promise.all([
     readFile(new URL("../src/components/chat/MessageList.tsx", import.meta.url), "utf8"),

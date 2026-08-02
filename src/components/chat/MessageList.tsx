@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import type { ChatMessage } from "@/hooks/useChat";
+import { resolveVariantSelection } from "@/lib/message-actions";
 
 const NEAR_BOTTOM_THRESHOLD_PX = 120;
 const MESSAGE_ROW_ESTIMATE_PX = 180;
@@ -40,6 +41,7 @@ export function MessageList({ messages, characterName, characterAvatarUrl, perso
     return null;
   }, [messages]);
   const [variantByGroup, setVariantByGroup] = useState<Record<string, number>>({});
+  const variantCountByGroupRef = useRef<Record<string, number>>({});
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
@@ -62,19 +64,28 @@ export function MessageList({ messages, characterName, characterAvatarUrl, perso
   }, [messages, rows.length, virtualizer]);
 
   useEffect(() => {
+    const previousCounts = variantCountByGroupRef.current;
+    const nextCounts = Object.fromEntries(
+      displayItems
+        .filter((item): item is Extract<DisplayItem, { type: "assistant-variants" }> => item.type === "assistant-variants")
+        .map((item) => [item.key, item.variants.length])
+    );
+
     setVariantByGroup((current) => {
       const next: Record<string, number> = {};
       for (const item of displayItems) {
         if (item.type === "assistant-variants") {
-          const currentIndex = current[item.key];
-          next[item.key] =
-            currentIndex === undefined || currentIndex >= item.variants.length
-              ? item.variants.length - 1
-              : currentIndex;
+          next[item.key] = resolveVariantSelection(
+            current[item.key],
+            previousCounts[item.key],
+            item.variants.length
+          );
         }
       }
       return next;
     });
+
+    variantCountByGroupRef.current = nextCounts;
   }, [displayItems]);
 
   const handleScroll = useCallback(() => {

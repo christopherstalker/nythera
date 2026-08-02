@@ -64,3 +64,18 @@ test("global story context is a closable right-side drawer", async () => {
   assert.doesNotMatch(panel, /xl:static/);
   assert.doesNotMatch(panel, /ChatComposerSheet|<ChatQuickPanel/);
 });
+
+test("help surfaces link to the Patreon-only support block", async () => {
+  const [supportPage, helpPage, supportConfig] = await Promise.all([
+    read("../src/app/support/page.tsx"),
+    read("../src/app/(main)/settings/help/page.tsx"),
+    read("../src/lib/support.ts")
+  ]);
+
+  assert.match(supportConfig, /PATREON_SUPPORT_URL = "https:\/\/www\.patreon\.com\/c\/ChristopherStalker"/);
+  assert.match(supportPage, /id="support-nythera"/);
+  assert.match(supportPage, /Nythera is completely free/);
+  assert.match(supportPage, /Support on Patreon/);
+  assert.match(helpPage, /href="\/support#support-nythera"/);
+  assert.doesNotMatch(`${supportPage}\n${helpPage}\n${supportConfig}`, /Buy Me a Coffee|buymeacoffee/i);
+});

@@ -29,7 +29,7 @@ test("shared actions stack on phones and return to wrapped rows on larger screen
   assert.match(source, /\[&>\*\]:w-full/);
 });
 
-test("mobile chat keeps primary actions visible and moves the rest into the action sheet", async () => {
+test("mobile chat keeps primary actions and attempt navigation visible without the action sheet", async () => {
   const [bubble, menu] = await Promise.all([
     read("../src/components/chat/MessageBubble.tsx"),
     read("../src/components/chat/MessageContextMenu.tsx")
@@ -37,7 +37,10 @@ test("mobile chat keeps primary actions visible and moves the rest into the acti
 
   assert.match(bubble, /ActionButton label="More actions"/);
   assert.match(bubble, /max-sm:grid-cols-\[minmax\(0,1fr\)_minmax\(0,1fr\)_2\.75rem\]/);
-  assert.match(menu, /Previous attempt/);
+  assert.match(bubble, /aria-label=\{`Attempt \$\{variantIndex! \+ 1\} of \$\{variantCount\}`\}/);
+  assert.match(bubble, /label="Previous attempt"/);
+  assert.match(bubble, /label="Next attempt"/);
+  assert.doesNotMatch(menu, /Previous attempt|Next attempt/);
   assert.match(menu, /Branch/);
   assert.match(menu, /Report/);
   assert.match(menu, /max-h-\[min\(80dvh,42rem\)\]/);

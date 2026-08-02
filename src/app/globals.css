@@ -1588,6 +1588,12 @@
 }
 
 @layer utilities {
+  .chat-message-copy-locked {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
   .text-character {
     letter-spacing: 0;
   }

@@ -8,6 +8,26 @@ export function shouldRegenerateAfterMessageEdit(role: EditableMessageRole) {
   return role === "USER";
 }
 
+export function resolveVariantSelection(
+  currentIndex: number | undefined,
+  previousVariantCount: number | undefined,
+  variantCount: number
+) {
+  const latestIndex = Math.max(0, variantCount - 1);
+  const receivedNewVariant = previousVariantCount !== undefined && variantCount > previousVariantCount;
+
+  if (
+    currentIndex === undefined ||
+    currentIndex < 0 ||
+    currentIndex >= variantCount ||
+    receivedNewVariant
+  ) {
+    return latestIndex;
+  }
+
+  return currentIndex;
+}
+
 type RegenerationMessage = {
   id: string;
   role: EditableMessageRole;

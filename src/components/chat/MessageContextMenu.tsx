@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, Copy, Edit3, GitFork, History, Pin, Play, RefreshCcw, ShieldAlert, Trash2 } from "lucide-react";
+import { Copy, Edit3, GitFork, History, Pin, Play, RefreshCcw, ShieldAlert, Trash2 } from "lucide-react";
 
 type MessageContextMenuProps = {
   isOpen: boolean;
@@ -14,10 +14,6 @@ type MessageContextMenuProps = {
   onRegenerate?: () => void;
   onContinue?: () => void;
   onRewind?: () => void;
-  onPreviousVariant?: () => void;
-  onNextVariant?: () => void;
-  previousVariantDisabled?: boolean;
-  nextVariantDisabled?: boolean;
   onPin?: () => void;
   onBranch?: () => void;
   onReport?: () => void;
@@ -35,10 +31,6 @@ export function MessageContextMenu({
   onRegenerate,
   onContinue,
   onRewind,
-  onPreviousVariant,
-  onNextVariant,
-  previousVariantDisabled,
-  nextVariantDisabled,
   onPin,
   onBranch,
   onReport,
@@ -107,11 +99,11 @@ export function MessageContextMenu({
         </MenuItem>
       ) : null}
 
-      {!isUserMessage && (
+      {!isUserMessage && onRegenerate ? (
         <MenuItem onClick={onRegenerate} icon={<RefreshCcw className="h-4 w-4" />}>
           Regenerate
         </MenuItem>
-      )}
+      ) : null}
 
       {onContinue ? (
         <MenuItem onClick={onContinue} icon={<Play className="h-4 w-4" />}>
@@ -122,18 +114,6 @@ export function MessageContextMenu({
       <MenuItem onClick={onRewind} icon={<History className="h-4 w-4" />}>
         Rewind
       </MenuItem>
-
-      {onPreviousVariant ? (
-        <MenuItem onClick={onPreviousVariant} disabled={previousVariantDisabled} icon={<ChevronLeft className="h-4 w-4" />}>
-          Previous attempt
-        </MenuItem>
-      ) : null}
-
-      {onNextVariant ? (
-        <MenuItem onClick={onNextVariant} disabled={nextVariantDisabled} icon={<ChevronRight className="h-4 w-4" />}>
-          Next attempt
-        </MenuItem>
-      ) : null}
 
       <MenuItem onClick={onPin} icon={<Pin className="h-4 w-4" />}>
         {isPinned ? "Unpin" : "Pin"}

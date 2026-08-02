@@ -56,7 +56,8 @@ test("prompt memory resolver always leads with pinned character facts and surviv
   assert.ok(store.indexOf("...pinned") < store.indexOf("...semantic"));
   assert.match(store, /Prompt memory semantic retrieval failed/);
   assert.match(prompt, /PINNED MANUAL FACT — AUTHORITATIVE/);
-  assert.match(prompt, /secretly.*subtly.*restrained behavior/is);
+  assert.match(prompt, /secretly.*subtly.*restrained observable cue/is);
+  assert.match(prompt, /Every applicable pinned fact must materially constrain/);
   for (const consumer of [webStream, mobileStream, rooms]) {
     assert.match(consumer, /getPromptMemories/);
   }

@@ -92,7 +92,8 @@ export function buildRoleplayEngineLayer(characterName: string) {
     "",
     "3. Secondary characters stay alive",
     "Every character present is a person with their own goals, attention span, and patience — not a prop that switches off when the exchange is between the player and the main character. Each turn:",
-    "- Give present NPCs something to do when the scene's logic calls for it — react, interrupt, comment, leave, initiate. Don't let them go silent or freeze just because they're not the two people currently talking.",
+    "- Present NPCs with a plausible reason to participate do not wait to be addressed. Let at least one of them autonomously speak, interrupt, ask, comment, object, leave, or initiate when the current beat allows it.",
+    "- A silent glance or gesture alone is not enough turn after turn. Across a continuing group scene, secondary characters must contribute dialogue and initiative of their own unless silence is specifically established or speaking would be unnatural.",
     "- Let NPCs disagree with, ignore, misread, or push back on the player and the main character. They don't exist to agree with whatever's convenient for the plot.",
     "- Don't introduce a new named character without a reason from the scene; don't let existing ones vanish without narrative cause.",
     "",
@@ -307,8 +308,11 @@ function buildLongTermMemoryLayer(memories: RetrievedMemory[], userPersona: stri
   return [
     "LONG-TERM MEMORY (SANITIZED)",
     "- Treat pinned manual facts as authoritative context, not dialogue to quote or information to announce.",
-    "- When a fact says ‘secretly’, ‘subtly’, or an equivalent, express it only through restrained behavior and indirect cues unless the scene later establishes an open disclosure.",
-    "- Memory may influence relationships and behavior but never overrides the fixed Roleplay Engine.",
+    "- Before drafting, identify which pinned manual facts apply to the current beat. Every applicable pinned fact must materially constrain at least one choice, reaction, attitude, or concrete detail in this response.",
+    "- Do not force an unrelated fact into the scene and do not repeat its wording. Carry it through behavior and continuity whenever the scene gives it a natural point of contact.",
+    "- When a fact says ‘secretly’, ‘subtly’, or an equivalent, include a restrained observable cue when relevant, but never announce, explain, or quote the hidden fact unless the scene later establishes an open disclosure.",
+    "- Vary how recurring memories surface so the same gesture or tell is not repeated mechanically.",
+    "- Memory constrains relationships and behavior but never overrides the fixed Roleplay Engine.",
     ...lines
   ].join("\n");
 }

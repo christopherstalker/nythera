@@ -1,4 +1,5 @@
 export const SUPPORT_EMAIL = "support@nythera.art";
+export const PATREON_SUPPORT_URL = "https://www.patreon.com/c/ChristopherStalker";
 
 export const SUPPORT_CATEGORIES = [
   { value: "bug", label: "Bug report" },

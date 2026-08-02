@@ -6,6 +6,7 @@ import {
   canEditMessageRole,
   partitionMessagesForRewind,
   prepareRegenerationTurn,
+  resolveVariantSelection,
   shouldRegenerateAfterMessageEdit
 } from "../src/lib/message-actions";
 import { streamMessageSchema } from "../src/lib/validation";
@@ -25,6 +26,13 @@ test("user and assistant messages are editable, but only user edits regenerate",
   assert.equal(canEditMessageRole("SYSTEM"), false);
   assert.equal(shouldRegenerateAfterMessageEdit("USER"), true);
   assert.equal(shouldRegenerateAfterMessageEdit("ASSISTANT"), false);
+});
+
+test("a newly streamed regeneration automatically selects the latest attempt", () => {
+  assert.equal(resolveVariantSelection(undefined, undefined, 2), 1);
+  assert.equal(resolveVariantSelection(0, 2, 2), 0);
+  assert.equal(resolveVariantSelection(1, 2, 3), 2);
+  assert.equal(resolveVariantSelection(2, 3, 4), 3);
 });
 
 test("regeneration targets only the latest assistant variant group without duplicating the user turn", () => {

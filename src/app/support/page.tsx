@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { Bug, Lightbulb, LifeBuoy, ShieldAlert } from "lucide-react";
+import { Bug, ExternalLink, Heart, Lightbulb, LifeBuoy, ShieldAlert } from "lucide-react";
 import { GuideNavigation } from "@/components/guide/guide-navigation";
 import { SupportEmailForm } from "@/components/support/support-email-form";
+import { Button } from "@/components/ui/button";
 import { PageHeader, PageShell, Surface } from "@/components/ui/page";
-import { SUPPORT_EMAIL } from "@/lib/support";
+import { PATREON_SUPPORT_URL, SUPPORT_EMAIL } from "@/lib/support";
 
 export const metadata: Metadata = {
   title: "Nythera support",
@@ -33,6 +34,25 @@ export default function SupportPage() {
               return <article key={type.title} className="bg-[var(--codex-paper)] p-5"><Icon className="h-5 w-5 text-[var(--codex-violet)]" /><h2 className="font-editorial mt-3 text-2xl text-[var(--codex-ivory)]">{type.title}</h2><p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{type.text}</p></article>;
             })}
           </aside>
+        </div>
+
+        <div id="support-nythera" className="mt-8 scroll-mt-24">
+          <Surface className="p-6 sm:p-8">
+            <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+              <div>
+                <Heart className="h-6 w-6 text-[var(--codex-violet)]" />
+                <h2 className="font-editorial mt-4 text-3xl text-[var(--codex-ivory)]">Support Nythera</h2>
+                <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--text-secondary)]">
+                  Nythera is completely free. If you enjoy it and want to support continued development and future improvements, you can join Christopher Stalker on Patreon.
+                </p>
+              </div>
+              <Button asChild size="lg">
+                <a href={PATREON_SUPPORT_URL} target="_blank" rel="noreferrer">
+                  <Heart className="h-4 w-4" />Support on Patreon<ExternalLink className="h-4 w-4" />
+                </a>
+              </Button>
+            </div>
+          </Surface>
         </div>
       </div>
     </PageShell>

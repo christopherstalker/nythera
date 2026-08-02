@@ -299,11 +299,39 @@ function MessageBubbleComponent({
               </div>
             </div>
           ) : content ? (
-            <RichMessageText text={content} />
+            <div className="chat-message-copy-locked">
+              <RichMessageText text={content} />
+            </div>
           ) : (
             <TypingIndicator />
           )}
         </motion.div>
+
+        {hasVariants ? (
+          <div className="mt-4 flex w-full items-center" aria-label={`Attempt ${variantIndex! + 1} of ${variantCount}`}>
+            <span className="inline-flex h-10 items-center gap-1 rounded-full border border-[var(--border-subtle)] bg-[var(--color-overlay)] px-2 text-sm font-bold text-[var(--text-primary)] shadow-[var(--glass-highlight)]">
+              <ActionButton
+                label="Previous attempt"
+                onClick={() => onPreviousVariant?.()}
+                disabled={variantIndex! <= 0}
+                compact
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </ActionButton>
+              <span className="min-w-10 text-center" aria-hidden="true">
+                {variantIndex! + 1}/{variantCount}
+              </span>
+              <ActionButton
+                label="Next attempt"
+                onClick={() => onNextVariant?.()}
+                disabled={variantIndex! >= variantCount! - 1}
+                compact
+              >
+                <ChevronRight className="h-4 w-4" />
+              </ActionButton>
+            </span>
+          </div>
+        ) : null}
 
         {content && !isEditing ? (
           <div
@@ -342,29 +370,6 @@ function MessageBubbleComponent({
             </div>
 
             <div className="flex shrink-0 items-center gap-2 max-sm:hidden">
-              {hasVariants && (
-                <span className="flex h-10 items-center gap-1 rounded-full border border-[var(--border-subtle)] bg-[var(--color-overlay)] px-2 text-sm font-bold text-[var(--text-primary)] shadow-[var(--glass-highlight)]">
-                  <ActionButton
-                    label="Previous attempt"
-                    onClick={() => onPreviousVariant?.()}
-                    disabled={variantIndex <= 0}
-                    compact
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </ActionButton>
-                  <span className="min-w-10 text-center">
-                    {variantIndex! + 1}/{variantCount}
-                  </span>
-                  <ActionButton
-                    label="Next attempt"
-                    onClick={() => onNextVariant?.()}
-                    disabled={variantIndex >= variantCount! - 1}
-                    compact
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </ActionButton>
-                </span>
-              )}
               <ActionButton label="Branch" onClick={() => onBranch?.(id)} mobileHidden>
                 <GitFork className="h-4 w-4" />
               </ActionButton>
@@ -389,13 +394,9 @@ function MessageBubbleComponent({
           onClose={() => setMenuPosition(null)}
           onCopy={copyToClipboard}
           onEdit={edit}
-          onRegenerate={!isUser ? () => onRegenerate?.(id) : undefined}
+          onRegenerate={!isUser && onRegenerate ? () => onRegenerate(id) : undefined}
           onContinue={!isUser && onContinue ? onContinue : undefined}
           onRewind={onRewind ? () => onRewind(id) : undefined}
-          onPreviousVariant={hasVariants ? onPreviousVariant : undefined}
-          onNextVariant={hasVariants ? onNextVariant : undefined}
-          previousVariantDisabled={hasVariants ? variantIndex! <= 0 : undefined}
-          nextVariantDisabled={hasVariants ? variantIndex! >= variantCount! - 1 : undefined}
           onPin={onPin ? () => onPin(id) : undefined}
           onBranch={onBranch ? () => onBranch(id) : undefined}
           onReport={report}
