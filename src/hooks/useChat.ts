@@ -31,6 +31,7 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [providerNotice, setProviderNotice] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const inFlightRef = useRef(false);
 
@@ -40,6 +41,7 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
     inFlightRef.current = false;
     setMessages(initialMessages);
     setError(null);
+    setProviderNotice(null);
     setIsStreaming(false);
 
     return () => {
@@ -82,6 +84,7 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
       });
       setIsStreaming(true);
       setError(null);
+      setProviderNotice(null);
 
       try {
         const response = await fetch(`/api/chats/${chatId}/stream`, {
@@ -124,6 +127,10 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
           }
 
           const payload = JSON.parse(data) as { type: string; text?: string; message?: ChatMessage | string; error?: string };
+
+          if (payload.type === "provider_notice" && typeof payload.message === "string") {
+            setProviderNotice(payload.message);
+          }
 
           if (payload.type === "delta" && payload.text) {
             setMessages((current) =>
@@ -368,7 +375,7 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
     }
   }, [messages, pinMessage, unpinMessage]);
 
-  return { messages, isStreaming, error, send, editMessage, deleteMessage, rewindToMessage, branchFromMessage, pinMessage, unpinMessage, togglePin };
+  return { messages, isStreaming, error, providerNotice, send, editMessage, deleteMessage, rewindToMessage, branchFromMessage, pinMessage, unpinMessage, togglePin };
 }
 
 function createRequestId() {

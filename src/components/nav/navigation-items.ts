@@ -2,11 +2,13 @@ import {
   Books,
   Compass,
   GearSix,
+  Heart,
   House,
   Plus,
   Question,
   UsersThree
 } from "@phosphor-icons/react";
+import { PATREON_SUPPORT_URL } from "@/lib/support";
 
 export const primaryNavigationItems = [
   { href: "/", label: "Home", icon: House },
@@ -17,8 +19,9 @@ export const primaryNavigationItems = [
 ] as const;
 
 export const utilityNavigationItems = [
-  { href: "/guide", label: "Help", icon: Question },
-  { href: "/settings", label: "Settings", icon: GearSix }
+  { href: "/guide", label: "Help", icon: Question, external: false, support: false },
+  { href: PATREON_SUPPORT_URL, label: "Support on Patreon", icon: Heart, external: true, support: true },
+  { href: "/settings", label: "Settings", icon: GearSix, external: false, support: false }
 ] as const;
 
 export type NavigationIcon =

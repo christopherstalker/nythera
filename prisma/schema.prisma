@@ -964,7 +964,7 @@ model UserApiKey {
   encryptedKey     String   @db.Text
   last4            String
   isDefault        Boolean  @default(true)
-  fallbackEnabled  Boolean  @default(true)
+  fallbackEnabled  Boolean  @default(false)
   fallbackPriority Int?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

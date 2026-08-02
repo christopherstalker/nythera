@@ -11,10 +11,11 @@ import { loadAdaptiveChatHistory } from "@/lib/chat-history";
 import { streamLlmResponse } from "@/lib/proxy";
 import { getPromptMemories } from "@/lib/memory-store";
 import { schedulePostMessageJobs } from "@/lib/memory";
-import { getEffectiveProviderKeys } from "@/lib/user-keys";
+import { getEffectiveProviderKeys, isUserOwnedProvider } from "@/lib/user-keys";
 import { formatUserPersonaForPrompt } from "@/lib/user-persona";
 import { createMessageWithNextSequence } from "@/lib/message-sequence";
 import { resolveCharacterModelSettings } from "@/lib/character-model-settings";
+import { providerFallbackNotice } from "@/lib/provider-fallback";
 import { prepareRegenerationTurn } from "@/lib/message-actions";
 import { getStoryPromptContext, syncChatTurns } from "@/lib/stories/story-foundation";
 import { markStoryProactiveEventsFired } from "@/lib/stories/narrative-store";
@@ -95,12 +96,14 @@ export async function POST(request: Request, context: Context) {
     });
     const model = effectiveSettings.model;
     const temperature = effectiveSettings.temperature;
-    await enforceRateLimit({
-      userId: user.id,
-      ip: getRequestIp(request),
-      route: "chat:token-budget",
-      cost: Math.min(effectiveSettings.maxTokens ?? 900, 4096)
-    });
+    if (!isUserOwnedProvider(effectiveSettings.provider, providerKeys)) {
+      await enforceRateLimit({
+        userId: user.id,
+        ip: getRequestIp(request),
+        route: "chat:token-budget",
+        cost: Math.min(effectiveSettings.maxTokens ?? 900, 4096)
+      });
+    }
     const history = await loadAdaptiveChatHistory({
       chatId: chat.id,
       model,
@@ -251,6 +254,8 @@ export async function POST(request: Request, context: Context) {
 
             if (chunk.type === "usage") {
               usage = chunk;
+              const notice = chunk.fallbackTriggered ? providerFallbackNotice(chunk.attempts) : null;
+              if (notice) send({ type: "provider_notice", message: notice });
             }
 
             if (chunk.type === "error") {

@@ -310,6 +310,7 @@ async function streamProvider(input: {
               : undefined
         }),
         model: input.model,
+        providerName: input.key.provider,
         messages: input.messages,
         temperature: input.temperature,
         topP: input.topP,
@@ -382,6 +383,7 @@ function requireBaseUrl(key: ProviderKey) {
 async function* streamOpenAI(input: {
   client: OpenAI;
   model: string;
+  providerName: string;
   messages: PromptMessage[];
   temperature: number;
   topP?: number | null;
@@ -398,8 +400,8 @@ async function* streamOpenAI(input: {
       messages: input.messages,
       temperature: input.temperature,
       top_p: input.topP ?? undefined,
-      frequency_penalty: input.frequencyPenalty ?? undefined,
-      presence_penalty: input.presencePenalty ?? undefined,
+      frequency_penalty: input.providerName === "deepseek" ? undefined : input.frequencyPenalty ?? undefined,
+      presence_penalty: input.providerName === "deepseek" ? undefined : input.presencePenalty ?? undefined,
       max_tokens: input.maxTokens ?? undefined,
       stream: true,
       stream_options: { include_usage: true }
@@ -485,14 +487,23 @@ async function* streamGemini(input: {
 }) {
   const model = input.client.getGenerativeModel({
     model: input.model,
+    systemInstruction: input.messages
+      .filter((message) => message.role === "system")
+      .map((message) => message.content)
+      .join("\n\n"),
     generationConfig: {
       temperature: input.temperature,
       topP: input.topP ?? undefined,
       maxOutputTokens: input.maxTokens ?? undefined
     }
   });
-  const prompt = input.messages.map((message) => `${message.role.toUpperCase()}: ${message.content}`).join("\n\n");
-  const result = await model.generateContentStream(prompt, {
+  const contents = input.messages
+    .filter((message) => message.role !== "system")
+    .map((message) => ({
+      role: message.role === "assistant" ? "model" : "user",
+      parts: [{ text: message.content }]
+    }));
+  const result = await model.generateContentStream({ contents }, {
     signal: input.signal,
     timeout: LLM_PROVIDER_TIMEOUT_MS
   });

@@ -301,6 +301,8 @@ function formatModelLabel(value: string) {
     .replace(/^openai:/, "")
     .replace(/^anthropic:/, "")
     .replace(/^google:/, "")
+    .replace(/^gemini:/, "")
+    .replace(/^deepseek:/, "")
     .replace(/^xai:/, "")
     .replace(/^openrouter:/, "")
     .replace(/-/g, " ");

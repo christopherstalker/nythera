@@ -42,6 +42,13 @@ test("infers provider-qualified values for legacy saved chat models", () => {
   assert.equal(inferProviderModelValue("gpt-4o-mini", groups), "openai:gpt-4o-mini");
   assert.equal(inferProviderModelValue("my-ollama:llama3.1", groups), "my-ollama:llama3.1");
   assert.equal(inferProviderModelValue("missing-model", groups), "");
+  assert.equal(inferProviderModelValue("openai:gpt-future", groups), "openai:gpt-future");
+});
+
+test("live provider models lead the picker without losing bundled fallbacks", () => {
+  const groups = buildProviderModelGroups(savedProviders, { openai: ["gpt-live-new"] });
+  assert.equal(groups[0].options[0].value, "openai:gpt-live-new");
+  assert.ok(groups[0].options.some((option) => option.value === "openai:gpt-4o-mini"));
 });
 
 test("chat composer replaces provider:model free text with a grouped picker", async () => {
@@ -54,6 +61,7 @@ test("chat composer replaces provider:model free text with a grouped picker", as
   assert.match(inputSource, /Add a provider key in Settings/);
   assert.match(clientSource, /fetch\("\/api\/keys"/);
   assert.match(clientSource, /buildProviderModelGroups/);
+  assert.match(clientSource, /\/api\/keys\/models/);
   assert.match(clientSource, /modelGroups=\{providerModelGroups\}/);
 });
 

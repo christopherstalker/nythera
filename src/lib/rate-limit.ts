@@ -98,6 +98,7 @@ const ROUTE_LIMITS: Record<string, RateLimitRule> = {
   "rooms:message": MESSAGE_LIMIT,
   "mobile:rooms:message": MESSAGE_LIMIT,
   "proxy:llm": MESSAGE_LIMIT,
+  "keys:models": EXPENSIVE_READ_LIMIT,
   "chats:create": AI_CREATION_LIMIT,
   "mobile:chats:create": AI_CREATION_LIMIT,
   "rooms:create": AI_CREATION_LIMIT,

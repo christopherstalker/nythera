@@ -37,6 +37,16 @@ test("provider errors have safe actionable classifications", async () => {
   assert.equal(outage.retryable, true);
 
   assert.deepEqual(proxyProviderErrors!.classifyProviderError({ status: 401 }), invalidKey);
+
+  const insufficientBalance = providerErrors!.classifyProviderError({ status: 402 });
+  assert.equal(insufficientBalance.code, "insufficient_balance");
+  assert.match(insufficientBalance.message, /DeepSeek.*balance/i);
+  assert.equal(insufficientBalance.retryable, false);
+  assert.deepEqual(proxyProviderErrors!.classifyProviderError({ status: 402 }), insufficientBalance);
+
+  const invalidParameters = providerErrors!.classifyProviderError({ status: 422 });
+  assert.equal(invalidParameters.code, "invalid_parameters");
+  assert.equal(invalidParameters.retryable, false);
 });
 
 test("chat SSE preserves the safe provider error for the client", async () => {

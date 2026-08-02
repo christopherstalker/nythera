@@ -22,8 +22,8 @@ test("both gateways map sampler settings to each provider's supported request fi
 
   for (const source of [builtIn, proxy]) {
     assert.match(source, /top_p:\s*input\.topP/);
-    assert.match(source, /frequency_penalty:\s*input\.frequencyPenalty/);
-    assert.match(source, /presence_penalty:\s*input\.presencePenalty/);
+    assert.match(source, /frequency_penalty:\s*input\.providerName === "deepseek" \? undefined : input\.frequencyPenalty/);
+    assert.match(source, /presence_penalty:\s*input\.providerName === "deepseek" \? undefined : input\.presencePenalty/);
     assert.match(source, /max_tokens:\s*input\.maxTokens/);
     assert.match(source, /topP:\s*input\.topP/);
     assert.match(source, /maxOutputTokens:\s*input\.maxTokens/);

@@ -43,6 +43,7 @@ export function PromptGeneratorPanel({
   const [keysLoading, setKeysLoading] = useState(true);
   const [selectedProvider, setSelectedProvider] = useState("");
   const [selectedModel, setSelectedModel] = useState("");
+  const [liveModels, setLiveModels] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -56,6 +57,13 @@ export function PromptGeneratorPanel({
         const body = await response.json();
         if (!cancelled) {
           setKeys(Array.isArray(body.keys) ? body.keys : []);
+        }
+        const modelResponse = await fetch("/api/keys/models");
+        if (modelResponse.ok) {
+          const modelBody = await modelResponse.json();
+          if (!cancelled && Array.isArray(modelBody.providers)) {
+            setLiveModels(Object.fromEntries(modelBody.providers.map((entry: { provider: string; models: string[] }) => [entry.provider, entry.models])));
+          }
         }
       } finally {
         if (!cancelled) {
@@ -90,8 +98,8 @@ export function PromptGeneratorPanel({
   );
 
   const modelSuggestions = useMemo(() => {
-    return modelSuggestionsForProvider(selectedProvider, activeKey?.defaultModel);
-  }, [activeKey?.defaultModel, selectedProvider]);
+    return modelSuggestionsForProvider(selectedProvider, activeKey?.defaultModel, liveModels[selectedProvider] ?? []);
+  }, [activeKey?.defaultModel, liveModels, selectedProvider]);
 
   const hasUserKey = keys.length > 0;
   const canGenerate =

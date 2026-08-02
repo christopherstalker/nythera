@@ -397,7 +397,7 @@ function routeFromAvailableKey(keys: ProviderKeys) {
 
 function fallbackRoutes(primary: GatewayRoute, keys: ProviderKeys) {
   const routes = keys
-    .filter((key) => key.provider !== primary.providerName && key.fallbackEnabled !== false)
+    .filter((key) => key.provider !== primary.providerName && key.fallbackEnabled === true && key.fallbackPriority !== null && key.fallbackPriority !== undefined)
     .sort((left, right) =>
       (left.fallbackPriority ?? Number.MAX_SAFE_INTEGER) - (right.fallbackPriority ?? Number.MAX_SAFE_INTEGER) ||
       left.provider.localeCompare(right.provider)
@@ -465,7 +465,7 @@ async function streamProvider(input: {
       throw new Error(`${input.provider} is not configured.`);
     }
 
-    return streamOpenAI({ ...input, client });
+    return streamOpenAI({ ...input, client, providerName: input.key!.provider });
   }
 
   if (input.provider === "anthropic") {
@@ -560,7 +560,7 @@ function legacyProviderKeys(keys: { openai?: string; anthropic?: string; gemini?
       displayName: "Gemini",
       apiFormat: "GEMINI",
       apiKey: keys.gemini,
-      defaultModel: "gemini-2.5-flash"
+      defaultModel: "gemini-3.6-flash"
     });
   }
 
@@ -598,7 +598,7 @@ function withServerProviderKeys(keys: ProviderKeys): ProviderKeys {
       displayName: "Nythera Gemini",
       apiFormat: "GEMINI",
       apiKey: serverGeminiKey,
-      defaultModel: "gemini-2.5-flash"
+      defaultModel: "gemini-3.6-flash"
     });
   }
 
@@ -608,6 +608,7 @@ function withServerProviderKeys(keys: ProviderKeys): ProviderKeys {
 async function streamOpenAI(input: {
   client: OpenAI;
   model: string;
+  providerName: string;
   messages: ChatMessage[];
   temperature: number;
   topP?: number | null;
@@ -626,8 +627,8 @@ async function streamOpenAI(input: {
       messages: input.messages,
       temperature: input.temperature,
       top_p: input.topP ?? undefined,
-      frequency_penalty: input.frequencyPenalty ?? undefined,
-      presence_penalty: input.presencePenalty ?? undefined,
+      frequency_penalty: input.providerName === "deepseek" ? undefined : input.frequencyPenalty ?? undefined,
+      presence_penalty: input.providerName === "deepseek" ? undefined : input.presencePenalty ?? undefined,
       max_tokens: input.maxTokens ?? undefined,
       stream: true,
       stream_options: { include_usage: true }
@@ -723,14 +724,23 @@ async function streamGemini(input: {
 }) {
   const model = input.client.getGenerativeModel({
     model: input.model,
+    systemInstruction: input.messages
+      .filter((message) => message.role === "system")
+      .map((message) => message.content)
+      .join("\n\n"),
     generationConfig: {
       temperature: input.temperature,
       topP: input.topP ?? undefined,
       maxOutputTokens: input.maxTokens ?? undefined
     }
   });
-  const prompt = input.messages.map((message) => `${message.role.toUpperCase()}: ${message.content}`).join("\n\n");
-  const result = await model.generateContentStream(prompt, {
+  const contents = input.messages
+    .filter((message) => message.role !== "system")
+    .map((message) => ({
+      role: message.role === "assistant" ? "model" : "user",
+      parts: [{ text: message.content }]
+    }));
+  const result = await model.generateContentStream({ contents }, {
     signal: input.signal,
     timeout: LLM_PROVIDER_TIMEOUT_MS
   });
@@ -746,7 +756,7 @@ async function streamGemini(input: {
   const usageMetadata = response.usageMetadata;
 
   return {
-    inputTokens: usageMetadata?.promptTokenCount ?? estimateTokens(prompt),
+    inputTokens: usageMetadata?.promptTokenCount ?? estimateTokens(input.messages.map((message) => message.content).join("\n")),
     outputTokens: usageMetadata?.candidatesTokenCount ?? 0,
     usageEstimated: !usageMetadata
   };

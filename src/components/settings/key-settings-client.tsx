@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import { ArrowDown, ArrowUp, Copy, Eye, EyeOff, ListOrdered, Save, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, Eye, EyeOff, ListOrdered, RefreshCw, Save, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FIRST_CLASS_PROVIDER_PRESETS, type ProviderApiFormat } from "@/lib/provider-presets";
@@ -24,6 +24,14 @@ type SavedKey = {
 
 type ApiFormat = ProviderApiFormat;
 
+type ModelCatalogEntry = {
+  provider: string;
+  models: string[];
+  source: "live" | "fallback";
+  balanceAvailable?: boolean;
+  warning?: string;
+};
+
 const providers = FIRST_CLASS_PROVIDER_PRESETS;
 const blankCustomProvider = {
   provider: "",
@@ -42,6 +50,8 @@ export function KeySettingsClient() {
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [custom, setCustom] = useState(blankCustomProvider);
   const [status, setStatus] = useState<string | null>(null);
+  const [modelCatalog, setModelCatalog] = useState<Record<string, ModelCatalogEntry>>({});
+  const [modelCatalogLoading, setModelCatalogLoading] = useState(false);
 
   useEffect(() => {
     if (sessionStatus === "authenticated") {
@@ -67,6 +77,27 @@ export function KeySettingsClient() {
 
     const body = await response.json();
     setKeys(body.keys ?? []);
+    await refreshModels(false);
+  }
+
+  async function refreshModels(force: boolean) {
+    setModelCatalogLoading(true);
+    try {
+      const response = await fetch(`/api/keys/models${force ? "?refresh=1" : ""}`);
+      const body = await response.json().catch(() => null);
+      if (!response.ok) {
+        setStatus(body?.error ?? "Could not refresh provider models.");
+        return;
+      }
+      const entries: ModelCatalogEntry[] = Array.isArray(body?.providers) ? body.providers : [];
+      setModelCatalog(Object.fromEntries(entries.map((entry) => [entry.provider, entry])));
+      const warning = entries.find((entry) => entry.warning)?.warning;
+      setStatus(warning ?? "Provider models refreshed automatically.");
+    } catch {
+      setStatus("Could not reach the model catalog. Bundled models remain available.");
+    } finally {
+      setModelCatalogLoading(false);
+    }
   }
 
   async function saveProvider(event: FormEvent<HTMLFormElement>, providerName: string) {
@@ -197,8 +228,19 @@ export function KeySettingsClient() {
 
   return (
     <div className="grid gap-4">
+      <div className="glass-card flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-[var(--text-primary)]">Live model catalog</p>
+          <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">Available models refresh automatically from each connected provider. Bundled models are used only if a provider cannot be reached.</p>
+        </div>
+        <Button type="button" variant="outline" size="sm" disabled={modelCatalogLoading} onClick={() => void refreshModels(true)}>
+          <RefreshCw className={`h-4 w-4 ${modelCatalogLoading ? "animate-spin" : ""}`} />
+          Refresh models
+        </Button>
+      </div>
       {providers.map((provider) => {
         const saved = savedByProvider.get(provider.provider);
+        const catalog = modelCatalog[provider.provider];
         const value = values[provider.provider] ?? "";
         const isVisible = visible[provider.provider] ?? false;
 
@@ -214,6 +256,12 @@ export function KeySettingsClient() {
                 <p className="mt-1 text-xs text-[var(--text-muted)]">
                   {saved ? `${saved.isDefault ? "Active key" : "Saved key"} ending in ${saved.last4}` : "No key saved"}
                 </p>
+                {saved && catalog ? (
+                  <p className={`mt-1 text-xs ${catalog.warning ? "text-amber-300" : "text-[var(--codex-mint)]"}`}>
+                    {catalog.models.length} models · {catalog.source === "live" ? "live catalog" : "fallback catalog"}
+                    {catalog.balanceAvailable === false ? " · no DeepSeek balance" : ""}
+                  </p>
+                ) : null}
               </div>
               {saved ? (
                 <Button type="button" variant="outline" size="sm" onClick={() => remove(provider.provider)}>

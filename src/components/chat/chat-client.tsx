@@ -7,7 +7,7 @@ import { ChatHeader } from "@/components/chat/ChatHeader";
 import { MessageList } from "@/components/chat/MessageList";
 import { useChat, type ChatMessage } from "@/hooks/useChat";
 import { shouldBypassNextImageOptimization } from "@/lib/image-cache";
-import { buildProviderModelGroups, inferProviderModelValue, type ProviderModelGroup, type SavedProviderSummary } from "@/lib/provider-model-options";
+import { buildProviderModelGroups, inferProviderModelValue, type ProviderModelCatalog, type ProviderModelGroup, type SavedProviderSummary } from "@/lib/provider-model-options";
 import { useUiStore } from "@/stores/use-ui-store";
 
 type ChatClientProps = {
@@ -31,9 +31,11 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
   const [responsePrompt, setResponsePrompt] = useState(initialResponsePrompt ?? "");
   const [apiSaveStatus, setApiSaveStatus] = useState<string | null>(null);
   const [providerKeys, setProviderKeys] = useState<SavedProviderSummary[]>([]);
+  const [providerModels, setProviderModels] = useState<ProviderModelCatalog>({});
   const [providerKeysLoading, setProviderKeysLoading] = useState(true);
+  const [modelCatalogStatus, setModelCatalogStatus] = useState<string | null>(null);
   const persistedApiRef = useRef({ model: initialModel || "gpt-4o-mini", temperature: initialTemperature ?? 0.7, responsePrompt: initialResponsePrompt ?? "" });
-  const { messages, send, editMessage, deleteMessage, rewindToMessage, branchFromMessage, pinMessage, unpinMessage, isStreaming, error } = useChat(chatId, initialMessages);
+  const { messages, send, editMessage, deleteMessage, rewindToMessage, branchFromMessage, pinMessage, unpinMessage, isStreaming, error, providerNotice } = useChat(chatId, initialMessages);
   const messagesRef = useRef(messages);
   const isStreamingRef = useRef(isStreaming);
   const chatSettingsRef = useRef({ model, temperature, responsePrompt });
@@ -43,7 +45,7 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
   const setSidePanelOpen = useUiStore((state) => state.setSidePanelOpen);
   const toggleSidePanel = useUiStore((state) => state.toggleSidePanel);
   const activePersona = useUiStore((state) => state.activePersona);
-  const providerModelGroups: ProviderModelGroup[] = useMemo(() => buildProviderModelGroups(providerKeys), [providerKeys]);
+  const providerModelGroups: ProviderModelGroup[] = useMemo(() => buildProviderModelGroups(providerKeys, providerModels), [providerKeys, providerModels]);
   const selectedProviderModel = inferProviderModelValue(model, providerModelGroups);
   const usePlainSceneImage = Boolean(characterAvatarUrl && shouldBypassNextImageOptimization(characterAvatarUrl));
 
@@ -142,10 +144,23 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
         const body: { keys?: SavedProviderSummary[] } = await response.json();
         if (!cancelled) {
           setProviderKeys(Array.isArray(body.keys) ? body.keys : []);
+          setProviderKeysLoading(false);
+        }
+
+        const catalogResponse = await fetch("/api/keys/models", { signal: controller.signal });
+        if (!catalogResponse.ok) {
+          throw new Error("Live model refresh is unavailable; bundled models remain available.");
+        }
+        const catalogBody: { providers?: Array<{ provider: string; models: string[]; warning?: string }> } = await catalogResponse.json();
+        if (!cancelled) {
+          const providers = Array.isArray(catalogBody.providers) ? catalogBody.providers : [];
+          setProviderModels(Object.fromEntries(providers.map((provider) => [provider.provider, provider.models])));
+          const warning = providers.find((provider) => provider.warning)?.warning;
+          setModelCatalogStatus(warning ?? "Provider models refreshed automatically.");
         }
       } catch (error) {
         if (!(error instanceof DOMException && error.name === "AbortError")) {
-          setProviderKeys([]);
+          setModelCatalogStatus(error instanceof Error ? error.message : "Live model refresh is unavailable.");
         }
       } finally {
         if (!cancelled) {
@@ -291,6 +306,7 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
             personaAvatarUrl={activePersona?.avatarUrl}
             summary={summary}
             error={error}
+            notice={providerNotice}
             onEdit={editMessage}
             onDelete={deleteMessage}
             onRegenerate={regenerate}
@@ -312,7 +328,7 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
             onTemperatureChange={setTemperature}
             responsePrompt={responsePrompt}
             onResponsePromptChange={setResponsePrompt}
-            apiStatus={apiSaveStatus}
+            apiStatus={apiSaveStatus ?? modelCatalogStatus}
             personaName={activePersona?.displayName}
             personaAvatarUrl={activePersona?.avatarUrl}
             onOpenComposer={() => setSidePanelOpen(true)}

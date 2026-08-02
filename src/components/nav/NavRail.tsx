@@ -42,7 +42,7 @@ export function NavRail() {
 
         <div className="mb-4 flex flex-col items-center gap-2">
           {utilityNavigationItems.map((item) => (
-            <RailLink key={item.href} {...item} active={isNavigationItemActive(pathname, item.href)} />
+            <RailLink key={item.href} {...item} active={!item.external && isNavigationItemActive(pathname, item.href)} />
           ))}
           {isAuthenticated ? (
             <button
@@ -74,15 +74,18 @@ export function NavRail() {
   );
 }
 
-function RailLink({ href, label, icon: Icon, active }: { href: string; label: string; icon: NavigationIcon; active: boolean }) {
+function RailLink({ href, label, icon: Icon, active, external = false, support = false }: { href: string; label: string; icon: NavigationIcon; active: boolean; external?: boolean; support?: boolean }) {
   return (
     <Link
       href={href}
       aria-label={label}
       title={label}
+      target={external ? "_blank" : undefined}
+      rel={external ? "noreferrer" : undefined}
       className={cn(
         "codex-rail-link focus-ring relative grid h-11 w-11 place-items-center text-[var(--text-muted)] no-underline",
-        active && "is-active text-[var(--codex-mint)]"
+        active && "is-active text-[var(--codex-mint)]",
+        support && "text-rose-300 hover:text-rose-200"
       )}
     >
       <Icon size={22} weight={active ? "light" : "thin"} />

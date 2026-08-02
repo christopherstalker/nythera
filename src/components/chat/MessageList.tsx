@@ -17,6 +17,7 @@ type MessageListProps = {
   personaAvatarUrl?: string | null;
   summary?: string | null;
   error?: string | null;
+  notice?: string | null;
   onEdit?: (messageId: string, content: string) => void;
   onDelete?: (messageId: string) => void;
   onRegenerate?: (messageId: string) => void;
@@ -26,12 +27,12 @@ type MessageListProps = {
   onPin?: (messageId: string) => void;
 };
 
-export function MessageList({ messages, characterName, characterAvatarUrl, personaName, personaAvatarUrl, summary, error, onEdit, onDelete, onRegenerate, onContinue, onRewind, onBranch, onPin }: MessageListProps) {
+export function MessageList({ messages, characterName, characterAvatarUrl, personaName, personaAvatarUrl, summary, error, notice, onEdit, onDelete, onRegenerate, onContinue, onRewind, onBranch, onPin }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const nearBottomRef = useRef(true);
   const previousRowCountRef = useRef(0);
   const displayItems = useMemo(() => buildDisplayItems(messages), [messages]);
-  const rows = useMemo(() => buildVirtualRows({ displayItems, summary, error, isEmpty: messages.length === 0 }), [displayItems, error, messages.length, summary]);
+  const rows = useMemo(() => buildVirtualRows({ displayItems, summary, error, notice, isEmpty: messages.length === 0 }), [displayItems, error, messages.length, notice, summary]);
   const latestAssistantId = useMemo(() => {
     for (let index = messages.length - 1; index >= 0; index -= 1) {
       if (messages[index].role === "ASSISTANT") {
@@ -175,7 +176,8 @@ type VirtualRow =
   | { type: "empty"; key: "empty" }
   | { type: "single"; key: string; message: ChatMessage }
   | { type: "assistant-variants"; key: string; variants: ChatMessage[] }
-  | { type: "error"; key: "error"; error: string };
+  | { type: "error"; key: "error"; error: string }
+  | { type: "notice"; key: "notice"; notice: string };
 
 function MessageRow({
   row,
@@ -249,6 +251,10 @@ function MessageRow({
     return <p className="rounded-lg border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200">{row.error}</p>;
   }
 
+  if (row.type === "notice") {
+    return <p className="rounded-lg border border-[var(--codex-mint)]/30 bg-[color-mix(in_oklch,var(--codex-mint)_8%,transparent)] p-3 text-sm text-[var(--text-secondary)]">{row.notice}</p>;
+  }
+
   if (row.type === "single") {
     const isLatestMessage = row.message.id === latestMessageId;
     const canRegenerate = row.message.role === "ASSISTANT" && row.message.id === latestAssistantId && isLatestMessage;
@@ -317,11 +323,13 @@ function buildVirtualRows({
   displayItems,
   summary,
   error,
+  notice,
   isEmpty
 }: {
   displayItems: DisplayItem[];
   summary?: string | null;
   error?: string | null;
+  notice?: string | null;
   isEmpty: boolean;
 }): VirtualRow[] {
   const rows: VirtualRow[] = [];
@@ -340,6 +348,9 @@ function buildVirtualRows({
   if (error) {
     rows.push({ type: "error", key: "error", error });
   }
+  if (notice) {
+    rows.push({ type: "notice", key: "notice", notice });
+  }
 
   return rows;
 }
@@ -348,7 +359,7 @@ function estimateRowSize(row: VirtualRow | undefined) {
   if (!row) return MESSAGE_ROW_ESTIMATE_PX;
   if (row.type === "summary") return 96;
   if (row.type === "empty") return 220;
-  if (row.type === "error") return 80;
+  if (row.type === "error" || row.type === "notice") return 80;
   if (row.type === "single") {
     return row.message.role === "USER" ? 120 : Math.max(160, Math.min(520, row.message.content.length * 0.36));
   }

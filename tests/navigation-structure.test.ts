@@ -79,3 +79,17 @@ test("help surfaces link to the Patreon-only support block", async () => {
   assert.match(helpPage, /href="\/support#support-nythera"/);
   assert.doesNotMatch(`${supportPage}\n${helpPage}\n${supportConfig}`, /Buy Me a Coffee|buymeacoffee/i);
 });
+
+test("desktop sidebar exposes Patreon between Help and Settings without changing the five-item mobile dock", async () => {
+  const [items, rail, dock] = await Promise.all([
+    read("../src/components/nav/navigation-items.ts"),
+    read("../src/components/nav/NavRail.tsx"),
+    read("../src/components/nav/MobileDock.tsx")
+  ]);
+  assert.match(items, /Help[\s\S]*Support on Patreon[\s\S]*Settings/);
+  assert.match(items, /PATREON_SUPPORT_URL/);
+  assert.match(rail, /target=\{external \? "_blank"/);
+  assert.match(rail, /text-rose-300/);
+  assert.match(dock, /primaryNavigationItems/);
+  assert.doesNotMatch(dock, /utilityNavigationItems|PATREON/);
+});

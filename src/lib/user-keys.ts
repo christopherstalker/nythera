@@ -4,6 +4,7 @@ import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { enforceFirstClassProviderConfig, type ProviderApiFormat } from "@/lib/provider-presets";
+import { defaultModelForProvider } from "@/lib/provider-model-options";
 
 export type { ProviderApiFormat } from "@/lib/provider-presets";
 
@@ -18,6 +19,7 @@ export type ProviderKey = {
   isDefault?: boolean;
   fallbackEnabled?: boolean;
   fallbackPriority?: number | null;
+  source?: "user" | "platform";
 };
 
 export type ProviderKeys = ProviderKey[];
@@ -78,7 +80,8 @@ export async function saveUserApiKey(input: {
         encryptedKey: encryptSecret(trimmed),
         last4: trimmed.slice(-4),
         label: input.label || null,
-        isDefault: true
+        isDefault: true,
+        fallbackEnabled: false
       }
     });
   });
@@ -134,7 +137,8 @@ export async function getDecryptedProviderKeys(userId: string): Promise<Provider
     label: row.label,
     isDefault: row.isDefault,
     fallbackEnabled: row.fallbackEnabled,
-    fallbackPriority: row.fallbackPriority
+    fallbackPriority: row.fallbackPriority,
+    source: "user"
   }));
 }
 
@@ -185,6 +189,11 @@ export async function getEffectiveProviderKeys(userId: string): Promise<Provider
   return [...userKeys, ...serverKeys];
 }
 
+export function isUserOwnedProvider(provider: string | null, keys: ProviderKeys) {
+  const selected = provider ? keys.find((key) => key.provider === provider) : null;
+  return Boolean(selected && selected.source !== "platform");
+}
+
 export function getServerProviderKeys(): ProviderKeys {
   const keys: ProviderKeys = [];
 
@@ -195,7 +204,9 @@ export function getServerProviderKeys(): ProviderKeys {
       apiFormat: "OPENAI",
       apiKey: env.OPENAI_API_KEY,
       baseUrl: "https://api.openai.com/v1",
-      defaultModel: "gpt-4o-mini"
+      defaultModel: defaultModelForProvider("openai"),
+      source: "platform",
+      fallbackEnabled: false
     });
   }
 
@@ -205,7 +216,9 @@ export function getServerProviderKeys(): ProviderKeys {
       displayName: "Nythera Anthropic",
       apiFormat: "ANTHROPIC",
       apiKey: env.ANTHROPIC_API_KEY,
-      defaultModel: "claude-3-5-sonnet-latest"
+      defaultModel: defaultModelForProvider("anthropic"),
+      source: "platform",
+      fallbackEnabled: false
     });
   }
 
@@ -215,7 +228,9 @@ export function getServerProviderKeys(): ProviderKeys {
       displayName: "Nythera Gemini",
       apiFormat: "GEMINI",
       apiKey: env.GEMINI_API_KEY,
-      defaultModel: "gemini-2.5-flash"
+      defaultModel: defaultModelForProvider("gemini"),
+      source: "platform",
+      fallbackEnabled: false
     });
   }
 
