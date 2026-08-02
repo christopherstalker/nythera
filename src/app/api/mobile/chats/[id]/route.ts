@@ -61,16 +61,26 @@ export async function PATCH(request: Request, context: Context) {
       throw new HttpError(404, "Chat not found.");
     }
 
-    const updated = await prisma.chat.update({
+    const chatUpdate = prisma.chat.update({
       where: { id: chat.id },
       data: {
         title: input.title,
         archivedAt: input.archived === undefined ? undefined : input.archived ? new Date() : null,
         temperature: input.temperature,
         model: input.model,
+        responsePrompt: input.responsePrompt === undefined ? undefined : input.responsePrompt || null,
         lastActiveAt: new Date()
       }
     });
+    const [updated] = input.responsePrompt === undefined
+      ? [await chatUpdate]
+      : await prisma.$transaction([
+          chatUpdate,
+          prisma.user.update({
+            where: { id: user.id },
+            data: { defaultResponsePrompt: input.responsePrompt || null }
+          })
+        ]);
 
     return json({ chat: updated });
   } catch (error) {

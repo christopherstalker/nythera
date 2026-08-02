@@ -101,14 +101,15 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
         });
 
         if (!response.ok) {
-          throw new Error("Could not save API settings.");
+          const body = await response.json().catch(() => null);
+          throw new Error(typeof body?.error === "string" ? body.error : "Could not save API settings.");
         }
 
         persistedApiRef.current = { model: nextModel, temperature: nextTemperature, responsePrompt: nextResponsePrompt };
-        setApiSaveStatus("API settings saved.");
+        setApiSaveStatus("Saved for this chat and future chats.");
       } catch (error) {
         if (!(error instanceof DOMException && error.name === "AbortError")) {
-          setApiSaveStatus("Could not save API settings.");
+          setApiSaveStatus(error instanceof Error ? error.message : "Could not save API settings.");
         }
       }
     }

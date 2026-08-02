@@ -21,7 +21,7 @@ export async function searchMemories(input: {
 
   try {
     return await prisma.$queryRaw<RetrievedMemory[]>`
-        SELECT id, content, importance, category, confidence, metadata, 1 - (embedding <=> ${vector}::vector) AS similarity
+        SELECT id, content, importance, category, confidence, metadata, pinned, 1 - (embedding <=> ${vector}::vector) AS similarity
         FROM "Memory"
         WHERE "userId" = ${input.userId}
           AND embedding IS NOT NULL

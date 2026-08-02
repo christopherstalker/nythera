@@ -33,6 +33,33 @@ export const MODEL_SUGGESTIONS: Record<string, string[]> = {
   xai: ["grok-4.3-latest"]
 };
 
+const PROVIDER_CONTEXT_WINDOWS: Record<string, number> = {
+  openai: 128_000,
+  anthropic: 200_000,
+  gemini: 1_000_000,
+  deepseek: 64_000,
+  openrouter: 128_000,
+  groq: 32_768,
+  together: 32_768,
+  mistral: 32_768,
+  xai: 128_000
+};
+
+export const UNKNOWN_MODEL_CONTEXT_WINDOW = 8_192;
+
+export function modelContextWindow(model?: string | null) {
+  const parsed = splitProviderModelValue(model);
+  if (parsed) {
+    return PROVIDER_CONTEXT_WINDOWS[parsed.provider] ?? UNKNOWN_MODEL_CONTEXT_WINDOW;
+  }
+
+  const normalized = model?.trim().toLowerCase() ?? "";
+  const provider = Object.keys(MODEL_SUGGESTIONS).find((candidate) =>
+    MODEL_SUGGESTIONS[candidate].some((suggestion) => suggestion.toLowerCase() === normalized)
+  );
+  return provider ? PROVIDER_CONTEXT_WINDOWS[provider] : UNKNOWN_MODEL_CONTEXT_WINDOW;
+}
+
 export function providerModelValue(provider: string, model: string) {
   return `${provider.trim().toLowerCase()}:${model.trim()}`;
 }

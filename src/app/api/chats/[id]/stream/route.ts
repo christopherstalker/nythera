@@ -7,8 +7,9 @@ import { moderateText, sanitizeUserText } from "@/lib/safety";
 import { detectPromptInjection } from "@/lib/prompt-security";
 import { streamMessageSchema } from "@/lib/validation";
 import { assembleNytheraPrompt } from "@/lib/prompt-assembly";
+import { loadAdaptiveChatHistory } from "@/lib/chat-history";
 import { streamLlmResponse } from "@/lib/proxy";
-import { searchMemories } from "@/lib/vector";
+import { getPromptMemories } from "@/lib/memory-store";
 import { schedulePostMessageJobs } from "@/lib/memory";
 import { getEffectiveProviderKeys } from "@/lib/user-keys";
 import { formatUserPersonaForPrompt } from "@/lib/user-persona";
@@ -62,15 +63,11 @@ export async function POST(request: Request, context: Context) {
           include: {
             character: true,
             persona: true,
-            messages: {
-              orderBy: [{ createdAt: "desc" }, { sequence: "desc" }, { id: "desc" }],
-              take: 40
-            }
           }
         }),
       (result) => ({
         found: Boolean(result),
-        messageCount: result?.messages.length ?? 0
+        messageCount: result?.messageCount ?? 0
       })
     );
 
@@ -104,7 +101,14 @@ export async function POST(request: Request, context: Context) {
       route: "chat:token-budget",
       cost: Math.min(effectiveSettings.maxTokens ?? 900, 4096)
     });
-    let recentMessages = [...chat.messages].reverse();
+    const history = await loadAdaptiveChatHistory({
+      chatId: chat.id,
+      model,
+      maxOutputTokens: effectiveSettings.maxTokens,
+      currentMessage: message,
+      summary: chat.summary
+    });
+    let recentMessages = history.messages;
     let userMessage: Awaited<ReturnType<typeof createMessageWithNextSequence>> | null = null;
 
     if (input.regenerate) {
@@ -143,11 +147,10 @@ export async function POST(request: Request, context: Context) {
 
     const [memories, defaultUserPersona, storyContext] = await Promise.all([
       user.memoryEnabled
-        ? searchMemories({
+        ? getPromptMemories({
             userId: user.id,
             characterId: chat.characterId,
             query: message,
-            limit: 5,
             providerKeys
           })
         : Promise.resolve([]),
@@ -162,7 +165,7 @@ export async function POST(request: Request, context: Context) {
       character: chat.character,
       memories,
       userPersona: formatUserPersonaForPrompt(userPersona),
-      summary: chat.summary,
+      summary: history.overflowed ? chat.summary : null,
       recentMessages,
       currentMessage: message,
       responsePrompt: input.responsePrompt ?? chat.responsePrompt,

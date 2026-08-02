@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Copy, Ellipsis, Gem, PanelRightClose, PanelRightOpen, Plus, Share2, Trash2 } from "lucide-react";
+import { ArrowLeft, Copy, Ellipsis, Gem, PanelRightClose, PanelRightOpen, Share2, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -45,32 +45,27 @@ export function ChatHeader({ chatId, characterId, characterName, characterAvatar
       transition={springSoft}
     >
       <div className="mx-auto flex h-16 w-full max-w-[1100px] items-center justify-between gap-2 sm:h-[72px] sm:gap-3">
-        <motion.div
-          className="pointer-events-auto flex min-w-0 max-w-[min(520px,calc(100vw-7.5rem))] items-center gap-2"
-          whileHover={{ y: -1 }}
-          transition={springSnappy}
-        >
+        <div className="pointer-events-auto flex min-w-0 max-w-[min(520px,calc(100vw-7.5rem))] items-center gap-2">
           <HeaderIconButton ariaLabel="Go back" onClick={() => router.back()} subtle>
             <ArrowLeft className="h-6 w-6" />
           </HeaderIconButton>
 
-          <Avatar name={characterName} src={characterAvatarUrl} size="md" className="h-10 w-10 shrink-0 border border-[var(--codex-rule)] lg:hidden" />
-
-          <div className="min-w-0 flex-1 pr-1">
-            <h1 className="truncate text-sm font-semibold uppercase tracking-[.16em] text-[var(--codex-ivory)] sm:text-base">{characterName}</h1>
-            <p className="truncate text-[9px] font-medium uppercase tracking-[.18em] text-[var(--codex-violet)] sm:text-[10px]">
-              Chapter 3 · {personaName ? `${personaName} active` : "After the storm"}
-            </p>
-          </div>
-
-          <Link
-            href={characterId ? `/character/${characterId}` : "/explore"}
-            aria-label="Open character"
-            className="focus-ring hidden h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--codex-rule)] text-[var(--codex-mint)] no-underline sm:grid"
-          >
-            <Plus className="h-5 w-5" />
-          </Link>
-        </motion.div>
+          <motion.div className="min-w-0 flex-1" whileHover={{ y: -1 }} transition={springSnappy}>
+            <Link
+              href={characterId ? `/character/${characterId}` : "/explore"}
+              aria-label={`Open ${characterName} profile`}
+              className="focus-ring flex min-w-0 items-center gap-2 rounded-xl pr-1 no-underline"
+            >
+              <Avatar name={characterName} src={characterAvatarUrl} size="md" className="h-10 w-10 shrink-0 border border-[var(--codex-rule)] lg:hidden" />
+              <span className="min-w-0 flex-1">
+                <h1 className="truncate text-sm font-semibold uppercase tracking-[.16em] text-[var(--codex-ivory)] sm:text-base">{characterName}</h1>
+                <p className="truncate text-[9px] font-medium uppercase tracking-[.18em] text-[var(--codex-violet)] sm:text-[10px]">
+                  Chapter 3 · {personaName ? `${personaName} active` : "After the storm"}
+                </p>
+              </span>
+            </Link>
+          </motion.div>
+        </div>
 
         <div className="pointer-events-auto flex shrink-0 items-center gap-2 sm:gap-3">
           <HeaderIconButton ariaLabel={contextOpen ? "Close story context" : "Open story context"} onClick={onOpenContext} elevated active={contextOpen}>

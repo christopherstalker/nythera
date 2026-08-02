@@ -97,7 +97,8 @@ export async function POST(request: Request, context: Context) {
           temperature: source.temperature,
           model: source.model,
           responsePrompt: source.responsePrompt,
-          summary: source.summary,
+          summary: source.summaryThroughSequence <= messages.length ? source.summary : null,
+          summaryThroughSequence: source.summaryThroughSequence <= messages.length ? source.summaryThroughSequence : 0,
           messageCount: messages.length
         }
       });

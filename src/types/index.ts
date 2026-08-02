@@ -79,6 +79,7 @@ export type RetrievedMemory = {
   confidence?: number;
   metadata?: unknown;
   similarity?: number;
+  pinned?: boolean;
 };
 
 export type StreamChunk =

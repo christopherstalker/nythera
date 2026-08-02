@@ -172,7 +172,7 @@ export function ChatInput({
             <label className="grid gap-1.5 sm:col-span-2">
               <span className="flex items-center justify-between gap-3 px-1 text-[11px] font-medium uppercase text-[var(--text-muted)]">
                 <span>Response instructions</span>
-                <span>{(responsePrompt ?? "").length}/{MAX_RESPONSE_PROMPT_LENGTH}</span>
+                <span>Saved for this chat and used by future chats · {(responsePrompt ?? "").length}/{MAX_RESPONSE_PROMPT_LENGTH}</span>
               </span>
               <textarea
                 value={responsePrompt ?? ""}

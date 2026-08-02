@@ -116,6 +116,7 @@ export function SidePanel() {
 
         <div className="relative min-h-0 flex-1">
           <div className="chat-scroll h-full min-h-0 min-w-0 overflow-y-auto p-2">
+            {panel.panelLoadStatus ? <p role="alert" className="mb-3 rounded-2xl border border-red-400/30 bg-red-500/10 p-3 text-xs leading-5 text-red-200">{panel.panelLoadStatus}</p> : null}
             {activeTab === "persona" ? <PersonaTabContent panel={panel} /> : null}
             {activeTab === "cast" ? <CastTabContent panel={panel} /> : null}
             {activeTab === "scene" ? <SceneTabContent panel={panel} /> : null}

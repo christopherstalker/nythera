@@ -19,7 +19,7 @@ export async function schedulePostMessageJobs(input: {
   providerKeys?: ProviderKeys;
 }) {
   const { providerKeys, ...jobInput } = input;
-  const shouldSummarize = input.messageCount > 20 && input.messageCount % 12 === 0;
+  const shouldSummarize = input.messageCount > 32 && input.messageCount % 12 === 0;
   const queuedExtraction = await enqueueJob("extract-memories", jobInput);
   const queuedSummary = shouldSummarize ? await enqueueJob("summarize-chat", { chatId: input.chatId }) : false;
 
@@ -114,37 +114,61 @@ function extractMemoryCandidates(userMessage: string, assistantMessage: string):
 export async function summarizeChat(chatId: string) {
   const chat = await prisma.chat.findUnique({
     where: { id: chatId },
-    include: {
-      messages: {
-        orderBy: { createdAt: "asc" },
-        take: 120
-      }
-    }
+    select: { summary: true, summaryThroughSequence: true, messageCount: true }
   });
 
   if (!chat) {
     return null;
   }
 
-  const summary = buildConversationSummary(chat.messages);
+  const cutoffSequence = Math.max(0, chat.messageCount - 24);
+  if (cutoffSequence <= chat.summaryThroughSequence) {
+    return chat;
+  }
+
+  const messages = await prisma.message.findMany({
+    where: {
+      chatId,
+      sequence: { gt: chat.summaryThroughSequence, lte: cutoffSequence }
+    },
+    orderBy: [{ sequence: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+    take: 240,
+    select: { role: true, content: true, sequence: true }
+  });
+  if (messages.length === 0) {
+    return chat;
+  }
+
+  const summary = buildConversationSummary(messages, chat.summary);
+  const summaryThroughSequence = messages.at(-1)?.sequence ?? chat.summaryThroughSequence;
 
   return prisma.chat.update({
     where: { id: chatId },
-    data: { summary }
+    data: { summary, summaryThroughSequence }
   });
 }
 
-export function buildConversationSummary(messages: Array<{ role: MessageRole; content: string }>) {
+export function buildConversationSummary(messages: Array<{ role: MessageRole; content: string }>, previousSummary?: string | null) {
   const importantLines = messages
     .filter((message) => message.role !== MessageRole.SYSTEM)
-    .slice(-40)
     .map((message) => `${message.role}: ${cleanSentence(message.content).slice(0, 260)}`);
 
-  if (importantLines.length === 0) {
+  if (importantLines.length === 0 && !previousSummary) {
     return null;
   }
 
-  return ["Conversation summary:", ...importantLines].join("\n").slice(-6000);
+  const prior = previousSummary?.replace(/^Conversation summary:\n?/, "").trim();
+  const combined = [prior, ...importantLines].filter(Boolean).join("\n");
+  if (combined.length <= 8_000) {
+    return ["Conversation summary:", combined].join("\n");
+  }
+
+  return [
+    "Conversation summary:",
+    combined.slice(0, 3_500),
+    "[Earlier middle turns compacted; pinned Memory and Story canon remain authoritative.]",
+    combined.slice(-4_300)
+  ].join("\n");
 }
 
 function addPattern(

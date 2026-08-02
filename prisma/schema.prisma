@@ -29,6 +29,7 @@ model User {
   accentColor          String    @default("#8F81F7")
   preferredProvider    String?
   preferredModel       String    @default("gpt-4o-mini")
+  defaultResponsePrompt String?  @db.Text
   bannedAt             DateTime?
   banReason            String?   @db.Text
   createdAt            DateTime  @default(now())
@@ -214,6 +215,7 @@ model Chat {
   responsePrompt String?   @db.Text
   messageCount   Int       @default(0)
   summary        String?   @db.Text
+  summaryThroughSequence Int @default(0)
   archivedAt     DateTime?
   lastActiveAt   DateTime  @default(now())
   createdAt      DateTime  @default(now())

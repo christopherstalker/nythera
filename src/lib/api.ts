@@ -37,6 +37,7 @@ export async function requireUser() {
       notificationsEnabled: true,
       preferredProvider: true,
       preferredModel: true,
+      defaultResponsePrompt: true,
       bannedAt: true
     }
   });

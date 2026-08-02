@@ -96,6 +96,7 @@ export async function POST(request: Request) {
           title: input.title ?? null,
           temperature: input.temperature,
           model,
+          responsePrompt: user.defaultResponsePrompt,
           messageCount: 1
         }
       });

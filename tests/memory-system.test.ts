@@ -41,3 +41,23 @@ test("manual semantic memory search uses the user's effective embedding provider
     assert.match(route, /searchMemories/);
   }
 });
+
+test("prompt memory resolver always leads with pinned character facts and survives semantic failure", async () => {
+  const store = await read("../src/lib/memory-store.ts");
+  const prompt = await read("../src/lib/prompt-assembly.ts");
+  const [webStream, mobileStream, rooms] = await Promise.all([
+    read("../src/app/api/chats/[id]/stream/route.ts"),
+    read("../src/app/api/mobile/chats/[id]/message/route.ts"),
+    read("../src/lib/rooms.ts")
+  ]);
+
+  assert.match(store, /export async function getPromptMemories/);
+  assert.match(store, /characterId: input\.characterId,[\s\S]*pinned: true/);
+  assert.ok(store.indexOf("...pinned") < store.indexOf("...semantic"));
+  assert.match(store, /Prompt memory semantic retrieval failed/);
+  assert.match(prompt, /PINNED MANUAL FACT — AUTHORITATIVE/);
+  assert.match(prompt, /secretly.*subtly.*restrained behavior/is);
+  for (const consumer of [webStream, mobileStream, rooms]) {
+    assert.match(consumer, /getPromptMemories/);
+  }
+});

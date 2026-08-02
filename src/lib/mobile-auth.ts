@@ -111,6 +111,7 @@ export async function requireMobileUser(request: Request) {
       notificationsEnabled: true,
       preferredProvider: true,
       preferredModel: true,
+      defaultResponsePrompt: true,
       bannedAt: true
     }
   });

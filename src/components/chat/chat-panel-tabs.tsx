@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { Bookmark, CalendarClock, Check, Download, FileJson, ImagePlus, LockKeyhole, LockOpen, Mic2, PauseCircle, Plus, Route, ShieldAlert, Sparkles, Trash2, Upload, UsersRound } from "lucide-react";
+import { Bookmark, CalendarClock, Check, Download, FileJson, ImagePlus, LockKeyhole, LockOpen, Mic2, PauseCircle, Pencil, Plus, Route, ShieldAlert, Sparkles, Trash2, Upload, UsersRound, X } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ImageFilePicker } from "@/components/ui/image-file-picker";
@@ -16,6 +17,30 @@ type PanelState = ReturnType<typeof useChatQuickPanel>;
 const panelSelectClass = "focus-ring h-11 w-full min-w-0 border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-sm text-[var(--text-primary)]";
 
 export function PersonaTabContent({ panel, compact = false }: { panel: PanelState; compact?: boolean }) {
+  const [section, setSection] = useState<"persona" | "memory">("persona");
+
+  return (
+    <div className="grid gap-3">
+      <div className="grid grid-cols-2 rounded-full border border-[var(--border-default)] bg-[var(--bg-input)] p-1" role="tablist" aria-label="Persona context">
+        {(["persona", "memory"] as const).map((item) => (
+          <button
+            key={item}
+            type="button"
+            role="tab"
+            aria-selected={section === item}
+            onClick={() => setSection(item)}
+            className={cn("focus-ring h-8 rounded-full text-xs font-semibold capitalize", section === item ? "bg-[var(--accent-purple-soft)] text-[var(--text-primary)]" : "text-[var(--text-secondary)]")}
+          >
+            {item}
+          </button>
+        ))}
+      </div>
+      {section === "persona" ? <PersonaEditor panel={panel} compact={compact} /> : <MemoryTabContent panel={panel} />}
+    </div>
+  );
+}
+
+function PersonaEditor({ panel, compact = false }: { panel: PanelState; compact?: boolean }) {
   return (
     <div className="grid gap-3">
       <div className="scrollbar-none flex min-w-0 gap-2 overflow-x-auto pb-1">
@@ -81,9 +106,9 @@ export function PersonaTabContent({ panel, compact = false }: { panel: PanelStat
             <Textarea value={panel.draft.traits} onChange={(event) => panel.updateDraft("traits", event.target.value)} placeholder="Traits, one per line" className="min-h-16" />
           </>
         ) : null}
-        <Button type="submit" disabled={!panel.draft.displayName.trim() || !panel.draft.summary.trim() || panel.avatarUploading}>
+        <Button type="submit" disabled={!panel.draft.displayName.trim() || !panel.draft.summary.trim() || panel.avatarUploading || panel.pendingAction === "persona:save"}>
           <Check className="h-4 w-4" />
-          Save persona
+          {panel.pendingAction === "persona:save" ? "Saving..." : "Save persona"}
         </Button>
       </form>
       {panel.personaStatus ? <PanelStatusText>{panel.personaStatus}</PanelStatusText> : null}
@@ -108,7 +133,7 @@ export function CastTabContent({ panel }: { panel: PanelState }) {
         <Textarea value={panel.storyCastStateDraft.innerConflict} onChange={(event) => panel.updateStoryCastStateDraft("innerConflict", event.target.value)} placeholder="Private inner conflict" className="min-h-20" />
         <Input value={panel.storyCastStateDraft.voiceStyle} onChange={(event) => panel.updateStoryCastStateDraft("voiceStyle", event.target.value)} placeholder="Voice quality, e.g. hushed and precise" />
         <Textarea value={panel.storyCastStateDraft.speakingStyle} onChange={(event) => panel.updateStoryCastStateDraft("speakingStyle", event.target.value)} placeholder="How speech has changed in this timeline" className="min-h-20" />
-        <Button type="submit" disabled={!panel.castParticipantId}><Check className="h-4 w-4" />Save cast state</Button>
+        <Button type="submit" disabled={!panel.castParticipantId || panel.pendingAction === "continuity:participant_state"}><Check className="h-4 w-4" />{panel.pendingAction === "continuity:participant_state" ? "Saving..." : "Save cast state"}</Button>
       </form>
 
       <form onSubmit={panel.saveStoryVoice} className="grid gap-3 border-b border-[var(--border-default)] pb-6">
@@ -116,7 +141,7 @@ export function CastTabContent({ panel }: { panel: PanelState }) {
         <select className={panelSelectClass} value={panel.storyVoiceDraft.provider} onChange={(event) => panel.updateStoryVoiceDraft("provider", event.target.value as typeof panel.storyVoiceDraft.provider)} aria-label="Voice provider"><option value="elevenlabs">ElevenLabs</option><option value="playht">PlayHT</option></select>
         <Input value={panel.storyVoiceDraft.voiceId} onChange={(event) => panel.updateStoryVoiceDraft("voiceId", event.target.value)} placeholder="Provider voice ID" required />
         <RangeField label="Playback speed" value={panel.storyVoiceDraft.speed} min={0.7} max={1.2} step={0.05} onChange={(value) => panel.updateStoryVoiceDraft("speed", value)} />
-        <Button type="submit" disabled={!panel.castParticipantId || !panel.storyVoiceDraft.voiceId.trim()}><Mic2 className="h-4 w-4" />Save voice binding</Button>
+        <Button type="submit" disabled={!panel.castParticipantId || !panel.storyVoiceDraft.voiceId.trim() || panel.pendingAction === "continuity:voice"}><Mic2 className="h-4 w-4" />{panel.pendingAction === "continuity:voice" ? "Saving..." : "Save voice binding"}</Button>
       </form>
 
       <form onSubmit={panel.addStoryVisualReference} className="grid gap-3 border-b border-[var(--border-default)] pb-6">
@@ -130,7 +155,7 @@ export function CastTabContent({ panel }: { panel: PanelState }) {
         <Textarea value={panel.storyVisualDraft.prompt} onChange={(event) => panel.updateStoryVisualDraft("prompt", event.target.value)} placeholder="Canonical visual description or generation prompt" className="min-h-24" />
         <Textarea value={panel.storyVisualDraft.notes} onChange={(event) => panel.updateStoryVisualDraft("notes", event.target.value)} placeholder="Continuity notes" className="min-h-16" />
         <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]"><input type="checkbox" checked={panel.storyVisualDraft.locked} onChange={(event) => panel.updateStoryVisualDraft("locked", event.target.checked)} />Lock into prompt continuity</label>
-        <Button type="submit" disabled={!panel.storyVisualDraft.title.trim() || (!panel.storyVisualDraft.imageUrl.trim() && !panel.storyVisualDraft.prompt.trim())}><ImagePlus className="h-4 w-4" />Add visual reference</Button>
+        <Button type="submit" disabled={!panel.storyVisualDraft.title.trim() || (!panel.storyVisualDraft.imageUrl.trim() && !panel.storyVisualDraft.prompt.trim()) || panel.pendingAction === "continuity:visual"}><ImagePlus className="h-4 w-4" />{panel.pendingAction === "continuity:visual" ? "Adding..." : "Add visual reference"}</Button>
         {panel.storyVisualReferences.map((reference) => <article key={reference.id} className="grid gap-1 border-b border-[var(--border-default)] py-3"><p className="text-xs uppercase tracking-[.1em] text-[var(--text-muted)]">{reference.kind}{reference.locked ? " · locked" : ""}</p><p className="text-sm text-[var(--text-primary)]">{reference.title}</p><p className="text-xs leading-5 text-[var(--text-secondary)]">{reference.prompt || reference.notes || reference.imageUrl}</p></article>)}
       </form>
 
@@ -139,7 +164,7 @@ export function CastTabContent({ panel }: { panel: PanelState }) {
         <Input value={panel.storyCheckpointDraft.title} onChange={(event) => panel.updateStoryCheckpointDraft("title", event.target.value)} placeholder="Checkpoint title" required />
         <Textarea value={panel.storyCheckpointDraft.summary} onChange={(event) => panel.updateStoryCheckpointDraft("summary", event.target.value)} placeholder="Optional recap; leave blank for structured automatic recap" className="min-h-24" />
         <Textarea value={panel.storyCheckpointDraft.openThreads} onChange={(event) => panel.updateStoryCheckpointDraft("openThreads", event.target.value)} placeholder="Open threads, one per line" className="min-h-20" />
-        <Button type="submit" disabled={!panel.storyCheckpointDraft.title.trim()}><Bookmark className="h-4 w-4" />Create checkpoint</Button>
+        <Button type="submit" disabled={!panel.storyCheckpointDraft.title.trim() || panel.pendingAction === "continuity:checkpoint"}><Bookmark className="h-4 w-4" />{panel.pendingAction === "continuity:checkpoint" ? "Creating..." : "Create checkpoint"}</Button>
         {panel.storyCheckpoints.map((checkpoint) => <article key={checkpoint.id} className="grid gap-2 border-b border-[var(--border-default)] py-3"><div className="flex items-center justify-between gap-2"><p className="text-sm text-[var(--text-primary)]">{checkpoint.title}</p><span className="text-[10px] uppercase tracking-[.1em] text-[var(--text-muted)]">{checkpoint.kind}</span></div><p className="line-clamp-4 text-xs leading-5 text-[var(--text-secondary)]">{checkpoint.summary}</p>{checkpoint.openThreads.length ? <p className="text-xs text-[var(--accent-mint)]">Open: {checkpoint.openThreads.join(" · ")}</p> : null}</article>)}
       </form>
 
@@ -153,20 +178,35 @@ export function MemoryTabContent({ panel }: { panel: PanelState }) {
     <div className="grid gap-3">
       <form onSubmit={panel.addMemory} className="grid gap-2">
         <Textarea value={panel.memoryDraft} onChange={(event) => panel.setMemoryDraft(event.target.value)} placeholder="Add a fact, preference, boundary, or scene detail." className="min-h-28" />
-        <Button type="submit" disabled={!panel.memoryDraft.trim()}>
+        <Button type="submit" disabled={!panel.memoryDraft.trim() || panel.pendingAction === "memory:add"}>
           <Plus className="h-4 w-4" />
-          Add memory
+          {panel.pendingAction === "memory:add" ? "Saving..." : "Add memory"}
         </Button>
       </form>
       {panel.memoryStatus ? <PanelStatusText>{panel.memoryStatus}</PanelStatusText> : null}
       <div className="grid gap-2">
         {panel.memories.map((memory) => (
           <div key={memory.id} className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-input)] p-3">
-            <p className="text-sm leading-5 text-[var(--text-primary)]">{memory.content}</p>
+            {panel.memoryEditingId === memory.id ? (
+              <Textarea value={panel.memoryEditDraft} onChange={(event) => panel.setMemoryEditDraft(event.target.value)} className="min-h-24" aria-label="Edit memory fact" />
+            ) : (
+              <p className="text-sm leading-5 text-[var(--text-primary)]">{memory.content}</p>
+            )}
             <p className="mt-2 text-xs text-[var(--text-muted)]">
               {memory.category}
               {memory.pinned ? " - pinned" : ""}
             </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {panel.memoryEditingId === memory.id ? (
+                <>
+                  <Button type="button" size="sm" onClick={() => void panel.saveMemory(memory.id)} disabled={!panel.memoryEditDraft.trim() || panel.pendingAction === `memory:edit:${memory.id}`}><Check className="h-3.5 w-3.5" />{panel.pendingAction === `memory:edit:${memory.id}` ? "Saving..." : "Save"}</Button>
+                  <Button type="button" size="sm" variant="secondary" onClick={panel.cancelEditingMemory}><X className="h-3.5 w-3.5" />Cancel</Button>
+                </>
+              ) : (
+                <Button type="button" size="sm" variant="secondary" onClick={() => panel.startEditingMemory(memory)}><Pencil className="h-3.5 w-3.5" />Edit</Button>
+              )}
+              <Button type="button" size="sm" variant="secondary" onClick={() => void panel.removeMemory(memory.id)} disabled={panel.pendingAction === `memory:delete:${memory.id}`}><Trash2 className="h-3.5 w-3.5" />{panel.pendingAction === `memory:delete:${memory.id}` ? "Deleting..." : "Delete"}</Button>
+            </div>
           </div>
         ))}
         {panel.memories.length === 0 ? <PanelStatusText>No memories for this character yet.</PanelStatusText> : null}
@@ -192,7 +232,7 @@ export function SceneTabContent({ panel }: { panel: PanelState }) {
         <SceneListField label="Conditions" value={draft.conditions} onChange={(value) => panel.updateStoryStateDraft("conditions", value)} />
         <SceneListField label="Active threats" value={draft.threats} onChange={(value) => panel.updateStoryStateDraft("threats", value)} />
         <SceneListField label="Director notes" value={draft.notes} onChange={(value) => panel.updateStoryStateDraft("notes", value)} />
-        <Button type="submit" disabled={!panel.storyId}><Check className="h-4 w-4" />Save scene state</Button>
+        <Button type="submit" disabled={!panel.storyId || panel.pendingAction === "scene:save"}><Check className="h-4 w-4" />{panel.pendingAction === "scene:save" ? "Saving..." : "Save scene state"}</Button>
         {panel.storyStateStatus ? <PanelStatusText>{panel.storyStateStatus}</PanelStatusText> : null}
       </form>
 
@@ -207,7 +247,7 @@ export function SceneTabContent({ panel }: { panel: PanelState }) {
         <label className="grid gap-1 text-xs text-[var(--text-secondary)]"><span>Check in every N turns (0 disables)</span><Input type="number" min={0} max={100} value={panel.storySafetyDraft.checkInInterval} onChange={(event) => panel.updateStorySafetyDraft("checkInInterval", Number(event.target.value))} /></label>
         <Textarea value={panel.storySafetyDraft.notes} onChange={(event) => panel.updateStorySafetyDraft("notes", event.target.value)} placeholder="Private safety direction" className="min-h-20" />
         <label className="flex items-center gap-2 border border-[var(--border-default)] bg-[var(--bg-input)] p-3 text-sm text-[var(--text-secondary)]"><input type="checkbox" checked={panel.storySafetyDraft.paused} onChange={(event) => panel.updateStorySafetyDraft("paused", event.target.checked)} /><PauseCircle className="h-4 w-4 text-[var(--danger)]" />Pause fiction; require an explicit resume</label>
-        <Button type="submit" disabled={!panel.storyId}><ShieldAlert className="h-4 w-4" />Save session safety</Button>
+        <Button type="submit" disabled={!panel.storyId || panel.pendingAction === "safety:save"}><ShieldAlert className="h-4 w-4" />{panel.pendingAction === "safety:save" ? "Saving..." : "Save session safety"}</Button>
         {panel.storySafetyStatus ? <PanelStatusText>{panel.storySafetyStatus}</PanelStatusText> : null}
       </form>
     </div>
@@ -244,7 +284,7 @@ export function PlotTabContent({ panel }: { panel: PanelState }) {
           Allow the world to move offscreen
         </label>
         <Textarea value={panel.storyDirectorDraft.notes} onChange={(event) => panel.updateStoryDirectorDraft("notes", event.target.value)} placeholder="Private direction the characters must never quote directly" className="min-h-20" />
-        <Button type="submit" disabled={!panel.storyId}><Check className="h-4 w-4" />Save direction</Button>
+        <Button type="submit" disabled={!panel.storyId || panel.pendingAction === "narrative:director"}><Check className="h-4 w-4" />{panel.pendingAction === "narrative:director" ? "Saving..." : "Save direction"}</Button>
       </form>
 
       <section className="grid gap-4 border-b border-[var(--border-default)] pb-6">
@@ -252,7 +292,7 @@ export function PlotTabContent({ panel }: { panel: PanelState }) {
         <form onSubmit={panel.addStoryArc} className="grid gap-2">
           <Input value={panel.storyArcDraft.title} onChange={(event) => panel.updateStoryArcDraft("title", event.target.value)} placeholder="Arc title" required />
           <Textarea value={panel.storyArcDraft.premise} onChange={(event) => panel.updateStoryArcDraft("premise", event.target.value)} placeholder="Central tension and desired evolution" className="min-h-20" required />
-          <Button type="submit" disabled={!panel.storyArcDraft.title.trim() || !panel.storyArcDraft.premise.trim()}><Plus className="h-4 w-4" />Add arc</Button>
+          <Button type="submit" disabled={!panel.storyArcDraft.title.trim() || !panel.storyArcDraft.premise.trim() || panel.pendingAction === "narrative:arc"}><Plus className="h-4 w-4" />{panel.pendingAction === "narrative:arc" ? "Adding..." : "Add arc"}</Button>
         </form>
         <div className="grid gap-2">
           {panel.storyArcs.map((arc) => (
@@ -271,7 +311,7 @@ export function PlotTabContent({ panel }: { panel: PanelState }) {
           <Input value={panel.storyBeatDraft.title} onChange={(event) => panel.updateStoryBeatDraft("title", event.target.value)} placeholder="Beat title" required />
           <Textarea value={panel.storyBeatDraft.description} onChange={(event) => panel.updateStoryBeatDraft("description", event.target.value)} placeholder="What should become possible, not forced" className="min-h-20" required />
           <select className={panelSelectClass} value={panel.storyBeatDraft.status} onChange={(event) => panel.updateStoryBeatDraft("status", event.target.value as typeof panel.storyBeatDraft.status)} aria-label="Beat readiness"><option value="PLANNED">Planned</option><option value="READY">Ready for next turn</option></select>
-          <Button type="submit"><Plus className="h-4 w-4" />Add beat</Button>
+          <Button type="submit" disabled={!panel.storyBeatDraft.title.trim() || !panel.storyBeatDraft.description.trim() || panel.pendingAction === "narrative:beat"}><Plus className="h-4 w-4" />{panel.pendingAction === "narrative:beat" ? "Adding..." : "Add beat"}</Button>
         </form>
         <div className="grid divide-y divide-[var(--border-default)] border-y border-[var(--border-default)]">
           {panel.storyBeats.map((beat) => (
@@ -291,7 +331,7 @@ export function PlotTabContent({ panel }: { panel: PanelState }) {
           <Textarea value={panel.storyHookDraft.description} onChange={(event) => panel.updateStoryHookDraft("description", event.target.value)} placeholder="The unanswered question or unresolved promise" className="min-h-20" required />
           <RangeField label="Urgency" value={panel.storyHookDraft.urgency} min={0} max={10} onChange={(value) => panel.updateStoryHookDraft("urgency", value)} />
           <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]"><input type="checkbox" checked={panel.storyHookDraft.directorOnly} onChange={(event) => panel.updateStoryHookDraft("directorOnly", event.target.checked)} />Keep payoff private</label>
-          <Button type="submit"><Plus className="h-4 w-4" />Open hook</Button>
+          <Button type="submit" disabled={!panel.storyHookDraft.title.trim() || !panel.storyHookDraft.description.trim() || panel.pendingAction === "narrative:hook"}><Plus className="h-4 w-4" />{panel.pendingAction === "narrative:hook" ? "Opening..." : "Open hook"}</Button>
         </form>
         {panel.storyHooks.map((hook) => (
           <article key={hook.id} className="grid gap-2 border-b border-[var(--border-default)] pb-3">
@@ -313,7 +353,7 @@ export function PlotTabContent({ panel }: { panel: PanelState }) {
         <RangeField label="Tension" value={panel.storyRelationshipDraft.tension} min={-100} max={100} onChange={(value) => panel.updateStoryRelationshipDraft("tension", value)} />
         <RangeField label="Respect" value={panel.storyRelationshipDraft.respect} min={-100} max={100} onChange={(value) => panel.updateStoryRelationshipDraft("respect", value)} />
         <Textarea value={panel.storyRelationshipDraft.notes} onChange={(event) => panel.updateStoryRelationshipDraft("notes", event.target.value)} placeholder="What changed and how it should color future scenes" className="min-h-20" />
-        <Button type="submit" disabled={!panel.storyRelationshipDraft.fromParticipantId || !panel.storyRelationshipDraft.toParticipantId}><Check className="h-4 w-4" />Save relationship</Button>
+        <Button type="submit" disabled={!panel.storyRelationshipDraft.fromParticipantId || !panel.storyRelationshipDraft.toParticipantId || panel.pendingAction === "narrative:relationship"}><Check className="h-4 w-4" />{panel.pendingAction === "narrative:relationship" ? "Saving..." : "Save relationship"}</Button>
         {panel.storyRelationships.map((relationship) => <p key={relationship.id} className="text-xs leading-5 text-[var(--text-secondary)]"><span className="text-[var(--text-primary)]">{relationship.fromParticipant.displayName} → {relationship.toParticipant.displayName}</span>{relationship.label ? ` · ${relationship.label}` : ""} · trust {relationship.trust}, affection {relationship.affection}, tension {relationship.tension}, respect {relationship.respect}</p>)}
       </form>
 
@@ -324,7 +364,7 @@ export function PlotTabContent({ panel }: { panel: PanelState }) {
           <Input value={panel.storyEventDraft.title} onChange={(event) => panel.updateStoryEventDraft("title", event.target.value)} placeholder="Event title" required />
           <Textarea value={panel.storyEventDraft.instruction} onChange={(event) => panel.updateStoryEventDraft("instruction", event.target.value)} placeholder="What initiative should surface when due" className="min-h-20" required />
           <div className="grid grid-cols-2 gap-2"><select className={panelSelectClass} value={panel.storyEventDraft.channel} onChange={(event) => panel.updateStoryEventDraft("channel", event.target.value as typeof panel.storyEventDraft.channel)} aria-label="Initiative channel"><option value="ACTION">Action</option><option value="DIALOGUE">Dialogue</option><option value="WHISPER">Whisper</option><option value="THOUGHT">Thought</option></select><Input type="number" min={0} max={10000} value={panel.storyEventDraft.afterTurns} onChange={(event) => panel.updateStoryEventDraft("afterTurns", Number(event.target.value))} aria-label="Turns until event" /></div>
-          <Button type="submit"><CalendarClock className="h-4 w-4" />Schedule initiative</Button>
+          <Button type="submit" disabled={!panel.storyEventDraft.title.trim() || !panel.storyEventDraft.instruction.trim() || panel.pendingAction === "narrative:event"}><CalendarClock className="h-4 w-4" />{panel.pendingAction === "narrative:event" ? "Scheduling..." : "Schedule initiative"}</Button>
         </form>
         {pendingEvents.map((event) => <article key={event.id} className="flex items-start justify-between gap-3 border-b border-[var(--border-default)] pb-3"><div><p className="text-sm text-[var(--text-primary)]">{event.title}</p><p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">{event.actorParticipant?.displayName ?? "The world"} · {event.status.toLowerCase()} · due turn {event.dueSequence ?? "time trigger"}</p></div><button type="button" onClick={() => void panel.updateStoryNarrativeItem("event", event.id, { eventStatus: "CANCELLED" })} className="focus-ring text-xs text-[var(--text-muted)] hover:text-[var(--danger)]">Cancel</button></article>)}
       </section>
@@ -371,9 +411,9 @@ export function CanonTabContent({ panel }: { panel: PanelState }) {
             ))}
           </fieldset>
         ) : null}
-        <Button type="submit" disabled={!panel.storyId || !draft.predicate.trim() || !draft.objectText.trim()}>
+        <Button type="submit" disabled={!panel.storyId || !draft.predicate.trim() || !draft.objectText.trim() || panel.pendingAction === "canon:add"}>
           <Plus className="h-4 w-4" />
-          Add to canon
+          {panel.pendingAction === "canon:add" ? "Adding..." : "Add to canon"}
         </Button>
       </form>
 

@@ -74,6 +74,12 @@ export async function PATCH(request: Request, context: Context) {
 
     const selectedModel = input.model?.trim();
     const selectedProviderModel = splitProviderModelValue(selectedModel);
+    const userModelPreferences = selectedModel === undefined
+      ? {}
+      : {
+          preferredProvider: selectedProviderModel?.provider ?? null,
+          preferredModel: selectedProviderModel?.model ?? selectedModel
+        };
     const chatUpdate = prisma.chat.update({
       where: { id: chat.id },
       data: {
@@ -86,16 +92,17 @@ export async function PATCH(request: Request, context: Context) {
       }
     });
 
+    const shouldUpdateUser = selectedModel !== undefined || input.responsePrompt !== undefined;
     const [updated] =
-      selectedModel === undefined
+      !shouldUpdateUser
         ? [await chatUpdate]
         : await prisma.$transaction([
             chatUpdate,
             prisma.user.update({
               where: { id: user.id },
               data: {
-                preferredProvider: selectedProviderModel?.provider ?? null,
-                preferredModel: selectedProviderModel?.model ?? selectedModel
+                ...userModelPreferences,
+                defaultResponsePrompt: input.responsePrompt === undefined ? undefined : input.responsePrompt || null
               }
             })
           ]);

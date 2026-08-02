@@ -8,8 +8,9 @@ import { moderateText, sanitizeUserText } from "@/lib/safety";
 import { detectPromptInjection } from "@/lib/prompt-security";
 import { streamMessageSchema } from "@/lib/validation";
 import { assembleNytheraPrompt } from "@/lib/prompt-assembly";
+import { loadAdaptiveChatHistory } from "@/lib/chat-history";
 import { streamLlmResponse } from "@/lib/proxy";
-import { searchMemories } from "@/lib/vector";
+import { getPromptMemories } from "@/lib/memory-store";
 import { schedulePostMessageJobs } from "@/lib/memory";
 import { getEffectiveProviderKeys } from "@/lib/user-keys";
 import { formatUserPersonaForPrompt } from "@/lib/user-persona";
@@ -17,6 +18,8 @@ import { createMessageWithNextSequence } from "@/lib/message-sequence";
 import { resolveCharacterModelSettings } from "@/lib/character-model-settings";
 import { estimateModelCost } from "@/lib/model-pricing";
 import { logSafeError } from "@/lib/secret-redaction";
+import { getStoryPromptContext, syncChatTurns } from "@/lib/stories/story-foundation";
+import { markStoryProactiveEventsFired } from "@/lib/stories/narrative-store";
 
 type Context = {
   params: Promise<{ id: string }>;
@@ -62,10 +65,6 @@ export async function POST(request: Request, context: Context) {
       include: {
         character: true,
         persona: true,
-        messages: {
-          orderBy: [{ createdAt: "desc" }, { sequence: "desc" }, { id: "desc" }],
-          take: 40
-        }
       }
     });
 
@@ -99,6 +98,13 @@ export async function POST(request: Request, context: Context) {
       route: "chat:token-budget",
       cost: Math.min(effectiveSettings.maxTokens ?? 900, 4096)
     });
+    const history = await loadAdaptiveChatHistory({
+      chatId: chat.id,
+      model,
+      maxOutputTokens: effectiveSettings.maxTokens,
+      currentMessage: message,
+      summary: chat.summary
+    });
     const userMessage = continueChat
       ? null
       : await createMessageWithNextSequence({
@@ -108,19 +114,19 @@ export async function POST(request: Request, context: Context) {
           clientRequestId: input.requestId
         });
 
-    const [memories, defaultUserPersona] = await Promise.all([
+    const [memories, defaultUserPersona, storyContext] = await Promise.all([
       user.memoryEnabled
-        ? searchMemories({
+        ? getPromptMemories({
             userId: user.id,
             characterId: chat.characterId,
             query: message,
-            limit: 5,
             providerKeys
           })
         : Promise.resolve([]),
       prisma.userPersona.findFirst({
         where: { userId: user.id, isDefault: true }
-      })
+      }),
+      getStoryPromptContext({ chatId: chat.id, userId: user.id, actorCharacterId: chat.characterId })
     ]);
     const userPersona = chat.persona ?? defaultUserPersona;
 
@@ -128,10 +134,11 @@ export async function POST(request: Request, context: Context) {
       character: chat.character,
       memories,
       userPersona: formatUserPersonaForPrompt(userPersona),
-      summary: chat.summary,
-      recentMessages: [...chat.messages].reverse(),
+      summary: history.overflowed ? chat.summary : null,
+      recentMessages: history.messages,
       currentMessage: message,
       responsePrompt: chat.responsePrompt,
+      storyContext: storyContext.text,
       injectionAssessment
     });
 
@@ -281,6 +288,17 @@ export async function POST(request: Request, context: Context) {
               providerKeys
             });
           }
+
+          await syncChatTurns(chat.id, user.id).catch((storyError) => {
+            logSafeError("Mobile story turn sync failed.", storyError);
+          });
+          await markStoryProactiveEventsFired({
+            eventIds: storyContext.eventIds,
+            storyId: storyContext.storyId,
+            sourceMessageId: assistantMessage.id
+          }).catch((storyError) => {
+            logSafeError("Mobile story proactive event completion failed.", storyError);
+          });
 
           send({ type: "message", message: assistantMessage });
           send({ type: "done" });
