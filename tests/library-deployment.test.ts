@@ -14,7 +14,7 @@ test("Library reports authentication and server failures separately", async () =
   assert.doesNotMatch(source, /setInterval/);
 });
 
-test("production builds deploy Prisma migrations before compiling", async () => {
+test("production builds deploy Prisma migrations before compiling and tolerate database outages", async () => {
   const packageJson = JSON.parse(await readFile(`${root}/package.json`, "utf8")) as {
     scripts?: Record<string, string>;
   };
@@ -24,6 +24,11 @@ test("production builds deploy Prisma migrations before compiling", async () => 
   assert.match(buildScript, /node scripts\/build\.mjs/);
   assert.match(buildRunner, /VERCEL_ENV === "production"/);
   assert.match(buildRunner, /SKIP_PRISMA_MIGRATE !== "1"/);
+  assert.match(buildRunner, /P1001/);
+  assert.match(buildRunner, /exceeded the data transfer quota/);
+  assert.match(buildRunner, /\.neon\\\.tech/);
+  assert.match(buildRunner, /Schema engine error/);
+  assert.match(buildRunner, /allowFailure: isTemporaryDatabaseFailure/);
   assert.ok(buildRunner.indexOf("migrate\", \"deploy") < buildRunner.indexOf("generate"));
 });
 
