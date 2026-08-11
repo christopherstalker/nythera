@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import CharacterProfileClient from "@/components/character/character-profile-client";
 import { auth } from "@/lib/auth";
 import { richTextToPlainText } from "@/lib/rich-text-formatting";
-import { getCharacterProfileForViewer } from "@/lib/public-character-profile";
+import { getCharacterProfileForViewer, getPublicCharacterProfile } from "@/lib/public-character-profile";
 import { CANONICAL_SITE_ORIGIN } from "@/lib/site-origin";
 
 type CharacterPageProps = {
@@ -10,8 +11,8 @@ type CharacterPageProps = {
 };
 
 export async function generateMetadata({ params }: CharacterPageProps): Promise<Metadata> {
-  const [{ id }, session] = await Promise.all([params, auth()]);
-  const character = await getCharacterProfileForViewer(id, session?.user?.id);
+  const { id } = await params;
+  const character = await getCharacterPageProfile(id);
 
   if (!character) {
     return {
@@ -68,8 +69,8 @@ export async function generateMetadata({ params }: CharacterPageProps): Promise<
 }
 
 export default async function CharacterPage({ params }: CharacterPageProps) {
-  const [{ id }, session] = await Promise.all([params, auth()]);
-  const character = await getCharacterProfileForViewer(id, session?.user?.id);
+  const { id } = await params;
+  const character = await getCharacterPageProfile(id);
   const canonicalUrl = character?.visibility === "PUBLIC" ? `${CANONICAL_SITE_ORIGIN}/character/${character.id}` : null;
   const jsonLd = character && canonicalUrl
     ? {
@@ -104,6 +105,16 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
     </>
   );
 }
+
+const getCharacterPageProfile = cache(async (id: string) => {
+  const publicCharacter = await getPublicCharacterProfile(id);
+  if (publicCharacter) {
+    return publicCharacter;
+  }
+
+  const session = await auth();
+  return getCharacterProfileForViewer(id, session?.user?.id);
+});
 
 function createDescription(value: string) {
   const plainText = richTextToPlainText(value).replace(/\s+/g, " ").trim();

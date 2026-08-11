@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -44,25 +44,7 @@ export default function HomePageClient({
 }) {
   const router = useRouter();
   const characters = initialCharacters;
-  const [recentChats, setRecentChats] = useState(initialRecentChats);
-
-  useEffect(() => {
-    if (isServiceUnavailable || initialRecentChats.length) {
-      return;
-    }
-
-    const controller = new AbortController();
-    void fetch("/api/chats", { signal: controller.signal })
-      .then(async (response) => (response.ok ? response.json() : null))
-      .then((body) => {
-        if (Array.isArray(body?.chats)) {
-          setRecentChats(body.chats.slice(0, 8));
-        }
-      })
-      .catch(() => undefined);
-
-    return () => controller.abort();
-  }, [initialRecentChats.length, isServiceUnavailable]);
+  const recentChats = initialRecentChats;
 
   const featured = useMemo(() => characters[0], [characters]);
   async function startFeaturedChat() {

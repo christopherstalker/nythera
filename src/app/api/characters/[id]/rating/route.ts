@@ -3,6 +3,7 @@ import { getRequestIp, HttpError, json, parseJson, requireUser, routeError } fro
 import { prisma } from "@/lib/prisma";
 import { ratingSchema } from "@/lib/validation";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { revalidateTag } from "next/cache";
 
 export const dynamic = "force-dynamic";
 
@@ -43,9 +44,7 @@ export async function GET(_request: Request, context: Context) {
         include: {
           user: {
             select: {
-              username: true,
-              image: true,
-              avatarUrl: true
+              username: true
             }
           }
         }
@@ -113,6 +112,8 @@ export async function PUT(request: Request, context: Context) {
 
       return updated;
     });
+
+    revalidateTag("public-character-feed");
 
     return json({ rating: { average: result.ratingAverage, count: result.ratingCount } });
   } catch (error) {

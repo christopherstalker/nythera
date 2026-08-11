@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { HttpError, json, requireUser, routeError } from "@/lib/api";
+import { revalidateTag } from "next/cache";
 
 type Context = {
   params: Promise<{ id: string }>;
@@ -42,6 +43,8 @@ export async function POST(_request: Request, context: Context) {
         })
       ]);
 
+      revalidateTag("public-character-feed");
+
       return json({ liked: false });
     }
 
@@ -57,6 +60,8 @@ export async function POST(_request: Request, context: Context) {
         data: { likes: { increment: 1 } }
       })
     ]);
+
+    revalidateTag("public-character-feed");
 
     return json({ liked: true });
   } catch (error) {

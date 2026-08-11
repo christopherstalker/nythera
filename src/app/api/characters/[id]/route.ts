@@ -11,11 +11,81 @@ type Context = {
   params: Promise<{ id: string }>;
 };
 
-export async function GET(_request: Request, context: Context) {
+export async function GET(request: Request, context: Context) {
   try {
+    const characterId = (await context.params).id;
     const session = await auth();
+    const viewerOnly = new URL(request.url).searchParams.get("view") === "viewer";
+
+    if (viewerOnly) {
+      const access = await prisma.character.findUnique({
+        where: { id: characterId },
+        select: {
+          id: true,
+          creatorId: true,
+          visibility: true,
+          moderationStatus: true,
+          blockedAt: true
+        }
+      });
+
+      if (!access || access.blockedAt) {
+        throw new HttpError(404, "Character not found.");
+      }
+
+      const isApprovedPublic = access.visibility === "PUBLIC" && access.moderationStatus === "APPROVED";
+      const isApprovedUnlisted = access.visibility === "UNLISTED" && access.moderationStatus === "APPROVED";
+      if (!isApprovedPublic) {
+        const user = await requireUser();
+        if (access.creatorId !== user.id && user.role !== "ADMIN" && !isApprovedUnlisted) {
+          throw new HttpError(404, "Character not found.");
+        }
+      }
+
+      const [liked, myRating, recentChat] = session?.user?.id
+        ? await Promise.all([
+            prisma.characterLike.findUnique({
+              where: {
+                userId_characterId: {
+                  userId: session.user.id,
+                  characterId: access.id
+                }
+              },
+              select: { userId: true }
+            }),
+            prisma.characterRating.findUnique({
+              where: {
+                userId_characterId: {
+                  userId: session.user.id,
+                  characterId: access.id
+                }
+              },
+              select: { value: true, review: true }
+            }),
+            prisma.chat.findFirst({
+              where: {
+                userId: session.user.id,
+                characterId: access.id,
+                archivedAt: null
+              },
+              orderBy: [{ lastActiveAt: "desc" }, { updatedAt: "desc" }],
+              select: { id: true }
+            })
+          ])
+        : [null, null, null];
+
+      return json({
+        recentChat,
+        viewer: {
+          canEdit: Boolean(session?.user?.id && session.user.id === access.creatorId),
+          liked: Boolean(liked),
+          rating: myRating
+        }
+      });
+    }
+
     const character = await prisma.character.findUnique({
-      where: { id: (await context.params).id },
+      where: { id: characterId },
       include: {
         creator: {
           select: {

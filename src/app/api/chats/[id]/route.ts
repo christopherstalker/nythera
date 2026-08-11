@@ -29,12 +29,42 @@ export async function GET(request: Request, context: Context) {
             id: chatId,
             userId: user.id
           },
-          include: {
-            character: true,
-            persona: true,
+          select: {
+            id: true,
+            characterId: true,
+            summary: true,
+            model: true,
+            temperature: true,
+            responsePrompt: true,
+            chatMode: true,
+            appearance: true,
+            activeAssistantMessageId: true,
+            createdAt: true,
+            character: {
+              select: {
+                id: true,
+                name: true,
+                avatarUrl: true,
+                visualIdentity: true
+              }
+            },
             messages: {
               orderBy: [{ createdAt: "desc" }, { sequence: "desc" }, { id: "desc" }],
-              take: 200
+              take: 200,
+              select: {
+                id: true,
+                role: true,
+                content: true,
+                createdAt: true,
+                clientRequestId: true,
+                branchSourceMessageId: true,
+                model: true,
+                provider: true,
+                inputTokens: true,
+                outputTokens: true,
+                estimatedCost: true,
+                usageEstimated: true
+              }
             }
           }
         }),
