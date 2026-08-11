@@ -12,8 +12,8 @@ import {
 import { measurePrismaOperation } from "@/lib/performance-logger";
 import { prisma } from "@/lib/prisma";
 
-export const DISCOVERY_FEED_REVALIDATE_SECONDS = 60;
-export const DISCOVERY_FEED_STALE_SECONDS = 300;
+export const DISCOVERY_FEED_REVALIDATE_SECONDS = 60 * 60;
+export const DISCOVERY_FEED_STALE_SECONDS = 24 * 60 * 60;
 
 export type PublicCharacterQuery = {
   search: string | null;
@@ -80,8 +80,8 @@ export function shouldCachePublicCharacterQuery(query: PublicCharacterQuery) {
 }
 
 export function discoveryFeedCacheHeaders(query?: PublicCharacterQuery): HeadersInit {
-  const revalidate = query?.search ? 15 : DISCOVERY_FEED_REVALIDATE_SECONDS;
-  const stale = query?.search ? 60 : DISCOVERY_FEED_STALE_SECONDS;
+  const revalidate = query?.search ? 60 : DISCOVERY_FEED_REVALIDATE_SECONDS;
+  const stale = query?.search ? 5 * 60 : DISCOVERY_FEED_STALE_SECONDS;
   return {
     "Cache-Control": `public, s-maxage=${revalidate}, stale-while-revalidate=${stale}`
   };

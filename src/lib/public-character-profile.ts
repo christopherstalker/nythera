@@ -1,10 +1,11 @@
 import "server-only";
 
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import type { PublicCharacterProfile } from "@/types";
 
-export const getPublicCharacterProfile = cache(async (id: string): Promise<PublicCharacterProfile | null> => {
+const readPublicCharacterProfile = unstable_cache(async (id: string): Promise<PublicCharacterProfile | null> => {
   const character = await prisma.character.findFirst({
     where: {
       id,
@@ -40,7 +41,12 @@ export const getPublicCharacterProfile = cache(async (id: string): Promise<Publi
   });
 
   return character as PublicCharacterProfile | null;
+}, ["public-character-profile-v1"], {
+  revalidate: 60 * 60,
+  tags: ["public-character-feed"]
 });
+
+export const getPublicCharacterProfile = cache(readPublicCharacterProfile);
 
 export const getCharacterProfileForViewer = cache(async (id: string, viewerId?: string): Promise<PublicCharacterProfile | null> => {
   const character = await prisma.character.findFirst({
