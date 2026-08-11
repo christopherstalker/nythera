@@ -9,6 +9,8 @@ import { AuthExperience } from "@/components/auth/auth-experience";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { normalizeCallbackPath } from "@/lib/auth-routes";
+import { hasAuthenticatedSession } from "@/lib/auth-client";
 
 export default function LoginPage() {
   return (
@@ -20,14 +22,20 @@ export default function LoginPage() {
 
 function LoginPageContent() {
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/explore";
+  const callbackUrl = normalizeCallbackPath(searchParams.get("callbackUrl"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
+    if (submitting) {
+      return;
+    }
+
     setError(null);
+    setSubmitting(true);
     let result;
     try {
       result = await signIn("credentials", {
@@ -37,16 +45,32 @@ function LoginPageContent() {
         redirect: false
       });
     } catch {
-      setError("Invalid email or password.");
+      setError("Sign-in service is temporarily unavailable. Please try again.");
+      setSubmitting(false);
       return;
     }
 
-    if (result?.error) {
-      setError("Invalid email or password.");
+    if (!result) {
+      setError("Sign-in service is temporarily unavailable. Please try again.");
+      setSubmitting(false);
       return;
     }
 
-    window.location.href = callbackUrl.startsWith("/") ? callbackUrl : "/explore";
+    if (result.error) {
+      setError("Invalid email or password.");
+      setSubmitting(false);
+      return;
+    }
+
+    if (!(await hasAuthenticatedSession())) {
+      setError(
+        "The account was verified, but this app could not save the session. Reopen Nythera from www.nythera.art and try again."
+      );
+      setSubmitting(false);
+      return;
+    }
+
+    window.location.assign(normalizeCallbackPath(callbackUrl));
   }
 
   return (
@@ -77,9 +101,9 @@ function LoginPageContent() {
           required
         />
         {error ? <p className="border-l border-destructive bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
-        <Button className="w-full" type="submit" size="lg">
+        <Button className="w-full" type="submit" size="lg" disabled={submitting}>
           <Mail className="h-4 w-4" />
-          Enter the story
+          {submitting ? "Opening your chronicle…" : "Enter the story"}
         </Button>
       </form>
     </AuthExperience>

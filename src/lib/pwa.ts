@@ -1,3 +1,5 @@
+import { CANONICAL_SITE_ORIGIN } from "@/lib/site-origin";
+
 export type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
@@ -6,7 +8,7 @@ export type BeforeInstallPromptEvent = Event & {
 export const PWA_MOBILE_DISMISS_KEY = "nythera:pwa-mobile-install-dismissed";
 export const PWA_SW_URL = "/sw.js";
 
-export const NYTHERA_SITE_URL = "https://nythera-ai-character-platform.vercel.app";
+export const NYTHERA_SITE_URL = CANONICAL_SITE_ORIGIN;
 
 export function isStandaloneDisplay() {
   if (typeof window === "undefined") {

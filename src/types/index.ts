@@ -29,6 +29,35 @@ export type CharacterPersona = {
   relationshipDynamics?: "friend" | "romantic" | "mentor" | "rival" | "antagonist";
 };
 
+export type PublicCharacterProfile = {
+  id: string;
+  creatorId: string;
+  name: string;
+  avatarUrl?: string | null;
+  description: string;
+  personality: string;
+  scenario?: string | null;
+  greeting: string;
+  tags: string[];
+  likes: number;
+  ratingAverage: number;
+  ratingCount: number;
+  isNSFW?: boolean;
+  visibility?: string;
+  communicationStyle?: Record<string, unknown> | null;
+  persona?: CharacterPersona | null;
+  lorebook?: { entries?: Array<{ id?: string; keywords?: string[]; text?: string }> } | null;
+  visualIdentity?: {
+    accentColor?: string;
+    gradientFrom?: string;
+    gradientTo?: string;
+    chatBackground?: string;
+  } | null;
+  creator?: {
+    username?: string | null;
+  } | null;
+};
+
 export type PromptMessage = {
   role: ChatRole;
   content: string;
@@ -50,6 +79,7 @@ export type RetrievedMemory = {
   confidence?: number;
   metadata?: unknown;
   similarity?: number;
+  pinned?: boolean;
 };
 
 export type StreamChunk =

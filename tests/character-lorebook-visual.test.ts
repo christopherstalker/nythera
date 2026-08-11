@@ -8,10 +8,7 @@ import { characterCreateSchema } from "../src/lib/validation";
 test("character lorebook and visual identity are first-class persisted fields", async () => {
   const schema = await readFile(new URL("../prisma/schema.prisma", import.meta.url), "utf8");
   const migration = await readFile(new URL("../prisma/migrations/20260629101000_character_lorebook_visual_identity/migration.sql", import.meta.url), "utf8");
-  const webCreate = await readFile(new URL("../src/app/api/characters/route.ts", import.meta.url), "utf8");
-  const webUpdate = await readFile(new URL("../src/app/api/characters/[id]/route.ts", import.meta.url), "utf8");
-  const mobileCreate = await readFile(new URL("../src/app/api/mobile/characters/route.ts", import.meta.url), "utf8");
-  const mobileUpdate = await readFile(new URL("../src/app/api/mobile/characters/[id]/route.ts", import.meta.url), "utf8");
+  const mutations = await readFile(new URL("../src/lib/character-mutations.ts", import.meta.url), "utf8");
   const prompt = await readFile(new URL("../src/lib/prompt-assembly.ts", import.meta.url), "utf8");
   const form = await readFile(new URL("../src/components/characters/character-form.tsx", import.meta.url), "utf8");
   const formTypes = await readFile(new URL("../src/lib/character-form-types.ts", import.meta.url), "utf8");
@@ -21,10 +18,8 @@ test("character lorebook and visual identity are first-class persisted fields", 
   assert.match(migration, /ADD COLUMN IF NOT EXISTS "lorebook" JSONB/);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS "visualIdentity" JSONB/);
 
-  for (const source of [webCreate, webUpdate, mobileCreate, mobileUpdate]) {
-    assert.match(source, /lorebook/);
-    assert.match(source, /visualIdentity/);
-  }
+  assert.match(mutations, /lorebook/);
+  assert.match(mutations, /visualIdentity/);
 
   assert.match(prompt, /CHARACTER LOREBOOK \(KEYWORD MATCHED\)/);
   assert.match(prompt, /lookupText\.includes/);

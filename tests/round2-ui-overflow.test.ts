@@ -6,7 +6,8 @@ test("Side-panel chat history clips long one-line descriptions inside its rows",
   const source = await readFile(new URL("../src/components/chat/chat-panel-tabs.tsx", import.meta.url), "utf8");
 
   assert.match(source, /HistoryTabContent/);
-  assert.match(source, /No chat history yet/);
+  assert.match(source, /No conversations with this character yet/);
+  assert.match(source, /chat\.character\.id === characterId/);
   assert.match(source, /overflow-hidden rounded-2xl/);
   assert.match(source, /className="mt-0\.5 block truncate text-xs/);
 });

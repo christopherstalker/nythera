@@ -8,20 +8,29 @@ import { moderateText, sanitizeUserText } from "@/lib/safety";
 import { detectPromptInjection } from "@/lib/prompt-security";
 import { streamMessageSchema } from "@/lib/validation";
 import { assembleNytheraPrompt } from "@/lib/prompt-assembly";
+import { resolveCharacterPersona } from "@/lib/persona";
+import { maxOutputTokensForVerbosity, providerOutputTokenBudget } from "@/lib/response-length";
+import { loadAdaptiveChatHistory } from "@/lib/chat-history";
 import { streamLlmResponse } from "@/lib/proxy";
-import { searchMemories } from "@/lib/vector";
+import { getPromptMemories } from "@/lib/memory-store";
 import { schedulePostMessageJobs } from "@/lib/memory";
-import { getEffectiveProviderKeys } from "@/lib/user-keys";
+import { getEffectiveProviderKeys, isUserOwnedProvider } from "@/lib/user-keys";
 import { formatUserPersonaForPrompt } from "@/lib/user-persona";
 import { createMessageWithNextSequence } from "@/lib/message-sequence";
 import { resolveCharacterModelSettings } from "@/lib/character-model-settings";
+import { providerFallbackNotice } from "@/lib/provider-fallback";
 import { estimateModelCost } from "@/lib/model-pricing";
 import { logSafeError } from "@/lib/secret-redaction";
+import { getStoryPromptContext, syncChatTurns } from "@/lib/stories/story-foundation";
+import { markStoryProactiveEventsFired } from "@/lib/stories/narrative-store";
+import { buildFullPromptAddon, modeTemperature } from "@/lib/prompts/buildPrompt";
+import { formatTieredMemoryBlocks, getUserMemories, splitMemoriesForPrompt } from "@/lib/memory/promptBuilder";
+import { normalizeChatMode } from "@/lib/chat-mode";
+import { requireAdultConsent } from "@/lib/adult-consent";
+import { schedulePostResponseTasks } from "@/lib/post-response";
 
 type Context = {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 };
 
 export const runtime = "nodejs";
@@ -33,6 +42,7 @@ export async function POST(request: Request, context: Context) {
 
   try {
     const user = await requireMobileUser(request);
+    requireAdultConsent(user);
     await enforceRateLimit({
       userId: user.id,
       ip: getRequestIp(request),
@@ -42,7 +52,7 @@ export async function POST(request: Request, context: Context) {
     const input = await parseJson(request, streamMessageSchema);
     const continueChat = input.continueChat === true;
     const continuationPrompt =
-      "Continue the roleplay naturally from the latest message. Do not speak as the user, do not invent a user reply, and keep the scene moving in the character's voice.";
+      "Continue the roleplay naturally from the immediately preceding selected assistant response. Do not speak as the user, do not invent a user reply, and keep the scene moving in the character's voice.";
     const message = continueChat ? continuationPrompt : sanitizeUserText(input.message);
     const injectionAssessment = detectPromptInjection(message);
     const moderation = moderateText({
@@ -57,17 +67,13 @@ export async function POST(request: Request, context: Context) {
 
     const chat = await prisma.chat.findFirst({
       where: {
-        id: context.params.id,
+        id: (await context.params).id,
         userId: user.id,
         archivedAt: null
       },
       include: {
         character: true,
         persona: true,
-        messages: {
-          orderBy: [{ createdAt: "desc" }, { sequence: "desc" }, { id: "desc" }],
-          take: 40
-        }
       }
     });
 
@@ -94,7 +100,29 @@ export async function POST(request: Request, context: Context) {
       chatTemperature: input.temperature ?? chat.temperature
     });
     const model = effectiveSettings.model;
-    const temperature = effectiveSettings.temperature;
+    const characterPersona = resolveCharacterPersona(chat.character);
+    const maxOutputTokens = maxOutputTokensForVerbosity(characterPersona.verbosityLevel, effectiveSettings.maxTokens);
+    const providerMaxOutputTokens = providerOutputTokenBudget({
+      visibleTokenLimit: maxOutputTokens,
+      provider: effectiveSettings.provider,
+      model
+    });
+    let temperature = effectiveSettings.temperature;
+    if (!isUserOwnedProvider(effectiveSettings.provider, providerKeys)) {
+      await enforceRateLimit({
+        userId: user.id,
+        ip: getRequestIp(request),
+        route: "chat:token-budget",
+        cost: Math.min(maxOutputTokens, 4096)
+      });
+    }
+    const history = await loadAdaptiveChatHistory({
+      chatId: chat.id,
+      model,
+      maxOutputTokens,
+      currentMessage: message,
+      summary: chat.summary
+    });
     const userMessage = continueChat
       ? null
       : await createMessageWithNextSequence({
@@ -104,32 +132,43 @@ export async function POST(request: Request, context: Context) {
           clientRequestId: input.requestId
         });
 
-    const [memories, defaultUserPersona] = await Promise.all([
-      user.memoryEnabled
-        ? searchMemories({
-            userId: user.id,
-            characterId: chat.characterId,
-            query: message,
-            limit: 5,
-            providerKeys
-          })
-        : Promise.resolve([]),
+    const [memories, userGlobalMemories, defaultUserPersona, storyContext] = await Promise.all([
+      getPromptMemories({
+        userId: user.id,
+        characterId: chat.characterId,
+        query: message,
+        includeGlobal: false,
+        providerKeys,
+        semanticEnabled: user.memoryEnabled
+      }),
+      user.memoryEnabled ? getUserMemories(user.id, 8) : Promise.resolve([]),
       prisma.userPersona.findFirst({
         where: { userId: user.id, isDefault: true }
-      })
+      }),
+      getStoryPromptContext({ chatId: chat.id, userId: user.id, actorCharacterId: chat.characterId })
     ]);
     const userPersona = chat.persona ?? defaultUserPersona;
+    const chatMode = normalizeChatMode(chat.chatMode);
+    const { characterMemories, userMemories } = formatTieredMemoryBlocks(splitMemoriesForPrompt(memories, userGlobalMemories));
+    const modeContext = buildFullPromptAddon({
+      mode: chatMode,
+      characterMemories,
+      userMemories
+    });
 
     const prompt = assembleNytheraPrompt({
       character: chat.character,
       memories,
       userPersona: formatUserPersonaForPrompt(userPersona),
-      summary: chat.summary,
-      recentMessages: [...chat.messages].reverse(),
+      summary: history.overflowed ? chat.summary : null,
+      recentMessages: history.messages.slice(-20),
       currentMessage: message,
       responsePrompt: chat.responsePrompt,
-      injectionAssessment
+      storyContext: storyContext.text,
+      injectionAssessment,
+      modeContext
     });
+    temperature = modeTemperature(chatMode, input.temperature ?? chat.temperature ?? temperature);
 
     const encoder = new TextEncoder();
     let assistantText = "";
@@ -155,8 +194,18 @@ export async function POST(request: Request, context: Context) {
 
     const stream = new ReadableStream({
       async start(controller) {
+        let clientConnected = !request.signal.aborted;
         const send = (payload: unknown) => {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+          if (!clientConnected || request.signal.aborted) {
+            clientConnected = false;
+            return;
+          }
+
+          try {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+          } catch {
+            clientConnected = false;
+          }
         };
 
         try {
@@ -171,7 +220,7 @@ export async function POST(request: Request, context: Context) {
             topP: effectiveSettings.topP,
             frequencyPenalty: effectiveSettings.frequencyPenalty,
             presencePenalty: effectiveSettings.presencePenalty,
-            maxTokens: effectiveSettings.maxTokens,
+            maxTokens: providerMaxOutputTokens,
             userId: user.id,
             chatId: chat.id,
             providerKeys,
@@ -200,6 +249,8 @@ export async function POST(request: Request, context: Context) {
 
             if (chunk.type === "usage") {
               usage = chunk;
+              const notice = chunk.fallbackTriggered ? providerFallbackNotice(chunk.attempts) : null;
+              if (notice) send({ type: "provider_notice", message: notice });
             }
 
             if (chunk.type === "error") {
@@ -248,33 +299,51 @@ export async function POST(request: Request, context: Context) {
             select: { id: true, title: true, messageCount: true, lastActiveAt: true }
           });
 
-          await prisma.llmRequestLog.create({
-            data: {
-              userId: user.id,
-              chatId: chat.id,
-              provider: usage.provider,
-              model: usage.model,
-              route: "mobile_chat",
-              inputTokens: usage.inputTokens,
-              outputTokens: usage.outputTokens,
-              estimatedCost,
-              status: outputBlocked ? "blocked_output" : usage.fallbackTriggered ? "ok_fallback" : "ok",
-              error: usage.fallbackTriggered ? `fallback attempts: ${(usage.attempts ?? []).join(" -> ")}`.slice(0, 2000) : null,
-              latencyMs: Date.now() - started
+          schedulePostResponseTasks("Mobile chat post-response", [
+            {
+              name: "request log",
+              run: () => prisma.llmRequestLog.create({
+                data: {
+                  userId: user.id,
+                  chatId: chat.id,
+                  provider: usage.provider,
+                  model: usage.model,
+                  route: "mobile_chat",
+                  inputTokens: usage.inputTokens,
+                  outputTokens: usage.outputTokens,
+                  estimatedCost,
+                  status: outputBlocked ? "blocked_output" : usage.fallbackTriggered ? "ok_fallback" : "ok",
+                  error: usage.fallbackTriggered ? `fallback attempts: ${(usage.attempts ?? []).join(" -> ")}`.slice(0, 2000) : null,
+                  latencyMs: Date.now() - started
+                }
+              })
+            },
+            ...(user.memoryEnabled && !continueChat
+              ? [{
+                  name: "memory jobs",
+                  run: () => schedulePostMessageJobs({
+                    chatId: chat.id,
+                    userId: user.id,
+                    characterId: chat.characterId,
+                    latestUserMessage: message,
+                    latestUserMessageId: userMessage?.id ?? null,
+                    latestAssistantMessage: assistantMessage.content,
+                    latestAssistantMessageId: assistantMessage.id,
+                    messageCount: updated.messageCount,
+                    providerKeys
+                  })
+                }]
+              : []),
+            { name: "story sync", run: () => syncChatTurns(chat.id, user.id) },
+            {
+              name: "story event completion",
+              run: () => markStoryProactiveEventsFired({
+                eventIds: storyContext.eventIds,
+                storyId: storyContext.storyId,
+                sourceMessageId: assistantMessage.id
+              })
             }
-          });
-
-          if (user.memoryEnabled && !continueChat) {
-            await schedulePostMessageJobs({
-              chatId: chat.id,
-              userId: user.id,
-              characterId: chat.characterId,
-              latestUserMessage: message,
-              latestAssistantMessage: assistantMessage.content,
-              messageCount: updated.messageCount,
-              providerKeys
-            });
-          }
+          ]);
 
           send({ type: "message", message: assistantMessage });
           send({ type: "done" });
@@ -318,25 +387,36 @@ export async function POST(request: Request, context: Context) {
             }
           });
 
-          await prisma.llmRequestLog.create({
-            data: {
-              userId: user.id,
-              chatId: chat.id,
-              provider: usage.provider || "unknown",
-              model: usage.model || model,
-              route: "mobile_chat",
-              inputTokens: usage.inputTokens,
-              outputTokens: usage.outputTokens,
-              estimatedCost,
-              status: assistantPersisted ? "partial_error" : "error",
-              error: errorMessage.slice(0, 2000),
-              latencyMs: Date.now() - started
+          schedulePostResponseTasks("Mobile chat error post-response", [
+            {
+              name: "request log",
+              run: () => prisma.llmRequestLog.create({
+                data: {
+                  userId: user.id,
+                  chatId: chat.id,
+                  provider: usage.provider || "unknown",
+                  model: usage.model || model,
+                  route: "mobile_chat",
+                  inputTokens: usage.inputTokens,
+                  outputTokens: usage.outputTokens,
+                  estimatedCost,
+                  status: assistantPersisted ? "partial_error" : "error",
+                  error: errorMessage.slice(0, 2000),
+                  latencyMs: Date.now() - started
+                }
+              })
             }
-          });
+          ]);
 
           send({ type: "error", message: publicErrorMessage });
         } finally {
-          controller.close();
+          if (clientConnected) {
+            try {
+              controller.close();
+            } catch {
+              // The client already closed the stream.
+            }
+          }
         }
       }
     });

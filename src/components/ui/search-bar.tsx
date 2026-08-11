@@ -31,17 +31,25 @@ export function SearchBar({
   filterControls
 }: SearchBarProps) {
   return (
-    <div className={cn("relative block w-full", className)}>
-      <Search className="pointer-events-none absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+    <form
+      role="search"
+      className={cn("relative block w-full", className)}
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit?.(value ?? "");
+      }}
+    >
+      <button
+        type="submit"
+        aria-label="Search"
+        className="focus-ring absolute left-2 top-1/2 z-10 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+      >
+        <Search className="h-4 w-4" />
+      </button>
       <input
         aria-label={placeholder}
         value={value}
         onChange={(event) => onChange?.(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            onSubmit?.(value ?? event.currentTarget.value);
-          }
-        }}
         placeholder={placeholder}
         className="focus-ring glass-input h-12 w-full rounded-[var(--radius-pill)] px-12 text-sm focus:border-[var(--accent-purple)]"
       />
@@ -73,6 +81,6 @@ export function SearchBar({
           </span>
         )
       ) : null}
-    </div>
+    </form>
   );
 }

@@ -1,5 +1,7 @@
 export type ProviderErrorCode =
   | "invalid_api_key"
+  | "insufficient_balance"
+  | "invalid_parameters"
   | "rate_limit"
   | "model_unavailable"
   | "provider_unavailable"
@@ -23,6 +25,24 @@ export function classifyProviderError(error: unknown): ProviderErrorClassificati
       code: "invalid_api_key",
       message: "The selected provider rejected the API key. Check the key in Settings.",
       status: status ?? 401,
+      retryable: false
+    };
+  }
+
+  if (status === 402) {
+    return {
+      code: "insufficient_balance",
+      message: "DeepSeek accepted the API key, but the account has no available balance. Add funds in DeepSeek or choose another provider.",
+      status,
+      retryable: false
+    };
+  }
+
+  if (status === 400 || status === 422) {
+    return {
+      code: "invalid_parameters",
+      message: "The selected provider rejected the request parameters. Refresh its model list and try again.",
+      status,
       retryable: false
     };
   }

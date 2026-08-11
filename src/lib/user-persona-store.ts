@@ -39,6 +39,27 @@ export async function getUserPersonaState(userId: string, chatId?: string | null
   };
 }
 
+export async function getLastUsedPersonaId(userId: string) {
+  const account = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      lastPersonaId: true,
+      personas: {
+        orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }],
+        select: { id: true }
+      }
+    }
+  });
+
+  if (!account) {
+    return null;
+  }
+
+  return account.personas.find((persona) => persona.id === account.lastPersonaId)?.id
+    ?? account.personas[0]?.id
+    ?? null;
+}
+
 export async function saveUserPersona(userId: string, input: PersonaInput, chatId?: string | null) {
   return prisma.$transaction(async (tx) => {
     const existingPersonas = await tx.userPersona.findMany({
@@ -81,6 +102,11 @@ export async function saveUserPersona(userId: string, input: PersonaInput, chatI
       }
     }
 
+    await tx.user.update({
+      where: { id: userId },
+      data: { lastPersonaId: saved.id }
+    });
+
     return personaStateInTransaction(tx, userId, chatId ?? null);
   });
 }
@@ -107,6 +133,11 @@ export async function activateUserPersona(userId: string, personaId: string, cha
       await setDefaultPersona(tx, userId, persona.id);
     }
 
+    await tx.user.update({
+      where: { id: userId },
+      data: { lastPersonaId: persona.id }
+    });
+
     return personaStateInTransaction(tx, userId, chatId ?? null);
   });
 }
@@ -115,6 +146,10 @@ export async function deleteUserPersona(userId: string, personaId?: string | nul
   return prisma.$transaction(async (tx) => {
     if (!personaId) {
       await tx.userPersona.deleteMany({ where: { userId } });
+      await tx.user.update({
+        where: { id: userId },
+        data: { lastPersonaId: null }
+      });
       return { ok: true, persona: null, profiles: [], activeProfileId: null, activeProfile: null };
     }
 
@@ -135,6 +170,22 @@ export async function deleteUserPersona(userId: string, personaId?: string | nul
       if (nextDefault) {
         await setDefaultPersona(tx, userId, nextDefault.id);
       }
+    }
+
+    const account = await tx.user.findUnique({
+      where: { id: userId },
+      select: { lastPersonaId: true }
+    });
+    if (account?.lastPersonaId === persona.id) {
+      const replacement = await tx.userPersona.findFirst({
+        where: { userId },
+        orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }],
+        select: { id: true }
+      });
+      await tx.user.update({
+        where: { id: userId },
+        data: { lastPersonaId: replacement?.id ?? null }
+      });
     }
 
     return { ok: true, ...(await personaStateInTransaction(tx, userId, null)) };

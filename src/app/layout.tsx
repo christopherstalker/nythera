@@ -8,7 +8,9 @@ import "@fontsource/cormorant-garamond/600.css";
 import "@/app/globals.css";
 import { AppShell } from "@/components/layout/AppShell";
 import { SessionProvider } from "@/components/providers/session-provider";
+import { OrientationLock } from "@/components/pwa/orientation-lock";
 import { BRAND_ICON_APPLE, BRAND_ICON_LARGE, BRAND_ICON_SMALL, BRAND_OG_IMAGE, BRAND_THEME_COLOR } from "@/lib/brand";
+import { resolveSiteOrigin } from "@/lib/site-origin";
 
 const spaceGrotesk = localFont({
   src: "../assets/fonts/SpaceGrotesk-Variable.woff2",
@@ -19,13 +21,19 @@ const spaceGrotesk = localFont({
   fallback: ["Segoe UI", "Roboto", "Arial", "sans-serif"]
 });
 
-const siteUrl = process.env.AUTH_URL || process.env.NEXTAUTH_URL || "https://nythera-ai-character-platform.vercel.app";
+const siteUrl = resolveSiteOrigin();
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "Nythera",
-  description: "A cinematic AI character universe with persona, memory, and secure model access.",
+  title: {
+    default: "Nythera — AI Roleplay & Character Chat",
+    template: "%s | Nythera"
+  },
+  description: "Create and discover AI roleplay characters with persistent persona, story memory, and immersive character chat.",
   applicationName: "Nythera",
+  creator: "Nythera",
+  publisher: "Nythera",
+  category: "entertainment",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
@@ -47,8 +55,8 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: siteUrl,
     siteName: "Nythera",
-    title: "Nythera",
-    description: "AI roleplay platform with persona, memory, and secure model access.",
+    title: "Nythera — AI Roleplay & Character Chat",
+    description: "Create and discover AI roleplay characters with persistent persona, story memory, and immersive character chat.",
     images: [
       {
         url: BRAND_OG_IMAGE,
@@ -60,8 +68,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Nythera",
-    description: "AI roleplay platform with persona, memory, and secure model access.",
+    title: "Nythera — AI Roleplay & Character Chat",
+    description: "Create and discover AI roleplay characters with persistent persona, story memory, and immersive character chat.",
     images: [BRAND_OG_IMAGE]
   }
 };
@@ -71,14 +79,46 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   viewportFit: "cover",
+  interactiveWidget: "resizes-content",
   themeColor: BRAND_THEME_COLOR
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const organizationJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": `${siteUrl}/#organization`,
+    name: "Nythera",
+    url: siteUrl,
+    logo: new URL(BRAND_ICON_LARGE, siteUrl).toString(),
+    description: "An AI roleplay and character chat platform for persistent, immersive stories."
+  };
+  const websiteJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": `${siteUrl}/#website`,
+    name: "Nythera",
+    alternateName: "Nythera AI Roleplay",
+    url: siteUrl,
+    description: "Create and discover AI roleplay characters with persistent persona and story memory.",
+    publisher: {
+      "@id": `${siteUrl}/#organization`
+    }
+  };
+
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <body className={`${spaceGrotesk.className} ${spaceGrotesk.variable} min-h-screen overflow-hidden`}>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd).replace(/</g, "\\u003c") }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd).replace(/</g, "\\u003c") }}
+        />
         <SessionProvider>
+          <OrientationLock />
           <AppShell>{children}</AppShell>
         </SessionProvider>
         <SpeedInsights />

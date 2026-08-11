@@ -34,6 +34,7 @@ type RoomMessage = {
 
 type Room = {
   id: string;
+  storyId?: string | null;
   title: string;
   messageCount: number;
   characters: RoomCharacter[];
@@ -128,7 +129,12 @@ export default function RoomPage() {
     const response = await fetch("/api/voice/synthesize", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ provider: "elevenlabs", text: messageToSpeak.content })
+      body: JSON.stringify({
+        provider: "elevenlabs",
+        text: messageToSpeak.content,
+        storyId: room?.storyId || undefined,
+        characterId: messageToSpeak.character?.id || undefined
+      })
     });
     setSpeakingId(null);
     if (!response.ok) {

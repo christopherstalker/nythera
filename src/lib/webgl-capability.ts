@@ -1,4 +1,4 @@
-export function checkWebGLSupportAndCapability(): boolean {
+export function checkWebGLSupportAndCapability(options: { allowTablet?: boolean } = {}): boolean {
   if (typeof window === "undefined") {
     return false;
   }
@@ -9,7 +9,7 @@ export function checkWebGLSupportAndCapability(): boolean {
   }
 
   const isTabletWidth = window.innerWidth >= 768 && window.innerWidth <= 1024;
-  if (isTabletWidth) {
+  if (isTabletWidth && !options.allowTablet) {
     return false;
   }
 

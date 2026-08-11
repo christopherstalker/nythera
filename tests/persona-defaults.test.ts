@@ -11,6 +11,7 @@ test("personas are normalized as first-class rows with one default and chat bind
   const webRoute = await readFile(new URL("../src/app/api/user-persona/route.ts", import.meta.url), "utf8");
   const mobileRoute = await readFile(new URL("../src/app/api/mobile/user-persona/route.ts", import.meta.url), "utf8");
   const chatCreate = await readFile(new URL("../src/app/api/chats/route.ts", import.meta.url), "utf8");
+  const mobileChatCreate = await readFile(new URL("../src/app/api/mobile/chats/route.ts", import.meta.url), "utf8");
   const streamRoute = await readFile(new URL("../src/app/api/chats/[id]/stream/route.ts", import.meta.url), "utf8");
   const quickPanel = await readFile(new URL("../src/hooks/use-chat-quick-panel.ts", import.meta.url), "utf8");
   const userPersonaModel = schema.match(/model UserPersona \{[\s\S]*?\n\}/)?.[0] ?? "";
@@ -26,7 +27,11 @@ test("personas are normalized as first-class rows with one default and chat bind
   assert.match(store, /setDefaultPersona/);
   assert.match(webRoute, /user-persona-store/);
   assert.match(mobileRoute, /user-persona-store/);
-  assert.match(chatCreate, /personaId: defaultPersona\?\.id \?\? null/);
+  assert.match(schema, /lastPersonaId\s+String\?/);
+  assert.match(store, /getLastUsedPersonaId/);
+  assert.match(store, /data: \{ lastPersonaId: persona\.id \}/);
+  assert.match(chatCreate, /personaId: lastUsedPersonaId/);
+  assert.match(mobileChatCreate, /personaId: lastUsedPersonaId/);
   assert.match(streamRoute, /chat\.persona \?\? defaultUserPersona/);
   assert.match(quickPanel, /chatId/);
 });

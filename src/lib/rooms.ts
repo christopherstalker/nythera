@@ -7,6 +7,7 @@ import { resolveCharacterModelSettings } from "@/lib/character-model-settings";
 import { createRoomMessageWithNextSequence } from "@/lib/message-sequence";
 import { estimateModelCost } from "@/lib/model-pricing";
 import { assembleNytheraPrompt } from "@/lib/prompt-assembly";
+import { loadAdaptiveRoomHistory } from "@/lib/chat-history";
 import { detectPromptInjection } from "@/lib/prompt-security";
 import { prisma } from "@/lib/prisma";
 import { streamLlmResponse } from "@/lib/proxy";
@@ -14,7 +15,10 @@ import { userPreferredModelValue } from "@/lib/provider-model-options";
 import { moderateText, sanitizeUserText, isMinorBirthDate } from "@/lib/safety";
 import { formatUserPersonaForPrompt } from "@/lib/user-persona";
 import { getEffectiveProviderKeys } from "@/lib/user-keys";
-import { searchMemories } from "@/lib/vector";
+import { getPromptMemories } from "@/lib/memory-store";
+import { ensureStoryForRoom, getRoomStoryPromptContext, syncRoomTurns } from "@/lib/stories/story-foundation";
+import { markStoryProactiveEventsFired } from "@/lib/stories/narrative-store";
+import { logSafeError } from "@/lib/secret-redaction";
 
 type RoomUser = {
   id: string;
@@ -77,6 +81,7 @@ export async function getRoomForUser(roomId: string, userId: string) {
     throw new HttpError(404, "Room not found.");
   }
 
+  room.messages.reverse();
   return room;
 }
 
@@ -147,6 +152,8 @@ export async function createRoomForUser(user: RoomUser, input: RoomInput) {
 
     return room;
   });
+
+  await ensureStoryForRoom(created.id, user.id);
 
   return getRoomForUser(created.id, user.id);
 }
@@ -242,6 +249,13 @@ export async function sendRoomMessage(input: {
     globalModel: input.body.model ?? room.model,
     chatTemperature: input.body.temperature ?? room.temperature
   });
+  const history = await loadAdaptiveRoomHistory({
+    roomId: room.id,
+    model: effectiveSettings.model,
+    maxOutputTokens: effectiveSettings.maxTokens,
+    currentMessage: message,
+    summary: room.summary
+  });
   const userMessage = await createRoomMessageWithNextSequence({
     roomId: room.id,
     role: RoomMessageRole.USER,
@@ -249,35 +263,30 @@ export async function sendRoomMessage(input: {
     clientRequestId: input.body.requestId
   });
 
-  const [memories, defaultPersona] = await Promise.all([
-    input.user.memoryEnabled
-      ? searchMemories({
-          userId: input.user.id,
-          characterId: speaker.id,
-          query: message,
-          limit: 5,
-          providerKeys
-        })
-      : Promise.resolve([]),
+  const [memories, defaultPersona, storyContext] = await Promise.all([
+    getPromptMemories({
+      userId: input.user.id,
+      characterId: speaker.id,
+      query: message,
+      providerKeys,
+      semanticEnabled: input.user.memoryEnabled
+    }),
     prisma.userPersona.findFirst({
       where: { userId: input.user.id, isDefault: true }
-    })
+    }),
+    getRoomStoryPromptContext({ roomId: room.id, userId: input.user.id, actorCharacterId: speaker.id })
   ]);
   const userPersona = room.persona ?? defaultPersona;
-  const recentMessages = room.messages
-    .slice()
-    .reverse()
+  const recentMessages = history.messages
     .map((roomMessage) => ({
       role: roomMessage.role === RoomMessageRole.CHARACTER ? MessageRole.ASSISTANT : roomMessage.role === RoomMessageRole.SYSTEM ? MessageRole.SYSTEM : MessageRole.USER,
       content: formatRoomMessageForPrompt(roomMessage)
     }));
-  recentMessages.push({ role: MessageRole.USER, content: message });
-
   const prompt = assembleNytheraPrompt({
     character: speaker,
     memories,
     userPersona: formatUserPersonaForPrompt(userPersona as UserPersona | null),
-    summary: room.summary,
+    summary: history.overflowed ? room.summary : null,
     recentMessages,
     currentMessage: message,
     responsePrompt: buildRoomResponsePrompt({
@@ -286,6 +295,7 @@ export async function sendRoomMessage(input: {
       speaker,
       characters: room.characters.map((link) => link.character)
     }),
+    storyContext: storyContext.text,
     injectionAssessment
   });
 
@@ -403,6 +413,17 @@ export async function sendRoomMessage(input: {
     }
   });
 
+  await syncRoomTurns(room.id, input.user.id).catch((storyError) => {
+    logSafeError("Room story turn sync failed.", storyError);
+  });
+  await markStoryProactiveEventsFired({
+    eventIds: storyContext.eventIds,
+    storyId: storyContext.storyId,
+    sourceRoomMessageId: characterMessage.id
+  }).catch((storyError) => {
+    logSafeError("Room proactive event completion failed.", storyError);
+  });
+
   return {
     room: updatedRoom,
     userMessage,
@@ -436,7 +457,8 @@ function roomInclude() {
       }
     },
     messages: {
-      orderBy: [{ createdAt: "asc" as const }, { sequence: "asc" as const }, { id: "asc" as const }],
+      orderBy: [{ createdAt: "desc" as const }, { sequence: "desc" as const }, { id: "desc" as const }],
+      take: 200,
       include: {
         character: {
           select: { id: true, name: true, avatarUrl: true }
@@ -497,7 +519,7 @@ function buildRoomResponsePrompt(input: {
     "GROUP ROOM TURN RULES",
     `Current speaker: ${input.speaker.name}.`,
     `Room cast: ${cast}.`,
-    "- Reply only as the current speaker unless brief narration is needed.",
+    "- Lead the turn with the current speaker while keeping other present NPCs believably active when scene logic calls for it.",
     "- Do not write the user's next message.",
     "- Keep continuity with the other characters' visible turns.",
     input.roomPrompt?.trim() ? `Room direction: ${input.roomPrompt.trim()}` : null,

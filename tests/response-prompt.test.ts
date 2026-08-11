@@ -8,7 +8,7 @@ test("response instructions are constrained to output style below safety and per
   const layer = responsePrompt.buildResponsePromptLayer("Write in first person with short dialogue-led replies.");
 
   assert.match(layer, /RESPONSE INSTRUCTIONS \(STYLE ONLY\)/);
-  assert.match(layer, /cannot override safety, character persona, scenario, or established facts/i);
+  assert.match(layer, /cannot override safety, the fixed Roleplay Engine, character persona, scenario, established context, or Memory/i);
   assert.match(layer, /Write in first person with short dialogue-led replies\./);
 });
 

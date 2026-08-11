@@ -1,17 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import Image from "next/image";
 import { ChatInput } from "@/components/chat/ChatInput";
+import { MusicEmbedPlayer } from "@/components/music/MusicEmbedPlayer";
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { MessageList } from "@/components/chat/MessageList";
 import { useChat, type ChatMessage } from "@/hooks/useChat";
 import { shouldBypassNextImageOptimization } from "@/lib/image-cache";
-import { buildProviderModelGroups, inferProviderModelValue, type ProviderModelGroup, type SavedProviderSummary } from "@/lib/provider-model-options";
+import { buildProviderModelGroups, inferProviderModelValue, type ProviderModelCatalog, type ProviderModelGroup, type SavedProviderSummary } from "@/lib/provider-model-options";
+import { CHAT_MODE_STORAGE_KEY, normalizeChatMode } from "@/lib/chat-mode";
+import { normalizeChatAppearance, resolveBackgroundType } from "@/lib/chat-appearance";
 import { useUiStore } from "@/stores/use-ui-store";
+import { CHAT_CUSTOM_FONT_FAMILY, useCustomFontFace } from "@/hooks/use-custom-font";
+import { latestAssistantVariantGroup } from "@/lib/message-actions";
 
 type ChatClientProps = {
   chatId: string;
+  chapterNumber: number;
   characterId?: string | null;
   characterName: string;
   characterAvatarUrl?: string | null;
@@ -19,37 +25,88 @@ type ChatClientProps = {
   model?: string | null;
   temperature?: number | null;
   responsePrompt?: string | null;
+  chatMode?: string | null;
+  appearance?: unknown;
+  characterBackgroundUrl?: string | null;
   initialMessages: ChatMessage[];
+  initialActiveAssistantMessageId?: string | null;
 };
 
 const API_SETTINGS_SAVE_DEBOUNCE_MS = 500;
+const ACTIVE_VARIANT_SAVE_DEBOUNCE_MS = 500;
 
-export function ChatClient({ chatId, characterId, characterName, characterAvatarUrl, summary, model: initialModel, temperature: initialTemperature, responsePrompt: initialResponsePrompt, initialMessages }: ChatClientProps) {
+export function ChatClient({ chatId, chapterNumber, characterId, characterName, characterAvatarUrl, characterBackgroundUrl, summary, model: initialModel, temperature: initialTemperature, responsePrompt: initialResponsePrompt, chatMode: initialChatMode, appearance: initialAppearance, initialMessages, initialActiveAssistantMessageId }: ChatClientProps) {
   const [draft, setDraft] = useState("");
   const [model, setModel] = useState(initialModel || "gpt-4o-mini");
   const [temperature, setTemperature] = useState(initialTemperature ?? 0.7);
   const [responsePrompt, setResponsePrompt] = useState(initialResponsePrompt ?? "");
   const [apiSaveStatus, setApiSaveStatus] = useState<string | null>(null);
+  const [activeAssistantMessageId, setActiveAssistantMessageId] = useState<string | null>(
+    initialActiveAssistantMessageId ?? latestAssistantMessageId(initialMessages)
+  );
   const [providerKeys, setProviderKeys] = useState<SavedProviderSummary[]>([]);
+  const [providerModels, setProviderModels] = useState<ProviderModelCatalog>({});
+  const [rejectedProviderIds, setRejectedProviderIds] = useState<string[]>([]);
   const [providerKeysLoading, setProviderKeysLoading] = useState(true);
+  const [modelCatalogStatus, setModelCatalogStatus] = useState<string | null>(null);
   const persistedApiRef = useRef({ model: initialModel || "gpt-4o-mini", temperature: initialTemperature ?? 0.7, responsePrompt: initialResponsePrompt ?? "" });
-  const { messages, send, editMessage, deleteMessage, rewindToMessage, branchFromMessage, pinMessage, unpinMessage, isStreaming, error } = useChat(chatId, initialMessages);
+  const { messages, summary: activeSummary, send, retryUserMessage, editMessage, deleteMessage, rewindToMessage, refreshMessages, branchFromMessage, pinMessage, unpinMessage, isStreaming, refreshing, error, providerNotice } = useChat(chatId, initialMessages, summary);
   const messagesRef = useRef(messages);
   const isStreamingRef = useRef(isStreaming);
   const chatSettingsRef = useRef({ model, temperature, responsePrompt });
+  const activeAssistantMessageIdRef = useRef(activeAssistantMessageId);
+  const persistedActiveAssistantMessageIdRef = useRef(initialActiveAssistantMessageId ?? latestAssistantMessageId(initialMessages));
+  const activeVariantSaveTimeoutRef = useRef<number | null>(null);
+  const activeVariantSaveAbortRef = useRef<AbortController | null>(null);
   const setActiveChatId = useUiStore((state) => state.setActiveChatId);
   const setActiveCharacterId = useUiStore((state) => state.setActiveCharacterId);
+  const setActiveChatMode = useUiStore((state) => state.setActiveChatMode);
+  const activeChatAppearance = useUiStore((state) => state.activeChatAppearance);
+  const setActiveChatAppearance = useUiStore((state) => state.setActiveChatAppearance);
   const sidePanelOpen = useUiStore((state) => state.sidePanelOpen);
   const setSidePanelOpen = useUiStore((state) => state.setSidePanelOpen);
   const toggleSidePanel = useUiStore((state) => state.toggleSidePanel);
   const activePersona = useUiStore((state) => state.activePersona);
-  const providerModelGroups: ProviderModelGroup[] = useMemo(() => buildProviderModelGroups(providerKeys), [providerKeys]);
+  const providerModelGroups: ProviderModelGroup[] = useMemo(
+    () => buildProviderModelGroups(providerKeys.filter((key) => key.credentialStatus === "VALID" && !rejectedProviderIds.includes(key.provider)), providerModels),
+    [providerKeys, providerModels, rejectedProviderIds]
+  );
+  const latestAssistantId = useMemo(() => latestAssistantMessageId(messages), [messages]);
   const selectedProviderModel = inferProviderModelValue(model, providerModelGroups);
   const usePlainSceneImage = Boolean(characterAvatarUrl && shouldBypassNextImageOptimization(characterAvatarUrl));
+  useCustomFontFace(activeChatAppearance.fontUrl, CHAT_CUSTOM_FONT_FAMILY);
+
+  useEffect(() => {
+    const storedMode = window.localStorage.getItem(CHAT_MODE_STORAGE_KEY);
+    setActiveChatMode(normalizeChatMode(initialChatMode ?? storedMode));
+  }, [initialChatMode, setActiveChatMode]);
+
+  useEffect(() => {
+    setActiveChatAppearance(normalizeChatAppearance(initialAppearance));
+  }, [chatId, initialAppearance, setActiveChatAppearance]);
 
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+
+  useEffect(() => {
+    if (activeAssistantMessageIdRef.current === latestAssistantId) {
+      return;
+    }
+
+    activeAssistantMessageIdRef.current = latestAssistantId;
+    setActiveAssistantMessageId(latestAssistantId);
+    if (latestAssistantId && !latestAssistantId.startsWith("local-")) {
+      persistedActiveAssistantMessageIdRef.current = latestAssistantId;
+    }
+  }, [latestAssistantId]);
+
+  useEffect(() => () => {
+    if (activeVariantSaveTimeoutRef.current) {
+      window.clearTimeout(activeVariantSaveTimeoutRef.current);
+    }
+    activeVariantSaveAbortRef.current?.abort();
+  }, []);
 
   useEffect(() => {
     isStreamingRef.current = isStreaming;
@@ -101,14 +158,15 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
         });
 
         if (!response.ok) {
-          throw new Error("Could not save API settings.");
+          const body = await response.json().catch(() => null);
+          throw new Error(typeof body?.error === "string" ? body.error : "Could not save API settings.");
         }
 
         persistedApiRef.current = { model: nextModel, temperature: nextTemperature, responsePrompt: nextResponsePrompt };
-        setApiSaveStatus("API settings saved.");
+        setApiSaveStatus("Saved for this chat and future chats.");
       } catch (error) {
         if (!(error instanceof DOMException && error.name === "AbortError")) {
-          setApiSaveStatus("Could not save API settings.");
+          setApiSaveStatus(error instanceof Error ? error.message : "Could not save API settings.");
         }
       }
     }
@@ -142,9 +200,40 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
         if (!cancelled) {
           setProviderKeys(Array.isArray(body.keys) ? body.keys : []);
         }
+
+        const catalogResponse = await fetch("/api/keys/models", { signal: controller.signal });
+        if (!catalogResponse.ok) {
+          throw new Error("Live model refresh is unavailable; bundled models remain available.");
+        }
+        const catalogBody: { providers?: Array<{ provider: string; models: string[]; warning?: string }> } = await catalogResponse.json();
+        if (!cancelled) {
+          const providers = Array.isArray(catalogBody.providers) ? catalogBody.providers : [];
+          const providersById = new Map<string, typeof providers>();
+          for (const provider of providers) {
+            const entries = providersById.get(provider.provider) ?? [];
+            entries.push(provider);
+            providersById.set(provider.provider, entries);
+          }
+          setProviderModels(Object.fromEntries(Array.from(providersById, ([provider, entries]) => [
+            provider,
+            Array.from(new Set(entries.flatMap((entry) => entry.models)))
+          ])));
+          setRejectedProviderIds(Array.from(providersById)
+            .filter(([, entries]) => entries.every((entry) => isRejectedCredential(entry.warning)))
+            .map(([provider]) => provider));
+          const warning = Array.from(providersById.values())
+            .find((entries) => entries.every((entry) => Boolean(entry.warning)))?.[0]?.warning;
+          setModelCatalogStatus(warning ?? "Provider models refreshed automatically.");
+
+          const verifiedKeysResponse = await fetch("/api/keys", { signal: controller.signal });
+          if (verifiedKeysResponse.ok && !cancelled) {
+            const verifiedKeysBody: { keys?: SavedProviderSummary[] } = await verifiedKeysResponse.json();
+            setProviderKeys(Array.isArray(verifiedKeysBody.keys) ? verifiedKeysBody.keys : []);
+          }
+        }
       } catch (error) {
         if (!(error instanceof DOMException && error.name === "AbortError")) {
-          setProviderKeys([]);
+          setModelCatalogStatus(error instanceof Error ? error.message : "Live model refresh is unavailable.");
         }
       } finally {
         if (!cancelled) {
@@ -188,42 +277,96 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
     setModel(value);
   }, []);
 
-  const submitMessage = useCallback(() => {
+  const submitMessage = useCallback(async () => {
     const content = draft.trim();
     if (!content || isStreaming) {
       return;
     }
 
     setDraft("");
-    void send(content, { model, temperature, responsePrompt });
+    const branchMessageId = activeAssistantMessageIdRef.current;
+    const accepted = await send(content, {
+      model,
+      temperature,
+      responsePrompt,
+      branchMessageId: branchMessageId?.startsWith("local-") ? undefined : branchMessageId ?? undefined
+    });
+    if (!accepted) {
+      setDraft((current) => current || content);
+    }
   }, [draft, isStreaming, model, responsePrompt, send, temperature]);
 
-  const continueChat = useCallback(() => {
+  const selectActiveVariant = useCallback((messageId: string) => {
+    if (activeAssistantMessageIdRef.current === messageId) return;
+    activeAssistantMessageIdRef.current = messageId;
+    setActiveAssistantMessageId(messageId);
+    if (messageId.startsWith("local-") || persistedActiveAssistantMessageIdRef.current === messageId) return;
+
+    if (activeVariantSaveTimeoutRef.current) {
+      window.clearTimeout(activeVariantSaveTimeoutRef.current);
+    }
+    activeVariantSaveAbortRef.current?.abort();
+
+    const controller = new AbortController();
+    activeVariantSaveAbortRef.current = controller;
+    activeVariantSaveTimeoutRef.current = window.setTimeout(() => {
+      activeVariantSaveTimeoutRef.current = null;
+      void fetch(`/api/chats/${chatId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ activeAssistantMessageId: messageId }),
+        signal: controller.signal
+      }).then(async (response) => {
+        if (!response.ok) {
+          const body = await response.json().catch(() => null);
+          setApiSaveStatus(body?.error ?? "Could not save the selected response version.");
+          return;
+        }
+        if (activeAssistantMessageIdRef.current === messageId) {
+          persistedActiveAssistantMessageIdRef.current = messageId;
+        }
+      }).catch((error) => {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setApiSaveStatus("Could not save the selected response version.");
+        }
+      });
+    }, ACTIVE_VARIANT_SAVE_DEBOUNCE_MS);
+  }, [chatId]);
+
+  const continueChat = useCallback((assistantMessageId: string) => {
     if (isStreamingRef.current) {
       return;
     }
 
-    void send("", { ...chatSettingsRef.current, continueChat: true });
+    void send("", { ...chatSettingsRef.current, continueChat: true, continueMessageId: assistantMessageId });
   }, [send]);
 
   const regenerate = useCallback((assistantMessageId: string) => {
     const currentMessages = messagesRef.current;
     const index = currentMessages.findIndex((message) => message.id === assistantMessageId);
-    const previousUser = currentMessages
-      .slice(0, index >= 0 ? index : currentMessages.length)
-      .reverse()
-      .find((message) => message.role === "USER");
-
-    if (!previousUser || isStreamingRef.current) {
+    if (index < 0 || isStreamingRef.current) {
       return;
     }
 
-    void send(previousUser.content, {
+    const previousUser = currentMessages
+      .slice(0, index)
+      .reverse()
+      .find((message) => message.role === "USER");
+
+    void send(previousUser?.content ?? "", {
       ...chatSettingsRef.current,
       regenerate: true,
-      replaceAssistantId: assistantMessageId
+      regenerateMessageId: assistantMessageId
     });
   }, [send]);
+
+  const retryMessage = useCallback((messageId: string) => {
+    if (isStreamingRef.current) {
+      return;
+    }
+
+    void retryUserMessage(messageId, chatSettingsRef.current);
+  }, [retryUserMessage]);
 
   const branch = useCallback(async (messageId: string) => {
     const branchId = await branchFromMessage(messageId);
@@ -253,9 +396,9 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
           ) : null}
           <div className="absolute inset-0 bg-gradient-to-t from-[var(--codex-paper-raised)] via-transparent to-transparent" />
           <div className="absolute inset-x-0 bottom-0 p-7">
-            <p className="mb-2 text-[10px] uppercase tracking-[.25em] text-[var(--codex-mint)]">Chapter 3</p>
+            <p className="mb-2 text-[10px] uppercase tracking-[.25em] text-[var(--codex-mint)]">Chapter {chapterNumber}</p>
             <h1 className="font-editorial text-6xl font-medium leading-[.75] text-[var(--codex-ivory)]">{characterName}</h1>
-            <p className="mt-5 line-clamp-4 font-editorial text-lg leading-7 text-[var(--text-secondary)]">{summary || "A living story shaped by memory, character, and every choice you make."}</p>
+            <p className="mt-5 line-clamp-4 font-editorial text-lg leading-7 text-[var(--text-secondary)]">{activeSummary || "A living story shaped by memory, character, and every choice you make."}</p>
           </div>
         </div>
         <button type="button" onClick={toggleSidePanel} className="focus-ring flex h-16 items-center justify-between border-t border-[var(--codex-rule)] px-7 text-[10px] uppercase tracking-[.2em] text-[var(--text-secondary)] hover:text-[var(--codex-mint)]">
@@ -263,40 +406,56 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
         </button>
       </aside>
 
-      <section className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-52 overflow-hidden opacity-25 lg:hidden">
-          {characterAvatarUrl && usePlainSceneImage ? (
-            <img src={characterAvatarUrl} alt="" className="h-full w-full object-cover object-top" />
-          ) : characterAvatarUrl ? (
-            <Image src={characterAvatarUrl} alt="" fill priority sizes="100vw" className="h-full w-full object-cover object-top" />
+      <section
+        className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-transparent"
+        style={{
+          "--chat-font-family": `'${(activeChatAppearance.fontUrl ? CHAT_CUSTOM_FONT_FAMILY : activeChatAppearance.fontFamily).replaceAll("'", "")}', serif`,
+          "--chat-font-size": `${activeChatAppearance.fontSize}px`,
+          "--chat-font-weight": activeChatAppearance.fontWeight,
+          "--chat-line-height": activeChatAppearance.lineHeight,
+          "--chat-content-width": `${activeChatAppearance.contentWidth}px`,
+          "--chat-text-color": activeChatAppearance.textColor
+        } as CSSProperties}
+      >
+        <ChatBackdrop appearance={activeChatAppearance} defaultUrl={characterBackgroundUrl || characterAvatarUrl} />
+        <div className="relative z-10 flex min-h-0 flex-1 flex-col">
+          <ChatHeader
+            chatId={chatId}
+            chapterNumber={chapterNumber}
+            characterId={characterId}
+            characterName={characterName}
+            characterAvatarUrl={characterAvatarUrl}
+            personaName={activePersona?.displayName}
+            contextOpen={sidePanelOpen}
+            onOpenContext={toggleSidePanel}
+            onRefresh={() => void refreshMessages()}
+            refreshing={refreshing}
+          />
+          {activeChatAppearance.music.enabled ? (
+            <div className="relative z-20 shrink-0 px-4 pt-[calc(78px+env(safe-area-inset-top))] sm:px-7 sm:pt-[calc(86px+env(safe-area-inset-top))] lg:px-10">
+              <MusicEmbedPlayer music={activeChatAppearance.music} compact className="mx-auto w-full max-w-[var(--chat-content-width,1000px)]" />
+            </div>
           ) : null}
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[var(--codex-paper)]" />
-        </div>
-        <ChatHeader
-          chatId={chatId}
-          characterId={characterId}
-          characterName={characterName}
-          characterAvatarUrl={characterAvatarUrl}
-          personaName={activePersona?.displayName}
-          contextOpen={sidePanelOpen}
-          onOpenContext={toggleSidePanel}
-        />
-        <div aria-hidden="true" className="glass-grain pointer-events-none absolute inset-0" />
           <MessageList
             messages={messages}
             characterName={characterName}
             characterAvatarUrl={characterAvatarUrl}
             personaName={activePersona?.displayName}
             personaAvatarUrl={activePersona?.avatarUrl}
-            summary={summary}
+            summary={activeSummary}
             error={error}
+            notice={providerNotice}
             onEdit={editMessage}
             onDelete={deleteMessage}
             onRegenerate={regenerate}
+            onRetry={retryMessage}
             onContinue={continueChat}
             onRewind={rewindToMessage}
             onBranch={branch}
             onPin={togglePin}
+            activeAssistantMessageId={activeAssistantMessageId}
+            onActiveVariantChange={selectActiveVariant}
+            hasSoundtrack={activeChatAppearance.music.enabled}
           />
           <ChatInput
             value={draft}
@@ -311,12 +470,49 @@ export function ChatClient({ chatId, characterId, characterName, characterAvatar
             onTemperatureChange={setTemperature}
             responsePrompt={responsePrompt}
             onResponsePromptChange={setResponsePrompt}
-            apiStatus={apiSaveStatus}
+            apiStatus={apiSaveStatus ?? modelCatalogStatus}
             personaName={activePersona?.displayName}
             personaAvatarUrl={activePersona?.avatarUrl}
             onOpenComposer={() => setSidePanelOpen(true)}
           />
+        </div>
       </section>
     </div>
   );
+}
+
+function ChatBackdrop({ appearance, defaultUrl }: { appearance: ReturnType<typeof normalizeChatAppearance>; defaultUrl?: string | null }) {
+  const mediaUrl = appearance.backgroundMode === "default"
+    ? defaultUrl ?? ""
+    : appearance.backgroundMode === "custom"
+      ? appearance.backgroundUrl
+      : "";
+  const mediaType = resolveBackgroundType(mediaUrl, appearance.backgroundType);
+  const mediaStyle = {
+    objectFit: appearance.backgroundFit,
+    objectPosition: appearance.backgroundPosition,
+    filter: appearance.backgroundBlur ? `blur(${appearance.backgroundBlur}px)` : undefined,
+    transform: appearance.backgroundBlur ? "scale(1.06)" : undefined
+  } satisfies CSSProperties;
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden bg-[var(--codex-paper)]" aria-hidden>
+      {mediaUrl && mediaType === "video" ? (
+        <video src={mediaUrl} autoPlay loop muted playsInline preload="metadata" className="h-full w-full" style={mediaStyle} />
+      ) : mediaUrl ? (
+        <img src={mediaUrl} alt="" className="h-full w-full" style={mediaStyle} />
+      ) : null}
+      <div className="absolute inset-0 bg-black" style={{ opacity: mediaUrl ? appearance.backgroundDim : 0 }} />
+      <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/55 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/65 to-transparent" />
+    </div>
+  );
+}
+
+function isRejectedCredential(warning?: string | null) {
+  return Boolean(warning?.toLowerCase().includes("rejected this api key"));
+}
+
+function latestAssistantMessageId(messages: ChatMessage[]) {
+  return latestAssistantVariantGroup(messages).at(-1)?.id ?? null;
 }

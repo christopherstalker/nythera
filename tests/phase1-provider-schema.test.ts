@@ -27,7 +27,7 @@ test("Prisma stores optional per-character model and sampler overrides", async (
 test("Prisma stores fallback ordering and per-message usage metadata", async () => {
   const schema = await readFile(new URL("../prisma/schema.prisma", import.meta.url), "utf8");
 
-  assert.match(schema, /fallbackEnabled\s+Boolean\s+@default\(true\)/);
+  assert.match(schema, /fallbackEnabled\s+Boolean\s+@default\(false\)/);
   assert.match(schema, /fallbackPriority\s+Int\?/);
   assert.match(schema, /provider\s+String\?/);
   assert.match(schema, /inputTokens\s+Int\?/);

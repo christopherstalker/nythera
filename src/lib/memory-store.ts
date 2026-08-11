@@ -4,8 +4,9 @@ import { MemoryCategory, Prisma } from "@prisma/client";
 import { HttpError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { logSafeError } from "@/lib/secret-redaction";
-import { createMemory, writeMemoryEmbedding } from "@/lib/vector";
+import { createMemory, searchMemories, writeMemoryEmbedding } from "@/lib/vector";
 import type { ProviderKeys } from "@/lib/user-keys";
+import type { RetrievedMemory } from "@/types";
 
 const memorySelect = {
   id: true,
@@ -42,6 +43,67 @@ export async function listMemories(input: {
     take: Math.min(input.take ?? 100, 200),
     select: memorySelect
   });
+}
+
+export async function getPromptMemories(input: {
+  userId: string;
+  characterId: string;
+  query: string;
+  pinnedLimit?: number;
+  semanticLimit?: number;
+  totalLimit?: number;
+  providerKeys?: ProviderKeys;
+  includeGlobal?: boolean;
+  semanticEnabled?: boolean;
+}): Promise<RetrievedMemory[]> {
+  const pinnedLimit = Math.max(1, Math.min(input.pinnedLimit ?? 5, 10));
+  const totalLimit = Math.max(pinnedLimit, Math.min(input.totalLimit ?? 8, 12));
+  const pinned = await prisma.memory.findMany({
+    where: {
+      userId: input.userId,
+      characterId: input.characterId,
+      pinned: true
+    },
+    orderBy: [{ importance: "desc" }, { updatedAt: "desc" }],
+    take: pinnedLimit,
+    select: {
+      id: true,
+      content: true,
+      importance: true,
+      category: true,
+      confidence: true,
+      metadata: true,
+      pinned: true
+    }
+  });
+
+  let semantic: RetrievedMemory[] = [];
+  if (input.semanticEnabled !== false) {
+    try {
+      semantic = await searchMemories({
+        userId: input.userId,
+        characterId: input.characterId,
+        query: input.query,
+        limit: Math.max(1, Math.min(input.semanticLimit ?? 5, 10)),
+        providerKeys: input.providerKeys,
+        includeGlobal: input.includeGlobal ?? true
+      });
+    } catch (error) {
+      logSafeError("Prompt memory semantic retrieval failed.", error);
+    }
+  }
+
+  const seenIds = new Set<string>();
+  const seenContent = new Set<string>();
+  return [...pinned, ...semantic].filter((memory) => {
+    const normalizedContent = memory.content.trim().toLocaleLowerCase();
+    if (seenIds.has(memory.id) || seenContent.has(normalizedContent)) {
+      return false;
+    }
+    seenIds.add(memory.id);
+    seenContent.add(normalizedContent);
+    return true;
+  }).slice(0, totalLimit);
 }
 
 export async function createManualMemory(input: {

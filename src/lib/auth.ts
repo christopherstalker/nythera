@@ -6,14 +6,22 @@ import Credentials from "next-auth/providers/credentials";
 import Discord from "next-auth/providers/discord";
 import Google from "next-auth/providers/google";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
-import Nodemailer from "next-auth/providers/nodemailer";
 import Twitter from "next-auth/providers/twitter";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
+import { SecureNodemailer } from "@/lib/auth-email-provider";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
+import { assertCanonicalAuthOrigin } from "@/lib/site-origin";
+import {
+  consumePwaAuthTransaction,
+  PwaAuthTransactionError
+} from "@/lib/pwa-auth-transactions";
 
 const MAX_SESSION_IMAGE_URL_LENGTH = 2048;
+const SESSION_PROFILE_REFRESH_MS = 5 * 60 * 1000;
+
+assertCanonicalAuthOrigin(process.env.VERCEL_ENV, env.AUTH_URL, env.NEXTAUTH_URL);
 
 function safeSessionImageUrl(value: string | null | undefined) {
   if (!value) {
@@ -78,11 +86,56 @@ const providers = [
       })
     : null,
   env.EMAIL_SERVER && env.EMAIL_FROM
-    ? Nodemailer({
+    ? SecureNodemailer({
         server: env.EMAIL_SERVER,
         from: env.EMAIL_FROM
       })
     : null,
+  Credentials({
+    id: "pwa-handoff",
+    name: "PWA session handoff",
+    credentials: {
+      transactionId: { label: "Transaction", type: "text" },
+      nonce: { label: "Nonce", type: "password" }
+    },
+    async authorize(credentials) {
+      const transactionId = String(credentials?.transactionId ?? "");
+      const nonce = String(credentials?.nonce ?? "");
+      if (
+        !/^[A-Za-z0-9_-]{32}$/.test(transactionId) ||
+        !/^[A-Za-z0-9_-]{43}$/.test(nonce)
+      ) {
+        return null;
+      }
+
+      let userId: string;
+      try {
+        userId = await consumePwaAuthTransaction(transactionId, nonce);
+      } catch (error) {
+        if (
+          error instanceof PwaAuthTransactionError &&
+          error.code !== "store-unavailable"
+        ) {
+          return null;
+        }
+        throw error;
+      }
+
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user || user.bannedAt) {
+        return null;
+      }
+
+      return {
+        id: user.id,
+        email: user.email,
+        name: user.name ?? user.username,
+        image: safeSessionImageUrl(user.avatarUrl ?? user.image),
+        role: user.role,
+        username: user.username
+      };
+    }
+  }),
   Credentials({
     name: "Email and password",
     credentials: {
@@ -132,7 +185,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   pages: {
     signIn: "/login",
-    newUser: "/settings"
+    newUser: "/auth/new-user"
   },
   providers,
   events: {
@@ -163,33 +216,46 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user?.id) {
         token.sub = user.id;
+        token.email = user.email;
+        token.picture = safeSessionImageUrl(user.image);
+        token.role = user.role;
+        token.username = user.username;
       }
 
-      if (token.sub) {
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.sub },
-          select: {
-            id: true,
-            email: true,
-            username: true,
-            role: true,
-            avatarUrl: true,
-            image: true
-          }
-        });
+      const lastRefresh = typeof token.profileRefreshedAt === "number" ? token.profileRefreshedAt : 0;
+      const profileIsStale = Date.now() - lastRefresh >= SESSION_PROFILE_REFRESH_MS;
+      if (token.sub && (Boolean(user?.id) || trigger === "update" || profileIsStale)) {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.sub },
+            select: {
+              id: true,
+              email: true,
+              username: true,
+              role: true,
+              avatarUrl: true,
+              image: true
+            }
+          });
 
-        if (dbUser) {
-          token.email = dbUser.email;
-          token.role = dbUser.role;
-          token.username = dbUser.username;
-          const safeImage = safeSessionImageUrl(dbUser.avatarUrl ?? dbUser.image);
-          if (safeImage) {
-            token.picture = safeImage;
-          } else {
-            delete token.picture;
+          if (dbUser) {
+            token.email = dbUser.email;
+            token.role = dbUser.role;
+            token.username = dbUser.username;
+            const safeImage = safeSessionImageUrl(dbUser.avatarUrl ?? dbUser.image);
+            if (safeImage) {
+              token.picture = safeImage;
+            } else {
+              delete token.picture;
+            }
+          }
+          token.profileRefreshedAt = Date.now();
+        } catch (error) {
+          if (!token.email) {
+            throw error;
           }
         }
       }

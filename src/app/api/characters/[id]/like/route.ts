@@ -2,16 +2,14 @@ import { prisma } from "@/lib/prisma";
 import { HttpError, json, requireUser, routeError } from "@/lib/api";
 
 type Context = {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 };
 
 export async function POST(_request: Request, context: Context) {
   try {
     const user = await requireUser();
     const character = await prisma.character.findUnique({
-      where: { id: context.params.id },
+      where: { id: (await context.params).id },
       select: { id: true, visibility: true, moderationStatus: true, blockedAt: true }
     });
 

@@ -1,12 +1,11 @@
-import { json, parseJson, routeError, HttpError } from "@/lib/api";
+import { getRequestIp, json, parseJson, routeError, HttpError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireMobileUser } from "@/lib/mobile-auth";
 import { chatUpdateSchema } from "@/lib/validation";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 type Context = {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 };
 
 export const dynamic = "force-dynamic";
@@ -14,16 +13,18 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request, context: Context) {
   try {
     const user = await requireMobileUser(request);
+    await enforceRateLimit({ userId: user.id, ip: getRequestIp(request), route: "mobile:chats:read" });
     const chat = await prisma.chat.findFirst({
       where: {
-        id: context.params.id,
+        id: (await context.params).id,
         userId: user.id
       },
       include: {
         character: true,
         persona: true,
         messages: {
-          orderBy: [{ createdAt: "asc" }, { sequence: "asc" }, { id: "asc" }]
+          orderBy: [{ createdAt: "desc" }, { sequence: "desc" }, { id: "desc" }],
+          take: 200
         }
       }
     });
@@ -32,6 +33,7 @@ export async function GET(request: Request, context: Context) {
       throw new HttpError(404, "Chat not found.");
     }
 
+    chat.messages.reverse();
     return json({ chat });
   } catch (error) {
     return routeError(error);
@@ -44,7 +46,7 @@ export async function PATCH(request: Request, context: Context) {
     const input = await parseJson(request, chatUpdateSchema);
     const chat = await prisma.chat.findFirst({
       where: {
-        id: context.params.id,
+        id: (await context.params).id,
         userId: user.id
       },
       include: {
@@ -59,16 +61,30 @@ export async function PATCH(request: Request, context: Context) {
       throw new HttpError(404, "Chat not found.");
     }
 
-    const updated = await prisma.chat.update({
+    const chatUpdate = prisma.chat.update({
       where: { id: chat.id },
       data: {
         title: input.title,
         archivedAt: input.archived === undefined ? undefined : input.archived ? new Date() : null,
         temperature: input.temperature,
         model: input.model,
+        responsePrompt: input.responsePrompt === undefined ? undefined : input.responsePrompt || null,
+        chatMode: input.chatMode,
         lastActiveAt: new Date()
       }
     });
+    const [updated] = input.responsePrompt === undefined && input.chatMode === undefined
+      ? [await chatUpdate]
+      : await prisma.$transaction([
+          chatUpdate,
+          prisma.user.update({
+            where: { id: user.id },
+            data: {
+              defaultResponsePrompt: input.responsePrompt === undefined ? undefined : input.responsePrompt || null,
+              preferredChatMode: input.chatMode
+            }
+          })
+        ]);
 
     return json({ chat: updated });
   } catch (error) {
@@ -81,7 +97,7 @@ export async function DELETE(request: Request, context: Context) {
     const user = await requireMobileUser(request);
     const chat = await prisma.chat.findFirst({
       where: {
-        id: context.params.id,
+        id: (await context.params).id,
         userId: user.id
       },
       select: { id: true }

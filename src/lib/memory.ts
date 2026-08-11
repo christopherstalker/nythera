@@ -6,30 +6,103 @@ import { prisma } from "@/lib/prisma";
 import { sanitizePromptContext, shouldStoreMemoryFromText } from "@/lib/prompt-security";
 import { createMemory } from "@/lib/vector";
 import type { ProviderKeys } from "@/lib/user-keys";
+import { selectPersistedConversationBranch } from "@/lib/message-actions";
+import { logSafeError } from "@/lib/secret-redaction";
 
 export async function schedulePostMessageJobs(input: {
   chatId: string;
   userId: string;
   characterId: string;
   latestUserMessage: string;
+  latestUserMessageId?: string | null;
   latestAssistantMessage: string;
+  latestAssistantMessageId: string;
   messageCount: number;
   providerKeys?: ProviderKeys;
 }) {
   const { providerKeys, ...jobInput } = input;
-  const shouldSummarize = input.messageCount > 20 && input.messageCount % 12 === 0;
-  const queuedExtraction = await enqueueJob("extract-memories", jobInput);
-  const queuedSummary = shouldSummarize ? await enqueueJob("summarize-chat", { chatId: input.chatId }) : false;
+  const shouldSummarize = input.messageCount > 32 && input.messageCount % 12 === 0;
+  const contextualMemory = await storeContextualExchange({ ...jobInput, providerKeys }).catch((error) => {
+    logSafeError("Contextual memory write failed.", error);
+    return null;
+  });
+  const [queuedExtraction, queuedSummary] = await Promise.all([
+    enqueueJob("extract-memories", jobInput),
+    shouldSummarize ? enqueueJob("summarize-chat", { chatId: input.chatId }) : Promise.resolve(false)
+  ]);
 
   if (!queuedExtraction) {
     await extractMemoriesFromExchange({ ...jobInput, providerKeys });
+    if (input.providerKeys?.length) {
+      const { extractMemoriesWithLlm } = await import("@/lib/memory/extract");
+      await extractMemoriesWithLlm({
+        userId: input.userId,
+        characterId: input.characterId,
+        chatId: input.chatId,
+        sourceMessageId: input.latestAssistantMessageId,
+        userMessage: input.latestUserMessage,
+        assistantMessage: input.latestAssistantMessage,
+        providerKeys: input.providerKeys
+      }).catch(() => undefined);
+    }
   }
 
   if (shouldSummarize && !queuedSummary) {
     await summarizeChat(input.chatId);
   }
 
-  return { queuedExtraction, queuedSummary };
+  return { contextualMemory, queuedExtraction, queuedSummary };
+}
+
+export async function storeContextualExchange(input: {
+  chatId: string;
+  userId: string;
+  characterId: string;
+  latestUserMessage: string;
+  latestUserMessageId?: string | null;
+  latestAssistantMessage: string;
+  latestAssistantMessageId: string;
+  providerKeys?: ProviderKeys;
+}) {
+  const sourceMessage = await prisma.message.findFirst({
+    where: { id: input.latestAssistantMessageId, chatId: input.chatId },
+    select: { id: true }
+  });
+  if (!sourceMessage) {
+    return null;
+  }
+
+  const userMessage = cleanSentence(input.latestUserMessage);
+  const assistantMessage = cleanSentence(input.latestAssistantMessage);
+  if (
+    userMessage.length < 2 ||
+    assistantMessage.length < 2 ||
+    !shouldStoreMemoryFromText(userMessage) ||
+    !shouldStoreMemoryFromText(assistantMessage)
+  ) {
+    return null;
+  }
+
+  return createMemory({
+    userId: input.userId,
+    characterId: input.characterId,
+    sourceChatId: input.chatId,
+    sourceMessageId: sourceMessage.id,
+    content: [
+      "Earlier scene context:",
+      `Player: ${contextExcerpt(userMessage, 420)}`,
+      `Character: ${contextExcerpt(assistantMessage, 520)}`
+    ].join("\n"),
+    category: MemoryCategory.EVENT,
+    metadata: {
+      extractor: "contextual-exchange",
+      sourceUserMessageId: input.latestUserMessageId ?? null,
+      sourceAssistantMessageId: sourceMessage.id
+    },
+    importance: 0.9,
+    confidence: 0.85,
+    providerKeys: input.providerKeys
+  });
 }
 
 export async function extractMemoriesFromExchange(input: {
@@ -37,9 +110,18 @@ export async function extractMemoriesFromExchange(input: {
   userId: string;
   characterId: string;
   latestUserMessage: string;
+  latestUserMessageId?: string | null;
   latestAssistantMessage: string;
+  latestAssistantMessageId: string;
   providerKeys?: ProviderKeys;
 }) {
+  const sourceMessage = await prisma.message.findFirst({
+    where: { id: input.latestAssistantMessageId, chatId: input.chatId },
+    select: { id: true }
+  });
+  if (!sourceMessage) {
+    return [];
+  }
   if (!shouldStoreMemoryFromText(input.latestUserMessage) || !shouldStoreMemoryFromText(input.latestAssistantMessage)) {
     return [];
   }
@@ -55,9 +137,14 @@ export async function extractMemoriesFromExchange(input: {
         userId: input.userId,
         characterId: input.characterId,
         sourceChatId: input.chatId,
+        sourceMessageId: sourceMessage.id,
         content: candidate.content,
         category: candidate.category,
-        metadata: candidate.metadata,
+        metadata: {
+          ...(candidate.metadata as Prisma.JsonObject),
+          sourceUserMessageId: input.latestUserMessageId ?? null,
+          sourceAssistantMessageId: sourceMessage.id
+        },
         importance: candidate.importance,
         confidence: candidate.confidence,
         providerKeys: input.providerKeys
@@ -98,34 +185,62 @@ function extractMemoryCandidates(userMessage: string, assistantMessage: string):
 export async function summarizeChat(chatId: string) {
   const chat = await prisma.chat.findUnique({
     where: { id: chatId },
-    include: {
-      messages: {
-        orderBy: { createdAt: "asc" },
-        take: 120
-      }
-    }
+    select: { summary: true, summaryThroughSequence: true, messageCount: true }
   });
 
   if (!chat) {
     return null;
   }
 
-  const importantLines = chat.messages
-    .filter((message) => message.role !== MessageRole.SYSTEM)
-    .slice(-40)
-    .map((message) => `${message.role}: ${cleanSentence(message.content).slice(0, 260)}`);
+  const cutoffSequence = Math.max(0, chat.messageCount - 24);
+  if (cutoffSequence <= chat.summaryThroughSequence) {
+    return chat;
+  }
 
-  const summary = [
-    "Conversation summary:",
-    ...importantLines
-  ]
-    .join("\n")
-    .slice(-6000);
+  const messages = await prisma.message.findMany({
+    where: {
+      chatId,
+      sequence: { gt: chat.summaryThroughSequence, lte: cutoffSequence }
+    },
+    orderBy: [{ sequence: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+    take: 240,
+    select: { id: true, role: true, content: true, sequence: true, clientRequestId: true, branchSourceMessageId: true }
+  });
+  if (messages.length === 0) {
+    return chat;
+  }
+
+  const branchMessages = selectPersistedConversationBranch(messages);
+  const summary = buildConversationSummary(branchMessages, chat.summary);
+  const summaryThroughSequence = messages.at(-1)?.sequence ?? chat.summaryThroughSequence;
 
   return prisma.chat.update({
     where: { id: chatId },
-    data: { summary }
+    data: { summary, summaryThroughSequence }
   });
+}
+
+export function buildConversationSummary(messages: Array<{ role: MessageRole; content: string }>, previousSummary?: string | null) {
+  const importantLines = messages
+    .filter((message) => message.role !== MessageRole.SYSTEM)
+    .map((message) => `${message.role}: ${cleanSentence(message.content).slice(0, 260)}`);
+
+  if (importantLines.length === 0 && !previousSummary) {
+    return null;
+  }
+
+  const prior = previousSummary?.replace(/^Conversation summary:\n?/, "").trim();
+  const combined = [prior, ...importantLines].filter(Boolean).join("\n");
+  if (combined.length <= 8_000) {
+    return ["Conversation summary:", combined].join("\n");
+  }
+
+  return [
+    "Conversation summary:",
+    combined.slice(0, 3_500),
+    "[Earlier middle turns compacted; pinned Memory and Story canon remain authoritative.]",
+    combined.slice(-4_300)
+  ].join("\n");
 }
 
 function addPattern(
@@ -200,4 +315,13 @@ function dedupeCandidates(candidates: MemoryCandidate[]) {
 
 function cleanSentence(value: string) {
   return value.replace(/\s+/g, " ").replace(/\u0000/g, "").trim();
+}
+
+function contextExcerpt(value: string, maxLength: number) {
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  const edgeLength = Math.floor((maxLength - 3) / 2);
+  return `${value.slice(0, edgeLength)}...${value.slice(-edgeLength)}`;
 }

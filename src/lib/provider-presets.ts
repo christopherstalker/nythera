@@ -1,3 +1,5 @@
+import { defaultModelForProvider } from "@/lib/provider-model-options";
+
 export type ProviderApiFormat = "OPENAI" | "ANTHROPIC" | "GEMINI" | "OPENAI_COMPATIBLE";
 
 export type ProviderPreset = {
@@ -15,7 +17,7 @@ export const FIRST_CLASS_PROVIDER_PRESETS: ProviderPreset[] = [
     displayName: "OpenAI",
     apiFormat: "OPENAI",
     baseUrl: "https://api.openai.com/v1",
-    defaultModel: "gpt-4o-mini",
+    defaultModel: defaultModelForProvider("openai"),
     placeholder: "sk-..."
   },
   {
@@ -23,7 +25,7 @@ export const FIRST_CLASS_PROVIDER_PRESETS: ProviderPreset[] = [
     displayName: "Anthropic",
     apiFormat: "ANTHROPIC",
     baseUrl: "",
-    defaultModel: "claude-3-5-sonnet-latest",
+    defaultModel: defaultModelForProvider("anthropic"),
     placeholder: "sk-ant-..."
   },
   {
@@ -31,15 +33,23 @@ export const FIRST_CLASS_PROVIDER_PRESETS: ProviderPreset[] = [
     displayName: "Gemini",
     apiFormat: "GEMINI",
     baseUrl: "",
-    defaultModel: "gemini-2.5-flash",
+    defaultModel: defaultModelForProvider("gemini"),
     placeholder: "AIza..."
+  },
+  {
+    provider: "openrouter",
+    displayName: "OpenRouter",
+    apiFormat: "OPENAI_COMPATIBLE",
+    baseUrl: "https://openrouter.ai/api/v1",
+    defaultModel: defaultModelForProvider("openrouter"),
+    placeholder: "sk-or-v1-..."
   },
   {
     provider: "deepseek",
     displayName: "DeepSeek",
     apiFormat: "OPENAI_COMPATIBLE",
     baseUrl: "https://api.deepseek.com",
-    defaultModel: "deepseek-chat",
+    defaultModel: defaultModelForProvider("deepseek"),
     placeholder: "sk-..."
   },
   {
@@ -47,7 +57,7 @@ export const FIRST_CLASS_PROVIDER_PRESETS: ProviderPreset[] = [
     displayName: "Mistral",
     apiFormat: "OPENAI_COMPATIBLE",
     baseUrl: "https://api.mistral.ai/v1",
-    defaultModel: "mistral-small-latest",
+    defaultModel: defaultModelForProvider("mistral"),
     placeholder: "..."
   },
   {
@@ -55,7 +65,7 @@ export const FIRST_CLASS_PROVIDER_PRESETS: ProviderPreset[] = [
     displayName: "Groq",
     apiFormat: "OPENAI_COMPATIBLE",
     baseUrl: "https://api.groq.com/openai/v1",
-    defaultModel: "llama-3.3-70b-versatile",
+    defaultModel: defaultModelForProvider("groq"),
     placeholder: "gsk_..."
   },
   {
@@ -63,7 +73,7 @@ export const FIRST_CLASS_PROVIDER_PRESETS: ProviderPreset[] = [
     displayName: "xAI (Grok)",
     apiFormat: "OPENAI_COMPATIBLE",
     baseUrl: "https://api.x.ai/v1",
-    defaultModel: "grok-4.3-latest",
+    defaultModel: defaultModelForProvider("xai"),
     placeholder: "xai-..."
   }
 ];

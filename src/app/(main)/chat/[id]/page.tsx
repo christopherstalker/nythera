@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { MessageCircle } from "lucide-react";
 import { ChatClient } from "@/components/chat/chat-client";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -9,19 +10,25 @@ import type { ChatMessage } from "@/hooks/useChat";
 
 type Chat = {
   id: string;
+  chapterNumber: number;
   summary?: string | null;
   model?: string | null;
   temperature?: number | null;
   responsePrompt?: string | null;
+  chatMode?: string | null;
+  appearance?: unknown;
+  activeAssistantMessageId?: string | null;
   character: {
     id: string;
     name: string;
     avatarUrl?: string | null;
+    visualIdentity?: unknown;
   };
   messages: ChatMessage[];
 };
 
-export default function ChatPage({ params }: { params: { id: string } }) {
+export default function ChatPage() {
+  const params = useParams<{ id: string }>();
   const [chat, setChat] = useState<Chat | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,6 +40,13 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     async function loadChat() {
       try {
         const response = await fetch(`/api/chats/${params.id}`, { signal: controller.signal });
+        if (response.status === 403) {
+          const body = await response.json().catch(() => null);
+          if (typeof body?.error === "string" && body.error.includes("Adult consent")) {
+            window.location.assign(`/auth/new-user?callbackUrl=${encodeURIComponent(`/chat/${params.id}`)}`);
+            return;
+          }
+        }
         if (!response.ok) {
           setError("Chat not found or you are not signed in.");
           return;
@@ -82,6 +96,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     <ChatClient
       key={chat.id}
       chatId={chat.id}
+      chapterNumber={chat.chapterNumber}
       characterId={chat.character.id}
       characterName={chat.character.name}
       characterAvatarUrl={chat.character.avatarUrl}
@@ -89,7 +104,20 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       model={chat.model}
       temperature={chat.temperature}
       responsePrompt={chat.responsePrompt}
+      chatMode={chat.chatMode}
+      appearance={chat.appearance}
+      characterBackgroundUrl={getCharacterBackgroundUrl(chat.character.visualIdentity)}
       initialMessages={chat.messages}
+      initialActiveAssistantMessageId={chat.activeAssistantMessageId}
     />
   );
+}
+
+function getCharacterBackgroundUrl(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const background = (value as Record<string, unknown>).chatBackground;
+  return typeof background === "string" && /^(?:https?:\/\/|data:image\/)/i.test(background) ? background : null;
 }

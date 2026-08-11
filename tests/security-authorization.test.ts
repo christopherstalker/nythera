@@ -17,10 +17,12 @@ test("message mutation and reporting enforce chat ownership in the database quer
 test("character owner mutations constrain owner or admin before updates", async () => {
   const webRoute = await readFile(new URL("../src/app/api/characters/[id]/route.ts", import.meta.url), "utf8");
   const mobileRoute = await readFile(new URL("../src/app/api/mobile/characters/[id]/route.ts", import.meta.url), "utf8");
+  const mutations = await readFile(new URL("../src/lib/character-mutations.ts", import.meta.url), "utf8");
 
   for (const route of [webRoute, mobileRoute]) {
-    assert.match(route, /prisma\.character\.findFirst/);
-    assert.match(route, /user\.role === "ADMIN"/);
-    assert.match(route, /creatorId:\s*user\.id/);
+    assert.match(route, /updateCharacterForUser/);
   }
+  assert.match(mutations, /prisma\.character\.findFirst/);
+  assert.match(mutations, /user\.role === "ADMIN"/);
+  assert.match(mutations, /creatorId:\s*user\.id/);
 });

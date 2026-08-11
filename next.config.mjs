@@ -6,12 +6,13 @@ const contentSecurityPolicy = [
   "object-src 'none'",
   "frame-ancestors 'none'",
   "form-action 'self'",
-  `script-src 'self' 'unsafe-inline'${isProduction ? "" : " 'unsafe-eval'"}`,
+  `script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com${isProduction ? "" : " 'unsafe-eval'"}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
   [
     "connect-src 'self'",
+    "https://challenges.cloudflare.com",
     "https://api.openai.com",
     "https://api.anthropic.com",
     "https://generativelanguage.googleapis.com",
@@ -27,6 +28,7 @@ const contentSecurityPolicy = [
     .filter(Boolean)
     .join(" "),
   "media-src 'self' data: blob: https:",
+  "frame-src 'self' https://challenges.cloudflare.com",
   "worker-src 'self' blob:",
   "manifest-src 'self'",
   isProduction ? "upgrade-insecure-requests" : ""
@@ -47,16 +49,30 @@ const securityHeaders = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  serverExternalPackages: ["mammoth", "unpdf"],
   experimental: {
     serverActions: {
       bodySizeLimit: "2mb"
     }
   },
   images: {
-    minimumCacheTTL: 86400,
-    remotePatterns: [
-      { protocol: "https", hostname: "**" }
-    ]
+    minimumCacheTTL: 86400
+  },
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [
+          {
+            type: "host",
+            value: "nythera-ai-character-platform.vercel.app"
+          }
+        ],
+        destination:
+          "https://www.nythera.art/pwa-migrate?source=legacy-pwa&next=/:path*",
+        permanent: false
+      }
+    ];
   },
   async headers() {
     return [

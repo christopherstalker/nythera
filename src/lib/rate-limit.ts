@@ -17,6 +17,36 @@ type RateLimitRule = {
   message: string;
 };
 
+const READ_LIMIT: RateLimitRule = {
+  perMinute: 45,
+  perDay: 1200,
+  message: "You're loading this resource quickly. One moment, then try again."
+};
+
+const EXPENSIVE_READ_LIMIT: RateLimitRule = {
+  perMinute: 20,
+  perDay: 400,
+  message: "This resource is expensive to load. One moment, then try again."
+};
+
+const REPORT_LIMIT: RateLimitRule = {
+  perMinute: 4,
+  perDay: 30,
+  message: "Too many reports were submitted. Please try again later."
+};
+
+const COST_BUDGET: RateLimitRule = {
+  perMinute: 16_000,
+  perDay: 120_000,
+  message: "Your AI token budget is temporarily exhausted."
+};
+
+const BRANCH_LIMIT: RateLimitRule = {
+  perMinute: 3,
+  perDay: 20,
+  message: "You're creating story branches quickly. Please wait before trying again."
+};
+
 const DEFAULT_LIMIT: RateLimitRule = {
   perMinute: 60,
   perDay: 1500,
@@ -47,9 +77,19 @@ const AUTH_LIMIT: RateLimitRule = {
   message: "Too many sign-in attempts. Wait a moment and try again."
 };
 
+const AUTH_HANDOFF_STATUS_LIMIT: RateLimitRule = {
+  perMinute: 90,
+  perDay: 900,
+  message: "Too many sign-in status checks. Wait a moment and try again."
+};
+
 const ROUTE_LIMITS: Record<string, RateLimitRule> = {
   "auth:nextauth": AUTH_LIMIT,
   "auth:register": AUTH_LIMIT,
+  "auth:pwa-create": AUTH_LIMIT,
+  "auth:pwa-start": AUTH_LIMIT,
+  "auth:pwa-complete": AUTH_LIMIT,
+  "auth:pwa-status": AUTH_HANDOFF_STATUS_LIMIT,
   "mobile-auth:login": AUTH_LIMIT,
   "mobile-auth:google": AUTH_LIMIT,
   "mobile-auth:register": AUTH_LIMIT,
@@ -58,6 +98,7 @@ const ROUTE_LIMITS: Record<string, RateLimitRule> = {
   "rooms:message": MESSAGE_LIMIT,
   "mobile:rooms:message": MESSAGE_LIMIT,
   "proxy:llm": MESSAGE_LIMIT,
+  "keys:models": EXPENSIVE_READ_LIMIT,
   "chats:create": AI_CREATION_LIMIT,
   "mobile:chats:create": AI_CREATION_LIMIT,
   "rooms:create": AI_CREATION_LIMIT,
@@ -67,35 +108,66 @@ const ROUTE_LIMITS: Record<string, RateLimitRule> = {
   "mobile:characters:create": AI_CREATION_LIMIT,
   "characters:generate": AI_CREATION_LIMIT,
   "characters:generate-prompt": AI_CREATION_LIMIT,
+  "characters:import": AI_CREATION_LIMIT,
   "characters:assist": AI_CREATION_LIMIT,
-  "chats:branch": WRITE_LIMIT,
+  "chats:branch": BRANCH_LIMIT,
   "memories:search": MESSAGE_LIMIT,
   "mobile:memories:search": MESSAGE_LIMIT,
   "memories:write": WRITE_LIMIT,
   "mobile:memories:write": WRITE_LIMIT,
   "user-persona:write": WRITE_LIMIT,
   "mobile:user-persona:write": WRITE_LIMIT,
-  "voice:synthesize": MESSAGE_LIMIT
+  "stories:canon": WRITE_LIMIT,
+  "stories:state": WRITE_LIMIT,
+  "stories:narrative": WRITE_LIMIT,
+  "stories:continuity": WRITE_LIMIT,
+  "stories:safety": WRITE_LIMIT,
+  "voice:synthesize": MESSAGE_LIMIT,
+  "characters:read": READ_LIMIT,
+  "library:read": READ_LIMIT,
+  "mobile:characters:read": READ_LIMIT,
+  "chats:read": READ_LIMIT,
+  "mobile:chats:read": READ_LIMIT,
+  "rooms:read": READ_LIMIT,
+  "shares:read": EXPENSIVE_READ_LIMIT,
+  "shares:create": WRITE_LIMIT,
+  "characters:rating": WRITE_LIMIT,
+  "characters:report": REPORT_LIMIT,
+  "messages:report": REPORT_LIMIT,
+  "chat:token-budget": COST_BUDGET
 };
+
+const RATE_LIMIT_BYPASS_USER_IDS = new Set(
+  (process.env.RATE_LIMIT_BYPASS_USER_IDS ?? "")
+    .split(",")
+    .map((userId) => userId.trim())
+    .filter(Boolean)
+);
 
 export async function enforceRateLimit(input: {
   userId?: string;
   ip?: string | null;
   route: string;
+  cost?: number;
 }) {
-  if (process.env.NODE_ENV === "production" && !hasDistributedRateLimitStore()) {
+  if (input.userId && RATE_LIMIT_BYPASS_USER_IDS.has(input.userId)) {
+    return;
+  }
+
+  if (requiresDistributedRateLimit() && !hasDistributedRateLimitStore()) {
     throw new RateLimitError("Rate limiter is unavailable. Please retry shortly.", 503);
   }
 
   const limits = ROUTE_LIMITS[input.route] ?? DEFAULT_LIMIT;
   const principal = input.userId ? `user:${input.userId}` : `ip:${input.ip ?? "unknown"}`;
   const now = Date.now();
+  const cost = Math.max(1, Math.trunc(input.cost ?? 1));
   const minute = Math.floor(now / 60_000);
   const day = new Date().toISOString().slice(0, 10);
 
   const [minuteCount, dayCount] = await Promise.all([
-    incrementWithExpiry(`rl:${input.route}:${principal}:m:${minute}`, 60),
-    incrementWithExpiry(`rl:${input.route}:${principal}:d:${day}`, 86_400)
+    incrementWithExpiry(`rl:${input.route}:${principal}:m:${minute}`, 60, cost),
+    incrementWithExpiry(`rl:${input.route}:${principal}:d:${day}`, 86_400, cost)
   ]);
 
   if (minuteCount > limits.perMinute) {
@@ -105,6 +177,17 @@ export async function enforceRateLimit(input: {
   if (dayCount > limits.perDay) {
     throw new RateLimitError("Daily platform limit exceeded. Please try again tomorrow.", 429, secondsUntilNextUtcDay(now));
   }
+}
+
+function requiresDistributedRateLimit() {
+  const configured = process.env.RATE_LIMIT_REQUIRE_DISTRIBUTED?.trim().toLowerCase();
+  if (configured === "true") return true;
+  if (configured === "false") return false;
+
+  return Boolean(
+    process.env.NODE_ENV === "production" &&
+    (process.env.VERCEL || process.env.RAILWAY_ENVIRONMENT || process.env.RENDER)
+  );
 }
 
 function secondsUntilNextMinute(now: number) {

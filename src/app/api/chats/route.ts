@@ -6,37 +6,20 @@ import { resolveCharacterModelSettings } from "@/lib/character-model-settings";
 import { userPreferredModelValue } from "@/lib/provider-model-options";
 import { getEffectiveProviderKeys } from "@/lib/user-keys";
 import { chatCreateSchema } from "@/lib/validation";
+import { ensureStoryForChat } from "@/lib/stories/story-foundation";
+import { getRecentChats } from "@/lib/recent-chats";
+import { requireAdultConsent } from "@/lib/adult-consent";
+import { getLastUsedPersonaId } from "@/lib/user-persona-store";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const user = await requireUser();
-    const chats = await prisma.chat.findMany({
-      where: {
-        userId: user.id,
-        archivedAt: null
-      },
-      orderBy: [{ lastActiveAt: "desc" }, { updatedAt: "desc" }],
-      include: {
-        character: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            avatarUrl: true
-          }
-        },
-        messages: {
-          orderBy: [{ createdAt: "desc" }, { sequence: "desc" }, { id: "desc" }],
-          take: 1,
-          select: {
-            id: true,
-            content: true,
-            role: true,
-            createdAt: true
-          }
-        }
-      }
-    });
+    requireAdultConsent(user);
+    const characterId = new URL(request.url).searchParams.get("characterId");
+    if (characterId && characterId.length > 120) {
+      throw new HttpError(400, "Invalid character filter.");
+    }
+    const chats = await getRecentChats(user.id, characterId ? 60 : 20, characterId);
 
     return json({ chats });
   } catch (error) {
@@ -47,6 +30,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const user = await requireUser();
+    requireAdultConsent(user);
     await enforceRateLimit({
       userId: user.id,
       ip: getRequestIp(request),
@@ -73,10 +57,7 @@ export async function POST(request: Request) {
     }
 
     const providerKeys = await getEffectiveProviderKeys(user.id);
-    const defaultPersona = await prisma.userPersona.findFirst({
-      where: { userId: user.id, isDefault: true },
-      select: { id: true }
-    });
+    const lastUsedPersonaId = await getLastUsedPersonaId(user.id);
     const effectiveSettings = resolveCharacterModelSettings({
       character,
       providerKeys,
@@ -89,10 +70,12 @@ export async function POST(request: Request) {
         data: {
           userId: user.id,
           characterId: character.id,
-          personaId: defaultPersona?.id ?? null,
+          personaId: lastUsedPersonaId,
           title: input.title ?? null,
           temperature: input.temperature,
           model,
+          responsePrompt: user.defaultResponsePrompt,
+          chatMode: input.chatMode ?? character.defaultChatMode ?? user.preferredChatMode,
           messageCount: 1
         }
       });
@@ -109,6 +92,7 @@ export async function POST(request: Request) {
 
       return created;
     });
+    await ensureStoryForChat(chat.id, user.id);
 
     return json({ chat }, { status: 201 });
   } catch (error) {

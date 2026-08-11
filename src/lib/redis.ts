@@ -22,26 +22,25 @@ export function hasDistributedRateLimitStore() {
   return Boolean(redis);
 }
 
-export async function incrementWithExpiry(key: string, windowSeconds: number) {
+export async function incrementWithExpiry(key: string, windowSeconds: number, amount = 1) {
   if (redis) {
-    const count = await redis.incr(key);
-    if (count === 1) {
-      await redis.expire(key, windowSeconds);
-    }
-
-    return count;
+    return redis.eval<[number, number], number>(
+      "local count = redis.call('INCRBY', KEYS[1], ARGV[1]); if count == tonumber(ARGV[1]) then redis.call('EXPIRE', KEYS[1], ARGV[2]); end; return count",
+      [key],
+      [amount, windowSeconds]
+    );
   }
 
   const now = Date.now();
   const current = memoryCounters.get(key);
   if (!current || current.expiresAt <= now) {
     memoryCounters.set(key, {
-      value: 1,
+      value: amount,
       expiresAt: now + windowSeconds * 1000
     });
     return 1;
   }
 
-  current.value += 1;
+  current.value += amount;
   return current.value;
 }

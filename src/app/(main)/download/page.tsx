@@ -17,6 +17,7 @@ import {
 import { usePwa } from "@/components/providers/pwa-provider";
 import { Button } from "@/components/ui/button";
 import { PageHeader, PageShell, Surface } from "@/components/ui/page";
+import { ResponsiveActions } from "@/components/ui/responsive-actions";
 import { BRAND_ICON_SMALL } from "@/lib/brand";
 
 const installBenefits = [
@@ -87,7 +88,7 @@ export default function DownloadPage() {
                 Open Nythera in Chrome or Edge and press the install button. It launches like a desktop app, keeps the mobile layout responsive, and avoids unsigned installer warnings.
               </p>
 
-              <div className="mt-4 flex flex-wrap gap-2">
+              <ResponsiveActions className="mt-4">
                 {hasNativeInstallPrompt && canInstall ? (
                   <Button type="button" onClick={() => void installApp()}>
                     <Download className="h-4 w-4" />
@@ -107,7 +108,7 @@ export default function DownloadPage() {
                     <Link href="/">Open Nythera</Link>
                   </Button>
                 )}
-              </div>
+              </ResponsiveActions>
             </div>
           </div>
         </Surface>

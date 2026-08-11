@@ -3,9 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireMobileUser } from "@/lib/mobile-auth";
 
 type Context = {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 };
 
 export const dynamic = "force-dynamic";
@@ -18,7 +16,7 @@ export async function GET(request: Request, context: Context) {
     const take = Math.min(Number(searchParams.get("take") ?? 80), 120);
     const chat = await prisma.chat.findFirst({
       where: {
-        id: context.params.id,
+        id: (await context.params).id,
         userId: user.id
       },
       select: { id: true }

@@ -2,11 +2,11 @@
 
 Living Codex is Nythera's canonical visual foundation. The platform ships one permanent ink-dark theme; there is no user-selectable light or accent-color mode. Token definitions live in `src/styles/design-tokens.css`; this reference defines how later visual work must use them.
 
-## Aurora Ink colors
+## Coffee Ink colors
 
 - Canvas, surface, and elevated are semantic theme surfaces.
 - Content primary, secondary, muted, and disabled are the only text roles.
-- Brand actions use restrained mint rules and ivory text on ink-dark surfaces; violet remains a secondary narrative marker.
+- Brand actions and narrative markers use restrained coffee and latte tones with ivory text on ink-dark surfaces.
 - Use semantic Tailwind groups (`canvas`, `surface`, `elevated`, `content`, `outline`, `brand`) rather than primitive colors.
 - Runtime user appearance overrides are intentionally unsupported so every page preserves the same editorial hierarchy.
 - Primary, secondary, and muted text maintain WCAG AA contrast on every foundation surface; action foregrounds are separately tested against accent and danger colors.

@@ -1,10 +1,15 @@
 export type SavedProviderSummary = {
+  id?: string;
   provider: string;
   displayName: string;
   defaultModel?: string | null;
   last4?: string | null;
   isDefault?: boolean;
+  credentialStatus?: "UNVERIFIED" | "VALID" | "INVALID";
+  providerPriority?: number;
 };
+
+export type ProviderModelCatalog = Record<string, string[]>;
 
 export type ProviderModelOption = {
   value: string;
@@ -24,14 +29,41 @@ export type ProviderModelGroup = {
 export const MODEL_SUGGESTIONS: Record<string, string[]> = {
   openai: ["gpt-4o-mini", "gpt-4o", "gpt-4.1-mini"],
   anthropic: ["claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-sonnet-4-20250514"],
-  gemini: ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"],
-  deepseek: ["deepseek-chat", "deepseek-reasoner"],
-  openrouter: ["openai/gpt-4o-mini", "anthropic/claude-3.5-sonnet", "google/gemini-2.5-flash"],
+  gemini: ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.5-flash"],
+  deepseek: ["deepseek-v4-flash", "deepseek-v4-pro"],
+  openrouter: ["openrouter/auto", "~openai/gpt-latest", "~anthropic/claude-sonnet-latest", "~google/gemini-pro-latest"],
   groq: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"],
   together: ["meta-llama/Llama-3.3-70B-Instruct-Turbo"],
   mistral: ["mistral-large-latest", "mistral-small-latest"],
   xai: ["grok-4.3-latest"]
 };
+
+const PROVIDER_CONTEXT_WINDOWS: Record<string, number> = {
+  openai: 128_000,
+  anthropic: 200_000,
+  gemini: 1_000_000,
+  deepseek: 64_000,
+  openrouter: 128_000,
+  groq: 32_768,
+  together: 32_768,
+  mistral: 32_768,
+  xai: 128_000
+};
+
+export const UNKNOWN_MODEL_CONTEXT_WINDOW = 8_192;
+
+export function modelContextWindow(model?: string | null) {
+  const parsed = splitProviderModelValue(model);
+  if (parsed) {
+    return PROVIDER_CONTEXT_WINDOWS[parsed.provider] ?? UNKNOWN_MODEL_CONTEXT_WINDOW;
+  }
+
+  const normalized = model?.trim().toLowerCase() ?? "";
+  const provider = Object.keys(MODEL_SUGGESTIONS).find((candidate) =>
+    MODEL_SUGGESTIONS[candidate].some((suggestion) => suggestion.toLowerCase() === normalized)
+  );
+  return provider ? PROVIDER_CONTEXT_WINDOWS[provider] : UNKNOWN_MODEL_CONTEXT_WINDOW;
+}
 
 export function providerModelValue(provider: string, model: string) {
   return `${provider.trim().toLowerCase()}:${model.trim()}`;
@@ -71,19 +103,35 @@ export function userPreferredModelValue(user: {
   return provider ? providerModelValue(provider, model) : model;
 }
 
-export function modelSuggestionsForProvider(provider: string, defaultModel?: string | null) {
+export function modelSuggestionsForProvider(provider: string, defaultModel?: string | null, discoveredModels: string[] = []) {
   const normalizedProvider = provider.trim().toLowerCase();
-  return Array.from(new Set([defaultModel?.trim(), ...(MODEL_SUGGESTIONS[normalizedProvider] ?? [])].filter(Boolean) as string[]));
+  return Array.from(new Set([
+    ...discoveredModels.map((model) => model.trim()),
+    defaultModel?.trim(),
+    ...(MODEL_SUGGESTIONS[normalizedProvider] ?? [])
+  ].filter(Boolean) as string[]));
 }
 
-export function buildProviderModelGroups(keys: SavedProviderSummary[]): ProviderModelGroup[] {
-  return keys.map((key) => {
-    const models = modelSuggestionsForProvider(key.provider, key.defaultModel);
+export function buildProviderModelGroups(keys: SavedProviderSummary[], catalog: ProviderModelCatalog = {}): ProviderModelGroup[] {
+  const providers = new Map<string, SavedProviderSummary[]>();
+  for (const key of keys) {
+    const providerKeys = providers.get(key.provider) ?? [];
+    providerKeys.push(key);
+    providers.set(key.provider, providerKeys);
+  }
+
+  return Array.from(providers.values()).map((providerKeys) => {
+    const key = providerKeys.sort((left, right) =>
+      Number(Boolean(right.isDefault)) - Number(Boolean(left.isDefault)) ||
+      (left.providerPriority ?? 0) - (right.providerPriority ?? 0)
+    )[0];
+    const models = modelSuggestionsForProvider(key.provider, key.defaultModel, catalog[key.provider] ?? [])
+      .sort((left, right) => Number(right === key.defaultModel) - Number(left === key.defaultModel));
     return {
       provider: key.provider,
       displayName: key.displayName,
       last4: key.last4,
-      isDefault: key.isDefault,
+      isDefault: providerKeys.some((providerKey) => providerKey.isDefault),
       options: models.map((model) => ({
         value: providerModelValue(key.provider, model),
         label: model === key.defaultModel ? `${model} - default` : model,
@@ -105,6 +153,11 @@ export function inferProviderModelValue(model: string | undefined, groups: Provi
   }
   if (groups.some((group) => group.options.some((option) => option.value === trimmed))) {
     return trimmed;
+  }
+
+  const explicit = splitProviderModelValue(trimmed);
+  if (explicit && groups.some((group) => group.provider === explicit.provider)) {
+    return providerModelValue(explicit.provider, explicit.model);
   }
 
   const byDefaultModel = groups

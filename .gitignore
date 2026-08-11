@@ -11,6 +11,11 @@ out
 !.env.example
 dist
 output/
+.playwright-cli/
+.codex-tmp/
+.codex-artifacts/
+.codex-remote-attachments/
+artifacts/
 coverage
 *.log
 *.tsbuildinfo
@@ -19,3 +24,5 @@ proxy-service/dist
 
 .vercel
 public/downloads/*.exe
+
+.env*

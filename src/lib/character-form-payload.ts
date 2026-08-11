@@ -1,4 +1,5 @@
 import { characterCreateSchema } from "@/lib/validation";
+import { parseCharacterCardV2Json } from "@/lib/character-card-v2";
 import { normalizeCharacterTags } from "@/lib/character-tags";
 import { generateSimpleCharacterDraft } from "@/lib/simple-character-generation";
 import {
@@ -11,12 +12,11 @@ import {
   type CharacterFormMode
 } from "@/lib/character-form-types";
 import type { PromptGeneratedCharacter } from "@/lib/character-prompt-generation";
+import { normalizeMessageLength } from "@/lib/response-length";
 
 const RELATIONSHIP_OPTIONS = ["friend", "romantic", "mentor", "rival", "antagonist"] as const;
 const INITIATIVE_OPTIONS = ["low", "medium", "high"] as const;
 const VERBOSITY_OPTIONS = ["concise", "balanced", "expressive", "immersive"] as const;
-const MESSAGE_LENGTH_OPTIONS = ["short", "medium", "long"] as const;
-
 type BuildPayloadOptions = {
   draft: CharacterFormValue;
   generated?: GeneratedCharacterPreview | null;
@@ -51,6 +51,7 @@ export function normalizeInitialCharacterValue(value?: CharacterFormInitialValue
     archetype: textValue(persona.archetype ?? value.archetype),
     personaTraits: listToText(persona.personalityTraits, value.personaTraits),
     speakingStyle: textValue(persona.speakingStyle ?? value.speakingStyle),
+    background: textValue(persona.background ?? value.background),
     emotionalTone: textValue(persona.emotionalTone ?? value.emotionalTone),
     relationshipStyle: textValue(persona.relationshipStyle ?? value.relationshipStyle),
     initiativeLevel: textValue(persona.initiativeLevel ?? value.initiativeLevel),
@@ -64,7 +65,7 @@ export function normalizeInitialCharacterValue(value?: CharacterFormInitialValue
     romanceLevel: numberValue(style.romanceLevel, emptyCharacterDraft.romanceLevel),
     seriousness: numberValue(style.seriousness, emptyCharacterDraft.seriousness),
     initiative: numberValue(style.initiative, emptyCharacterDraft.initiative),
-    messageLength: textValue(style.messageLength ?? value.messageLength),
+    messageLength: normalizeMessageLength(style.messageLength ?? value.messageLength),
     roleplayIntensity: numberValue(style.roleplayIntensity, emptyCharacterDraft.roleplayIntensity),
     preferredProvider: textValue(value.preferredProvider),
     preferredModel: textValue(value.preferredModel),
@@ -79,6 +80,7 @@ export function normalizeInitialCharacterValue(value?: CharacterFormInitialValue
     visualGradientFrom: hexColorValue(visualIdentity.gradientFrom, emptyCharacterDraft.visualGradientFrom),
     visualGradientTo: hexColorValue(visualIdentity.gradientTo, emptyCharacterDraft.visualGradientTo),
     visualChatBackground: textValue(visualIdentity.chatBackground ?? value.visualChatBackground),
+    visualAvatarPrompt: textValue(visualIdentity.avatarPrompt ?? value.visualAvatarPrompt),
     characterCardJson: ""
   };
 }
@@ -153,6 +155,7 @@ export function buildCharacterCreatePayload({
     archetype: limitText(merged.archetype || merged.personaRole || merged.description, 120),
     personalityTraits: normalizeList(merged.personaTraits || merged.personality || merged.description, 16, 160),
     speakingStyle: limitText(merged.speakingStyle || "Natural, consistent, and in character.", 500),
+    background: limitText(merged.background, 5000),
     emotionalTone: limitText(merged.emotionalTone || "attentive", 240),
     relationshipStyle: normalizeEnum(merged.relationshipStyle, RELATIONSHIP_OPTIONS),
     relationshipDynamics: normalizeEnum(merged.relationshipStyle, RELATIONSHIP_OPTIONS),
@@ -170,7 +173,7 @@ export function buildCharacterCreatePayload({
     romanceLevel: clampNumber(merged.romanceLevel, 0, 10),
     seriousness: clampNumber(merged.seriousness, 0, 10),
     initiative: clampNumber(merged.initiative, 0, 10),
-    messageLength: normalizeEnum(merged.messageLength, MESSAGE_LENGTH_OPTIONS),
+    messageLength: merged.messageLength,
     roleplayIntensity: clampNumber(merged.roleplayIntensity, 0, 10)
   });
   const lorebook = parseLorebookText(merged.lorebookText);
@@ -178,7 +181,8 @@ export function buildCharacterCreatePayload({
     accentColor: hexColorValue(merged.visualAccentColor, emptyCharacterDraft.visualAccentColor),
     gradientFrom: hexColorValue(merged.visualGradientFrom, emptyCharacterDraft.visualGradientFrom),
     gradientTo: hexColorValue(merged.visualGradientTo, emptyCharacterDraft.visualGradientTo),
-    chatBackground: limitText(merged.visualChatBackground, 500)
+    chatBackground: limitText(merged.visualChatBackground, 500),
+    avatarPrompt: limitText(merged.visualAvatarPrompt, 800)
   });
 
   const payload: CharacterCreatePayload = {
@@ -200,6 +204,7 @@ export function buildCharacterCreatePayload({
     presencePenalty: merged.presencePenalty,
     maxTokens: merged.maxTokens,
     systemPromptOverride: merged.systemPromptOverride.trim() || null,
+    defaultChatMode: merged.defaultChatMode,
     ...(Object.keys(persona).length > 0 ? { persona } : {}),
     ...(Object.keys(communicationStyle).length > 0 ? { communicationStyle } : {}),
     ...(lorebook.entries.length > 0 ? { lorebook } : {}),
@@ -243,7 +248,7 @@ export function applyPromptGenerationToDraft(draft: CharacterFormValue, generate
     romanceLevel: numberValue(style.romanceLevel, draft.romanceLevel),
     seriousness: numberValue(style.seriousness, draft.seriousness),
     initiative: numberValue(style.initiative, draft.initiative),
-    messageLength: textValue(style.messageLength),
+    messageLength: normalizeMessageLength(style.messageLength, draft.messageLength),
     roleplayIntensity: numberValue(style.roleplayIntensity, draft.roleplayIntensity)
   };
 }
@@ -259,6 +264,49 @@ export function promptPreviewFromGeneration(generated: PromptGeneratedCharacter)
     isNSFW: generated.isNSFW,
     persona: generated.persona,
     communicationStyle: generated.communicationStyle
+  };
+}
+
+export function applyCharacterCardJsonToDraft(draft: CharacterFormValue, value: string): CharacterFormValue {
+  const { data, notes } = parseCharacterCardV2Json(value);
+  const persona = notes.persona ?? {};
+  const style = notes.communicationStyle ?? {};
+  const visual = notes.visualIdentity ?? {};
+
+  return {
+    ...draft,
+    characterCardJson: value,
+    name: preferredText(data.name, draft.name),
+    description: preferredText(data.description, draft.description),
+    personality: preferredText(data.personality, draft.personality),
+    scenario: preferredText(data.scenario, draft.scenario),
+    greeting: preferredText(data.first_mes ?? data.mes_example, draft.greeting),
+    avatarUrl: preferredText(data.avatar, draft.avatarUrl),
+    tags: Array.isArray(data.tags) ? normalizeTagsInput(data.tags.map(String)) : draft.tags,
+    personaRole: preferredText(persona.role, draft.personaRole),
+    archetype: preferredText(persona.archetype, draft.archetype),
+    personaTraits: preferredList(persona.personalityTraits, draft.personaTraits),
+    speakingStyle: preferredText(persona.speakingStyle, draft.speakingStyle),
+    emotionalTone: preferredText(persona.emotionalTone, draft.emotionalTone),
+    relationshipStyle: preferredText(persona.relationshipStyle, draft.relationshipStyle),
+    initiativeLevel: preferredText(persona.initiativeLevel, draft.initiativeLevel),
+    verbosityLevel: preferredText(persona.verbosityLevel, draft.verbosityLevel),
+    motivation: preferredText(persona.motivation, draft.motivation),
+    boundaries: preferredList(persona.boundaries, draft.boundaries),
+    behavioralRules: preferredList(persona.behavioralRules, draft.behavioralRules),
+    forbiddenBehaviors: preferredList(persona.forbiddenBehaviors, draft.forbiddenBehaviors),
+    tone: preferredText(style.tone, draft.tone),
+    humor: numberValue(style.humor, draft.humor),
+    romanceLevel: numberValue(style.romanceLevel, draft.romanceLevel),
+    seriousness: numberValue(style.seriousness, draft.seriousness),
+    initiative: numberValue(style.initiative, draft.initiative),
+    messageLength: normalizeMessageLength(style.messageLength, draft.messageLength),
+    roleplayIntensity: numberValue(style.roleplayIntensity, draft.roleplayIntensity),
+    lorebookText: notes.lorebook ? lorebookToText(notes.lorebook) : draft.lorebookText,
+    visualAccentColor: hexColorValue(visual.accentColor, draft.visualAccentColor),
+    visualGradientFrom: hexColorValue(visual.gradientFrom, draft.visualGradientFrom),
+    visualGradientTo: hexColorValue(visual.gradientTo, draft.visualGradientTo),
+    visualChatBackground: preferredText(visual.chatBackground, draft.visualChatBackground)
   };
 }
 
@@ -330,6 +378,16 @@ function clampNumber(value: number, min: number, max: number) {
 
 function textValue(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function preferredText(value: unknown, fallback: string) {
+  const text = textValue(value);
+  return text || fallback;
+}
+
+function preferredList(value: unknown, fallback: string) {
+  const text = listToText(value);
+  return text || fallback;
 }
 
 function listToText(value: unknown, fallback?: string) {

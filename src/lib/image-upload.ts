@@ -1,5 +1,5 @@
-const MAX_DIMENSION = 512;
-const MAX_DATA_URL_LENGTH = 2_000_000;
+const MAX_DIMENSION = 384;
+const MAX_DATA_URL_LENGTH = 180_000;
 const MAX_UPLOAD_BYTES = 6_000_000;
 const IMAGE_EXT_PATTERN = /\.(jpe?g|png|webp|gif|heic|heif)$/i;
 
@@ -120,12 +120,12 @@ export async function compressImageFile(file: File): Promise<string> {
     let quality = 0.88;
     let dataUrl = canvas.toDataURL("image/jpeg", quality);
 
-    while (dataUrl.length > MAX_DATA_URL_LENGTH && quality > 0.45) {
+    while (dataUrl.length > MAX_DATA_URL_LENGTH && quality > 0.35) {
       quality -= 0.08;
       dataUrl = canvas.toDataURL("image/jpeg", quality);
     }
 
-    if (dataUrl.length > 2_100_000) {
+    if (dataUrl.length > MAX_DATA_URL_LENGTH) {
       throw new Error("Image is still too large. Try a smaller photo.");
     }
 

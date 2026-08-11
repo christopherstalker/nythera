@@ -6,7 +6,8 @@ const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
 test("primary navigation uses a desktop codex rail and mobile dock", async () => {
   const rail = await read("../src/components/nav/NavRail.tsx");
-  const wrapper = await read("../src/components/layout/Sidebar.tsx");
+  const dock = await read("../src/components/nav/MobileDock.tsx");
+  const items = await read("../src/components/nav/navigation-items.ts");
   const shell = await read("../src/components/layout/AppShell.tsx");
   const styles = await read("../src/app/globals.css");
   const tokens = await read("../src/styles/design-tokens.css");
@@ -14,20 +15,28 @@ test("primary navigation uses a desktop codex rail and mobile dock", async () =>
   assert.match(rail, /codex-rail/);
   assert.match(rail, /fixed inset-y-0 left-0/);
   assert.match(rail, /w-\[var\(--codex-rail-width\)\]/);
-  assert.match(rail, /codex-mobile-dock/);
-  assert.match(rail, /fixed inset-x-0 bottom-0/);
-  assert.match(rail, /md:hidden/);
-  assert.match(rail, /grid-cols-5/);
-  assert.match(rail, /\{ href: "\/rooms", label: "Rooms"/);
+  assert.match(dock, /codex-mobile-dock/);
+  assert.match(dock, /fixed inset-x-0 bottom-0/);
+  assert.match(dock, /md:hidden/);
+  assert.match(dock, /grid-cols-5/);
+  assert.match(items, /\{ href: "\/rooms", label: "Rooms"/);
   assert.match(rail, /next\/image|src="\/icon\.svg"/);
   assert.doesNotMatch(styles, /\.nythera-rail|\.rail-label/);
-  assert.match(tokens, /--bottom-nav-offset:\s*calc\(92px \+ env\(safe-area-inset-bottom\)\);/);
-  assert.match(wrapper, /return <NavRail \/>/);
+  assert.match(tokens, /--bottom-nav-offset:\s*calc\(var\(--codex-mobile-dock-height\) \+ env\(safe-area-inset-bottom\)\);/);
+  assert.match(styles, /\.codex-main::-webkit-scrollbar\s*\{\s*display: none/);
+  assert.match(styles, /padding-left: calc\(var\(--page-padding-x\) \+ env\(safe-area-inset-left\)\)/);
+  assert.match(styles, /padding-right: calc\(var\(--page-padding-x\) \+ env\(safe-area-inset-right\)\)/);
+  assert.match(styles, /\.codex-mobile-dock\s*\{[\s\S]*padding-left: max\(\.5rem, env\(safe-area-inset-left\)\)/);
   assert.match(shell, /id="app-shell"/);
+  assert.match(shell, /mainRef\.current\?\.scrollTo\(\{ top: 0, left: 0, behavior: "auto" \}\)/);
   assert.match(shell, /fixed inset-0/);
+  assert.match(shell, /h-dvh min-h-0 w-full max-w-full/);
   assert.match(shell, /const isImmersiveSurface = isChatSurface \|\| isRoomSurface/);
   assert.match(shell, /md:pl-\[var\(--codex-rail-width\)\]/);
-  assert.match(shell, /pb-\[calc\(var\(--codex-mobile-dock-height\)\+env\(safe-area-inset-bottom\)\)\]/);
+  assert.match(shell, /grid-rows-\[minmax\(0,1fr\)_auto\]/);
+  assert.match(shell, /<MobileDock \/>/);
+  assert.match(shell, /h-\[calc\(var\(--codex-mobile-dock-height\)\+env\(safe-area-inset-bottom\)\)\]/);
+  assert.doesNotMatch(shell, /pb-\[calc\(var\(--codex-mobile-dock-height\)/);
   assert.match(shell, /<SidePanel \/>/);
   assert.doesNotMatch(shell, /BottomNav|AuroraWebglBackground|sidebarCollapsed/);
 });
@@ -37,18 +46,53 @@ test("global story context is a closable right-side drawer", async () => {
 
   assert.match(panel, /Story context/);
   assert.match(panel, /PersonaTabContent/);
-  assert.match(panel, /MemoryTabContent/);
+  assert.match(panel, /CastTabContent/);
+  assert.match(panel, /SceneTabContent/);
+  assert.match(panel, /PlotTabContent/);
+  assert.match(panel, /CanonTabContent/);
   assert.match(panel, /HistoryTabContent/);
-  assert.match(panel, /max-w-\[var\(--side-panel-width\)\]/);
+  assert.match(panel, /max-w-\[420px\]/);
   assert.match(panel, /fixed bottom-0 right-0/);
   assert.match(panel, /xl:top-\[var\(--top-bar-height\)\]/);
-  assert.match(panel, /open && "translate-x-0"/);
+  assert.match(panel, /open \? "translate-x-0" : "translate-x-full"/);
   assert.match(panel, /Close side panel overlay/);
   assert.match(panel, /Hide side panel/);
   assert.doesNotMatch(panel, /!isChatSurface && "xl:translate-x-0"/);
   assert.doesNotMatch(panel, /!isChatSurface && "xl:hidden"/);
-  assert.match(panel, /isChatSurface && "top-0 xl:top-0 xl:h-full"/);
+  assert.match(panel, /isChatSurface && "top-0 h-dvh max-h-dvh xl:top-0 xl:h-dvh"/);
+  assert.match(panel, /grid-rows-\[auto_minmax\(0,1fr\)\]/);
+  assert.match(panel, /data-testid="story-context-scroll"/);
+  assert.match(panel, /side-panel-scroll min-h-0 min-w-0 touch-pan-y overflow-y-auto/);
   assert.match(panel, /setActivePersona/);
   assert.doesNotMatch(panel, /xl:static/);
   assert.doesNotMatch(panel, /ChatComposerSheet|<ChatQuickPanel/);
+});
+
+test("help surfaces link to the Patreon-only support block", async () => {
+  const [supportPage, helpPage, supportConfig] = await Promise.all([
+    read("../src/app/support/page.tsx"),
+    read("../src/app/(main)/settings/help/page.tsx"),
+    read("../src/lib/support.ts")
+  ]);
+
+  assert.match(supportConfig, /PATREON_SUPPORT_URL = "https:\/\/www\.patreon\.com\/ChristopherStalker\?fan_landing=true&view_as=public"/);
+  assert.match(supportPage, /id="support-nythera"/);
+  assert.match(supportPage, /Nythera is completely free/);
+  assert.match(supportPage, /Patreon/);
+  assert.match(helpPage, /href="\/support#support-nythera"/);
+  assert.doesNotMatch(`${supportPage}\n${helpPage}\n${supportConfig}`, /Buy Me a Coffee|buymeacoffee/i);
+});
+
+test("desktop sidebar exposes Patreon between Help and Settings without changing the five-item mobile dock", async () => {
+  const [items, rail, dock] = await Promise.all([
+    read("../src/components/nav/navigation-items.ts"),
+    read("../src/components/nav/NavRail.tsx"),
+    read("../src/components/nav/MobileDock.tsx")
+  ]);
+  assert.match(items, /Help[\s\S]*Patreon[\s\S]*Settings/);
+  assert.match(items, /PATREON_SUPPORT_URL/);
+  assert.match(rail, /target=\{external \? "_blank"/);
+  assert.match(rail, /text-rose-300/);
+  assert.match(dock, /primaryNavigationItems/);
+  assert.doesNotMatch(dock, /utilityNavigationItems|PATREON/);
 });

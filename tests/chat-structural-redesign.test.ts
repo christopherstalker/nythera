@@ -4,22 +4,27 @@ import test from "node:test";
 
 const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
-test("chat context is a glass side panel that becomes an overlay drawer on active chat", async () => {
+test("chat context is a practical right drawer with labeled sections and persistence feedback", async () => {
   const panel = await read("../src/components/panel/SidePanel.tsx");
 
   assert.match(panel, /Story context/);
-  assert.match(panel, /glass-grain/);
-  assert.match(panel, /useTabletGlassFallback/);
+  assert.doesNotMatch(panel, /glass-grain/);
+  assert.doesNotMatch(panel, /orbital-functional/);
   assert.match(panel, /usePathname/);
   assert.match(panel, /isChatSurface/);
-  assert.match(panel, /side-panel orbital-functional/);
-  assert.match(panel, /isTablet && "orbital-tablet-solid"/);
+  assert.match(panel, /max-w-\[420px\]/);
   assert.match(panel, /<nav[\s\S]*?aria-label="Story context"/);
-  assert.match(panel, /grid-cols-3/);
-  assert.match(panel, /Persona[\s\S]*Memory[\s\S]*Chats/);
+  assert.match(panel, /SceneTabContent/);
+  assert.match(panel, /PlotTabContent/);
+  assert.match(panel, /CanonTabContent/);
+  assert.match(panel, /MemoryTabContent/);
+  assert.match(panel, /ModeTabContent/);
+  assert.match(panel, /Persona[\s\S]*Memory[\s\S]*Cast[\s\S]*Scene[\s\S]*Plot[\s\S]*Canon[\s\S]*Mode[\s\S]*Chats/);
+  assert.match(panel, /Applied to next reply/);
+  assert.match(panel, /chatMode: mode/);
   assert.doesNotMatch(panel, /!isChatSurface && "xl:translate-x-0"/);
   assert.doesNotMatch(panel, /!isChatSurface && "xl:hidden"/);
-  assert.match(panel, /isChatSurface && "top-0 xl:top-0 xl:h-full"/);
+  assert.match(panel, /isChatSurface && "top-0 h-dvh max-h-dvh xl:top-0 xl:h-dvh"/);
   assert.doesNotMatch(panel, /xl:static/);
   assert.doesNotMatch(panel, /w-\[68px\][\s\S]*border-r/);
 });
@@ -34,7 +39,7 @@ test("chat uses an editorial dossier workspace, manuscript messages, and a refer
 
   assert.match(header, /motion\.header/);
   assert.match(header, /max-w-\[1100px\]/);
-  assert.match(header, /orbital-floating/);
+  assert.doesNotMatch(header, /orbital-floating|backdrop-blur/);
   assert.match(header, /personaName/);
   assert.match(header, /contextOpen/);
   assert.match(header, /Close story context/);
@@ -47,19 +52,21 @@ test("chat uses an editorial dossier workspace, manuscript messages, and a refer
   assert.match(bubble, /personaAvatarUrl/);
   assert.match(bubble, /grid-cols-\[42px_minmax\(0,1fr\)\]/);
   assert.match(bubble, /border-b border-\[var\(--codex-rule\)\]/);
-  assert.match(bubble, /font-editorial relative max-w-\[760px\]/);
+  assert.match(bubble, /chat-message-content relative max-w-\[760px\]/);
   assert.match(bubble, /isLatestAssistant/);
   assert.match(bubble, /group-hover\/message:opacity-100/);
   assert.match(list, /latestAssistantId/);
   assert.doesNotMatch(list, /xl:pr-\[calc\(var\(--side-panel-width\)\+24px\)\]/);
   assert.match(client, /chat-codex-workspace/);
   assert.match(client, /lg:grid-cols-\[minmax\(260px,300px\)_minmax\(0,1fr\)\]/);
-  assert.match(client, /Chapter 3/);
+  assert.match(client, /Chapter \{chapterNumber\}/);
+  assert.match(client, /Story dossier/);
+  assert.doesNotMatch(client, /<ChatSidebar/);
   assert.match(composer, /composer-dock/);
   assert.match(composer, /sticky bottom-0/);
-  assert.match(composer, /border border-\[var\(--codex-rule\)\]/);
+  assert.match(composer, /border border-white\/15/);
   assert.doesNotMatch(composer, /shadow-\[var\(--shadow-elevated\)\]/);
-  assert.match(composer, /bg-\[var\(--codex-paper-raised\)\]/);
+  assert.match(composer, /bg-black\/75/);
   assert.match(composer, /ArrowUp/);
   assert.match(composer, /border border-\[var\(--codex-mint\)\]/);
   assert.match(composer, /Write what happens next/);

@@ -4,7 +4,7 @@ import test from "node:test";
 
 const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
-test("orbital glass treatment is scoped to product surfaces", async () => {
+test("chat product surfaces use the restored flat editorial treatment", async () => {
   const [globals, sidePanel, characterForm, characterCard] = await Promise.all([
     read("../src/app/globals.css"),
     read("../src/components/panel/SidePanel.tsx"),
@@ -13,7 +13,7 @@ test("orbital glass treatment is scoped to product surfaces", async () => {
   ]);
 
   assert.match(sidePanel, /side-panel/);
-  assert.match(sidePanel, /glass-grain/);
+  assert.doesNotMatch(sidePanel, /glass-grain|orbital-functional|backdrop-blur/);
   assert.match(characterForm, /character-editor-surfaces/);
   assert.match(characterCard, /codex-character-plate-image/);
   assert.match(characterCard, /className="h-full w-full object-cover"/);
@@ -43,15 +43,10 @@ test("flat accessibility surfaces avoid blur, grain, and glow effects", async ()
   assert.doesNotMatch(globals, /box-shadow:\s*0 0 (?:20|32|42|74|84)px/);
 });
 
-test("side panel uses a runtime tablet fallback before applying desktop blur", async () => {
-  const [sidePanel, globals] = await Promise.all([
-    read("../src/components/panel/SidePanel.tsx"),
-    read("../src/app/globals.css")
-  ]);
+test("side panel remains solid and predictable across viewport sizes", async () => {
+  const sidePanel = await read("../src/components/panel/SidePanel.tsx");
 
-  assert.match(sidePanel, /useTabletGlassFallback/);
-  assert.match(sidePanel, /\(min-width: 768px\) and \(max-width: 1024px\)/);
-  assert.match(sidePanel, /side-panel orbital-functional/);
-  assert.match(sidePanel, /isTablet && "orbital-tablet-solid"/);
-  assert.match(globals, /\.orbital-tablet-solid[\s\S]*backdrop-filter:\s*none/);
+  assert.match(sidePanel, /side-panel fixed bottom-0 right-0/);
+  assert.match(sidePanel, /bg-\[var\(--codex-paper-raised\)\]/);
+  assert.doesNotMatch(sidePanel, /useTabletGlassFallback|orbital-tablet-solid|backdropFilter/);
 });

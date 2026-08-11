@@ -3,7 +3,7 @@ import { PwaProvider } from "@/components/providers/pwa-provider";
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   return (
-    <NextAuthSessionProvider>
+    <NextAuthSessionProvider refetchOnWindowFocus={false} refetchWhenOffline={false} refetchInterval={0}>
       <PwaProvider>{children}</PwaProvider>
     </NextAuthSessionProvider>
   );

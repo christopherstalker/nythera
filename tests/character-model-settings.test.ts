@@ -120,7 +120,7 @@ test("validates optional sampler ranges on character input", () => {
     topP: 1,
     frequencyPenalty: -2,
     presencePenalty: 2,
-    maxTokens: 32768,
+    maxTokens: 4096,
     systemPromptOverride: "Favor dialogue over exposition."
   });
   assert.equal(valid.success, true);

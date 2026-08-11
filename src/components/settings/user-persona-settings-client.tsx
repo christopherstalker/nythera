@@ -209,10 +209,17 @@ export function UserPersonaSettingsClient() {
       body: JSON.stringify({ activeProfileId: profile.id })
     });
 
-    setStatus(response.ok ? `${profile.label || profile.displayName} is active.` : "Could not switch persona.");
-    if (response.ok) {
-      window.dispatchEvent(new CustomEvent("nythera:persona-updated"));
+    if (!response.ok) {
+      setStatus("Could not switch persona.");
+      return;
     }
+
+    const body = await response.json().catch(() => null);
+    const nextProfiles = Array.isArray(body?.profiles) ? body.profiles.map(profileFromApi) : [];
+    setProfiles(nextProfiles);
+    setActiveProfileId(body?.activeProfileId ?? profile.id);
+    setStatus(`${profile.label || profile.displayName} is active.`);
+    window.dispatchEvent(new CustomEvent("nythera:persona-updated"));
   }
 
   function newPersona() {

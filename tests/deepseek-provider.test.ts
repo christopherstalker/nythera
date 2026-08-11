@@ -12,7 +12,7 @@ test("DeepSeek is a dedicated first-class provider with its official direct endp
     displayName: "DeepSeek",
     apiFormat: "OPENAI_COMPATIBLE",
     baseUrl: "https://api.deepseek.com",
-    defaultModel: "deepseek-chat",
+    defaultModel: "deepseek-v4-flash",
     placeholder: "sk-..."
   });
 });
@@ -29,7 +29,20 @@ test("DeepSeek routing metadata cannot be replaced with an OpenRouter endpoint",
   assert.equal(config.displayName, "DeepSeek");
   assert.equal(config.apiFormat, "OPENAI_COMPATIBLE");
   assert.equal(config.baseUrl, "https://api.deepseek.com");
-  assert.equal(config.defaultModel, "deepseek-chat");
+  assert.equal(config.defaultModel, "deepseek-v4-flash");
+});
+
+test("DeepSeek uses the live V4 catalog and omits deprecated penalty parameters", async () => {
+  const [options, gateway, proxy] = await Promise.all([
+    readFile(new URL("../src/lib/provider-model-options.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/lib/llm-gateway.ts", import.meta.url), "utf8"),
+    readFile(new URL("../proxy-service/src/server.ts", import.meta.url), "utf8")
+  ]);
+  assert.match(options, /deepseek-v4-flash/);
+  assert.match(options, /deepseek-v4-pro/);
+  for (const source of [gateway, proxy]) {
+    assert.match(source, /providerName === "deepseek" \? undefined/);
+  }
 });
 
 test("both built-in and standalone gateways recognize DeepSeek model names", async () => {

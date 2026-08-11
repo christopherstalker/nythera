@@ -1,9 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Heart, ShieldAlert, Star } from "lucide-react";
 import { motion } from "motion/react";
+import { RichMessageText } from "@/components/chat/rich-message-text";
 import { cn } from "@/lib/utils";
 import { displayTagLabel } from "@/lib/character-tags";
 import { shouldBypassNextImageOptimization } from "@/lib/image-cache";
@@ -42,29 +43,25 @@ export function CharacterCard({
   fill = false,
   presentation = "default"
 }: CharacterCardProps) {
-  const router = useRouter();
-
-  function openProfile() {
-    router.push(`/character/${character.id}`);
-  }
-
   if (presentation === "discovery") {
     const rating = character.ratingAverage ?? 0;
     const avatarSrc = character.avatarUrl || BRAND_ICON_LARGE;
 
     return (
-      <motion.button
-        type="button"
-        onClick={openProfile}
+      <motion.div
         whileHover={{ y: -6, scale: 1.015 }}
         transition={springSoft}
         className={cn(
-          "focus-ring codex-character-plate group relative w-full overflow-hidden text-left",
+          "codex-character-plate group relative w-full overflow-hidden text-left",
           fill && "h-full",
           className
         )}
-        aria-label={`Open ${character.name}`}
       >
+        <Link
+          href={`/character/${character.id}`}
+          className="focus-ring absolute inset-0 z-20 no-underline"
+          aria-label={`Open ${character.name}`}
+        />
         <div className="codex-character-plate-image">
           <Image
             src={avatarSrc}
@@ -85,30 +82,37 @@ export function CharacterCard({
             <Star className="h-3.5 w-3.5 text-[oklch(var(--color-accent-secondary))]" />
             {rating.toFixed(1)}
           </span>
-          {character.isNSFW ? (
-            <span
-              className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold text-[var(--text-primary)]"
-              style={{
-                background: "oklch(var(--color-danger) / .78)",
-                boxShadow: "var(--glass-highlight)"
-              }}
-            >
-              <ShieldAlert className="h-3.5 w-3.5" />
-              18+
-            </span>
-          ) : null}
+          <div className="flex items-center gap-2">
+            {featured ? (
+              <span className="rounded-full bg-[var(--codex-mint)] px-2 py-1 text-[9px] font-bold uppercase tracking-[.12em] text-[var(--codex-paper)]">
+                Featured
+              </span>
+            ) : null}
+            {character.isNSFW ? (
+              <span
+                className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold text-[var(--text-primary)]"
+                style={{
+                  background: "oklch(var(--color-danger) / .78)",
+                  boxShadow: "var(--glass-highlight)"
+                }}
+              >
+                <ShieldAlert className="h-3.5 w-3.5" />
+                18+
+              </span>
+            ) : null}
+          </div>
         </div>
 
         <div className="codex-character-plate-copy">
-          <p className="codex-kicker">Archive record</p>
-          <h3 className={cn("font-editorial font-medium leading-none text-[var(--codex-ivory)]", featured ? "line-clamp-2 text-4xl" : "line-clamp-1 text-3xl")}>
+          <p className="codex-kicker hidden sm:block">Archive record</p>
+          <h3 className="font-editorial line-clamp-1 text-xl font-medium leading-none text-[var(--codex-ivory)] sm:text-2xl">
             {character.name}
           </h3>
-          <p className={cn("mt-3 font-editorial text-base italic leading-6 text-[var(--text-secondary)]", featured ? "line-clamp-3" : "line-clamp-2")}>
-            {character.description || "A story waiting to begin."}
+          <p className="mt-2 hidden font-editorial text-sm italic leading-5 text-[var(--text-secondary)] sm:line-clamp-2">
+            <RichMessageText text={character.description || "A story waiting to begin."} />
           </p>
-          <div className="mt-4 flex flex-wrap gap-x-3 gap-y-1 border-t border-[var(--codex-rule)] pt-3">
-            {character.tags?.slice(0, featured ? 3 : 2).map((tag) => (
+          <div className="mt-2 hidden flex-wrap gap-x-3 gap-y-1 border-t border-[var(--codex-rule)] pt-2 sm:flex">
+            {character.tags?.slice(0, 2).map((tag) => (
               <span
                 key={tag}
                 className="max-w-[9rem] truncate text-[9px] uppercase tracking-[.14em] text-[var(--text-muted)]"
@@ -117,21 +121,20 @@ export function CharacterCard({
               </span>
             ))}
           </div>
-          <span className="mt-3 inline-flex items-center gap-1 text-xs text-[var(--text-muted)]">
+          <span className="mt-2 inline-flex items-center gap-1 text-xs text-[var(--text-muted)]">
             <Heart className="h-3.5 w-3.5" />
             {character.likes ?? 0}
           </span>
         </div>
-      </motion.button>
+      </motion.div>
     );
   }
 
   return (
-    <button
-      type="button"
-      onClick={openProfile}
+    <Link
+      href={`/character/${character.id}`}
       className={cn(
-        "focus-ring flex w-full min-w-0 flex-col gap-3 border border-[var(--border-default)] bg-transparent p-4 text-left",
+        "focus-ring flex w-full min-w-0 flex-col gap-3 border border-[var(--border-default)] bg-transparent p-4 text-left no-underline",
         fill && "h-full",
         className
       )}
@@ -141,7 +144,7 @@ export function CharacterCard({
         <div className="min-w-0">
           <h3 className="truncate text-base font-semibold text-[var(--text-primary)]">{character.name}</h3>
           <p className="mt-1 line-clamp-2 text-sm leading-6 text-[var(--text-secondary)]">
-            {character.description || "A story waiting to begin."}
+            <RichMessageText text={character.description || "A story waiting to begin."} />
           </p>
         </div>
         <span className="inline-flex shrink-0 items-center gap-1 text-xs text-[var(--text-secondary)]">
@@ -171,6 +174,6 @@ export function CharacterCard({
           </>
         ) : null}
       </div>
-    </button>
+    </Link>
   );
 }
