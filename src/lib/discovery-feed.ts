@@ -3,20 +3,24 @@ import "server-only";
 import { Prisma, Visibility } from "@prisma/client";
 import { unstable_cache } from "next/cache";
 import { DISCOVERY_TAGS, expandTagQuery } from "@/lib/character-tags";
+import {
+  type DiscoveryNsfwMode,
+  type DiscoverySort,
+  type DiscoveryTagMatch,
+  normalizeDiscoveryFilters
+} from "@/lib/discovery-query";
 import { measurePrismaOperation } from "@/lib/performance-logger";
 import { prisma } from "@/lib/prisma";
 
 export const DISCOVERY_FEED_REVALIDATE_SECONDS = 60;
 export const DISCOVERY_FEED_STALE_SECONDS = 300;
 
-type PublicCharacterSort = "trending" | "top-rated" | "new";
-type PublicCharacterNsfwMode = "safe" | "include" | "only";
-
 export type PublicCharacterQuery = {
   search: string | null;
   tags: string[];
-  sort: PublicCharacterSort;
-  nsfw: PublicCharacterNsfwMode;
+  sort: DiscoverySort;
+  nsfw: DiscoveryNsfwMode;
+  tagMatch: DiscoveryTagMatch;
   minRating: number;
   take: number;
 };
@@ -46,31 +50,40 @@ export function normalizePublicCharacterQuery(input: {
   nsfw?: string | null;
   minRating?: number;
   take?: number;
+  tagMatch?: string | null;
 }): PublicCharacterQuery {
   const take = Number.isFinite(input.take)
     ? Math.min(Math.max(Math.trunc(input.take ?? 24), 1), 50)
     : 24;
-  const minRating = Number.isFinite(input.minRating)
-    ? Math.min(Math.max(input.minRating ?? 0, 0), 5)
-    : 0;
+  const filters = normalizeDiscoveryFilters({
+    query: input.search,
+    tags: input.tags,
+    sort: input.sort,
+    nsfw: input.nsfw,
+    ratingMin: input.minRating,
+    tagMatch: input.tagMatch
+  });
 
   return {
-    search: input.search?.trim() || null,
-    tags: [...new Set((input.tags ?? []).map((tag) => tag.trim()).filter(Boolean))].sort(),
-    sort: normalizeSort(input.sort),
-    nsfw: normalizeNsfwMode(input.nsfw),
-    minRating,
+    search: filters.query || null,
+    tags: filters.tags,
+    sort: filters.sort,
+    nsfw: filters.nsfw,
+    tagMatch: filters.tagMatch,
+    minRating: filters.ratingMin,
     take
   };
 }
 
 export function shouldCachePublicCharacterQuery(query: PublicCharacterQuery) {
-  return !query.search && query.tags.length === 0 && query.minRating === 0;
+  return !query.search;
 }
 
-export function discoveryFeedCacheHeaders(): HeadersInit {
+export function discoveryFeedCacheHeaders(query?: PublicCharacterQuery): HeadersInit {
+  const revalidate = query?.search ? 15 : DISCOVERY_FEED_REVALIDATE_SECONDS;
+  const stale = query?.search ? 60 : DISCOVERY_FEED_STALE_SECONDS;
   return {
-    "Cache-Control": `public, s-maxage=${DISCOVERY_FEED_REVALIDATE_SECONDS}, stale-while-revalidate=${DISCOVERY_FEED_STALE_SECONDS}`
+    "Cache-Control": `public, s-maxage=${revalidate}, stale-while-revalidate=${stale}`
   };
 }
 
@@ -139,7 +152,14 @@ function publicCharacterWhere(query: PublicCharacterQuery): Prisma.CharacterWher
   }
 
   if (query.tags.length > 0) {
-    where.tags = { hasSome: query.tags.flatMap(expandTagQuery) };
+    if (query.tagMatch === "all") {
+      where.AND = [
+        ...(Array.isArray(where.AND) ? where.AND : []),
+        ...query.tags.map((tag) => ({ tags: { hasSome: expandTagQuery(tag) } }))
+      ];
+    } else {
+      where.tags = { hasSome: query.tags.flatMap(expandTagQuery) };
+    }
   }
 
   if (query.nsfw === "only") {
@@ -155,7 +175,7 @@ function publicCharacterWhere(query: PublicCharacterQuery): Prisma.CharacterWher
   return where;
 }
 
-function publicCharacterOrderBy(sort: PublicCharacterSort): Prisma.CharacterOrderByWithRelationInput[] {
+function publicCharacterOrderBy(sort: DiscoverySort): Prisma.CharacterOrderByWithRelationInput[] {
   if (sort === "new") {
     return [{ createdAt: "desc" }];
   }
@@ -171,16 +191,11 @@ function publicCharacterQueryCacheKey(query: PublicCharacterQuery) {
   return [
     query.sort,
     query.nsfw,
+    query.tagMatch,
+    query.tags.join(","),
+    query.minRating,
     query.take
   ].join(":");
-}
-
-function normalizeSort(value?: string | null): PublicCharacterSort {
-  return value === "new" || value === "top-rated" || value === "trending" ? value : "trending";
-}
-
-function normalizeNsfwMode(value?: string | null): PublicCharacterNsfwMode {
-  return value === "include" || value === "only" || value === "safe" ? value : "safe";
 }
 
 export { DISCOVERY_TAGS };

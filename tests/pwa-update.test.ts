@@ -8,10 +8,12 @@ test("the PWA worker purges legacy caches and never owns versioned Next assets",
   const worker = await read("../public/sw.js");
 
   assert.match(worker, /CACHE_PREFIX = "nythera-codex-"/);
-  assert.match(worker, /CACHE_NAME = "nythera-codex-v3"/);
+  assert.match(worker, /CACHE_NAME = "nythera-codex-v6"/);
   assert.match(worker, /key\.startsWith\(CACHE_PREFIX\) && key !== CACHE_NAME/);
   assert.match(worker, /if\s*\(\s*url\.pathname\.startsWith\("\/_next\/static\/"\)\s*\)\s*\{\s*return;/);
   assert.match(worker, /url\.pathname\.startsWith\("\/icons\/"\)[\s\S]*?fetch\(request\)[\s\S]*?caches\.match\(request\)/);
+  const installHandler = worker.slice(worker.indexOf('self.addEventListener("install"'), worker.indexOf('self.addEventListener("activate"'));
+  assert.doesNotMatch(installHandler, /skipWaiting/);
 });
 
 test("the installed app checks for updates and reloads only after controller takeover", async () => {

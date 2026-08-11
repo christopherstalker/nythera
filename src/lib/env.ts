@@ -30,7 +30,13 @@ const envSchema = z.object({
   REDIS_URL: z.string().optional(),
   UPSTASH_REDIS_REST_URL: z.string().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
-  SENTRY_DSN: z.string().optional()
+  RATE_LIMIT_BYPASS_USER_IDS: z.string().optional(),
+  RATE_LIMIT_REQUIRE_DISTRIBUTED: z.enum(["true", "false", ""]).optional(),
+  BYOK_ALLOW_PRIVATE_TEST_ENDPOINTS: z.enum(["true", "false", ""]).optional(),
+  SENTRY_DSN: z.string().optional(),
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().optional(),
+  TURNSTILE_SECRET_KEY: z.string().optional(),
+  TURNSTILE_ALLOWED_HOSTNAMES: z.string().optional()
 });
 
 export const env = envSchema.parse(process.env);

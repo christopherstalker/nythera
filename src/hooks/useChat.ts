@@ -9,6 +9,7 @@ export type ChatMessage = {
   content: string;
   createdAt?: string;
   clientRequestId?: string | null;
+  branchSourceMessageId?: string | null;
   pinned?: boolean;
   model?: string | null;
   provider?: string | null;
@@ -25,41 +26,71 @@ type SendOptions = {
   regenerate?: boolean;
   continueChat?: boolean;
   regenerateMessageId?: string;
+  retryUserMessageId?: string;
+  continueMessageId?: string;
+  branchMessageId?: string;
 };
 
-export function useChat(chatId: string, initialMessages: ChatMessage[]) {
+const CHAT_STREAM_INACTIVITY_TIMEOUT_MS = 55_000;
+const CHAT_STREAM_RENDER_INTERVAL_MS = 40;
+
+export function useChat(chatId: string, initialMessages: ChatMessage[], initialSummary?: string | null) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [providerNotice, setProviderNotice] = useState<string | null>(null);
+  const [providerNotice, setProviderNotice] = useState<string | null>(() => interruptedResponseNotice(initialMessages));
+  const [refreshing, setRefreshing] = useState(false);
+  const [summary, setSummary] = useState(initialSummary ?? null);
   const abortRef = useRef<AbortController | null>(null);
   const inFlightRef = useRef(false);
+  const rewindInFlightRef = useRef(false);
+  const refreshInFlightRef = useRef(false);
+  const messagesRef = useRef(initialMessages);
 
   useEffect(() => {
     abortRef.current?.abort();
     abortRef.current = null;
     inFlightRef.current = false;
+    rewindInFlightRef.current = false;
+    messagesRef.current = initialMessages;
     setMessages(initialMessages);
     setError(null);
-    setProviderNotice(null);
+    setProviderNotice(interruptedResponseNotice(initialMessages));
     setIsStreaming(false);
+    setRefreshing(false);
+    setSummary(initialSummary ?? null);
 
     return () => {
       abortRef.current?.abort();
     };
-  }, [chatId, initialMessages]);
+  }, [chatId, initialMessages, initialSummary]);
 
   const send = useCallback(
     async (content: string, options?: SendOptions) => {
       const trimmedContent = content.trim();
       const isContinuation = options?.continueChat === true;
-      const isRegeneration = options?.regenerate === true;
+      const isUserRetry = Boolean(options?.retryUserMessageId);
+      const isRegeneration = options?.regenerate === true || isUserRetry;
       if ((!trimmedContent && !isContinuation && !isRegeneration) || inFlightRef.current) {
-        return;
+        return false;
       }
 
       inFlightRef.current = true;
       const abortController = new AbortController();
+      let streamTimedOut = false;
+      let requestAccepted = false;
+      let assistantContentReceived = false;
+      let assistantMessageReceived = false;
+      let streamTimeoutId: ReturnType<typeof setTimeout> | null = null;
+      const armStreamTimeout = () => {
+        if (streamTimeoutId) {
+          clearTimeout(streamTimeoutId);
+        }
+        streamTimeoutId = setTimeout(() => {
+          streamTimedOut = true;
+          abortController.abort();
+        }, CHAT_STREAM_INACTIVITY_TIMEOUT_MS);
+      };
       abortRef.current = abortController;
       const requestId = createRequestId();
       const userMessage: ChatMessage = {
@@ -74,9 +105,37 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
         content: "",
         clientRequestId: isContinuation ? `continue-${requestId}` : undefined
       };
+      let pendingAssistantText = "";
+      let renderTimeoutId: ReturnType<typeof setTimeout> | null = null;
+      const flushAssistantText = () => {
+        const nextText = pendingAssistantText;
+        pendingAssistantText = "";
+        if (!nextText) {
+          return;
+        }
+
+        setMessages((current) =>
+          current.map((message) =>
+            message.id === assistantMessage.id
+              ? { ...message, content: `${message.content}${nextText}` }
+              : message
+          )
+        );
+      };
+      const queueAssistantText = (text: string) => {
+        pendingAssistantText += text;
+        if (renderTimeoutId) {
+          return;
+        }
+
+        renderTimeoutId = setTimeout(() => {
+          renderTimeoutId = null;
+          flushAssistantText();
+        }, CHAT_STREAM_RENDER_INTERVAL_MS);
+      };
 
       setMessages((current) => {
-        if (options?.regenerate || isContinuation) {
+        if (isRegeneration || isContinuation) {
           return [...current, assistantMessage];
         }
 
@@ -85,6 +144,7 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
       setIsStreaming(true);
       setError(null);
       setProviderNotice(null);
+      armStreamTimeout();
 
       try {
         const response = await fetch(`/api/chats/${chatId}/stream`, {
@@ -99,7 +159,10 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
             requestId,
             regenerate: options?.regenerate,
             regenerateMessageId: options?.regenerateMessageId,
-            continueChat: isContinuation
+            retryUserMessageId: options?.retryUserMessageId,
+            continueChat: isContinuation,
+            continueMessageId: options?.continueMessageId,
+            branchMessageId: options?.branchMessageId
           })
         });
 
@@ -110,6 +173,7 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
           }
           throw new Error(body?.error ?? "Chat request failed.");
         }
+        requestAccepted = true;
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -133,13 +197,8 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
           }
 
           if (payload.type === "delta" && payload.text) {
-            setMessages((current) =>
-              current.map((message) =>
-                message.id === assistantMessage.id
-                  ? { ...message, content: `${message.content}${payload.text}` }
-                  : message
-              )
-            );
+            assistantContentReceived = true;
+            queueAssistantText(payload.text);
           }
 
           if (payload.type === "user_message" && payload.message && typeof payload.message !== "string") {
@@ -153,12 +212,23 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
           }
 
           if (payload.type === "message" && payload.message && typeof payload.message !== "string") {
+            assistantMessageReceived = true;
+            if (renderTimeoutId) {
+              clearTimeout(renderTimeoutId);
+              renderTimeoutId = null;
+            }
+            pendingAssistantText = "";
             setMessages((current) =>
               current.map((message) => (message.id === assistantMessage.id ? payload.message as ChatMessage : message))
             );
+            notifyChatContextChanged(chatId);
           }
 
           if (payload.type === "error") {
+            if (assistantMessageReceived) {
+              setProviderNotice("The reply may have ended early, but the delivered text was saved.");
+              return;
+            }
             throw new Error(payload.error ?? (typeof payload.message === "string" ? payload.message : undefined) ?? "The model stream failed.");
           }
         };
@@ -173,6 +243,8 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
             break;
           }
 
+          armStreamTimeout();
+
           buffer += decoder.decode(value, { stream: true });
           const events = buffer.split(/\r?\n\r?\n/);
           buffer = events.pop() ?? "";
@@ -181,24 +253,126 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
             processEvent(event);
           }
         }
+        flushAssistantText();
       } catch (caught) {
-        if (caught instanceof DOMException && caught.name === "AbortError") {
-          return;
+        if (caught instanceof DOMException && caught.name === "AbortError" && !streamTimedOut) {
+          pendingAssistantText = "";
+          return requestAccepted;
+        }
+
+        flushAssistantText();
+        if (streamTimedOut) {
+          if (assistantContentReceived) {
+            setProviderNotice("The connection paused after the reply began. The delivered text is kept; refresh the chat to confirm the saved version.");
+            return requestAccepted;
+          }
+          setError("The model stopped responding. Your message is still here. Send it again.");
+          setMessages((current) => current.filter((item) => item.id !== assistantMessage.id || item.content.length > 0));
+          return requestAccepted;
+        }
+
+        if (assistantMessageReceived || (requestAccepted && assistantContentReceived)) {
+          setProviderNotice("The connection ended after the reply began. The delivered text is kept; refresh the chat to confirm the saved version.");
+          return requestAccepted;
         }
 
         const message = caught instanceof Error ? caught.message : "Unexpected chat error.";
         setError(message);
         setMessages((current) => current.filter((item) => item.id !== assistantMessage.id || item.content.length > 0));
       } finally {
+        if (renderTimeoutId) {
+          clearTimeout(renderTimeoutId);
+        }
+        if (streamTimeoutId) {
+          clearTimeout(streamTimeoutId);
+        }
         if (abortRef.current === abortController) {
           abortRef.current = null;
         }
         inFlightRef.current = false;
         setIsStreaming(false);
       }
+      return requestAccepted;
     },
     [chatId]
   );
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  const refreshMessages = useCallback(async () => {
+    if (refreshInFlightRef.current) {
+      return false;
+    }
+    refreshInFlightRef.current = true;
+    abortRef.current?.abort();
+    abortRef.current = null;
+    inFlightRef.current = false;
+    setIsStreaming(false);
+    setRefreshing(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/chats/${chatId}?refresh=${Date.now()}`, { cache: "no-store" });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error ?? "Could not refresh the chat.");
+      }
+      const body = await response.json();
+      const refreshedMessages = Array.isArray(body.chat?.messages) ? body.chat.messages as ChatMessage[] : [];
+      messagesRef.current = refreshedMessages;
+      setMessages(refreshedMessages);
+      setProviderNotice(interruptedResponseNotice(refreshedMessages) ?? "Chat refreshed.");
+      return true;
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not refresh the chat.");
+      return false;
+    } finally {
+      refreshInFlightRef.current = false;
+      setRefreshing(false);
+    }
+  }, [chatId]);
+
+  const retryUserMessage = useCallback(async (messageId: string, options?: SendOptions) => {
+    if (inFlightRef.current) {
+      return;
+    }
+
+    const original = messagesRef.current.find((message) => message.id === messageId && message.role === "USER");
+    if (!original) {
+      return;
+    }
+
+    const refreshed = await refreshMessages();
+    if (!refreshed) {
+      return;
+    }
+
+    const persisted = messagesRef.current.find((message) =>
+      message.role === "USER" && (
+        message.id === original.id ||
+        message.clientRequestId === original.clientRequestId ||
+        message === messagesRef.current.at(-1) && message.content === original.content
+      )
+    ) ?? null;
+
+    if (persisted && messagesRef.current.at(-1)?.id === persisted.id) {
+      await send(persisted.content, {
+        ...options,
+        regenerate: undefined,
+        regenerateMessageId: undefined,
+        retryUserMessageId: persisted.id
+      });
+      return;
+    }
+
+    if (persisted) {
+      return;
+    }
+
+    await send(original.content, options);
+  }, [refreshMessages, send]);
 
   const editMessage = useCallback(async (messageId: string, content: string) => {
     const trimmed = content.trim();
@@ -234,10 +408,11 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
         .filter((message) => !deletedIds.has(message.id))
         .map((message) => (message.id === messageId ? body.message : message))
     );
+    notifyChatContextChanged(chatId);
     if (shouldRegenerateAfterMessageEdit(body.message.role)) {
       await send(trimmed, { regenerate: true });
     }
-  }, [send]);
+  }, [chatId, send]);
 
   const deleteMessage = useCallback(async (messageId: string) => {
     let removedMessage: ChatMessage | null = null;
@@ -279,16 +454,25 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
       setError(body?.error ?? "Could not delete message.");
       return;
     }
-  }, []);
+    notifyChatContextChanged(chatId);
+  }, [chatId]);
 
   const rewindToMessage = useCallback(
     async (messageId: string) => {
-      const index = messages.findIndex((message) => message.id === messageId);
-      if (index === -1) {
+      if (rewindInFlightRef.current) {
         return;
       }
 
-      const { retained, removed: toDelete } = partitionMessagesForRewind(messages, messageId);
+      const snapshot = messagesRef.current;
+      if (!snapshot.some((message) => message.id === messageId)) {
+        await refreshMessages();
+        return;
+      }
+
+      rewindInFlightRef.current = true;
+      setError(null);
+      const { retained, removed: toDelete } = partitionMessagesForRewind(snapshot, messageId);
+      messagesRef.current = retained;
       setMessages(retained);
 
       try {
@@ -296,19 +480,31 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
           const response = await fetch(`/api/chats/${chatId}/rewind`, {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ messageId })
+            body: JSON.stringify({ messageId }),
+            cache: "no-store"
           });
           if (!response.ok) {
-            throw new Error("The conversation state could not be rewound.");
+            const body = await response.json().catch(() => null);
+            throw new Error(body?.error ?? "The conversation state could not be rewound.");
           }
+          const body = await response.json();
+          setSummary(typeof body.summary === "string" ? body.summary : null);
         }
+        await refreshMessages();
+        notifyChatContextChanged(chatId);
       } catch (caught) {
         console.error("Failed to rewind conversation state:", caught);
-        setMessages(messages);
-        setError("Failed to rewind completely. Please refresh.");
+        const refreshed = await refreshMessages();
+        if (!refreshed) {
+          messagesRef.current = snapshot;
+          setMessages(snapshot);
+        }
+        setError(caught instanceof Error ? caught.message : "Could not rewind the chat.");
+      } finally {
+        rewindInFlightRef.current = false;
       }
     },
-    [chatId, messages]
+    [chatId, refreshMessages]
   );
 
   const branchFromMessage = useCallback(
@@ -375,7 +571,13 @@ export function useChat(chatId: string, initialMessages: ChatMessage[]) {
     }
   }, [messages, pinMessage, unpinMessage]);
 
-  return { messages, isStreaming, error, providerNotice, send, editMessage, deleteMessage, rewindToMessage, branchFromMessage, pinMessage, unpinMessage, togglePin };
+  return { messages, summary, isStreaming, refreshing, error, providerNotice, send, retryUserMessage, editMessage, deleteMessage, rewindToMessage, refreshMessages, branchFromMessage, pinMessage, unpinMessage, togglePin };
+}
+
+function notifyChatContextChanged(chatId: string) {
+  const notify = () => window.dispatchEvent(new CustomEvent("nythera:chat-context-updated", { detail: { chatId } }));
+  notify();
+  window.setTimeout(notify, 900);
 }
 
 function createRequestId() {
@@ -384,4 +586,16 @@ function createRequestId() {
   }
 
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function interruptedResponseNotice(messages: ChatMessage[]) {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message.role === "ASSISTANT") return null;
+    if (message.role === "USER") {
+      return "The previous response was interrupted. Your message was saved; retry it when you're ready.";
+    }
+  }
+
+  return null;
 }

@@ -13,12 +13,26 @@ test("crawler endpoints publish the canonical public archive", async () => {
   assert.match(robots, /sitemap: `\$\{CANONICAL_SITE_ORIGIN\}\/sitemap\.xml`/);
   assert.match(robots, /"\/api\/"/);
   assert.match(robots, /"\/character\/\*\/edit"/);
+  assert.match(robots, /"\/\*\?\*tag="/);
+  assert.match(robots, /"\/\*\?\*ratingMin="/);
   assert.match(sitemap, /visibility: "PUBLIC"/);
   assert.match(sitemap, /moderationStatus: "APPROVED"/);
   assert.match(sitemap, /isNSFW: false/);
   assert.match(sitemap, /DISCOVERY_TAGS/);
+  assert.match(sitemap, /creatorEntries/);
+  assert.match(sitemap, /\/u\/\$\{encodeURIComponent\(username\)\}/);
   assert.match(sitemap, /\/ai-roleplay/);
   assert.match(sitemap, /\/roleplay-characters/);
+});
+
+test("public creator profiles publish canonical metadata and ProfilePage schema", async () => {
+  const profile = await read("../src/app/u/[username]/page.tsx");
+
+  assert.match(profile, /generateMetadata/);
+  assert.match(profile, /alternates:\s*\{ canonical: path \}/);
+  assert.match(profile, /"@type": "ProfilePage"/);
+  assert.match(profile, /"@type": "Person"/);
+  assert.match(profile, /public-creator-profile-v1/);
 });
 
 test("public discovery and character pages send indexable server HTML", async () => {
@@ -32,7 +46,8 @@ test("public discovery and character pages send indexable server HTML", async ()
   assert.match(explorePage, /initialCharacters=\{characters\}/);
   assert.match(explorePage, /canonical: "\/explore"/);
   assert.match(characterPage, /generateMetadata/);
-  assert.match(characterPage, /getPublicCharacterProfile/);
+  assert.match(characterPage, /getCharacterProfileForViewer/);
+  assert.match(characterPage, /character\.visibility === "PUBLIC"/);
   assert.match(characterPage, /"@type": "ProfilePage"/);
   assert.match(characterPage, /initialCharacter=\{character\}/);
   assert.match(characterClient, /useState<PublicCharacterProfile \| null>\(initialCharacter\)/);

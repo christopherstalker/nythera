@@ -19,7 +19,7 @@ export type SettingsSection = {
 
 export const SETTINGS_SECTIONS: SettingsSection[] = [
   {
-    href: "/settings/account",
+    href: "/account",
     label: "Account",
     description: "Profile, avatar, bio, and age-gated access.",
     icon: UserCog

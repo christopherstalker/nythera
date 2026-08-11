@@ -19,7 +19,13 @@ export default function robots(): MetadataRoute.Robots {
         "/room/",
         "/rooms",
         "/settings",
-        "/character/*/edit"
+        "/character/*/edit",
+        "/*?*q=",
+        "/*?*tag=",
+        "/*?*sort=",
+        "/*?*ratingMin=",
+        "/*?*nsfw=",
+        "/*?*match="
       ]
     },
     sitemap: `${CANONICAL_SITE_ORIGIN}/sitemap.xml`,

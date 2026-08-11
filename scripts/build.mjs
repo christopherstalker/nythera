@@ -22,7 +22,7 @@ function run(cli, args) {
   }
 }
 
-if (process.env.VERCEL_ENV === "production") {
+if (process.env.VERCEL_ENV === "production" && process.env.SKIP_PRISMA_MIGRATE !== "1") {
   run(prismaCli, ["migrate", "deploy"]);
 }
 

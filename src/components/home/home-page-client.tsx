@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Heart, MessageCircle, Plus, Search, ShieldAlert, Sparkles, Star } from "lucide-react";
+import { ChevronRight, ExternalLink, Heart, MessageCircle, Plus, Search, ShieldAlert, Sparkles, Star } from "lucide-react";
 import { motion } from "motion/react";
 import { RichMessageText } from "@/components/chat/rich-message-text";
 import type { CharacterSummary } from "@/components/characters/CharacterCard";
@@ -12,11 +12,13 @@ import { Button } from "@/components/ui/button";
 import { ResponsiveActions } from "@/components/ui/responsive-actions";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page";
+import { ServiceUnavailable } from "@/components/system/service-unavailable";
 import { BRAND_ICON_LARGE } from "@/lib/brand";
 import { DISCOVERY_TAGS, displayTagLabel } from "@/lib/character-tags";
 import { toChatPreview } from "@/lib/chat-preview";
 import { shouldBypassNextImageOptimization } from "@/lib/image-cache";
 import { springSoft } from "@/lib/motion";
+import { PATREON_SUPPORT_URL } from "@/lib/support";
 import { cn } from "@/lib/utils";
 
 type RecentChat = {
@@ -33,14 +35,34 @@ type RecentChat = {
 
 export default function HomePageClient({
   initialCharacters,
-  initialRecentChats
+  initialRecentChats,
+  isServiceUnavailable = false
 }: {
   initialCharacters: CharacterSummary[];
   initialRecentChats: RecentChat[];
+  isServiceUnavailable?: boolean;
 }) {
   const router = useRouter();
   const characters = initialCharacters;
-  const recentChats = initialRecentChats;
+  const [recentChats, setRecentChats] = useState(initialRecentChats);
+
+  useEffect(() => {
+    if (isServiceUnavailable || initialRecentChats.length) {
+      return;
+    }
+
+    const controller = new AbortController();
+    void fetch("/api/chats", { signal: controller.signal })
+      .then(async (response) => (response.ok ? response.json() : null))
+      .then((body) => {
+        if (Array.isArray(body?.chats)) {
+          setRecentChats(body.chats.slice(0, 8));
+        }
+      })
+      .catch(() => undefined);
+
+    return () => controller.abort();
+  }, [initialRecentChats.length, isServiceUnavailable]);
 
   const featured = useMemo(() => characters[0], [characters]);
   async function startFeaturedChat() {
@@ -59,6 +81,14 @@ export default function HomePageClient({
       return;
     }
 
+    if (response.status === 403) {
+      const body = await response.json().catch(() => null);
+      if (typeof body?.error === "string" && body.error.includes("Adult consent")) {
+        router.push("/auth/new-user?callbackUrl=/");
+        return;
+      }
+    }
+
     if (!response.ok) {
       router.push(`/character/${featured.id}`);
       return;
@@ -66,6 +96,15 @@ export default function HomePageClient({
 
     const body = await response.json();
     router.push(`/chat/${body.chat.id}`);
+  }
+
+  if (isServiceUnavailable) {
+    return (
+      <PageShell className="space-y-12">
+        <HomeSeoIntro />
+        <ServiceUnavailable />
+      </PageShell>
+    );
   }
 
   if (!featured) {
@@ -116,6 +155,8 @@ export default function HomePageClient({
 
         <BrowseRoleplayThemes />
 
+        <PatreonPoster />
+
         {recentChats.length ? (
           <motion.section
             initial={{ opacity: 0, y: 16 }}
@@ -134,6 +175,39 @@ export default function HomePageClient({
         ) : null}
       </PageShell>
     </div>
+  );
+}
+
+function PatreonPoster() {
+  return (
+    <motion.aside
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-90px" }}
+      transition={springSoft}
+      className="relative overflow-hidden border-y border-[#ff424d]/35 bg-[#ff424d]/[0.035] px-5 py-8 sm:px-8 sm:py-10"
+      aria-labelledby="patreon-support-title"
+    >
+      <div className="absolute inset-y-0 left-0 w-px bg-[#ff5963] shadow-[0_0_24px_rgba(255,66,77,.45)]" aria-hidden="true" />
+      <div className="grid gap-7 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+        <div className="max-w-3xl">
+          <p className="text-[10px] font-semibold uppercase tracking-[.24em] text-[#ff8990]">Keep Nythera independent</p>
+          <h2 id="patreon-support-title" className="font-editorial mt-3 text-3xl font-medium text-[var(--codex-ivory)] sm:text-4xl">
+            Help the stories grow.
+          </h2>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
+            Patreon support helps fund model access, infrastructure, memory improvements, and the next generation of character tools.
+          </p>
+        </div>
+        <Button asChild size="lg" className="border border-[#ff5963]/60 bg-[#ff424d] text-white hover:bg-[#ff5963]">
+          <a href={PATREON_SUPPORT_URL} target="_blank" rel="noopener noreferrer">
+            <Heart className="h-4 w-4" />
+            Support on Patreon
+            <ExternalLink className="h-4 w-4" />
+          </a>
+        </Button>
+      </div>
+    </motion.aside>
   );
 }
 
@@ -227,6 +301,12 @@ function HomeSeoIntro() {
           </Button>
           <Button asChild variant="outline">
             <Link href="/ai-roleplay">What is AI roleplay?</Link>
+          </Button>
+          <Button asChild variant="outline" className="border-[rgb(255_66_77_/_0.5)] text-[rgb(255_157_163)] hover:border-[rgb(255_122_130)] hover:bg-[rgb(255_66_77_/_0.06)]">
+            <a href={PATREON_SUPPORT_URL} target="_blank" rel="noopener noreferrer">
+              <Heart className="h-4 w-4" />
+              Patreon
+            </a>
           </Button>
         </div>
       </div>

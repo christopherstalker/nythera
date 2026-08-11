@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import CharacterProfileClient from "@/components/character/character-profile-client";
+import { auth } from "@/lib/auth";
 import { richTextToPlainText } from "@/lib/rich-text-formatting";
-import { getPublicCharacterProfile } from "@/lib/public-character-profile";
+import { getCharacterProfileForViewer } from "@/lib/public-character-profile";
 import { CANONICAL_SITE_ORIGIN } from "@/lib/site-origin";
 
 type CharacterPageProps = {
@@ -9,7 +10,8 @@ type CharacterPageProps = {
 };
 
 export async function generateMetadata({ params }: CharacterPageProps): Promise<Metadata> {
-  const character = await getPublicCharacterProfile((await params).id);
+  const [{ id }, session] = await Promise.all([params, auth()]);
+  const character = await getCharacterProfileForViewer(id, session?.user?.id);
 
   if (!character) {
     return {
@@ -23,6 +25,18 @@ export async function generateMetadata({ params }: CharacterPageProps): Promise<
 
   const description = createDescription(character.description);
   const canonicalPath = `/character/${character.id}`;
+  const isPublic = character.visibility === "PUBLIC";
+
+  if (!isPublic) {
+    return {
+      title: character.name,
+      description,
+      robots: {
+        index: false,
+        follow: false
+      }
+    };
+  }
 
   return {
     title: `${character.name} — AI roleplay character`,
@@ -54,8 +68,9 @@ export async function generateMetadata({ params }: CharacterPageProps): Promise<
 }
 
 export default async function CharacterPage({ params }: CharacterPageProps) {
-  const character = await getPublicCharacterProfile((await params).id);
-  const canonicalUrl = character ? `${CANONICAL_SITE_ORIGIN}/character/${character.id}` : null;
+  const [{ id }, session] = await Promise.all([params, auth()]);
+  const character = await getCharacterProfileForViewer(id, session?.user?.id);
+  const canonicalUrl = character?.visibility === "PUBLIC" ? `${CANONICAL_SITE_ORIGIN}/character/${character.id}` : null;
   const jsonLd = character && canonicalUrl
     ? {
         "@context": "https://schema.org",

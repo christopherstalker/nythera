@@ -31,6 +31,9 @@ export const metadata: Metadata = {
   },
   description: "Create and discover AI roleplay characters with persistent persona, story memory, and immersive character chat.",
   applicationName: "Nythera",
+  creator: "Nythera",
+  publisher: "Nythera",
+  category: "entertainment",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
@@ -76,6 +79,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   viewportFit: "cover",
+  interactiveWidget: "resizes-content",
   themeColor: BRAND_THEME_COLOR
 };
 

@@ -42,7 +42,10 @@ export type MemoryRow = {
 export type ChatPreview = {
   id: string;
   title?: string | null;
+  lastActiveAt?: string;
+  createdAt?: string;
   character: {
+    id: string;
     name: string;
     description?: string | null;
     avatarUrl?: string | null;
@@ -247,7 +250,7 @@ export const emptyStoryStateDraft: StoryStateDraft = {
 
 export const emptyCanonDraft: CanonDraft = {
   subjectEntityId: "",
-  predicate: "",
+  predicate: "is true now",
   objectText: "",
   scope: "STORY",
   locked: false,
@@ -295,6 +298,7 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
   const [memoryEditingId, setMemoryEditingId] = useState<string | null>(null);
   const [memoryEditDraft, setMemoryEditDraft] = useState("");
   const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   const [panelLoadStatus, setPanelLoadStatus] = useState<string | null>(null);
   const [chats, setChats] = useState<ChatPreview[]>([]);
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -332,6 +336,19 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
   const [storyContinuityStatus, setStoryContinuityStatus] = useState<string | null>(null);
   const [storySafetyDraft, setStorySafetyDraft] = useState<StorySafetyDraft>(defaultStorySafetyDraft);
   const [storySafetyStatus, setStorySafetyStatus] = useState<string | null>(null);
+  const [contextRevision, setContextRevision] = useState(0);
+
+  useEffect(() => {
+    const refresh = (event: Event) => {
+      const updatedChatId = (event as CustomEvent<{ chatId?: string }>).detail?.chatId;
+      if (!updatedChatId || updatedChatId === chatId) {
+        setContextRevision((current) => current + 1);
+      }
+    };
+
+    window.addEventListener("nythera:chat-context-updated", refresh);
+    return () => window.removeEventListener("nythera:chat-context-updated", refresh);
+  }, [chatId]);
 
   async function performWrite(
     action: string,
@@ -348,6 +365,7 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
         setStatus(await safeResponseError(response, fallback));
         return null;
       }
+      setLastSavedAt(Date.now());
       return response;
     } catch {
       setStatus("Network error. Your draft was kept; try again.");
@@ -461,7 +479,7 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
       const [personaResponse, memoriesResponse, chatsResponse, storyResponse] = await Promise.allSettled([
         fetch(`/api/user-persona?${personaParams.toString()}`, { cache: "no-store", signal }),
         fetch(`/api/memories?${memoryParams.toString()}`, { cache: "no-store", signal }),
-        fetch("/api/chats", { cache: "no-store", signal }),
+        fetch(characterId ? `/api/chats?characterId=${encodeURIComponent(characterId)}` : "/api/chats", { cache: "no-store", signal }),
         chatId
           ? fetch("/api/stories/resolve", {
               method: "POST",
@@ -491,7 +509,7 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
 
       if (chatsResponse.status === "fulfilled" && chatsResponse.value.ok) {
         const body = await chatsResponse.value.json();
-        setChats(Array.isArray(body.chats) ? body.chats.slice(0, 8) : []);
+        setChats(Array.isArray(body.chats) ? body.chats : []);
       }
 
       if (storyResponse.status === "fulfilled" && storyResponse.value?.ok) {
@@ -527,7 +545,7 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     });
 
     return () => controller.abort();
-  }, [chatId, characterId, enabled, loadStoryContinuity, loadStoryNarrative, loadStorySafety]);
+  }, [chatId, characterId, contextRevision, enabled, loadStoryContinuity, loadStoryNarrative, loadStorySafety]);
 
   async function loadMemories(signal?: AbortSignal) {
     const params = new URLSearchParams({ take: "8" });
@@ -678,6 +696,10 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
       return;
     }
 
+    const body = await response.json();
+    if (body.memory?.id) {
+      setMemories((current) => [body.memory as MemoryRow, ...current.filter((memory) => memory.id !== body.memory.id)]);
+    }
     setMemoryDraft("");
     setMemoryStatus("Pinned memory saved for every chat with this character.");
     await loadMemories().catch((error) => setMemoryStatus(error instanceof Error ? error.message : "Memory saved, but the list could not refresh."));
@@ -708,6 +730,10 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     if (!response) {
       return;
     }
+    const body = await response.json();
+    if (body.memory?.id) {
+      setMemories((current) => current.map((memory) => memory.id === memoryId ? { ...memory, ...body.memory } : memory));
+    }
     cancelEditingMemory();
     setMemoryStatus("Memory updated for every chat with this character.");
     await loadMemories().catch((error) => setMemoryStatus(error instanceof Error ? error.message : "Memory updated, but the list could not refresh."));
@@ -721,12 +747,20 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     if (memoryEditingId === memoryId) {
       cancelEditingMemory();
     }
+    setMemories((current) => current.filter((memory) => memory.id !== memoryId));
     setMemoryStatus("Memory removed from character context.");
     await loadMemories().catch((error) => setMemoryStatus(error instanceof Error ? error.message : "Memory removed, but the list could not refresh."));
   }
 
   function updateCanonDraft<K extends keyof CanonDraft>(field: K, value: CanonDraft[K]) {
-    setCanonDraft((current) => ({ ...current, [field]: value }));
+    setCanonDraft((current) => {
+      if (field === "scope" && (value === "CHARACTER" || value === "PARTICIPANT") && current.participantIds.length === 0) {
+        const activeCharacter = storyParticipants.find((participant) => participant.characterId === characterId)
+          ?? storyParticipants.find((participant) => participant.role === "CHARACTER");
+        return { ...current, [field]: value, participantIds: activeCharacter ? [activeCharacter.id] : [] };
+      }
+      return { ...current, [field]: value };
+    });
   }
 
   function toggleCanonKnowledge(participantId: string) {
@@ -741,7 +775,11 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
   async function addCanonFact(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!storyId || !canonDraft.predicate.trim() || !canonDraft.objectText.trim()) {
-      setCanonStatus("Add both a relationship and a fact before saving canon.");
+      setCanonStatus("Write the canonical fact before saving.");
+      return;
+    }
+    if ((canonDraft.scope === "CHARACTER" || canonDraft.scope === "PARTICIPANT") && canonDraft.participantIds.length === 0) {
+      setCanonStatus("Choose at least one character who knows this fact.");
       return;
     }
     const response = await performWrite("canon:add", `/api/stories/${storyId}/canon`, {
@@ -1136,6 +1174,7 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     memoryEditingId,
     memoryEditDraft,
     pendingAction,
+    lastSavedAt,
     panelLoadStatus,
     chats,
     avatarUploading,

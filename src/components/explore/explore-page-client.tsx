@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Search, ShieldCheck, SlidersHorizontal, Star, X } from "lucide-react";
@@ -12,6 +12,17 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page";
 import { SearchBar } from "@/components/ui/search-bar";
 import { DISCOVERY_TAGS, displayTagLabel } from "@/lib/character-tags";
+import {
+  DEFAULT_DISCOVERY_FILTERS,
+  type DiscoveryFilters,
+  type DiscoveryNsfwMode,
+  type DiscoverySort,
+  type DiscoveryTagMatch,
+  discoveryFiltersFromSearchParams,
+  hasDiscoveryFilters,
+  normalizeDiscoveryFilters,
+  serializeDiscoveryFilters
+} from "@/lib/discovery-query";
 import { springSoft } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
@@ -34,13 +45,14 @@ const feedTabs = [
 
 const CATALOG_TAKE = 50;
 const FEED_TAKE = 12;
+const STALE_REFRESH_MS = 300_000;
 
 type FeedTabId = (typeof feedTabs)[number]["id"];
 
 async function fetchCharacters(params: URLSearchParams, signal?: AbortSignal) {
-  const response = await fetch(`/api/characters?${params.toString()}`, { cache: "no-store", signal });
+  const response = await fetch(`/api/characters?${params.toString()}`, { signal });
   if (!response.ok) {
-    return [];
+    throw new Error("CHARACTER_CATALOG_UNAVAILABLE");
   }
   const body = await response.json().catch(() => null);
   return Array.isArray(body?.characters) ? body.characters : [];
@@ -50,12 +62,12 @@ export default function ExplorePageClient({
   initialCharacters,
   initialTrending,
   initialRecommended,
-  initialQuery
+  initialFilters
 }: {
   initialCharacters: CharacterSummary[];
   initialTrending: CharacterSummary[];
   initialRecommended: CharacterSummary[];
-  initialQuery: string;
+  initialFilters: DiscoveryFilters;
 }) {
   return (
     <Suspense
@@ -69,7 +81,7 @@ export default function ExplorePageClient({
         initialCharacters={initialCharacters}
         initialTrending={initialTrending}
         initialRecommended={initialRecommended}
-        initialQuery={initialQuery}
+        initialFilters={initialFilters}
       />
     </Suspense>
   );
@@ -79,64 +91,69 @@ function ExplorePageContent({
   initialCharacters,
   initialTrending,
   initialRecommended,
-  initialQuery
+  initialFilters
 }: {
   initialCharacters: CharacterSummary[];
   initialTrending: CharacterSummary[];
   initialRecommended: CharacterSummary[];
-  initialQuery: string;
+  initialFilters: DiscoveryFilters;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const routeQuery = searchParams.get("q") ?? initialQuery;
   const [characters, setCharacters] = useState<CharacterSummary[]>(initialCharacters);
-  const [trending, setTrending] = useState<CharacterSummary[]>(initialTrending);
-  const [recommended, setRecommended] = useState<CharacterSummary[]>(initialRecommended);
-  const [query, setQuery] = useState(routeQuery);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [sort, setSort] = useState<(typeof sortOptions)[number]["id"]>("trending");
+  const [trending] = useState<CharacterSummary[]>(initialTrending);
+  const [recommended] = useState<CharacterSummary[]>(initialRecommended);
+  const [filters, setFilters] = useState<DiscoveryFilters>(initialFilters);
+  const [queryDraft, setQueryDraft] = useState(initialFilters.query);
   const [activeFeed, setActiveFeed] = useState<FeedTabId>("trending");
-  const [ratingMin, setRatingMin] = useState(0);
-  const [nsfwMode, setNsfwMode] = useState<(typeof nsfwOptions)[number]["id"]>("safe");
   const [loading, setLoading] = useState(false);
-  const hasActiveFilters = Boolean(query.trim()) || Boolean(selectedTags.length) || sort !== "trending" || ratingMin > 0 || nsfwMode !== "safe";
+  const [loadError, setLoadError] = useState(false);
+  const [refreshVersion, setRefreshVersion] = useState(0);
+  const skipInitialRequest = useRef(true);
+  const lastRefreshAt = useRef(0);
+  const hasActiveFilters = hasDiscoveryFilters(filters);
   const showFeedSections = !hasActiveFilters;
-  const isCatalogEmpty = !loading && characters.length === 0 && trending.length === 0 && recommended.length === 0;
+  const isCatalogEmpty = !loading && !loadError && (
+    showFeedSections
+      ? characters.length === 0 && trending.length === 0 && recommended.length === 0
+      : characters.length === 0
+  );
   const activeFeedTab = feedTabs.find((tab) => tab.id === activeFeed) ?? feedTabs[0];
   const activeFeedCharacters =
     activeFeed === "recommended" ? recommended : activeFeed === "for-you" ? characters.slice(0, FEED_TAKE) : trending;
 
-  useEffect(() => {
-    setQuery(routeQuery);
-  }, [routeQuery]);
+  const routeState = searchParams.toString();
 
   useEffect(() => {
+    const routeFilters = discoveryFiltersFromSearchParams(new URLSearchParams(routeState));
+    setFilters((current) => (
+      serializeDiscoveryFilters(current).toString() === serializeDiscoveryFilters(routeFilters).toString()
+        ? current
+        : routeFilters
+    ));
+    setQueryDraft(routeFilters.query);
+  }, [routeState]);
+
+  useEffect(() => {
+    if (skipInitialRequest.current) {
+      skipInitialRequest.current = false;
+      lastRefreshAt.current = Date.now();
+      return;
+    }
+
     const controller = new AbortController();
     setLoading(true);
+    setLoadError(false);
 
     async function loadCharacters() {
       try {
-        const params = buildCharacterParams({ query, selectedTags, sort, ratingMin, nsfwMode, take: String(CATALOG_TAKE) });
+        const params = buildCharacterParams(filters, CATALOG_TAKE);
         const nextCharacters = await fetchCharacters(params, controller.signal);
         setCharacters(nextCharacters);
-
-        if (!showFeedSections) {
-          setTrending([]);
-          setRecommended([]);
-          return;
-        }
-
-        const [nextTrending, nextRecommended] = await Promise.all([
-          fetchCharacters(new URLSearchParams({ take: String(FEED_TAKE), sort: "trending", nsfw: "safe" }), controller.signal),
-          fetchCharacters(new URLSearchParams({ take: String(FEED_TAKE), sort: "new", nsfw: "safe" }), controller.signal)
-        ]);
-        setTrending(nextTrending);
-        setRecommended(nextRecommended);
+        lastRefreshAt.current = Date.now();
       } catch {
         if (!controller.signal.aborted) {
-          setCharacters([]);
-          setTrending([]);
-          setRecommended([]);
+          setLoadError(true);
         }
       } finally {
         if (!controller.signal.aborted) {
@@ -148,89 +165,97 @@ function ExplorePageContent({
     void loadCharacters();
 
     return () => controller.abort();
-  }, [nsfwMode, query, ratingMin, selectedTags, showFeedSections, sort]);
+  }, [filters, refreshVersion]);
 
   useEffect(() => {
-    const refresh = async () => {
-      setCharacters(await fetchCharacters(buildCharacterParams({ query, selectedTags, sort, ratingMin, nsfwMode, take: String(CATALOG_TAKE) })));
-      if (showFeedSections) {
-        const [nextTrending, nextRecommended] = await Promise.all([
-          fetchCharacters(new URLSearchParams({ take: String(FEED_TAKE), sort: "trending", nsfw: "safe" })),
-          fetchCharacters(new URLSearchParams({ take: String(FEED_TAKE), sort: "new", nsfw: "safe" }))
-        ]);
-        setTrending(nextTrending);
-        setRecommended(nextRecommended);
+    const refresh = () => setRefreshVersion((version) => version + 1);
+    const onCharactersUpdated = () => {
+      lastRefreshAt.current = 0;
+      refresh();
+    };
+    const refreshWhenStale = () => {
+      if (document.visibilityState === "visible" && Date.now() - lastRefreshAt.current >= STALE_REFRESH_MS) {
+        refresh();
       }
     };
-
-    const onCharactersUpdated = () => void refresh();
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") void refresh();
-    };
     window.addEventListener("nythera:characters-updated", onCharactersUpdated);
-    window.addEventListener("focus", refreshWhenVisible);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-    const interval = window.setInterval(refreshWhenVisible, 30_000);
+    document.addEventListener("visibilitychange", refreshWhenStale);
     return () => {
       window.removeEventListener("nythera:characters-updated", onCharactersUpdated);
-      window.removeEventListener("focus", refreshWhenVisible);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshWhenStale);
     };
-  }, [nsfwMode, query, ratingMin, selectedTags, showFeedSections, sort]);
+  }, []);
+
+  function commitFilters(patch: Partial<DiscoveryFilters>) {
+    const nextFilters = normalizeDiscoveryFilters({ ...filters, ...patch });
+    setFilters(nextFilters);
+    const nextSearchParams = serializeDiscoveryFilters(nextFilters);
+    const queryString = nextSearchParams.toString();
+    router.replace(queryString ? `/explore?${queryString}` : "/explore", { scroll: false });
+  }
 
   function submitSearch(nextQuery: string) {
-    const trimmed = nextQuery.trim();
-    setQuery(trimmed);
-    router.replace(trimmed ? `/explore?q=${encodeURIComponent(trimmed)}` : "/explore");
+    commitFilters({ query: nextQuery });
   }
 
   function toggleTag(tag: string) {
-    setSelectedTags((current) => (current.includes(tag) ? current.filter((item) => item !== tag) : [...current, tag].slice(0, 8)));
+    const tags = filters.tags.includes(tag)
+      ? filters.tags.filter((item) => item !== tag)
+      : [...filters.tags, tag].slice(0, 8);
+    commitFilters({ tags, tagMatch: tags.length > 1 ? filters.tagMatch : "any" });
   }
 
   function resetFilters() {
-    setSelectedTags([]);
-    setSort("trending");
-    setRatingMin(0);
-    setNsfwMode("safe");
-    setQuery("");
-    router.replace("/explore");
+    setQueryDraft("");
+    commitFilters(DEFAULT_DISCOVERY_FILTERS);
   }
 
   return (
     <PageShell className="codex-explore space-y-6 sm:space-y-8">
-      <header className="grid gap-3 border-b border-[var(--codex-rule)] pb-5 md:grid-cols-[minmax(0,1fr)_minmax(280px,.55fr)] md:items-end">
-        <div>
-          <p className="mb-2 text-[10px] uppercase tracking-[.3em] text-[var(--codex-violet)]">The living index</p>
-          <h1 className="font-editorial text-[clamp(2.8rem,6vw,5.25rem)] font-medium leading-[.86] tracking-[-.045em] text-[var(--codex-ivory)]">Discover</h1>
+      <header className="neo-glass-panel relative isolate grid min-h-56 overflow-hidden p-6 sm:p-8 md:grid-cols-[minmax(0,1fr)_minmax(280px,.55fr)] md:items-end">
+        <div className="pointer-events-none absolute -left-16 -top-24 -z-10 h-72 w-72 rounded-full bg-[oklch(var(--color-accent-primary)/.22)] blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-32 right-0 -z-10 h-80 w-80 rounded-full bg-[oklch(var(--color-accent-secondary)/.14)] blur-3xl" />
+        <div className="relative">
+          <p className="mb-3 text-[10px] font-semibold uppercase tracking-[.3em] text-[var(--accent-secondary)]">The living index</p>
+          <h1 className="font-editorial text-[clamp(3.2rem,7vw,6rem)] font-medium leading-[.82] tracking-[-.05em] text-[var(--text-primary)]">Discover</h1>
         </div>
-        <p className="max-w-md text-sm leading-6 text-[var(--text-secondary)] md:justify-self-end md:text-right">
-          Find a voice, a world, or a new story without losing the catalog below the fold.
+        <p className="relative mt-8 max-w-md text-sm leading-6 text-[var(--text-secondary)] md:mt-0 md:justify-self-end md:text-right">
+          Find a voice, enter a world, and keep the next story within reach.
         </p>
       </header>
 
       <DiscoveryCommandCenter
-        query={query}
-        selectedTags={selectedTags}
-        sort={sort}
-        ratingMin={ratingMin}
-        nsfwMode={nsfwMode}
+        query={queryDraft}
+        selectedTags={filters.tags}
+        sort={filters.sort}
+        ratingMin={filters.ratingMin}
+        nsfwMode={filters.nsfw}
+        tagMatch={filters.tagMatch}
         hasActiveFilters={hasActiveFilters}
-        onQueryChange={setQuery}
+        onQueryChange={setQueryDraft}
         onSearch={submitSearch}
         onToggleTag={toggleTag}
-        onSortChange={setSort}
-        onRatingChange={setRatingMin}
-        onNsfwChange={setNsfwMode}
+        onSortChange={(sort) => commitFilters({ sort })}
+        onRatingChange={(ratingMin) => commitFilters({ ratingMin })}
+        onNsfwChange={(nsfw) => commitFilters({ nsfw })}
+        onTagMatchChange={(tagMatch) => commitFilters({ tagMatch })}
         onReset={resetFilters}
       />
 
+      <div className="flex min-h-6 items-center justify-between gap-3 text-xs text-[var(--text-muted)]" aria-live="polite">
+        <span>{loading ? "Updating results…" : `${characters.length} character${characters.length === 1 ? "" : "s"} found`}</span>
+        {loadError ? (
+          <button type="button" onClick={() => setRefreshVersion((version) => version + 1)} className="focus-ring text-[var(--codex-mint)] hover:underline">
+            Search failed. Try again
+          </button>
+        ) : null}
+      </div>
+
       {showFeedSections ? (
         <section className="space-y-4">
-          <div className="scrollbar-none overflow-x-auto pb-1">
+          <div className="neo-glass-card scrollbar-none overflow-x-auto px-3 pb-0 sm:px-5">
             <div
-            className="inline-flex min-w-max gap-6 border-b border-[var(--codex-rule)]"
+            className="inline-flex min-w-max gap-6"
             >
               {feedTabs.map((tab) => (
                 <button
@@ -284,6 +309,7 @@ function DiscoveryCommandCenter({
   sort,
   ratingMin,
   nsfwMode,
+  tagMatch,
   hasActiveFilters,
   onQueryChange,
   onSearch,
@@ -291,20 +317,23 @@ function DiscoveryCommandCenter({
   onSortChange,
   onRatingChange,
   onNsfwChange,
+  onTagMatchChange,
   onReset
 }: {
   query: string;
   selectedTags: string[];
-  sort: (typeof sortOptions)[number]["id"];
+  sort: DiscoverySort;
   ratingMin: number;
-  nsfwMode: (typeof nsfwOptions)[number]["id"];
+  nsfwMode: DiscoveryNsfwMode;
+  tagMatch: DiscoveryTagMatch;
   hasActiveFilters: boolean;
   onQueryChange: (value: string) => void;
   onSearch: (value: string) => void;
   onToggleTag: (tag: string) => void;
-  onSortChange: (value: (typeof sortOptions)[number]["id"]) => void;
+  onSortChange: (value: DiscoverySort) => void;
   onRatingChange: (value: number) => void;
-  onNsfwChange: (value: (typeof nsfwOptions)[number]["id"]) => void;
+  onNsfwChange: (value: DiscoveryNsfwMode) => void;
+  onTagMatchChange: (value: DiscoveryTagMatch) => void;
   onReset: () => void;
 }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -332,7 +361,7 @@ function DiscoveryCommandCenter({
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={springSoft}
-        className="codex-discovery-dock relative z-30 border-y border-[var(--codex-rule)] bg-[var(--codex-paper-raised)] p-3 sm:p-5"
+        className="neo-glass-panel codex-discovery-dock relative z-30 p-3 sm:p-5"
       >
         <div className="grid gap-3 xl:grid-cols-[minmax(340px,1.7fr)_minmax(150px,.55fr)_minmax(250px,.8fr)_minmax(300px,1fr)_auto] xl:items-end">
           <SearchBar
@@ -352,7 +381,7 @@ function DiscoveryCommandCenter({
             <select
               aria-label="Sort characters"
               value={sort}
-              onChange={(event) => onSortChange(event.target.value as (typeof sortOptions)[number]["id"])}
+              onChange={(event) => onSortChange(event.target.value as DiscoverySort)}
               className="focus-ring h-10 rounded-full border border-[var(--border-subtle)] bg-[var(--color-overlay)] px-3 text-xs font-semibold text-[var(--text-primary)]"
             >
               {sortOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
@@ -399,7 +428,7 @@ function DiscoveryCommandCenter({
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={springSoft}
-          className="orbital-functional mt-3 hidden gap-5 xl:grid rounded-[var(--radius-surface)] p-4"
+          className="neo-glass-panel mt-3 hidden gap-5 rounded-[var(--radius-surface)] p-4 xl:grid"
         >
           <div className="flex flex-wrap gap-2">
             {quickTags.map((tag) => (
@@ -408,6 +437,9 @@ function DiscoveryCommandCenter({
               </TagButton>
             ))}
           </div>
+          {selectedTags.length > 1 ? (
+            <TagMatchControl value={tagMatch} onChange={onTagMatchChange} />
+          ) : null}
           {hasActiveFilters ? (
             <button type="button" onClick={onReset} className="focus-ring w-fit rounded-full border border-[var(--border-subtle)] px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
               Reset filters
@@ -454,11 +486,13 @@ function DiscoveryCommandCenter({
                 sort={sort}
                 ratingMin={ratingMin}
                 nsfwMode={nsfwMode}
+                tagMatch={tagMatch}
                 hasActiveFilters={hasActiveFilters}
                 onToggleTag={onToggleTag}
                 onSortChange={onSortChange}
                 onRatingChange={onRatingChange}
                 onNsfwChange={onNsfwChange}
+                onTagMatchChange={onTagMatchChange}
                 onReset={onReset}
               />
             </div>
@@ -474,22 +508,26 @@ function DiscoveryFilterControls({
   sort,
   ratingMin,
   nsfwMode,
+  tagMatch,
   hasActiveFilters,
   onToggleTag,
   onSortChange,
   onRatingChange,
   onNsfwChange,
+  onTagMatchChange,
   onReset
 }: {
   selectedTags: string[];
-  sort: (typeof sortOptions)[number]["id"];
+  sort: DiscoverySort;
   ratingMin: number;
-  nsfwMode: (typeof nsfwOptions)[number]["id"];
+  nsfwMode: DiscoveryNsfwMode;
+  tagMatch: DiscoveryTagMatch;
   hasActiveFilters: boolean;
   onToggleTag: (tag: string) => void;
-  onSortChange: (value: (typeof sortOptions)[number]["id"]) => void;
+  onSortChange: (value: DiscoverySort) => void;
   onRatingChange: (value: number) => void;
-  onNsfwChange: (value: (typeof nsfwOptions)[number]["id"]) => void;
+  onNsfwChange: (value: DiscoveryNsfwMode) => void;
+  onTagMatchChange: (value: DiscoveryTagMatch) => void;
   onReset: () => void;
 }) {
   return (
@@ -532,6 +570,10 @@ function DiscoveryFilterControls({
         </div>
       </div>
 
+      {selectedTags.length > 1 ? (
+        <TagMatchControl value={tagMatch} onChange={onTagMatchChange} />
+      ) : null}
+
       {hasActiveFilters ? (
         <button
           type="button"
@@ -546,30 +588,21 @@ function DiscoveryFilterControls({
   );
 }
 
-function buildCharacterParams({
-  query,
-  selectedTags,
-  sort,
-  ratingMin,
-  nsfwMode,
-  take
-}: {
-  query: string;
-  selectedTags: string[];
-  sort: string;
-  ratingMin: number;
-  nsfwMode: string;
-  take: string;
-}) {
-  const params = new URLSearchParams({ take, sort, nsfw: nsfwMode });
-  if (query.trim()) {
-    params.set("q", query.trim());
-  }
-  selectedTags.forEach((tag) => params.append("tag", tag));
-  if (ratingMin > 0) {
-    params.set("ratingMin", String(ratingMin));
-  }
+function buildCharacterParams(filters: DiscoveryFilters, take: number) {
+  const params = serializeDiscoveryFilters(filters);
+  params.set("take", String(take));
   return params;
+}
+
+function TagMatchControl({ value, onChange }: { value: DiscoveryTagMatch; onChange: (value: DiscoveryTagMatch) => void }) {
+  return (
+    <fieldset className="flex flex-wrap items-center gap-2">
+      <legend className="sr-only">Tag matching</legend>
+      <span className="mr-1 text-xs font-semibold text-[var(--text-muted)]">Selected tags:</span>
+      <FilterButton active={value === "any"} onClick={() => onChange("any")}>Match any</FilterButton>
+      <FilterButton active={value === "all"} onClick={() => onChange("all")}>Match all</FilterButton>
+    </fieldset>
+  );
 }
 
 function FilterGroup({ icon: Icon, label, children }: { icon: typeof SlidersHorizontal; label: string; children: React.ReactNode }) {

@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import HomePageClient from "@/components/home/home-page-client";
-import { auth } from "@/lib/auth";
 import { getPublicCharacters, normalizePublicCharacterQuery } from "@/lib/discovery-feed";
-import { getRecentChats } from "@/lib/recent-chats";
+import { loadServerData } from "@/lib/server-data";
 
 export const metadata: Metadata = {
   alternates: {
@@ -11,16 +10,23 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const session = await auth();
-  const [characters, recentChats] = await Promise.all([
-    getPublicCharacters(normalizePublicCharacterQuery({ take: 36, nsfw: "safe" })),
-    session?.user?.id ? getRecentChats(session.user.id, 8) : Promise.resolve([])
-  ]);
+  let characters: Awaited<ReturnType<typeof getPublicCharacters>> = [];
+  let isServiceUnavailable = false;
+
+  try {
+    characters = await loadServerData("Home discovery feed", () =>
+      getPublicCharacters(normalizePublicCharacterQuery({ take: 36, nsfw: "safe" }))
+    );
+  } catch (error) {
+    console.error("[home] Discovery feed unavailable", error);
+    isServiceUnavailable = true;
+  }
 
   return (
     <HomePageClient
       initialCharacters={characters}
-      initialRecentChats={recentChats}
+      initialRecentChats={[]}
+      isServiceUnavailable={isServiceUnavailable}
     />
   );
 }

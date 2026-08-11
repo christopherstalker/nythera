@@ -3,73 +3,101 @@ import "server-only";
 import { Prisma, StoryBeatStatus, StoryHookStatus, StoryKnowledgeState, StoryProactiveStatus } from "@prisma/client";
 import { HttpError } from "@/lib/api";
 import { buildConversationSummary } from "@/lib/memory";
+import { selectPersistedConversationBranch } from "@/lib/message-actions";
 import { prisma } from "@/lib/prisma";
 
-export async function rewindChat(input: { chatId: string; userId: string; messageId: string }) {
-  return prisma.$transaction(
-    async (tx) => {
-      const chat = await tx.chat.findFirst({
-        where: { id: input.chatId, userId: input.userId },
-        select: { id: true, storyId: true, timelineId: true }
-      });
-      if (!chat) {
-        throw new HttpError(404, "Chat not found.");
-      }
-
-      const messages = await tx.message.findMany({
-        where: { chatId: chat.id },
-        orderBy: [{ createdAt: "asc" }, { sequence: "asc" }, { id: "asc" }],
-        select: { id: true, role: true, content: true, createdAt: true }
-      });
-      const targetIndex = messages.findIndex((message) => message.id === input.messageId);
-      if (targetIndex < 0) {
-        throw new HttpError(404, "Message not found.");
-      }
-
-      const target = messages[targetIndex];
-      const retainedMessages = messages.slice(0, targetIndex + 1);
-      const deletedMessageIds = messages.slice(targetIndex + 1).map((message) => message.id);
-
-      if (deletedMessageIds.length > 0) {
-        await rewindStoryState(tx, {
-          storyId: chat.storyId,
-          timelineId: chat.timelineId,
-          targetMessageId: target.id,
-          deletedMessageIds
+export async function rewindChat(input: { chatId: string; userId: string; messageId: string }, attempt = 0): Promise<{
+  chatId: string;
+  retainedMessageCount: number;
+  deletedMessageIds: string[];
+  summaryRebuilt: boolean;
+  summary: string | null;
+}> {
+  try {
+    return await prisma.$transaction(
+      async (tx) => {
+        const chat = await tx.chat.findFirst({
+          where: { id: input.chatId, userId: input.userId },
+          select: { id: true, storyId: true, timelineId: true }
         });
+        if (!chat) {
+          throw new HttpError(404, "Chat not found.");
+        }
 
-        await tx.memory.deleteMany({
-          where: {
-            sourceChatId: chat.id,
-            OR: [
-              { sourceMessageId: { in: deletedMessageIds } },
-              { sourceMessageId: null, createdAt: { gt: target.createdAt } }
-            ]
+        const messages = await tx.message.findMany({
+          where: { chatId: chat.id },
+          orderBy: [{ createdAt: "asc" }, { sequence: "asc" }, { id: "asc" }],
+          select: {
+            id: true,
+            role: true,
+            content: true,
+            sequence: true,
+            createdAt: true,
+            clientRequestId: true,
+            branchSourceMessageId: true
           }
         });
-        await tx.message.deleteMany({ where: { id: { in: deletedMessageIds }, chatId: chat.id } });
-      }
-
-      const summary = retainedMessages.length > 20 ? buildConversationSummary(retainedMessages) : null;
-      await tx.chat.update({
-        where: { id: chat.id },
-        data: {
-          messageCount: retainedMessages.length,
-          summary,
-          updatedAt: new Date(),
-          lastActiveAt: new Date()
+        const targetIndex = messages.findIndex((message) => message.id === input.messageId);
+        if (targetIndex < 0) {
+          throw new HttpError(404, "Message not found.");
         }
-      });
 
-      return {
-        chatId: chat.id,
-        retainedMessageCount: retainedMessages.length,
-        deletedMessageIds,
-        summaryRebuilt: Boolean(summary)
-      };
-    },
-    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
-  );
+        const target = messages[targetIndex];
+        const retainedMessages = messages.slice(0, targetIndex + 1);
+        const deletedMessageIds = messages.slice(targetIndex + 1).map((message) => message.id);
+
+        if (deletedMessageIds.length > 0) {
+          await rewindStoryState(tx, {
+            storyId: chat.storyId,
+            timelineId: chat.timelineId,
+            targetMessageId: target.id,
+            deletedMessageIds
+          });
+
+          await tx.memory.deleteMany({
+            where: {
+              sourceChatId: chat.id,
+              OR: [
+                { sourceMessageId: { in: deletedMessageIds } },
+                { sourceMessageId: null, createdAt: { gt: target.createdAt } }
+              ]
+            }
+          });
+          await tx.message.deleteMany({ where: { id: { in: deletedMessageIds }, chatId: chat.id } });
+        }
+
+        const retainedBranch = selectPersistedConversationBranch(retainedMessages);
+        const summary = retainedBranch.length > 20 ? buildConversationSummary(retainedBranch) : null;
+        const summaryThroughSequence = summary ? retainedBranch.at(-1)?.sequence ?? 0 : 0;
+        const activeAssistantMessageId = [...retainedBranch].reverse().find((message) => message.role === "ASSISTANT")?.id ?? null;
+        await tx.chat.update({
+          where: { id: chat.id },
+          data: {
+            messageCount: retainedMessages.length,
+            summary,
+            summaryThroughSequence,
+            activeAssistantMessageId,
+            updatedAt: new Date(),
+            lastActiveAt: new Date()
+          }
+        });
+
+        return {
+          chatId: chat.id,
+          retainedMessageCount: retainedMessages.length,
+          deletedMessageIds,
+          summaryRebuilt: Boolean(summary),
+          summary
+        };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034" && attempt < 2) {
+      return rewindChat(input, attempt + 1);
+    }
+    throw error;
+  }
 }
 
 async function rewindStoryState(

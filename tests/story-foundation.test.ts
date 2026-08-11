@@ -1,6 +1,19 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { storyFactCreateSchema } from "../src/lib/validation";
+
+test("canonical facts accept punctuation and detailed text", () => {
+  const base = {
+    predicate: "is true now",
+    scope: "STORY" as const,
+    locked: false,
+    participantIds: []
+  };
+  assert.equal(storyFactCreateSchema.safeParse({ ...base, objectText: "The promise still stands." }).success, true);
+  assert.equal(storyFactCreateSchema.safeParse({ ...base, objectText: "A".repeat(6000) }).success, true);
+  assert.equal(storyFactCreateSchema.safeParse({ ...base, objectText: "A".repeat(6001) }).success, false);
+});
 
 const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
@@ -94,4 +107,21 @@ test("Story Context exposes scene and canon without duplicating the memory store
   assert.match(hook, /\/api\/stories\/resolve/);
   assert.match(hook, /updateCanonFact/);
   assert.match(hook, /saveStoryState/);
+});
+
+test("active canon is always injected as authoritative context", async () => {
+  const [foundation, assembly, tabs, hook] = await Promise.all([
+    read("../src/lib/stories/story-foundation.ts"),
+    read("../src/lib/prompt-assembly.ts"),
+    read("../src/components/chat/chat-panel-tabs.tsx"),
+    read("../src/hooks/use-chat-quick-panel.ts")
+  ]);
+
+  assert.match(foundation, /orderBy: \[\{ updatedAt: "desc" \}, \{ locked: "desc" \}, \{ importance: "desc" \}\]/);
+  assert.match(foundation, /Every recorded fact below is binding world truth/);
+  assert.match(foundation, /NOT KNOWN BY ACTIVE CHARACTER/);
+  assert.match(foundation, /sanitizePromptContext\(fact\.objectText, 2400\)/);
+  assert.match(assembly, /sanitizePromptContext\(value, 18000\)/);
+  assert.match(hook, /Choose at least one character who knows this fact/);
+  assert.match(tabs, /missingKnowledgeParticipant/);
 });

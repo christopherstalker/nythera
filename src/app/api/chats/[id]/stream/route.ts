@@ -4,24 +4,31 @@ import { prisma } from "@/lib/prisma";
 import { HttpError, getRequestIp, parseJson, requireUser, routeError } from "@/lib/api";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { moderateText, sanitizeUserText } from "@/lib/safety";
-import { detectPromptInjection } from "@/lib/prompt-security";
+import { detectPromptInjection, sanitizePromptContext } from "@/lib/prompt-security";
 import { streamMessageSchema } from "@/lib/validation";
 import { assembleNytheraPrompt } from "@/lib/prompt-assembly";
+import { buildFullPromptAddon, modeTemperature } from "@/lib/prompts/buildPrompt";
+import { formatTieredMemoryBlocks, getUserMemories, splitMemoriesForPrompt } from "@/lib/memory/promptBuilder";
+import { getPromptMemories } from "@/lib/memory-store";
+import { normalizeChatMode } from "@/lib/chat-mode";
 import { loadAdaptiveChatHistory } from "@/lib/chat-history";
 import { streamLlmResponse } from "@/lib/proxy";
-import { getPromptMemories } from "@/lib/memory-store";
 import { schedulePostMessageJobs } from "@/lib/memory";
 import { getEffectiveProviderKeys, isUserOwnedProvider } from "@/lib/user-keys";
 import { formatUserPersonaForPrompt } from "@/lib/user-persona";
 import { createMessageWithNextSequence } from "@/lib/message-sequence";
 import { resolveCharacterModelSettings } from "@/lib/character-model-settings";
 import { providerFallbackNotice } from "@/lib/provider-fallback";
-import { prepareRegenerationTurn } from "@/lib/message-actions";
+import { continuationClientRequestId, prepareContinuationTurn, prepareRegenerationTurn, prepareUserRetryTurn } from "@/lib/message-actions";
 import { getStoryPromptContext, syncChatTurns } from "@/lib/stories/story-foundation";
 import { markStoryProactiveEventsFired } from "@/lib/stories/narrative-store";
 import { estimateModelCost } from "@/lib/model-pricing";
 import { elapsedMs, logPerformanceMetric, measurePrismaOperation, performanceStart } from "@/lib/performance-logger";
 import { logSafeError } from "@/lib/secret-redaction";
+import { requireAdultConsent } from "@/lib/adult-consent";
+import { schedulePostResponseTasks } from "@/lib/post-response";
+import { resolveCharacterPersona } from "@/lib/persona";
+import { maxOutputTokensForVerbosity, providerOutputTokenBudget } from "@/lib/response-length";
 
 type Context = {
   params: Promise<{ id: string }>;
@@ -37,6 +44,7 @@ export async function POST(request: Request, context: Context) {
   try {
     const { id: chatId } = await context.params;
     const user = await requireUser();
+    requireAdultConsent(user);
     await enforceRateLimit({
       userId: user.id,
       ip: getRequestIp(request),
@@ -46,8 +54,10 @@ export async function POST(request: Request, context: Context) {
     const input = await parseJson(request, streamMessageSchema);
     const continueChat = input.continueChat === true;
     const continuationPrompt =
-      "Continue the roleplay naturally from the latest message. Do not speak as the user, do not invent a user reply, and keep the scene moving in the character's voice.";
+      "Continue the roleplay naturally from the immediately preceding selected assistant response. Do not speak as the user, do not invent a user reply, and keep the scene moving in the character's voice.";
     let message = continueChat ? continuationPrompt : sanitizeUserText(input.message);
+    let branchInstruction: string | null = null;
+    let resolvedBranchMessageId: string | null = null;
 
     const chat = await measurePrismaOperation(
       {
@@ -95,26 +105,41 @@ export async function POST(request: Request, context: Context) {
       chatTemperature: input.temperature ?? chat.temperature
     });
     const model = effectiveSettings.model;
-    const temperature = effectiveSettings.temperature;
+    const characterPersona = resolveCharacterPersona(chat.character);
+    const maxOutputTokens = maxOutputTokensForVerbosity(characterPersona.verbosityLevel, effectiveSettings.maxTokens);
+    const providerMaxOutputTokens = providerOutputTokenBudget({
+      visibleTokenLimit: maxOutputTokens,
+      provider: effectiveSettings.provider,
+      model
+    });
+    let temperature = effectiveSettings.temperature;
     if (!isUserOwnedProvider(effectiveSettings.provider, providerKeys)) {
       await enforceRateLimit({
         userId: user.id,
         ip: getRequestIp(request),
         route: "chat:token-budget",
-        cost: Math.min(effectiveSettings.maxTokens ?? 900, 4096)
+        cost: Math.min(maxOutputTokens, 4096)
       });
     }
     const history = await loadAdaptiveChatHistory({
       chatId: chat.id,
       model,
-      maxOutputTokens: effectiveSettings.maxTokens,
+      maxOutputTokens,
       currentMessage: message,
       summary: chat.summary
     });
-    let recentMessages = history.messages;
+    let recentMessages = history.messages.slice(-20);
     let userMessage: Awaited<ReturnType<typeof createMessageWithNextSequence>> | null = null;
 
-    if (input.regenerate) {
+    if (input.retryUserMessageId) {
+      const retryTurn = prepareUserRetryTurn(recentMessages, input.retryUserMessageId);
+      if (!retryTurn) {
+        throw new HttpError(409, "That message already has a response. Refresh the chat to see it.");
+      }
+
+      message = sanitizeUserText(retryTurn.currentMessage ?? "");
+      recentMessages = retryTurn.recentMessages;
+    } else if (input.regenerate) {
       const regenerationTurn = prepareRegenerationTurn(recentMessages, input.regenerateMessageId);
       if (!regenerationTurn) {
         throw new HttpError(409, "Only the latest assistant response can be regenerated. Rewind or branch from an earlier turn.");
@@ -126,6 +151,22 @@ export async function POST(request: Request, context: Context) {
           ? continuationPrompt
           : "Write a fresh alternative opening message for this roleplay. Stay in character, establish the scene, and leave room for the user to respond.";
       recentMessages = regenerationTurn.recentMessages;
+    } else if (continueChat && input.continueMessageId) {
+      const continuationMessages = prepareContinuationTurn(recentMessages, input.continueMessageId);
+      if (!continuationMessages) {
+        throw new HttpError(409, "That response is no longer available to continue. Refresh the chat and try again.");
+      }
+      recentMessages = continuationMessages;
+      const selectedResponse = continuationMessages.at(-1)?.content ?? "";
+      branchInstruction = `The selected response quoted below is the only valid branch. Ignore every sibling regeneration, even if it was created later. Continue directly from this exact response:\n<selected_response>\n${sanitizePromptContext(selectedResponse, 1800)}\n</selected_response>`;
+    } else if (input.branchMessageId) {
+      const branchMessages = prepareContinuationTurn(recentMessages, input.branchMessageId);
+      if (branchMessages) {
+        recentMessages = branchMessages;
+        resolvedBranchMessageId = input.branchMessageId;
+        const selectedResponse = branchMessages.at(-1)?.content ?? "";
+        branchInstruction = `The selected response quoted below is the only valid branch. Ignore every sibling regeneration, even if it was created later. Continue directly from this exact response:\n<selected_response>\n${sanitizePromptContext(selectedResponse, 1800)}\n</selected_response>`;
+      }
     }
 
     const injectionAssessment = detectPromptInjection(message);
@@ -139,42 +180,62 @@ export async function POST(request: Request, context: Context) {
       throw new HttpError(400, moderation.reason ?? "Message blocked by safety policy.");
     }
 
-    if (!input.regenerate && !continueChat) {
+    if (!input.regenerate && !input.retryUserMessageId && !continueChat) {
       userMessage = await createMessageWithNextSequence({
         chatId: chat.id,
         role: MessageRole.USER,
         content: message,
-        clientRequestId: input.requestId
+        clientRequestId: input.requestId,
+        branchSourceMessageId: resolvedBranchMessageId
       });
     }
 
-    const [memories, defaultUserPersona, storyContext] = await Promise.all([
-      user.memoryEnabled
-        ? getPromptMemories({
-            userId: user.id,
-            characterId: chat.characterId,
-            query: message,
-            providerKeys
-          })
-        : Promise.resolve([]),
+    const [memories, userGlobalMemories, defaultUserPersona, storyContext] = await Promise.all([
+      getPromptMemories({
+        userId: user.id,
+        characterId: chat.characterId,
+        query: message,
+        totalLimit: 5,
+        includeGlobal: false,
+        providerKeys,
+        semanticEnabled: user.memoryEnabled
+      }),
+      user.memoryEnabled ? getUserMemories(user.id, 8) : Promise.resolve([]),
       prisma.userPersona.findFirst({
         where: { userId: user.id, isDefault: true }
       }),
-      getStoryPromptContext({ chatId: chat.id, userId: user.id, actorCharacterId: chat.characterId })
+      getStoryPromptContext({
+        chatId: chat.id,
+        userId: user.id,
+        actorCharacterId: chat.characterId,
+        includeCheckpoint: !branchInstruction
+      })
     ]);
     const userPersona = chat.persona ?? defaultUserPersona;
+    const chatMode = normalizeChatMode(chat.chatMode);
+    const tieredMemories = splitMemoriesForPrompt(memories, userGlobalMemories);
+    const { characterMemories, userMemories } = formatTieredMemoryBlocks(tieredMemories);
+    const modeContext = buildFullPromptAddon({
+      mode: chatMode,
+      characterMemories,
+      userMemories
+    });
 
     const prompt = assembleNytheraPrompt({
       character: chat.character,
       memories,
       userPersona: formatUserPersonaForPrompt(userPersona),
-      summary: history.overflowed ? chat.summary : null,
+      summary: history.overflowed && !branchInstruction ? chat.summary : null,
       recentMessages,
       currentMessage: message,
       responsePrompt: input.responsePrompt ?? chat.responsePrompt,
       storyContext: storyContext.text,
-      injectionAssessment
+      injectionAssessment,
+      branchInstruction,
+      modeContext
     });
+
+    temperature = modeTemperature(chatMode, input.temperature ?? chat.temperature ?? temperature);
 
     const encoder = new TextEncoder();
     let assistantText = "";
@@ -201,8 +262,18 @@ export async function POST(request: Request, context: Context) {
 
     const stream = new ReadableStream({
       async start(controller) {
+        let clientConnected = !request.signal.aborted;
         const send = (payload: unknown) => {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+          if (!clientConnected || request.signal.aborted) {
+            clientConnected = false;
+            return;
+          }
+
+          try {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+          } catch {
+            clientConnected = false;
+          }
         };
 
         try {
@@ -217,7 +288,7 @@ export async function POST(request: Request, context: Context) {
             topP: effectiveSettings.topP,
             frequencyPenalty: effectiveSettings.frequencyPenalty,
             presencePenalty: effectiveSettings.presencePenalty,
-            maxTokens: effectiveSettings.maxTokens,
+            maxTokens: providerMaxOutputTokens,
             userId: user.id,
             chatId: chat.id,
             providerKeys,
@@ -287,7 +358,12 @@ export async function POST(request: Request, context: Context) {
             estimatedCost,
             usageEstimated: usage.usageEstimated,
             flagged: outputBlocked,
-            clientRequestId: continueChat ? `continue-${input.requestId || crypto.randomUUID()}` : undefined
+            clientRequestId: continueChat && input.continueMessageId
+              ? continuationClientRequestId(input.requestId || crypto.randomUUID(), input.continueMessageId)
+              : continueChat
+                ? `continue-${input.requestId || crypto.randomUUID()}`
+                : undefined,
+            branchSourceMessageId: continueChat ? input.continueMessageId : undefined
           });
           assistantPersisted = true;
           const actualMessageCount = await prisma.message.count({ where: { chatId: chat.id } });
@@ -298,52 +374,60 @@ export async function POST(request: Request, context: Context) {
               model,
               temperature,
               responsePrompt: input.responsePrompt === undefined ? undefined : input.responsePrompt || null,
+              summary: continueChat ? null : undefined,
+              summaryThroughSequence: continueChat ? 0 : undefined,
+              activeAssistantMessageId: assistant.id,
               lastActiveAt: new Date(),
               updatedAt: new Date()
             },
             select: { messageCount: true }
           });
 
-          await prisma.llmRequestLog.create({
-            data: {
-              userId: user.id,
-              chatId: chat.id,
-              provider: usage.provider,
-              model: usage.model,
-              route: "chat",
-              inputTokens: usage.inputTokens,
-              outputTokens: usage.outputTokens,
-              estimatedCost,
-              status: outputBlocked ? "blocked_output" : usage.fallbackTriggered ? "ok_fallback" : "ok",
-              error: usage.fallbackTriggered ? `fallback attempts: ${(usage.attempts ?? []).join(" -> ")}`.slice(0, 2000) : null,
-              latencyMs: Date.now() - started
+          schedulePostResponseTasks("Chat post-response", [
+            {
+              name: "request log",
+              run: () => prisma.llmRequestLog.create({
+                data: {
+                  userId: user.id,
+                  chatId: chat.id,
+                  provider: usage.provider,
+                  model: usage.model,
+                  route: "chat",
+                  inputTokens: usage.inputTokens,
+                  outputTokens: usage.outputTokens,
+                  estimatedCost,
+                  status: outputBlocked ? "blocked_output" : usage.fallbackTriggered ? "ok_fallback" : "ok",
+                  error: usage.fallbackTriggered ? `fallback attempts: ${(usage.attempts ?? []).join(" -> ")}`.slice(0, 2000) : null,
+                  latencyMs: Date.now() - started
+                }
+              })
+            },
+            ...(user.memoryEnabled && !continueChat
+              ? [{
+                  name: "memory jobs",
+                  run: () => schedulePostMessageJobs({
+                    chatId: chat.id,
+                    userId: user.id,
+                    characterId: chat.characterId,
+                    latestUserMessage: message,
+                    latestUserMessageId: userMessage?.id ?? input.retryUserMessageId ?? null,
+                    latestAssistantMessage: assistant.content,
+                    latestAssistantMessageId: assistant.id,
+                    messageCount: updated.messageCount,
+                    providerKeys
+                  })
+                }]
+              : []),
+            { name: "story sync", run: () => syncChatTurns(chat.id, user.id) },
+            {
+              name: "story event completion",
+              run: () => markStoryProactiveEventsFired({
+                eventIds: storyContext.eventIds,
+                storyId: storyContext.storyId,
+                sourceMessageId: assistant.id
+              })
             }
-          });
-
-          if (user.memoryEnabled && !continueChat) {
-            await schedulePostMessageJobs({
-              chatId: chat.id,
-              userId: user.id,
-              characterId: chat.characterId,
-              latestUserMessage: message,
-              latestUserMessageId: userMessage?.id ?? null,
-              latestAssistantMessage: assistant.content,
-              latestAssistantMessageId: assistant.id,
-              messageCount: updated.messageCount,
-              providerKeys
-            });
-          }
-
-          await syncChatTurns(chat.id, user.id).catch((storyError) => {
-            logSafeError("Story turn sync failed.", storyError);
-          });
-          await markStoryProactiveEventsFired({
-            eventIds: storyContext.eventIds,
-            storyId: storyContext.storyId,
-            sourceMessageId: assistant.id
-          }).catch((storyError) => {
-            logSafeError("Story proactive event completion failed.", storyError);
-          });
+          ]);
 
           send({ type: "message", message: assistant });
           send({ type: "done" });
@@ -368,7 +452,13 @@ export async function POST(request: Request, context: Context) {
               outputTokens: usage.outputTokens,
               estimatedCost,
               usageEstimated: usage.usageEstimated,
-              flagged: true
+              flagged: true,
+              clientRequestId: continueChat && input.continueMessageId
+                ? continuationClientRequestId(input.requestId || crypto.randomUUID(), input.continueMessageId)
+                : continueChat
+                  ? `continue-${input.requestId || crypto.randomUUID()}`
+                  : undefined,
+              branchSourceMessageId: continueChat ? input.continueMessageId : undefined
             });
             assistantPersisted = true;
             const actualMessageCount = await prisma.message.count({ where: { chatId: chat.id } });
@@ -378,6 +468,9 @@ export async function POST(request: Request, context: Context) {
                 messageCount: actualMessageCount,
                 model,
                 temperature,
+                summary: continueChat ? null : undefined,
+                summaryThroughSequence: continueChat ? 0 : undefined,
+                activeAssistantMessageId: assistant.id,
                 lastActiveAt: new Date(),
                 updatedAt: new Date()
               }
@@ -397,34 +490,42 @@ export async function POST(request: Request, context: Context) {
             });
           }
 
-          await syncChatTurns(chat.id, user.id).catch((storyError) => {
-            logSafeError("Story turn sync failed after stream error.", storyError);
-          });
-
-          await prisma.llmRequestLog.create({
-            data: {
-              userId: user.id,
-              chatId: chat.id,
-              provider: usage.provider || "unknown",
-              model: usage.model || model,
-              route: "chat",
-              inputTokens: usage.inputTokens,
-              outputTokens: usage.outputTokens,
-              estimatedCost: estimateModelCost({
-                provider: usage.provider,
-                model: usage.model,
-                inputTokens: usage.inputTokens,
-                outputTokens: usage.outputTokens
-              }),
-              status: assistantPersisted ? "partial_error" : "error",
-              error: errorMessage.slice(0, 2000),
-              latencyMs: Date.now() - started
+          schedulePostResponseTasks("Chat error post-response", [
+            { name: "story sync", run: () => syncChatTurns(chat.id, user.id) },
+            {
+              name: "request log",
+              run: () => prisma.llmRequestLog.create({
+                data: {
+                  userId: user.id,
+                  chatId: chat.id,
+                  provider: usage.provider || "unknown",
+                  model: usage.model || model,
+                  route: "chat",
+                  inputTokens: usage.inputTokens,
+                  outputTokens: usage.outputTokens,
+                  estimatedCost: estimateModelCost({
+                    provider: usage.provider,
+                    model: usage.model,
+                    inputTokens: usage.inputTokens,
+                    outputTokens: usage.outputTokens
+                  }),
+                  status: assistantPersisted ? "partial_error" : "error",
+                  error: errorMessage.slice(0, 2000),
+                  latencyMs: Date.now() - started
+                }
+              })
             }
-          });
+          ]);
 
           send({ type: "error", message: publicErrorMessage });
         } finally {
-          controller.close();
+          if (clientConnected) {
+            try {
+              controller.close();
+            } catch {
+              // The client already closed the stream.
+            }
+          }
         }
       }
     });

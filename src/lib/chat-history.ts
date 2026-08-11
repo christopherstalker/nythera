@@ -6,6 +6,7 @@ import { estimatePromptTokens, historyTokenBudget } from "@/lib/prompt-budget";
 import { streamGatewayResponse } from "@/lib/llm-gateway";
 import { titleFromMessage } from "@/lib/utils";
 import type { ProviderKeys } from "@/lib/user-keys";
+import { selectPersistedConversationBranch } from "@/lib/message-actions";
 
 const HISTORY_BATCH_SIZE = 64;
 
@@ -15,6 +16,7 @@ export type PromptHistoryMessage = {
   content: string;
   sequence: number | null;
   clientRequestId: string | null;
+  branchSourceMessageId: string | null;
 };
 
 export async function loadAdaptiveChatHistory(input: {
@@ -36,7 +38,7 @@ export async function loadAdaptiveChatHistory(input: {
       orderBy: [{ sequence: "desc" }, { createdAt: "desc" }, { id: "desc" }],
       skip: offset,
       take: HISTORY_BATCH_SIZE,
-      select: { id: true, role: true, content: true, sequence: true, clientRequestId: true }
+      select: { id: true, role: true, content: true, sequence: true, clientRequestId: true, branchSourceMessageId: true }
     });
 
     if (batch.length === 0) {
@@ -67,8 +69,10 @@ export async function loadAdaptiveChatHistory(input: {
     }
   }
 
+  const messages = selectPersistedConversationBranch(newestFirst.reverse());
+
   return {
-    messages: newestFirst.reverse(),
+    messages,
     overflowed,
     estimatedTokens,
     tokenBudget

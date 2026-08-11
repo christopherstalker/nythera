@@ -14,10 +14,12 @@ export async function searchMemories(input: {
   query: string;
   limit?: number;
   providerKeys?: ProviderKeys;
+  includeGlobal?: boolean;
 }): Promise<RetrievedMemory[]> {
   const embedding = await createEmbedding(input.query, input.providerKeys);
   const vector = toVectorLiteral(embedding);
   const limit = input.limit ?? 5;
+  const includeGlobal = input.includeGlobal ?? true;
 
   try {
     return await prisma.$queryRaw<RetrievedMemory[]>`
@@ -25,7 +27,7 @@ export async function searchMemories(input: {
         FROM "Memory"
         WHERE "userId" = ${input.userId}
           AND embedding IS NOT NULL
-          AND ("characterId" = ${input.characterId ?? null} OR "characterId" IS NULL)
+          AND ("characterId" = ${input.characterId ?? null} OR (${includeGlobal} AND "characterId" IS NULL))
           AND (1 - (embedding <=> ${vector}::vector)) >= 0.18
         ORDER BY embedding <=> ${vector}::vector, importance DESC
         LIMIT ${limit}
@@ -66,6 +68,27 @@ export async function createMemory(input: {
     return existing;
   }
 
+  let embedding: number[] | null = null;
+  try {
+    embedding = await createEmbedding(content, input.providerKeys);
+    const vector = toVectorLiteral(embedding);
+    const duplicate = await prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT id
+      FROM "Memory"
+      WHERE "userId" = ${input.userId}
+        AND "characterId" IS NOT DISTINCT FROM ${input.characterId ?? null}
+        AND embedding IS NOT NULL
+        AND 1 - (embedding <=> ${vector}::vector) > 0.92
+      ORDER BY embedding <=> ${vector}::vector
+      LIMIT 1
+    `;
+    if (duplicate[0]) {
+      return prisma.memory.findUnique({ where: { id: duplicate[0].id } });
+    }
+  } catch (error) {
+    logSafeError("Memory semantic deduplication failed.", error);
+  }
+
   let memory;
   try {
     memory = await prisma.memory.create({
@@ -89,7 +112,11 @@ export async function createMemory(input: {
   }
 
   try {
-    await writeMemoryEmbedding(memory.id, content, input.providerKeys);
+    if (embedding) {
+      await prisma.$executeRaw`UPDATE "Memory" SET embedding = ${toVectorLiteral(embedding)}::vector WHERE id = ${memory.id}`;
+    } else {
+      await writeMemoryEmbedding(memory.id, content, input.providerKeys);
+    }
   } catch (error) {
     logSafeError("Memory embedding write failed.", error);
   }

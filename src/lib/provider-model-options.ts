@@ -1,9 +1,12 @@
 export type SavedProviderSummary = {
+  id?: string;
   provider: string;
   displayName: string;
   defaultModel?: string | null;
   last4?: string | null;
   isDefault?: boolean;
+  credentialStatus?: "UNVERIFIED" | "VALID" | "INVALID";
+  providerPriority?: number;
 };
 
 export type ProviderModelCatalog = Record<string, string[]>;
@@ -110,13 +113,25 @@ export function modelSuggestionsForProvider(provider: string, defaultModel?: str
 }
 
 export function buildProviderModelGroups(keys: SavedProviderSummary[], catalog: ProviderModelCatalog = {}): ProviderModelGroup[] {
-  return keys.map((key) => {
-    const models = modelSuggestionsForProvider(key.provider, key.defaultModel, catalog[key.provider] ?? []);
+  const providers = new Map<string, SavedProviderSummary[]>();
+  for (const key of keys) {
+    const providerKeys = providers.get(key.provider) ?? [];
+    providerKeys.push(key);
+    providers.set(key.provider, providerKeys);
+  }
+
+  return Array.from(providers.values()).map((providerKeys) => {
+    const key = providerKeys.sort((left, right) =>
+      Number(Boolean(right.isDefault)) - Number(Boolean(left.isDefault)) ||
+      (left.providerPriority ?? 0) - (right.providerPriority ?? 0)
+    )[0];
+    const models = modelSuggestionsForProvider(key.provider, key.defaultModel, catalog[key.provider] ?? [])
+      .sort((left, right) => Number(right === key.defaultModel) - Number(left === key.defaultModel));
     return {
       provider: key.provider,
       displayName: key.displayName,
       last4: key.last4,
-      isDefault: key.isDefault,
+      isDefault: providerKeys.some((providerKey) => providerKey.isDefault),
       options: models.map((model) => ({
         value: providerModelValue(key.provider, model),
         label: model === key.defaultModel ? `${model} - default` : model,

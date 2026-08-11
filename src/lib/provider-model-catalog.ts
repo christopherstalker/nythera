@@ -7,9 +7,10 @@ import { assertSafeOutboundUrl } from "@/lib/safe-outbound-url";
 import { logSafeError } from "@/lib/secret-redaction";
 import type { ProviderKey } from "@/lib/user-keys";
 
-const MODEL_CATALOG_TTL_SECONDS = 6 * 60 * 60;
+const MODEL_CATALOG_TTL_SECONDS = 15 * 60;
+const MODEL_CATALOG_RETENTION_SECONDS = 7 * 24 * 60 * 60;
 const MODEL_DISCOVERY_TIMEOUT_MS = 12_000;
-const memoryCatalog = new Map<string, { expiresAt: number; value: ProviderModelDiscovery }>();
+const memoryCatalog = new Map<string, { retainedUntil: number; value: ProviderModelDiscovery }>();
 
 export type ProviderModelDiscovery = {
   provider: string;
@@ -20,13 +21,28 @@ export type ProviderModelDiscovery = {
   warning?: string;
 };
 
+export type ProviderCredentialValidation =
+  | { ok: true; catalog: ProviderModelDiscovery }
+  | { ok: false; message: string; status: number };
+
+export async function validateProviderCredentials(key: ProviderKey): Promise<ProviderCredentialValidation> {
+  try {
+    return { ok: true, catalog: await fetchLiveCatalog(key) };
+  } catch (error) {
+    const providerStatus = readErrorStatus(error);
+    return {
+      ok: false,
+      message: credentialValidationMessage(error),
+      status: providerStatus === 429 ? 429 : providerStatus === 400 || providerStatus === 401 || providerStatus === 403 || providerStatus === 402 ? 400 : 502
+    };
+  }
+}
+
 export async function discoverProviderModels(key: ProviderKey, options: { force?: boolean } = {}): Promise<ProviderModelDiscovery> {
   const cacheKey = catalogCacheKey(key);
-  if (!options.force) {
-    const cached = await readCachedCatalog(cacheKey);
-    if (cached) {
-      return cached;
-    }
+  const cached = await readCachedCatalog(cacheKey);
+  if (!options.force && cached && isFreshCatalog(cached)) {
+    return cached;
   }
 
   try {
@@ -34,7 +50,13 @@ export async function discoverProviderModels(key: ProviderKey, options: { force?
     await writeCachedCatalog(cacheKey, live);
     return live;
   } catch (error) {
-    logSafeError(`Model discovery failed for ${key.provider}; using the bundled fallback catalog.`, error);
+    logSafeError(`Model discovery failed for ${key.provider}; keeping the last usable catalog.`, error);
+    if (cached) {
+      return {
+        ...cached,
+        warning: `${safeDiscoveryWarning(error)} Showing the last successful live catalog.`
+      };
+    }
     return {
       provider: key.provider,
       models: modelSuggestionsForProvider(key.provider, key.defaultModel),
@@ -87,7 +109,7 @@ async function fetchLiveCatalog(key: ProviderKey): Promise<ProviderModelDiscover
   }
 
   if (key.apiFormat === "ANTHROPIC" || key.provider === "anthropic") {
-    const payload = await fetchProviderJson("https://api.anthropic.com/v1/models?limit=100", {
+    const payload = await fetchProviderJson("https://api.anthropic.com/v1/models?limit=1000", {
       "x-api-key": key.apiKey,
       "anthropic-version": "2023-06-01"
     });
@@ -99,6 +121,11 @@ async function fetchLiveCatalog(key: ProviderKey): Promise<ProviderModelDiscover
     throw new Error("The provider does not expose a model catalog URL.");
   }
   const safeBaseUrl = await assertSafeOutboundUrl(baseUrl);
+  if (key.provider === "openrouter") {
+    await fetchProviderJson(`${safeBaseUrl.replace(/\/+$/, "")}/auth/key`, {
+      authorization: `Bearer ${key.apiKey}`
+    });
+  }
   const modelsPayload = await fetchProviderJson(`${safeBaseUrl.replace(/\/+$/, "")}/models`, {
     authorization: `Bearer ${key.apiKey}`
   });
@@ -162,14 +189,16 @@ function catalogCacheKey(key: ProviderKey) {
 
 async function readCachedCatalog(cacheKey: string) {
   const memory = memoryCatalog.get(cacheKey);
-  if (memory && memory.expiresAt > Date.now()) {
-    return memory.value;
-  }
+  if (memory?.retainedUntil && memory.retainedUntil > Date.now()) return memory.value;
+  memoryCatalog.delete(cacheKey);
   if (!redis) return null;
   try {
     const cached = await redis.get<ProviderModelDiscovery>(cacheKey);
     if (cached) {
-      memoryCatalog.set(cacheKey, { value: cached, expiresAt: Date.now() + MODEL_CATALOG_TTL_SECONDS * 1000 });
+      memoryCatalog.set(cacheKey, {
+        value: cached,
+        retainedUntil: Date.now() + MODEL_CATALOG_RETENTION_SECONDS * 1000
+      });
     }
     return cached;
   } catch (error) {
@@ -179,19 +208,39 @@ async function readCachedCatalog(cacheKey: string) {
 }
 
 async function writeCachedCatalog(cacheKey: string, value: ProviderModelDiscovery) {
-  memoryCatalog.set(cacheKey, { value, expiresAt: Date.now() + MODEL_CATALOG_TTL_SECONDS * 1000 });
+  memoryCatalog.set(cacheKey, {
+    value,
+    retainedUntil: Date.now() + MODEL_CATALOG_RETENTION_SECONDS * 1000
+  });
   if (!redis) return;
   try {
-    await redis.set(cacheKey, value, { ex: MODEL_CATALOG_TTL_SECONDS });
+    await redis.set(cacheKey, value, { ex: MODEL_CATALOG_RETENTION_SECONDS });
   } catch (error) {
     logSafeError("Provider model catalog cache write failed.", error);
   }
 }
 
+function isFreshCatalog(catalog: ProviderModelDiscovery) {
+  const refreshedAt = Date.parse(catalog.refreshedAt);
+  return Number.isFinite(refreshedAt) && Date.now() - refreshedAt < MODEL_CATALOG_TTL_SECONDS * 1000;
+}
+
 function safeDiscoveryWarning(error: unknown) {
-  const status = error && typeof error === "object" && "status" in error && typeof error.status === "number" ? error.status : null;
-  if (status === 401 || status === 403) return "The provider rejected this API key while refreshing models.";
+  const status = readErrorStatus(error);
+  if (status === 400 || status === 401 || status === 403) return "The provider rejected this API key while refreshing models.";
   if (status === 402) return "The provider reports insufficient API balance.";
   if (status === 429) return "The provider rate-limited model discovery; cached models remain available.";
   return "Live model refresh failed; using bundled fallback models.";
+}
+
+function credentialValidationMessage(error: unknown) {
+  const status = readErrorStatus(error);
+  if (status === 400 || status === 401 || status === 403) return "The provider rejected this API key. It was not saved.";
+  if (status === 402) return "The provider reports insufficient API balance. The key was not saved.";
+  if (status === 429) return "The provider rate-limited key verification. The key was not saved; retry shortly.";
+  return "Nythera could not verify this key with the provider. It was not saved.";
+}
+
+function readErrorStatus(error: unknown) {
+  return error && typeof error === "object" && "status" in error && typeof error.status === "number" ? error.status : null;
 }

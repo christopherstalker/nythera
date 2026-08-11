@@ -3,7 +3,7 @@
     "name": "Nythera",
     "slug": "nythera-mobile",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/nythera-icon.png",
     "scheme": "nythera",
     "userInterfaceStyle": "automatic",

@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { sanitizePromptContext, shouldStoreMemoryFromText } from "@/lib/prompt-security";
 import { createMemory } from "@/lib/vector";
 import type { ProviderKeys } from "@/lib/user-keys";
+import { selectPersistedConversationBranch } from "@/lib/message-actions";
+import { logSafeError } from "@/lib/secret-redaction";
 
 export async function schedulePostMessageJobs(input: {
   chatId: string;
@@ -20,18 +22,87 @@ export async function schedulePostMessageJobs(input: {
 }) {
   const { providerKeys, ...jobInput } = input;
   const shouldSummarize = input.messageCount > 32 && input.messageCount % 12 === 0;
-  const queuedExtraction = await enqueueJob("extract-memories", jobInput);
-  const queuedSummary = shouldSummarize ? await enqueueJob("summarize-chat", { chatId: input.chatId }) : false;
+  const contextualMemory = await storeContextualExchange({ ...jobInput, providerKeys }).catch((error) => {
+    logSafeError("Contextual memory write failed.", error);
+    return null;
+  });
+  const [queuedExtraction, queuedSummary] = await Promise.all([
+    enqueueJob("extract-memories", jobInput),
+    shouldSummarize ? enqueueJob("summarize-chat", { chatId: input.chatId }) : Promise.resolve(false)
+  ]);
 
   if (!queuedExtraction) {
     await extractMemoriesFromExchange({ ...jobInput, providerKeys });
+    if (input.providerKeys?.length) {
+      const { extractMemoriesWithLlm } = await import("@/lib/memory/extract");
+      await extractMemoriesWithLlm({
+        userId: input.userId,
+        characterId: input.characterId,
+        chatId: input.chatId,
+        sourceMessageId: input.latestAssistantMessageId,
+        userMessage: input.latestUserMessage,
+        assistantMessage: input.latestAssistantMessage,
+        providerKeys: input.providerKeys
+      }).catch(() => undefined);
+    }
   }
 
   if (shouldSummarize && !queuedSummary) {
     await summarizeChat(input.chatId);
   }
 
-  return { queuedExtraction, queuedSummary };
+  return { contextualMemory, queuedExtraction, queuedSummary };
+}
+
+export async function storeContextualExchange(input: {
+  chatId: string;
+  userId: string;
+  characterId: string;
+  latestUserMessage: string;
+  latestUserMessageId?: string | null;
+  latestAssistantMessage: string;
+  latestAssistantMessageId: string;
+  providerKeys?: ProviderKeys;
+}) {
+  const sourceMessage = await prisma.message.findFirst({
+    where: { id: input.latestAssistantMessageId, chatId: input.chatId },
+    select: { id: true }
+  });
+  if (!sourceMessage) {
+    return null;
+  }
+
+  const userMessage = cleanSentence(input.latestUserMessage);
+  const assistantMessage = cleanSentence(input.latestAssistantMessage);
+  if (
+    userMessage.length < 2 ||
+    assistantMessage.length < 2 ||
+    !shouldStoreMemoryFromText(userMessage) ||
+    !shouldStoreMemoryFromText(assistantMessage)
+  ) {
+    return null;
+  }
+
+  return createMemory({
+    userId: input.userId,
+    characterId: input.characterId,
+    sourceChatId: input.chatId,
+    sourceMessageId: sourceMessage.id,
+    content: [
+      "Earlier scene context:",
+      `Player: ${contextExcerpt(userMessage, 420)}`,
+      `Character: ${contextExcerpt(assistantMessage, 520)}`
+    ].join("\n"),
+    category: MemoryCategory.EVENT,
+    metadata: {
+      extractor: "contextual-exchange",
+      sourceUserMessageId: input.latestUserMessageId ?? null,
+      sourceAssistantMessageId: sourceMessage.id
+    },
+    importance: 0.9,
+    confidence: 0.85,
+    providerKeys: input.providerKeys
+  });
 }
 
 export async function extractMemoriesFromExchange(input: {
@@ -133,13 +204,14 @@ export async function summarizeChat(chatId: string) {
     },
     orderBy: [{ sequence: "asc" }, { createdAt: "asc" }, { id: "asc" }],
     take: 240,
-    select: { role: true, content: true, sequence: true }
+    select: { id: true, role: true, content: true, sequence: true, clientRequestId: true, branchSourceMessageId: true }
   });
   if (messages.length === 0) {
     return chat;
   }
 
-  const summary = buildConversationSummary(messages, chat.summary);
+  const branchMessages = selectPersistedConversationBranch(messages);
+  const summary = buildConversationSummary(branchMessages, chat.summary);
   const summaryThroughSequence = messages.at(-1)?.sequence ?? chat.summaryThroughSequence;
 
   return prisma.chat.update({
@@ -243,4 +315,13 @@ function dedupeCandidates(candidates: MemoryCandidate[]) {
 
 function cleanSentence(value: string) {
   return value.replace(/\s+/g, " ").replace(/\u0000/g, "").trim();
+}
+
+function contextExcerpt(value: string, maxLength: number) {
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  const edgeLength = Math.floor((maxLength - 3) / 2);
+  return `${value.slice(0, edgeLength)}...${value.slice(-edgeLength)}`;
 }

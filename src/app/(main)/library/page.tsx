@@ -1,44 +1,47 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { BookMarked, ChevronRight, MessageCircle, Plus, Sparkles } from "lucide-react";
+import { BookMarked, Compass, Grid3X3, List, Plus, Search } from "lucide-react";
 import { motion } from "motion/react";
-import { CharacterCard, type CharacterSummary } from "@/components/characters/CharacterCard";
-import { Avatar } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { CharacterRosterCard } from "@/components/library/character-roster-card";
+import type { CharacterSummary } from "@/components/characters/CharacterCard";
+import { GlassButton } from "@/components/ui/GlassButton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader, PageShell } from "@/components/ui/page";
+import { buildCharacterRoster, filterRoster } from "@/lib/library-roster";
 import { springSoft } from "@/lib/motion";
-import { toChatPreview } from "@/lib/chat-preview";
+import { cn } from "@/lib/utils";
 
 type LibraryBody = {
   mine: CharacterSummary[];
   liked: CharacterSummary[];
-  remixes: CharacterSummary[];
   chats: Array<{
     id: string;
-    title?: string | null;
+    lastActiveAt?: string;
     character: { id: string; name: string; description?: string | null; avatarUrl?: string | null };
-    messages: Array<{ content: string; role: string }>;
+    messages: Array<{ content: string }>;
   }>;
 };
+
+const FILTERS = ["all", "favorites", "recent", "custom"] as const;
+const STALE_REFRESH_MS = 300_000;
 
 export default function LibraryPage() {
   const [library, setLibrary] = useState<LibraryBody | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
+  const [view, setView] = useState<"grid" | "list">("grid");
+  const lastLoadedAt = useRef(0);
 
   const loadLibrary = useCallback(async () => {
     try {
       const response = await fetch("/api/library", { cache: "no-store" });
-      if (response.ok) {
-        const body = await response.json();
-        setLibrary(body);
-        setError(null);
-        return;
-      }
-
-      throw new Error(response.status === 401 ? "AUTH_REQUIRED" : "LIBRARY_UNAVAILABLE");
+      if (!response.ok) throw new Error(response.status === 401 ? "AUTH_REQUIRED" : "LIBRARY_UNAVAILABLE");
+      setLibrary(await response.json());
+      lastLoadedAt.current = Date.now();
+      setError(null);
     } catch (caught) {
       setError(caught instanceof Error && caught.message === "AUTH_REQUIRED" ? "Sign in to view your library." : "Your library could not be loaded. Please try again.");
     }
@@ -46,147 +49,95 @@ export default function LibraryPage() {
 
   useEffect(() => {
     void loadLibrary();
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") void loadLibrary();
+
+    const refreshWhenStale = () => {
+      if (document.visibilityState === "visible" && Date.now() - lastLoadedAt.current >= STALE_REFRESH_MS) {
+        void loadLibrary();
+      }
     };
-    window.addEventListener("nythera:characters-updated", refreshWhenVisible);
-    window.addEventListener("focus", refreshWhenVisible);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-    const interval = window.setInterval(refreshWhenVisible, 30_000);
-    return () => {
-      window.removeEventListener("nythera:characters-updated", refreshWhenVisible);
-      window.removeEventListener("focus", refreshWhenVisible);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-      window.clearInterval(interval);
-    };
+    document.addEventListener("visibilitychange", refreshWhenStale);
+    return () => document.removeEventListener("visibilitychange", refreshWhenStale);
+  }, [loadLibrary]);
+
+  const roster = useMemo(() => (library ? buildCharacterRoster(library) : []), [library]);
+  const filtered = useMemo(() => filterRoster(roster, query, filter), [roster, query, filter]);
+
+  const toggleFavorite = useCallback(async (characterId: string) => {
+    const response = await fetch(`/api/characters/${characterId}/like`, { method: "POST" });
+    if (response.ok) await loadLibrary();
+  }, [loadLibrary]);
+
+  const deleteCharacter = useCallback(async (characterId: string, characterName: string) => {
+    if (!window.confirm(`Delete ${characterName}? This cannot be undone.`)) return;
+    const response = await fetch(`/api/characters/${characterId}`, { method: "DELETE" });
+    if (response.ok) await loadLibrary();
   }, [loadLibrary]);
 
   return (
-    <PageShell className="codex-library relative z-10 space-y-12">
-      <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={springSoft}
-        className="relative isolate"
-      >
-        <PageHeader
-          icon={BookMarked}
-          title="Library"
-          description="Favorites, your characters, remixes, and active conversations."
-          actions={<Button asChild className="self-start md:self-auto">
-            <Link href="/create-character">
-              <Plus className="h-4 w-4" />
-              New character
-            </Link>
-          </Button>}
-        />
-      </motion.div>
+    <PageShell className="relative z-10 space-y-8">
+      <PageHeader
+        icon={BookMarked}
+        title="Character Roster"
+        description="Characters you chat with, favorites, and creations."
+        actions={
+          <GlassButton asChild variant="glass-primary">
+            <Link href="/create-character"><Plus className="h-4 w-4" /> Create character</Link>
+          </GlassButton>
+        }
+      />
+
+      <div className="neo-glass-search flex items-center gap-2 px-4 py-2">
+        <Search className="h-4 w-4 text-[var(--text-muted)]" />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search characters..." className="w-full bg-transparent text-sm outline-none placeholder:text-[var(--text-muted)]" />
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
+          {FILTERS.map((item) => (
+            <button key={item} type="button" onClick={() => setFilter(item)} className={cn("neo-glass-chip px-3 py-1.5 text-xs capitalize", filter === item && "is-active")}>
+              {item}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <GlassButton variant={view === "grid" ? "glass-primary" : "glass-icon"} size="icon" onClick={() => setView("grid")} aria-label="Grid view"><Grid3X3 className="h-4 w-4" /></GlassButton>
+          <GlassButton variant={view === "list" ? "glass-primary" : "glass-icon"} size="icon" onClick={() => setView("list")} aria-label="List view"><List className="h-4 w-4" /></GlassButton>
+        </div>
+      </div>
 
       {error ? (
         <EmptyState
           icon={BookMarked}
           title="Library unavailable"
           description={error}
-          action={
-            error === "Sign in to view your library." ? (
-              <Button asChild><Link href="/login">Sign in</Link></Button>
-            ) : (
-              <Button onClick={() => window.location.reload()}>Try again</Button>
-            )
-          }
+          action={error.includes("Sign in") ? (
+            <GlassButton asChild><Link href="/login">Sign in</Link></GlassButton>
+          ) : (
+            <GlassButton onClick={() => void loadLibrary()}>Try again</GlassButton>
+          )}
         />
       ) : !library ? (
-        <div className="grid gap-4">
-          <div className="skeleton h-32 rounded-[var(--radius-surface)]" />
-          <div className="skeleton h-64 rounded-[var(--radius-card)]" />
-        </div>
+        <div className="skeleton h-64 rounded-[var(--radius-surface)]" />
+      ) : filtered.length ? (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={springSoft} className={cn(view === "grid" ? "grid gap-4 sm:grid-cols-2 xl:grid-cols-3" : "grid gap-3")}>
+          {filtered.map((character) => (
+            <CharacterRosterCard
+              key={character.id}
+              character={character}
+              view={view}
+              onToggleFavorite={toggleFavorite}
+              onDelete={deleteCharacter}
+            />
+          ))}
+        </motion.div>
       ) : (
-        <>
-          <Section title="Continue chats" empty="No active chats yet.">
-            {library.chats.length ? (
-              <div className="grid border-y border-[var(--codex-rule)] xl:grid-cols-2 xl:divide-x xl:divide-[var(--codex-rule)]">
-                {library.chats.map((chat, index) => (
-                  <ChatRow key={chat.id} chat={chat} index={index} />
-                ))}
-              </div>
-            ) : null}
-          </Section>
-
-          <Section title="Favorites" empty="Like characters to save them here.">
-            {library.liked.length ? <CharacterShelf characters={library.liked} /> : null}
-          </Section>
-
-          <Section title="My characters" empty="Create a character to start building your roster.">
-            {library.mine.length ? <CharacterShelf characters={library.mine} /> : null}
-          </Section>
-
-          <Section title="Remixes" empty="Cloned characters appear here.">
-            {library.remixes.length ? <CharacterShelf characters={library.remixes} /> : null}
-          </Section>
-        </>
+        <EmptyState
+          icon={Compass}
+          title="No characters yet"
+          description="Discover characters or create your own to fill your roster."
+          action={<GlassButton asChild variant="glass-primary"><Link href="/explore">Discover characters</Link></GlassButton>}
+        />
       )}
     </PageShell>
-  );
-}
-
-function ChatRow({ chat, index }: { chat: LibraryBody["chats"][number]; index: number }) {
-  const preview = toChatPreview(chat.messages.at(-1)?.content || chat.character.description || "No description yet");
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ ...springSoft, delay: Math.min(index, 6) * 0.035 }}
-    >
-      <Link href={`/chat/${chat.id}`} className="library-chat-row group flex items-center gap-3 p-3.5 no-underline sm:gap-4 sm:p-4">
-        <Avatar name={chat.character.name} src={chat.character.avatarUrl} size="md" className="border border-[var(--border-subtle)]" />
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-center gap-2">
-            <p className="truncate text-sm font-semibold text-[var(--text-primary)] sm:text-base">{chat.character.name}</p>
-            {chat.title ? <span className="hidden truncate text-xs text-[var(--text-muted)] sm:inline">{chat.title}</span> : null}
-          </div>
-          <p className="mt-1 line-clamp-1 text-xs leading-5 text-[var(--text-secondary)] sm:text-sm">{preview}</p>
-        </div>
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--border-subtle)] bg-[oklch(var(--color-accent-primary)/.10)] text-[var(--accent-purple)] transition group-hover:border-[oklch(var(--color-accent-secondary)/.32)] group-hover:text-[var(--accent-secondary)]">
-          <MessageCircle className="h-4 w-4" />
-        </span>
-      </Link>
-    </motion.div>
-  );
-}
-
-function CharacterShelf({ characters }: { characters: CharacterSummary[] }) {
-  return (
-    <ol className="codex-character-catalog is-shelf">
-      {characters.map((character) => (
-        <li key={character.id} className="codex-character-record">
-          <CharacterCard character={character} presentation="discovery" fill />
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-function Section({ title, empty, children }: { title: string; empty: string; children: React.ReactNode }) {
-  const hasChildren = Boolean(children);
-  return (
-    <motion.section
-      initial={{ opacity: 0, y: 14 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-80px" }}
-      transition={springSoft}
-      className="space-y-3"
-    >
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="font-editorial flex items-center gap-3 text-3xl font-medium tracking-tight text-[var(--codex-ivory)]">
-          <span className="grid h-7 w-7 place-items-center rounded-full border border-[var(--codex-rule)] text-[var(--codex-mint)]">
-            <Sparkles className="h-3.5 w-3.5" />
-          </span>
-          {title}
-        </h2>
-        {hasChildren ? <ChevronRight className="h-4 w-4 text-[var(--text-muted)]" aria-hidden /> : null}
-      </div>
-      {hasChildren ? children : <div className="library-empty-panel p-6 text-sm text-[var(--text-secondary)]">{empty}</div>}
-    </motion.section>
   );
 }

@@ -88,7 +88,7 @@ test("rooms remain discoverable from the rebuilt primary navigation", async () =
   assert.ok(navRail.includes('codex-rail'));
   assert.ok(mobileDock.includes('codex-mobile-dock'));
   assert.ok(navRail.includes('aria-label="Primary navigation"'));
-  assert.ok(mobileDock.includes('relative z-50 grid'));
+  assert.ok(mobileDock.includes('fixed inset-x-0 bottom-0'));
   assert.doesNotMatch(appShell, /<AuroraWebglBackground \/>/);
   assert.ok(ambient.includes("checkWebGLSupportAndCapability"));
   assert.ok(ambient.includes("SpaceBackgroundWebGL"));

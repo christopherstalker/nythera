@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { Bookmark, CalendarClock, Check, Download, FileJson, ImagePlus, LockKeyhole, LockOpen, Mic2, PauseCircle, Pencil, Plus, Route, ShieldAlert, Sparkles, Trash2, Upload, UsersRound, X } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
@@ -17,27 +16,7 @@ type PanelState = ReturnType<typeof useChatQuickPanel>;
 const panelSelectClass = "focus-ring h-11 w-full min-w-0 border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-sm text-[var(--text-primary)]";
 
 export function PersonaTabContent({ panel, compact = false }: { panel: PanelState; compact?: boolean }) {
-  const [section, setSection] = useState<"persona" | "memory">("persona");
-
-  return (
-    <div className="grid gap-3">
-      <div className="grid grid-cols-2 rounded-full border border-[var(--border-default)] bg-[var(--bg-input)] p-1" role="tablist" aria-label="Persona context">
-        {(["persona", "memory"] as const).map((item) => (
-          <button
-            key={item}
-            type="button"
-            role="tab"
-            aria-selected={section === item}
-            onClick={() => setSection(item)}
-            className={cn("focus-ring h-8 rounded-full text-xs font-semibold capitalize", section === item ? "bg-[var(--accent-purple-soft)] text-[var(--text-primary)]" : "text-[var(--text-secondary)]")}
-          >
-            {item}
-          </button>
-        ))}
-      </div>
-      {section === "persona" ? <PersonaEditor panel={panel} compact={compact} /> : <MemoryTabContent panel={panel} />}
-    </div>
-  );
+  return <PersonaEditor panel={panel} compact={compact} />;
 }
 
 function PersonaEditor({ panel, compact = false }: { panel: PanelState; compact?: boolean }) {
@@ -50,7 +29,7 @@ function PersonaEditor({ panel, compact = false }: { panel: PanelState; compact?
             type="button"
             onClick={() => void panel.switchPersona(profile)}
             className={cn(
-              "focus-ring flex h-11 min-w-0 shrink-0 items-center gap-2 rounded-2xl border px-3 text-left text-xs transition-colors",
+              "focus-ring flex h-11 min-w-0 shrink-0 items-center gap-2 rounded-sm border px-3 text-left text-xs transition-colors",
               panel.activeProfileId === profile.id
                 ? "border-transparent bg-[var(--accent-purple-soft)] text-[var(--text-primary)]"
                 : "border-[var(--border-default)] bg-[var(--bg-input)] text-[var(--text-secondary)]"
@@ -64,7 +43,7 @@ function PersonaEditor({ panel, compact = false }: { panel: PanelState; compact?
         <button
           type="button"
           onClick={panel.startNewPersona}
-          className="focus-ring grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-[var(--border-default)] bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          className="focus-ring grid h-11 w-11 shrink-0 place-items-center rounded-sm border border-[var(--border-default)] bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           aria-label="Add persona"
         >
           <Plus className="h-4 w-4" />
@@ -79,7 +58,7 @@ function PersonaEditor({ panel, compact = false }: { panel: PanelState; compact?
             onPick={panel.pickAvatar}
             onError={panel.setAvatarPickError}
             onUploadingChange={panel.setAvatarUploadingState}
-            className="focus-ring grid h-[72px] place-items-center overflow-hidden rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-input)] text-[var(--accent-purple)] transition hover:border-[var(--accent-purple)] hover:bg-white/[0.045]"
+            className="focus-ring grid h-[72px] place-items-center overflow-hidden rounded-sm border border-dashed border-[var(--border-default)] bg-[var(--bg-input)] text-[var(--accent-purple)] transition hover:border-[var(--accent-purple)]"
           >
             {panel.draft.avatarUrl ? <img src={panel.draft.avatarUrl} alt="" className="h-full w-full object-cover" /> : <Upload className="h-5 w-5" />}
           </ImageFilePicker>
@@ -91,7 +70,7 @@ function PersonaEditor({ panel, compact = false }: { panel: PanelState; compact?
               <button
                 type="button"
                 onClick={() => panel.updateDraft("avatarUrl", "")}
-                className="focus-ring inline-flex h-8 items-center justify-center gap-1 rounded-full border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-xs text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
+                className="focus-ring inline-flex h-8 items-center justify-center gap-1 rounded-sm border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-xs text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
               >
                 <ImagePlus className="h-3.5 w-3.5" />
                 Clear photo
@@ -186,7 +165,7 @@ export function MemoryTabContent({ panel }: { panel: PanelState }) {
       {panel.memoryStatus ? <PanelStatusText>{panel.memoryStatus}</PanelStatusText> : null}
       <div className="grid gap-2">
         {panel.memories.map((memory) => (
-          <div key={memory.id} className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-input)] p-3">
+          <div key={memory.id} className="rounded-sm border border-[var(--border-default)] bg-[var(--bg-input)] p-3">
             {panel.memoryEditingId === memory.id ? (
               <Textarea value={panel.memoryEditDraft} onChange={(event) => panel.setMemoryEditDraft(event.target.value)} className="min-h-24" aria-label="Edit memory fact" />
             ) : (
@@ -378,6 +357,7 @@ export function CanonTabContent({ panel }: { panel: PanelState }) {
   const draft = panel.canonDraft;
   const knowledgeParticipants = panel.storyParticipants.filter((participant) => participant.role === "CHARACTER" || participant.role === "NPC");
   const scopedKnowledge = draft.scope === "CHARACTER" || draft.scope === "PARTICIPANT";
+  const missingKnowledgeParticipant = scopedKnowledge && draft.participantIds.length === 0;
 
   return (
     <div className="grid gap-5">
@@ -387,8 +367,40 @@ export function CanonTabContent({ panel }: { panel: PanelState }) {
           <option value="">The story in general</option>
           {panel.storyEntities.map((entity) => <option key={entity.id} value={entity.id}>{entity.name}</option>)}
         </select>
-        <Input value={draft.predicate} onChange={(event) => panel.updateCanonDraft("predicate", event.target.value)} placeholder="Fact type, e.g. carries or promised" required />
-        <Textarea value={draft.objectText} onChange={(event) => panel.updateCanonDraft("objectText", event.target.value)} placeholder="What is true in this timeline?" className="min-h-24" required />
+        <label className="grid gap-2">
+          <span className="text-xs uppercase tracking-[.12em] text-[var(--text-muted)]">Canonical fact</span>
+          <Textarea
+            value={draft.objectText}
+            onChange={(event) => panel.updateCanonDraft("objectText", event.target.value)}
+            placeholder="Write the complete fact the character must remember. Periods and detailed facts are supported."
+            className="min-h-40 resize-y"
+            maxLength={6000}
+            required
+          />
+          <span className="text-right text-[11px] tabular-nums text-[var(--text-muted)]">{draft.objectText.length}/6000</span>
+        </label>
+        <div className="flex items-center justify-between gap-3 border border-[var(--border-default)] bg-[var(--bg-input)] px-3 py-2">
+          <div>
+            <p className="text-sm text-[var(--text-primary)]">Is this true right now?</p>
+            <p className="text-xs text-[var(--text-muted)]">Stored as the current state of the canon.</p>
+          </div>
+          <div className="grid shrink-0 grid-cols-2 border border-[var(--border-default)]" role="group" aria-label="Current truth state">
+            {(["is true now", "is not true now"] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => panel.updateCanonDraft("predicate", value)}
+                className={cn(
+                  "focus-ring h-9 min-w-12 px-3 text-xs uppercase tracking-[.1em] transition-colors",
+                  draft.predicate === value ? "bg-[var(--accent-mint)] text-black" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                )}
+                aria-pressed={draft.predicate === value}
+              >
+                {value === "is true now" ? "Yes" : "No"}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
           <select value={draft.scope} onChange={(event) => panel.updateCanonDraft("scope", event.target.value as typeof draft.scope)} className="focus-ring h-11 min-w-0 border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-sm text-[var(--text-primary)]" aria-label="Canon visibility">
             <option value="STORY">Known in the story</option>
@@ -409,9 +421,10 @@ export function CanonTabContent({ panel }: { panel: PanelState }) {
                 <span>{participant.displayName}</span>
               </label>
             ))}
+            {knowledgeParticipants.length === 0 ? <p className="text-xs text-[var(--text-muted)]">No cast member is available for this scope.</p> : null}
           </fieldset>
         ) : null}
-        <Button type="submit" disabled={!panel.storyId || !draft.predicate.trim() || !draft.objectText.trim() || panel.pendingAction === "canon:add"}>
+        <Button type="submit" disabled={!panel.storyId || !draft.predicate.trim() || !draft.objectText.trim() || missingKnowledgeParticipant || panel.pendingAction === "canon:add"}>
           <Plus className="h-4 w-4" />
           {panel.pendingAction === "canon:add" ? "Adding..." : "Add to canon"}
         </Button>
@@ -423,7 +436,7 @@ export function CanonTabContent({ panel }: { panel: PanelState }) {
           <article key={fact.id} className="grid gap-2 border-b border-[var(--border-default)] py-4">
             <div className="flex items-start gap-3">
               <div className="min-w-0 flex-1">
-                <p className="text-xs uppercase tracking-[.12em] text-[var(--text-muted)]">{fact.subjectEntity?.name ?? "Story"} · {fact.predicate}</p>
+                <p className="text-xs uppercase tracking-[.12em] text-[var(--text-muted)]">{fact.subjectEntity?.name ?? "Story"} · {fact.predicate === "is true now" ? "true now" : fact.predicate === "is not true now" ? "not true now" : fact.predicate}</p>
                 <p className="mt-1 text-sm leading-6 text-[var(--text-primary)]">{fact.objectText}</p>
               </div>
               <button type="button" onClick={() => void panel.updateCanonFact(fact.id, { locked: !fact.locked })} className={cn("focus-ring grid h-8 w-8 shrink-0 place-items-center", fact.locked ? "text-[var(--accent-mint)]" : "text-[var(--text-muted)]")} aria-label={fact.locked ? "Unlock canon fact" : "Lock canon fact"}>
@@ -457,14 +470,21 @@ function SceneListField({ label, value, onChange }: { label: string; value: stri
 export function HistoryTabContent({
   panel,
   chatId,
+  characterId,
   onNavigate,
   onNewChat
 }: {
   panel: PanelState;
   chatId: string;
+  characterId?: string | null;
   onNavigate?: () => void;
   onNewChat?: () => void;
 }) {
+  const characterChats = panel.chats
+    .filter((chat) => !characterId || chat.character.id === characterId)
+    .sort((left, right) => new Date(right.lastActiveAt ?? right.createdAt ?? 0).getTime() - new Date(left.lastActiveAt ?? left.createdAt ?? 0).getTime());
+  const characterName = characterChats[0]?.character.name;
+
   return (
     <div className="grid gap-5">
       {panel.storyId ? (
@@ -478,6 +498,13 @@ export function HistoryTabContent({
         </section>
       ) : null}
       <div className="grid gap-2">
+      <div className="mb-1 flex items-end justify-between gap-3">
+        <div>
+          <p className="codex-kicker">Conversations</p>
+          <p className="mt-1 text-xs text-[var(--text-muted)]">{characterName ? `Only chats with ${characterName}` : "Only chats for the active character"}</p>
+        </div>
+        <span className="text-[11px] tabular-nums text-[var(--text-muted)]">{characterChats.length}</span>
+      </div>
       {onNewChat ? (
         <Button
           type="button"
@@ -488,7 +515,7 @@ export function HistoryTabContent({
           Start new chat
         </Button>
       ) : null}
-      {panel.chats.map((chat) => (
+      {characterChats.map((chat) => (
         <Link
           key={chat.id}
           href={`/chat/${chat.id}`}
@@ -500,15 +527,25 @@ export function HistoryTabContent({
         >
           <Avatar name={chat.character.name} src={chat.character.avatarUrl} size="xs" />
           <div className="min-w-0 flex-1">
-            <p className="block truncate text-sm font-medium text-[var(--text-primary)]">{chat.character.name}</p>
+            <span className="flex items-center justify-between gap-2">
+              <span className="block truncate text-sm font-medium text-[var(--text-primary)]">{chat.title?.trim() || chat.character.name}</span>
+              <span className="shrink-0 text-[10px] text-[var(--text-muted)]">{formatChatTime(chat.lastActiveAt ?? chat.createdAt)}</span>
+            </span>
             <p className="mt-0.5 block truncate text-xs text-[var(--text-muted)]">{toChatPreview(chat.messages[0]?.content || chat.character.description || "Continue chat")}</p>
           </div>
         </Link>
       ))}
-      {panel.chats.length === 0 ? <PanelStatusText>No chat history yet.</PanelStatusText> : null}
+      {characterChats.length === 0 ? <PanelStatusText>No conversations with this character yet.</PanelStatusText> : null}
       </div>
     </div>
   );
+}
+
+function formatChatTime(value?: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(date);
 }
 
 function NarrativeHeading({ icon: Icon, title, subtitle }: { icon: React.ComponentType<{ className?: string }>; title: string; subtitle: string }) {

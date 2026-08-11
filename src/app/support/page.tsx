@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Bug, ExternalLink, Heart, Lightbulb, LifeBuoy, ShieldAlert } from "lucide-react";
 import { GuideNavigation } from "@/components/guide/guide-navigation";
 import { SupportEmailForm } from "@/components/support/support-email-form";
-import { Button } from "@/components/ui/button";
+import { GlassButton } from "@/components/ui/GlassButton";
 import { PageHeader, PageShell, Surface } from "@/components/ui/page";
 import { PATREON_SUPPORT_URL, SUPPORT_EMAIL } from "@/lib/support";
 
@@ -46,11 +46,11 @@ export default function SupportPage() {
                   Nythera is completely free. If you enjoy it and want to support continued development and future improvements, you can join Christopher Stalker on Patreon.
                 </p>
               </div>
-              <Button asChild size="lg">
-                <a href={PATREON_SUPPORT_URL} target="_blank" rel="noreferrer">
-                  <Heart className="h-4 w-4" />Support on Patreon<ExternalLink className="h-4 w-4" />
+              <GlassButton asChild variant="glass-patreon" size="lg">
+                <a href={PATREON_SUPPORT_URL} target="_blank" rel="noopener noreferrer">
+                  <Heart className="h-4 w-4" />Patreon<ExternalLink className="h-4 w-4" />
                 </a>
-              </Button>
+              </GlassButton>
             </div>
           </Surface>
         </div>

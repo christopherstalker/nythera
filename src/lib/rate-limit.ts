@@ -124,6 +124,7 @@ const ROUTE_LIMITS: Record<string, RateLimitRule> = {
   "stories:safety": WRITE_LIMIT,
   "voice:synthesize": MESSAGE_LIMIT,
   "characters:read": READ_LIMIT,
+  "library:read": READ_LIMIT,
   "mobile:characters:read": READ_LIMIT,
   "chats:read": READ_LIMIT,
   "mobile:chats:read": READ_LIMIT,
@@ -136,13 +137,24 @@ const ROUTE_LIMITS: Record<string, RateLimitRule> = {
   "chat:token-budget": COST_BUDGET
 };
 
+const RATE_LIMIT_BYPASS_USER_IDS = new Set(
+  (process.env.RATE_LIMIT_BYPASS_USER_IDS ?? "")
+    .split(",")
+    .map((userId) => userId.trim())
+    .filter(Boolean)
+);
+
 export async function enforceRateLimit(input: {
   userId?: string;
   ip?: string | null;
   route: string;
   cost?: number;
 }) {
-  if (process.env.NODE_ENV === "production" && !hasDistributedRateLimitStore()) {
+  if (input.userId && RATE_LIMIT_BYPASS_USER_IDS.has(input.userId)) {
+    return;
+  }
+
+  if (requiresDistributedRateLimit() && !hasDistributedRateLimitStore()) {
     throw new RateLimitError("Rate limiter is unavailable. Please retry shortly.", 503);
   }
 
@@ -165,6 +177,17 @@ export async function enforceRateLimit(input: {
   if (dayCount > limits.perDay) {
     throw new RateLimitError("Daily platform limit exceeded. Please try again tomorrow.", 429, secondsUntilNextUtcDay(now));
   }
+}
+
+function requiresDistributedRateLimit() {
+  const configured = process.env.RATE_LIMIT_REQUIRE_DISTRIBUTED?.trim().toLowerCase();
+  if (configured === "true") return true;
+  if (configured === "false") return false;
+
+  return Boolean(
+    process.env.NODE_ENV === "production" &&
+    (process.env.VERCEL || process.env.RAILWAY_ENVIRONMENT || process.env.RENDER)
+  );
 }
 
 function secondsUntilNextMinute(now: number) {

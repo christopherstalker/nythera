@@ -49,6 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </main>
         {isImmersiveSurface ? <SidePanel /> : null}
       </div>
+      <div aria-hidden className="h-[calc(var(--codex-mobile-dock-height)+env(safe-area-inset-bottom))] md:hidden" />
       <MobileDock />
     </div>
   );

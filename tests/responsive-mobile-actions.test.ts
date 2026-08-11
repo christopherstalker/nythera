@@ -6,7 +6,7 @@ async function read(path: string) {
   return readFile(new URL(path, import.meta.url), "utf8");
 }
 
-test("mobile navigation owns a layout row instead of overlaying page actions", async () => {
+test("mobile navigation has a reserved layout row and a viewport-anchored dock", async () => {
   const [shell, dock] = await Promise.all([
     read("../src/components/layout/AppShell.tsx"),
     read("../src/components/nav/MobileDock.tsx")
@@ -15,9 +15,8 @@ test("mobile navigation owns a layout row instead of overlaying page actions", a
   assert.match(shell, /grid-rows-\[minmax\(0,1fr\)_auto\]/);
   assert.match(shell, /<MobileDock \/>/);
   assert.match(shell, /min-h-0 min-w-0 overflow-hidden/);
-  assert.doesNotMatch(shell, /pb-\[calc\(var\(--codex-mobile-dock-height\)/);
-  assert.match(dock, /relative z-50 grid/);
-  assert.doesNotMatch(dock, /fixed inset-x-0 bottom-0/);
+  assert.match(shell, /h-\[calc\(var\(--codex-mobile-dock-height\)\+env\(safe-area-inset-bottom\)\)\]/);
+  assert.match(dock, /fixed inset-x-0 bottom-0/);
 });
 
 test("shared actions stack on phones and return to wrapped rows on larger screens", async () => {
@@ -35,39 +34,36 @@ test("mobile chat keeps primary actions and attempt navigation visible without t
     read("../src/components/chat/MessageContextMenu.tsx")
   ]);
 
-  assert.match(bubble, /ActionButton label="More actions"/);
-  assert.match(bubble, /max-sm:grid-cols-\[minmax\(0,1fr\)_minmax\(0,1fr\)_2\.75rem\]/);
-  assert.match(bubble, /aria-label=\{`Attempt \$\{variantIndex! \+ 1\} of \$\{variantCount\}`\}/);
-  assert.match(bubble, /label="Previous attempt"/);
-  assert.match(bubble, /label="Next attempt"/);
+  assert.match(bubble, /ActionButton label="More"/);
+  assert.match(bubble, /flex w-full flex-wrap items-center/);
+  assert.match(bubble, /aria-label=\{`Version \$\{variantIndex! \+ 1\} of \$\{variantCount\}`\}/);
+  assert.match(bubble, />Previous<\/button>/);
+  assert.match(bubble, />Next<ChevronRight/);
   assert.doesNotMatch(menu, /Previous attempt|Next attempt/);
   assert.match(menu, /Branch/);
   assert.match(menu, /Report/);
-  assert.match(menu, /max-h-\[min\(80dvh,42rem\)\]/);
+  assert.match(menu, /Message actions/);
+  assert.match(menu, /grid-cols-4/);
 });
 
-test("phones enforce portrait while installed apps also request the native orientation lock", async () => {
-  const [layout, manifest, nativeConfig, lock, styles] = await Promise.all([
+test("phones stay portrait while tablets and larger devices keep their natural orientation", async () => {
+  const [layout, manifest, nativeConfig, styles, orientationGuard] = await Promise.all([
     read("../src/app/layout.tsx"),
     read("../src/app/manifest.ts"),
     read("../mobile/app.json"),
-    read("../src/components/pwa/orientation-lock.tsx"),
-    read("../src/app/globals.css")
+    read("../src/app/globals.css"),
+    read("../src/components/pwa/orientation-lock.tsx")
   ]);
 
-  assert.match(manifest, /orientation: "portrait-primary"/);
-  assert.match(nativeConfig, /"orientation": "portrait"/);
-  assert.match(lock, /display-mode: standalone/);
-  assert.match(lock, /orientation\.lock\("portrait-primary"\)/);
-  assert.match(lock, /Math\.min\(window\.innerWidth, window\.innerHeight\) <= 540/);
-  assert.match(lock, /navigator\.maxTouchPoints > 0/);
-  assert.match(lock, /data-portrait-guard="true"/);
-  assert.match(lock, /addEventListener\("orientationchange", refreshOrientation/);
-  assert.match(lock, /addEventListener\("pageshow", refreshOrientation/);
-  assert.match(lock, /addEventListener\("visibilitychange", refreshOrientation/);
-  assert.match(styles, /@media \(orientation: landscape\) and \(max-height: 540px\) and \(pointer: coarse\)/);
-  assert.match(styles, /\.portrait-guard\.is-blocked\s*\{\s*display: grid/);
-  assert.match(layout, /<OrientationLock\s*\/>\s*<AppShell>/);
+  assert.doesNotMatch(manifest, /orientation:/);
+  assert.match(nativeConfig, /"orientation": "default"/);
+  assert.match(layout, /<OrientationLock \/>/);
+  assert.match(styles, /\.portrait-guard\.is-blocked/);
+  assert.match(orientationGuard, /shorterSide <= 540 && longerSide <= 932/);
+  assert.doesNotMatch(orientationGuard, /navigator\.maxTouchPoints|pointer: coarse/);
+  assert.match(orientationGuard, /if \(!isPhoneDevice\(\)\)/);
+  assert.match(orientationGuard, /orientation\?\.unlock\?\.\(\)/);
+  assert.match(orientationGuard, /orientation\.lock\("portrait-primary"\)/);
   assert.doesNotMatch(layout, /LivingCodexIntro|living-codex-intro/);
   assert.doesNotMatch(styles, /\.living-codex-intro|@keyframes living-codex-copy/);
 });

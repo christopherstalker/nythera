@@ -21,13 +21,17 @@ type MessageListProps = {
   onEdit?: (messageId: string, content: string) => void;
   onDelete?: (messageId: string) => void;
   onRegenerate?: (messageId: string) => void;
-  onContinue?: () => void;
+  onRetry?: (messageId: string) => void;
+  onContinue?: (messageId: string) => void;
   onRewind?: (messageId: string) => void;
   onBranch?: (messageId: string) => void;
   onPin?: (messageId: string) => void;
+  activeAssistantMessageId?: string | null;
+  onActiveVariantChange?: (messageId: string) => void;
+  hasSoundtrack?: boolean;
 };
 
-export function MessageList({ messages, characterName, characterAvatarUrl, personaName, personaAvatarUrl, summary, error, notice, onEdit, onDelete, onRegenerate, onContinue, onRewind, onBranch, onPin }: MessageListProps) {
+export function MessageList({ messages, characterName, characterAvatarUrl, personaName, personaAvatarUrl, summary, error, notice, onEdit, onDelete, onRegenerate, onRetry, onContinue, onRewind, onBranch, onPin, activeAssistantMessageId, onActiveVariantChange, hasSoundtrack = false }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const nearBottomRef = useRef(true);
   const previousRowCountRef = useRef(0);
@@ -43,6 +47,8 @@ export function MessageList({ messages, characterName, characterAvatarUrl, perso
   }, [messages]);
   const [variantByGroup, setVariantByGroup] = useState<Record<string, number>>({});
   const variantCountByGroupRef = useRef<Record<string, number>>({});
+  // TanStack Virtual returns mutable functions that React Compiler intentionally skips.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
@@ -79,15 +85,20 @@ export function MessageList({ messages, characterName, characterAvatarUrl, perso
           next[item.key] = resolveVariantSelection(
             current[item.key],
             previousCounts[item.key],
-            item.variants.length
+            item.variants.length,
+            persistedVariantIndex(item, messages, activeAssistantMessageId)
           );
         }
       }
-      return next;
+
+      const currentKeys = Object.keys(current);
+      const nextKeys = Object.keys(next);
+      const selectionChanged = currentKeys.length !== nextKeys.length || nextKeys.some((key) => current[key] !== next[key]);
+      return selectionChanged ? next : current;
     });
 
     variantCountByGroupRef.current = nextCounts;
-  }, [displayItems]);
+  }, [activeAssistantMessageId, displayItems, messages]);
 
   const handleScroll = useCallback(() => {
     const element = scrollRef.current;
@@ -99,30 +110,42 @@ export function MessageList({ messages, characterName, characterAvatarUrl, perso
     nearBottomRef.current = distance < NEAR_BOTTOM_THRESHOLD_PX;
   }, []);
 
-  const selectPreviousVariant = useCallback((groupKey: string, selectedIndex: number) => {
+  const selectPreviousVariant = useCallback((groupKey: string, selectedIndex: number, isLatestGroup: boolean) => {
+    const nextIndex = Math.max(0, selectedIndex - 1);
     setVariantByGroup((current) => ({
       ...current,
-      [groupKey]: Math.max(0, (current[groupKey] ?? selectedIndex) - 1)
+      [groupKey]: nextIndex
     }));
-  }, []);
+    if (isLatestGroup) {
+      const group = displayItems.find((item) => item.type === "assistant-variants" && item.key === groupKey);
+      if (group?.type === "assistant-variants") onActiveVariantChange?.(group.variants[nextIndex].id);
+    }
+  }, [displayItems, onActiveVariantChange]);
 
-  const selectNextVariant = useCallback((groupKey: string, selectedIndex: number, variantCount: number) => {
+  const selectNextVariant = useCallback((groupKey: string, selectedIndex: number, variantCount: number, isLatestGroup: boolean) => {
+    const nextIndex = Math.min(variantCount - 1, selectedIndex + 1);
     setVariantByGroup((current) => ({
       ...current,
-      [groupKey]: Math.min(variantCount - 1, (current[groupKey] ?? selectedIndex) + 1)
+      [groupKey]: nextIndex
     }));
-  }, []);
+    if (isLatestGroup) {
+      const group = displayItems.find((item) => item.type === "assistant-variants" && item.key === groupKey);
+      if (group?.type === "assistant-variants") onActiveVariantChange?.(group.variants[nextIndex].id);
+    }
+  }, [displayItems, onActiveVariantChange]);
 
   return (
     <div
       ref={scrollRef}
       onScroll={handleScroll}
-      className="chat-scroll relative z-10 flex-1 overflow-y-auto px-4 pb-10 pt-[calc(84px+env(safe-area-inset-top))] sm:px-7 sm:pb-12 sm:pt-[calc(92px+env(safe-area-inset-top))] lg:px-10"
+      className={hasSoundtrack
+        ? "chat-scroll relative z-10 flex-1 overflow-y-auto px-4 pb-10 pt-4 sm:px-7 sm:pb-12 lg:px-10"
+        : "chat-scroll relative z-10 flex-1 overflow-y-auto px-4 pb-10 pt-[calc(84px+env(safe-area-inset-top))] sm:px-7 sm:pb-12 sm:pt-[calc(92px+env(safe-area-inset-top))] lg:px-10"}
       aria-live="polite"
     >
       <div
-        className="relative mx-auto w-full max-w-[1000px]"
-        style={{ height: Math.max(totalSize, scrollRef.current?.clientHeight ?? 0) }}
+        className="relative mx-auto w-full"
+        style={{ height: Math.max(totalSize, scrollRef.current?.clientHeight ?? 0), maxWidth: "var(--chat-content-width, 1000px)" }}
       >
         {virtualItems.map((virtualRow) => {
           const row = rows[virtualRow.index];
@@ -152,6 +175,7 @@ export function MessageList({ messages, characterName, characterAvatarUrl, perso
                 onEdit={onEdit}
                 onDelete={onDelete}
                 onRegenerate={onRegenerate}
+                onRetry={onRetry}
                 onContinue={onContinue}
                 onRewind={onRewind}
                 onBranch={onBranch}
@@ -191,6 +215,7 @@ function MessageRow({
   onEdit,
   onDelete,
   onRegenerate,
+  onRetry,
   onContinue,
   onRewind,
   onBranch,
@@ -209,23 +234,17 @@ function MessageRow({
   onEdit?: (messageId: string, content: string) => void;
   onDelete?: (messageId: string) => void;
   onRegenerate?: (messageId: string) => void;
-  onContinue?: () => void;
+  onRetry?: (messageId: string) => void;
+  onContinue?: (messageId: string) => void;
   onRewind?: (messageId: string) => void;
   onBranch?: (messageId: string) => void;
   onPin?: (messageId: string) => void;
-  onPreviousVariant: (groupKey: string, selectedIndex: number) => void;
-  onNextVariant: (groupKey: string, selectedIndex: number, variantCount: number) => void;
+  onPreviousVariant: (groupKey: string, selectedIndex: number, isLatestGroup: boolean) => void;
+  onNextVariant: (groupKey: string, selectedIndex: number, variantCount: number, isLatestGroup: boolean) => void;
 }) {
   if (row.type === "summary") {
     return (
-      <div
-        className="mx-auto mb-2 max-w-2xl rounded-[28px] border border-[var(--border-subtle)] px-5 py-4 text-center shadow-[var(--shadow-soft)]"
-        style={{
-          background: "color-mix(in oklch, var(--bg-base) 72%, transparent)",
-          backdropFilter: "blur(22px) saturate(175%)",
-          WebkitBackdropFilter: "blur(22px) saturate(175%)"
-        }}
-      >
+      <div className="mx-auto mb-2 max-w-2xl rounded-sm border border-white/10 bg-black/55 px-5 py-4 text-center">
         <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">{row.summary}</p>
       </div>
     );
@@ -233,14 +252,7 @@ function MessageRow({
 
   if (row.type === "empty") {
     return (
-      <div
-        className="mx-auto max-w-sm rounded-[var(--radius-surface)] border border-[var(--border-subtle)] px-7 py-8 text-center shadow-[var(--shadow-soft)]"
-        style={{
-          background: "color-mix(in oklch, var(--bg-surface) 72%, transparent)",
-          backdropFilter: "blur(18px) saturate(160%)",
-          WebkitBackdropFilter: "blur(18px) saturate(160%)"
-        }}
-      >
+      <div className="mx-auto max-w-sm rounded-sm border border-white/10 bg-black/65 px-7 py-8 text-center">
         <p className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">Start a chat with {characterName}</p>
         <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">Send a first message or continue from the character greeting.</p>
       </div>
@@ -275,6 +287,7 @@ function MessageRow({
         onEdit={onEdit}
         onDelete={onDelete}
         onRegenerate={canRegenerate ? onRegenerate : undefined}
+        onRetry={row.message.role === "USER" && isLatestMessage ? onRetry : undefined}
         onContinue={canRegenerate ? onContinue : undefined}
         onRewind={!isLatestMessage ? onRewind : undefined}
         onBranch={onBranch}
@@ -305,16 +318,16 @@ function MessageRow({
       usageEstimated={selected.usageEstimated}
       onEdit={onEdit}
       onDelete={onDelete}
-      onRegenerate={isLatestVariantGroup && isSelectedLatestMessage ? onRegenerate : undefined}
-      onContinue={isLatestVariantGroup && isSelectedLatestMessage ? onContinue : undefined}
+      onRegenerate={isLatestVariantGroup ? onRegenerate : undefined}
+      onContinue={isLatestVariantGroup ? onContinue : undefined}
       onRewind={!isSelectedLatestMessage ? onRewind : undefined}
       onBranch={onBranch}
       onPin={onPin}
-      isLatestAssistant={selected.id === latestAssistantId}
+      isLatestAssistant={isLatestVariantGroup}
       variantIndex={selectedIndex}
       variantCount={row.variants.length}
-      onPreviousVariant={() => onPreviousVariant(row.key, selectedIndex)}
-      onNextVariant={() => onNextVariant(row.key, selectedIndex, row.variants.length)}
+      onPreviousVariant={() => onPreviousVariant(row.key, selectedIndex, isLatestVariantGroup)}
+      onNextVariant={() => onNextVariant(row.key, selectedIndex, row.variants.length, isLatestVariantGroup)}
     />
   );
 }
@@ -406,4 +419,17 @@ function buildDisplayItems(messages: ChatMessage[]): DisplayItem[] {
   }
 
   return items;
+}
+
+function persistedVariantIndex(
+  item: Extract<DisplayItem, { type: "assistant-variants" }>,
+  messages: ChatMessage[],
+  activeAssistantMessageId?: string | null
+) {
+  const variantIds = new Set(item.variants.map((variant) => variant.id));
+  const persistedId = variantIds.has(activeAssistantMessageId ?? "")
+    ? activeAssistantMessageId
+    : messages.find((message) => message.branchSourceMessageId && variantIds.has(message.branchSourceMessageId))?.branchSourceMessageId;
+  const index = item.variants.findIndex((variant) => variant.id === persistedId);
+  return index >= 0 ? index : undefined;
 }

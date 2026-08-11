@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 
 type LockableOrientation = ScreenOrientation & {
   lock?: (orientation: "portrait-primary") => Promise<void>;
+  unlock?: () => void;
 };
 
 export function OrientationLock() {
@@ -12,25 +13,31 @@ export function OrientationLock() {
 
   useEffect(() => {
     const standaloneQuery = window.matchMedia("(display-mode: standalone)");
-    const coarsePointerQuery = window.matchMedia("(pointer: coarse)");
-
     const isStandalone = () =>
       standaloneQuery.matches ||
       Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
 
+    const isPhoneDevice = () => {
+      const shorterSide = Math.min(window.innerWidth, window.innerHeight);
+      const longerSide = Math.max(window.innerWidth, window.innerHeight);
+      return shorterSide <= 540 && longerSide <= 932;
+    };
+
     const updateGuard = () => {
       const landscape = window.innerWidth > window.innerHeight;
-      const phoneViewport = Math.min(window.innerWidth, window.innerHeight) <= 540;
-      const touchDevice = coarsePointerQuery.matches || navigator.maxTouchPoints > 0;
-      setBlocked(landscape && phoneViewport && touchDevice);
+      setBlocked(landscape && isPhoneDevice());
     };
 
     const requestPortraitLock = () => {
+      const orientation = screen.orientation as LockableOrientation | undefined;
       if (!isStandalone()) {
         return;
       }
+      if (!isPhoneDevice()) {
+        orientation?.unlock?.();
+        return;
+      }
 
-      const orientation = screen.orientation as LockableOrientation | undefined;
       if (!orientation?.lock) {
         return;
       }

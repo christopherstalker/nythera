@@ -15,11 +15,19 @@ export async function assertSafeOutboundUrl(value: string) {
     throw new HttpError(400, "Provider URL is invalid.");
   }
 
+  const hostname = url.hostname.toLowerCase().replace(/\.$/, "");
+  const allowLoopbackTestEndpoint = process.env.NODE_ENV !== "production" &&
+    process.env.BYOK_ALLOW_PRIVATE_TEST_ENDPOINTS === "true" &&
+    url.protocol === "http:" &&
+    (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1");
+  if (allowLoopbackTestEndpoint && !url.username && !url.password) {
+    return url.toString().replace(/\/+$/, "");
+  }
+
   if (url.protocol !== "https:" || url.username || url.password || (url.port && url.port !== "443")) {
     throw new HttpError(400, "Provider URL must use public HTTPS on port 443.");
   }
 
-  const hostname = url.hostname.toLowerCase().replace(/\.$/, "");
   if (BLOCKED_HOSTS.has(hostname) || hostname.endsWith(".localhost") || hostname.endsWith(".local")) {
     throw new HttpError(400, "Private provider hosts are not allowed.");
   }

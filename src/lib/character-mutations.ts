@@ -62,6 +62,7 @@ export async function createCharacterForUser(input: CharacterCreateInput, user: 
       presencePenalty: input.presencePenalty,
       maxTokens: input.maxTokens,
       systemPromptOverride: input.systemPromptOverride,
+      defaultChatMode: input.defaultChatMode,
       visibility: input.visibility,
       tags: normalizeCharacterTags(input.tags),
       isNSFW: input.isNSFW,

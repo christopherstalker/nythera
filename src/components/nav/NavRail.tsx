@@ -4,10 +4,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
+import { useState } from "react";
 import {
   SignIn,
-  SignOut,
-  UserCircle
+  SignOut
 } from "@phosphor-icons/react";
 import { BRAND_ICON_SMALL } from "@/lib/brand";
 import { cn } from "@/lib/utils";
@@ -23,7 +23,18 @@ export function NavRail() {
   const { data: session, status } = useSession();
   const isAuthenticated = status === "authenticated";
   const userLabel = session?.user?.name ?? session?.user?.email ?? "Account";
-  const isCharacterStudio = pathname === "/create-character" || /^\/character\/[^/]+\/edit$/.test(pathname);
+  const [signingOut, setSigningOut] = useState(false);
+
+  async function handleSignOut() {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      const response = await signOut({ redirect: false, redirectTo: "/" });
+      window.location.assign(response.url || "/");
+    } catch {
+      setSigningOut(false);
+    }
+  }
 
   return (
     <>
@@ -47,9 +58,10 @@ export function NavRail() {
           {isAuthenticated ? (
             <button
               type="button"
-              aria-label={`Sign out ${userLabel}`}
-              title={`Sign out ${userLabel}`}
-              onClick={() => void signOut({ callbackUrl: "/" })}
+              aria-label={signingOut ? "Signing out" : `Sign out ${userLabel}`}
+              title={signingOut ? "Signing out" : `Sign out ${userLabel}`}
+              onClick={() => void handleSignOut()}
+              disabled={signingOut}
               className="codex-rail-link focus-ring grid h-11 w-11 place-items-center text-[var(--text-muted)] hover:text-[var(--codex-ivory)]"
             >
               <SignOut size={21} weight="thin" />
@@ -59,16 +71,6 @@ export function NavRail() {
           )}
         </div>
       </aside>
-
-      {!isCharacterStudio ? (
-        <Link
-          href={isAuthenticated ? "/settings" : "/login"}
-          aria-label={isAuthenticated ? userLabel : "Sign in"}
-          className="mobile-account focus-ring fixed right-4 top-[calc(12px+env(safe-area-inset-top))] z-40 grid h-10 w-10 place-items-center rounded-full border border-[var(--codex-rule)] bg-[var(--codex-paper-raised)] text-[var(--codex-ivory)] shadow-soft md:hidden"
-        >
-          <UserCircle size={22} weight="thin" />
-        </Link>
-      ) : null}
 
     </>
   );
@@ -81,7 +83,7 @@ function RailLink({ href, label, icon: Icon, active, external = false, support =
       aria-label={label}
       title={label}
       target={external ? "_blank" : undefined}
-      rel={external ? "noreferrer" : undefined}
+      rel={external ? "noopener noreferrer" : undefined}
       className={cn(
         "codex-rail-link focus-ring relative grid h-11 w-11 place-items-center text-[var(--text-muted)] no-underline",
         active && "is-active text-[var(--codex-mint)]",

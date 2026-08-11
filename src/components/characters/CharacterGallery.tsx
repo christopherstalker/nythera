@@ -22,12 +22,12 @@ export function CharacterGallery({ characters, loading = false, title }: Charact
   return (
     <section className="codex-catalog-section space-y-4">
       {title ? (
-        <div className="flex items-end justify-between border-b border-[var(--codex-rule)] pb-3">
+        <div className="flex items-end justify-between px-1 pb-1">
           <div>
-            <p className="codex-kicker">Character index</p>
-            <h2 className="font-editorial mt-1 text-3xl font-medium text-[var(--codex-ivory)]">{title}</h2>
+            <p className="text-[10px] font-semibold uppercase tracking-[.22em] text-[var(--accent-secondary)]">Character index</p>
+            <h2 className="mt-2 font-editorial text-3xl font-medium text-[var(--text-primary)]">{title}</h2>
           </div>
-          <span className="text-[9px] uppercase tracking-[.18em] text-[var(--text-muted)]">{count} records</span>
+          <span className="rounded-full border border-[var(--border-default)] bg-[var(--neo-glass-bg-subtle)] px-3 py-1.5 text-[9px] uppercase tracking-[.18em] text-[var(--text-muted)] backdrop-blur-md">{count} records</span>
         </div>
       ) : null}
       <ol className="codex-character-gallery">

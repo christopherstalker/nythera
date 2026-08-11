@@ -20,7 +20,8 @@ test("account settings are split into dedicated routes behind one shared shell",
   assert.match(overview, /<h1[^>]*>Settings<\/h1>/);
   assert.match(overview, /SETTINGS_SECTIONS\.map/);
 
-  for (const route of ["account", "personas", "providers", "voice", "interface", "memory", "help"]) {
+  assert.match(sections, /href: "\/account"/);
+  for (const route of ["personas", "providers", "voice", "interface", "memory", "help"]) {
     assert.match(sections, new RegExp(`href: "\\/settings\\/${route}"`));
     const page = await read(`../src/app/(main)/settings/${route}/page.tsx`);
     assert.match(page, /SettingsPageHeader/);
@@ -40,7 +41,7 @@ test("settings responsibilities no longer mount together on the overview page", 
   for (const client of ["ProfileSettingsClient", "UserPersonaSettingsClient", "KeySettingsClient", "VoiceKeySettingsClient", "MemorySettingsClient"]) {
     assert.doesNotMatch(overview, new RegExp(client));
   }
-  assert.match(account, /ProfileSettingsClient/);
+  assert.match(account, /redirect\("\/account"\)/);
   assert.match(personas, /UserPersonaSettingsClient/);
   assert.match(providers, /KeySettingsClient/);
   assert.match(voice, /VoiceKeySettingsClient/);
@@ -59,4 +60,19 @@ test("internal settings links use the new provider and persona routes", async ()
   assert.doesNotMatch(source, /\/settings#(?:api-keys|persona)/);
   assert.match(source, /\/settings\/providers/);
   assert.match(source, /\/settings\/personas/);
+});
+
+test("the mobile account hub exposes every desktop settings section", async () => {
+  const [accountHub, mobileDock, sections] = await Promise.all([
+    read("../src/components/account/account-hub-client.tsx"),
+    read("../src/components/nav/MobileDock.tsx"),
+    read("../src/components/settings/settings-sections.tsx")
+  ]);
+
+  assert.match(accountHub, /Settings2/);
+  assert.match(accountHub, /<MobileSettingsIndex \/>/);
+  assert.match(accountHub, /SETTINGS_SECTIONS\.map/);
+  assert.match(accountHub, /Every desktop setting is available here/);
+  assert.match(mobileDock, /pathname\.startsWith\("\/settings"\)/);
+  assert.equal((sections.match(/href: "\/(?:account|settings\/[^\"]+)"/g) ?? []).length, 7);
 });

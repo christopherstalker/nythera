@@ -28,16 +28,20 @@ export async function requireUser() {
     select: {
       id: true,
       email: true,
+      name: true,
       username: true,
       role: true,
       ageVerified: true,
       birthDate: true,
+      adultTermsAcceptedAt: true,
+      adultTermsVersion: true,
       memoryEnabled: true,
       compactMode: true,
       notificationsEnabled: true,
       preferredProvider: true,
       preferredModel: true,
       defaultResponsePrompt: true,
+      preferredChatMode: true,
       bannedAt: true
     }
   });
@@ -87,7 +91,7 @@ export function routeError(error: unknown) {
   }
 
   if (error instanceof ZodError) {
-    return json({ error: "Invalid request body.", issues: error.flatten() }, { status: 400 });
+    return json({ error: error.issues[0]?.message ?? "Invalid request body.", issues: error.flatten() }, { status: 400 });
   }
 
   logSafeError("Unexpected route error.", error);

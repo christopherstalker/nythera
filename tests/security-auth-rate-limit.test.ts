@@ -42,4 +42,10 @@ test("production rate limiting requires a distributed store", async () => {
   assert.match(rateLimitSource, /hasDistributedRateLimitStore\(\)/);
   assert.match(rateLimitSource, /503/);
   assert.match(rateLimitSource, /AUTH_HANDOFF_STATUS_LIMIT/);
+  assert.match(rateLimitSource, /process\.env\.RATE_LIMIT_BYPASS_USER_IDS/);
+  assert.match(rateLimitSource, /input\.userId && RATE_LIMIT_BYPASS_USER_IDS\.has\(input\.userId\)/);
+  assert.ok(
+    rateLimitSource.indexOf("RATE_LIMIT_BYPASS_USER_IDS.has") <
+      rateLimitSource.indexOf('process.env.NODE_ENV === "production"')
+  );
 });

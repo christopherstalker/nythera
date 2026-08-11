@@ -14,6 +14,7 @@ type ChatMessage = {
 };
 
 type ProviderKey = {
+  id?: string;
   provider: string;
   displayName: string;
   apiFormat: "OPENAI" | "ANTHROPIC" | "GEMINI" | "OPENAI_COMPATIBLE";
@@ -22,6 +23,7 @@ type ProviderKey = {
   defaultModel?: string | null;
   fallbackEnabled?: boolean;
   fallbackPriority?: number | null;
+  providerPriority?: number;
 };
 
 type ProviderKeys = ProviderKey[];
@@ -46,7 +48,9 @@ const serverOpenAIKey = process.env.OPENAI_API_KEY;
 const serverAnthropicKey = process.env.ANTHROPIC_API_KEY;
 const serverGeminiKey = process.env.GEMINI_API_KEY;
 const APP_DEFAULT_MODELS = new Set(["gpt-4o-mini", "gpt-3.5-turbo"]);
-const LLM_PROVIDER_TIMEOUT_MS = 60_000;
+const LLM_PROVIDER_TIMEOUT_MS = 40_000;
+const LLM_FIRST_TOKEN_TIMEOUT_MS = 12_000;
+const LLM_STREAM_IDLE_TIMEOUT_MS = 20_000;
 const LLM_EMBEDDING_TIMEOUT_MS = 15_000;
 const providerBaseUrlSchema = z.string().url().max(240).refine(isSafeProviderBaseUrl, {
   message: "Provider URL must use public HTTPS."
@@ -64,13 +68,15 @@ const providerKeysSchema = z
   .array(
     z.object({
       provider: z.string().min(1),
+      id: z.string().optional(),
       displayName: z.string().min(1),
       apiFormat: z.enum(["OPENAI", "ANTHROPIC", "GEMINI", "OPENAI_COMPATIBLE"]),
       apiKey: z.string().min(1),
       baseUrl: providerBaseUrlSchema.nullable().optional(),
       defaultModel: z.string().nullable().optional(),
       fallbackEnabled: z.boolean().optional(),
-      fallbackPriority: z.number().int().min(0).nullable().optional()
+      fallbackPriority: z.number().int().min(0).nullable().optional(),
+      providerPriority: z.number().int().min(0).optional()
     })
   )
   .or(legacyProviderKeysSchema);
@@ -206,7 +212,8 @@ app.post("/v1/chat/stream", async (request, response) => {
 
   const providerKeys = withServerProviderKeys(parsed.data.providerKeys ?? []);
   const route = routeModel(parsed.data.model, providerKeys);
-  const attempts = [route, ...fallbackRoutes(route, providerKeys)];
+  const attempts = attemptRoutes(route, providerKeys);
+  const primaryKeyCount = providerKeys.filter((key) => key.provider === route.providerName).length;
   let streamed = "";
   let lastError: unknown = null;
 
@@ -220,7 +227,11 @@ app.post("/v1/chat/stream", async (request, response) => {
     const streamedBeforeAttempt = streamed.length;
     const attemptStarted = Date.now();
     let firstTokenLogged = false;
-    const attemptSignal = createTimeoutSignal(clientAbort.signal, LLM_PROVIDER_TIMEOUT_MS, "Provider request timed out.");
+    const attemptSignal = createActivityTimeoutSignal(
+      clientAbort.signal,
+      LLM_FIRST_TOKEN_TIMEOUT_MS,
+      "Provider did not start responding in time."
+    );
     try {
       const usage = await streamProvider({
         provider: attempt.provider,
@@ -231,9 +242,11 @@ app.post("/v1/chat/stream", async (request, response) => {
         frequencyPenalty: parsed.data.frequencyPenalty,
         presencePenalty: parsed.data.presencePenalty,
         maxTokens: parsed.data.maxTokens,
+        maxRetries: primaryKeyCount > 1 ? 0 : undefined,
         key: attempt.key,
         signal: attemptSignal.signal,
         writeDelta(delta) {
+          attemptSignal.reset(LLM_STREAM_IDLE_TIMEOUT_MS, "Provider stream stalled.");
           if (clientClosed) {
             throw new Error("Client disconnected.");
           }
@@ -253,6 +266,7 @@ app.post("/v1/chat/stream", async (request, response) => {
               provider: attempt.providerName,
               model: attempt.model,
               attempt: attemptIndex + 1,
+              keySlot: (attempt.key?.providerPriority ?? 0) + 1,
               fallbackTriggered: attemptIndex > 0,
               durationMs: Date.now() - started,
               providerLatencyMs: Date.now() - attemptStarted
@@ -284,6 +298,7 @@ app.post("/v1/chat/stream", async (request, response) => {
         route: "proxy:chat",
         provider: attempt.providerName,
         model: attempt.model,
+        keySlot: (attempt.key?.providerPriority ?? 0) + 1,
         success: true,
         statusCode: 200,
         latencyMs: Date.now() - attemptStarted
@@ -302,6 +317,7 @@ app.post("/v1/chat/stream", async (request, response) => {
         route: "proxy:chat",
         provider: attempt.providerName,
         model: attempt.model,
+        keySlot: (attempt.key?.providerPriority ?? 0) + 1,
         success: false,
         statusCode: classified.status,
         errorCode: classified.code,
@@ -315,8 +331,13 @@ app.post("/v1/chat/stream", async (request, response) => {
         response.end();
         return;
       }
-      if (!classified.retryable) {
-        writeEvent({ type: "error", message: classified.message });
+      const nextAttempt = attempts[attemptIndex + 1];
+      const hasNextKeyForProvider = nextAttempt?.providerName === attempt.providerName;
+      if (!classified.retryable && !(hasNextKeyForProvider && isKeyScopedFailure(classified.code))) {
+        writeEvent({
+          type: "error",
+          message: exhaustedProviderMessage(route, primaryKeyCount, classified.message)
+        });
         response.end();
         return;
       }
@@ -328,7 +349,7 @@ app.post("/v1/chat/stream", async (request, response) => {
 
   writeEvent({
     type: "error",
-    message: classifyProviderError(lastError).message
+    message: exhaustedProviderMessage(route, primaryKeyCount, classifyProviderError(lastError).message)
   });
   if (!clientClosed) {
     response.end();
@@ -400,10 +421,39 @@ function fallbackRoutes(primary: GatewayRoute, keys: ProviderKeys) {
     .filter((key) => key.provider !== primary.providerName && key.fallbackEnabled === true && key.fallbackPriority !== null && key.fallbackPriority !== undefined)
     .sort((left, right) =>
       (left.fallbackPriority ?? Number.MAX_SAFE_INTEGER) - (right.fallbackPriority ?? Number.MAX_SAFE_INTEGER) ||
-      left.provider.localeCompare(right.provider)
+      left.provider.localeCompare(right.provider) ||
+      (left.providerPriority ?? Number.MAX_SAFE_INTEGER) - (right.providerPriority ?? Number.MAX_SAFE_INTEGER)
     )
     .map((key) => routeFromKey(key, key.defaultModel || "gpt-4o-mini"));
   return routes.filter((route) => route.providerName !== primary.providerName || route.model !== primary.model);
+}
+
+function attemptRoutes(primary: GatewayRoute, keys: ProviderKeys) {
+  const sameProvider = keys
+    .filter((key) => key.provider === primary.providerName && key.id !== primary.key?.id)
+    .sort((left, right) =>
+      (left.providerPriority ?? Number.MAX_SAFE_INTEGER) - (right.providerPriority ?? Number.MAX_SAFE_INTEGER)
+    )
+    .map((key) => routeFromKey(key, primary.model));
+  return [primary, ...sameProvider, ...fallbackRoutes(primary, keys)];
+}
+
+function isKeyScopedFailure(code: string) {
+  return code === "invalid_api_key" ||
+    code === "insufficient_balance" ||
+    code === "rate_limit" ||
+    code === "provider_unavailable" ||
+    code === "network_error" ||
+    code === "provider_error";
+}
+
+function exhaustedProviderMessage(route: GatewayRoute, keyCount: number, fallbackMessage: string) {
+  if (keyCount <= 1) {
+    return fallbackMessage;
+  }
+
+  const provider = route.key?.displayName || route.providerName;
+  return `All ${keyCount} saved keys for ${provider} failed for this request. Check or replace them in Settings.`;
 }
 
 function parseExplicitProviderModel(requested: string, keys: ProviderKeys) {
@@ -447,6 +497,7 @@ async function streamProvider(input: {
   frequencyPenalty?: number | null;
   presencePenalty?: number | null;
   maxTokens?: number | null;
+  maxRetries?: number;
   key?: ProviderKey;
   signal: AbortSignal;
   writeDelta: (delta: string) => void;
@@ -455,6 +506,7 @@ async function streamProvider(input: {
     const client = input.key?.apiKey
       ? new OpenAI({
           apiKey: input.key.apiKey,
+          maxRetries: input.maxRetries,
           baseURL:
             input.provider === "openai"
               ? input.key.baseUrl || "https://api.openai.com/v1"
@@ -469,7 +521,7 @@ async function streamProvider(input: {
   }
 
   if (input.provider === "anthropic") {
-    const client = input.key?.apiKey ? new Anthropic({ apiKey: input.key.apiKey }) : null;
+    const client = input.key?.apiKey ? new Anthropic({ apiKey: input.key.apiKey, maxRetries: input.maxRetries }) : null;
     if (!client) {
       throw new Error("Anthropic is not configured.");
     }
@@ -844,6 +896,57 @@ function createTimeoutSignal(parentSignal: AbortSignal | undefined, timeoutMs: n
     timedOut: () => timedOut,
     dispose() {
       clearTimeout(timeoutId);
+      parentSignal?.removeEventListener("abort", abortFromParent);
+    }
+  };
+}
+
+function createActivityTimeoutSignal(
+  parentSignal: AbortSignal | undefined,
+  timeoutMs: number,
+  timeoutMessage: string
+) {
+  const controller = new AbortController();
+  let timedOut = false;
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const abortFromParent = () => {
+    if (!controller.signal.aborted) {
+      controller.abort(parentSignal?.reason ?? new Error("Request aborted."));
+    }
+  };
+
+  const arm = (nextTimeoutMs: number, nextTimeoutMessage: string) => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    timeoutId = setTimeout(() => {
+      timedOut = true;
+      if (!controller.signal.aborted) {
+        controller.abort(new Error(nextTimeoutMessage));
+      }
+    }, nextTimeoutMs);
+  };
+
+  arm(timeoutMs, timeoutMessage);
+  if (parentSignal?.aborted) {
+    abortFromParent();
+  } else {
+    parentSignal?.addEventListener("abort", abortFromParent, { once: true });
+  }
+
+  return {
+    signal: controller.signal,
+    timedOut: () => timedOut,
+    reset(nextTimeoutMs: number, nextTimeoutMessage: string) {
+      if (!controller.signal.aborted) {
+        arm(nextTimeoutMs, nextTimeoutMessage);
+      }
+    },
+    dispose() {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       parentSignal?.removeEventListener("abort", abortFromParent);
     }
   };

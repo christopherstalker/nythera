@@ -67,6 +67,7 @@ Unlike platforms that bind every conversation to a single hosted model, Nythera 
 ### Prerequisites
 
 - Node.js 18+
+- Python 3 with `pre-commit` (`python -m pip install pre-commit`)
 - PostgreSQL with pgvector available
 - Redis if you want background jobs instead of inline fallbacks
 - At least one provider API key for live model responses
@@ -77,6 +78,7 @@ Unlike platforms that bind every conversation to a single hosted model, Nythera 
 git clone https://github.com/christopherstalker/nythera.git
 cd nythera
 npm install
+pre-commit install
 cp .env.example .env
 npm run prisma:generate
 npm run prisma:migrate
@@ -98,6 +100,7 @@ Open `http://localhost:3000`, create an account, then add a provider key in Sett
 | `LLM_PROXY_URL` | Optional external LLM proxy endpoint. | Empty on Vercel | No |
 | `GEMINI_API_KEY` | Optional server-side Gemini fallback key. | Empty | No |
 | `REDIS_URL` | Redis URL for BullMQ jobs. | `redis://localhost:6380` | Jobs |
+| `RATE_LIMIT_REQUIRE_DISTRIBUTED` | Require Redis/Upstash rate limiting. Hosted production environments default to `true`; local `next start` defaults to memory limits. | `true` / `false` | Hosted production |
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Upstash rate-limit backend. | Empty | Production recommended |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth credentials. | Empty | OAuth only |
 | `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` | Discord OAuth credentials. | Empty | OAuth only |

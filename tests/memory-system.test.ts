@@ -55,10 +55,28 @@ test("prompt memory resolver always leads with pinned character facts and surviv
   assert.match(store, /characterId: input\.characterId,[\s\S]*pinned: true/);
   assert.ok(store.indexOf("...pinned") < store.indexOf("...semantic"));
   assert.match(store, /Prompt memory semantic retrieval failed/);
+  assert.match(store, /if \(input\.semanticEnabled !== false\)/);
   assert.match(prompt, /PINNED MANUAL FACT — AUTHORITATIVE/);
   assert.match(prompt, /secretly.*subtly.*restrained observable cue/is);
   assert.match(prompt, /Every applicable pinned fact must materially constrain/);
   for (const consumer of [webStream, mobileStream, rooms]) {
     assert.match(consumer, /getPromptMemories/);
+    assert.match(consumer, /semanticEnabled:/);
   }
+});
+
+test("right-panel persona and manual memory changes are used by the next chat request", async () => {
+  const [panelHook, webStream] = await Promise.all([
+    read("../src/hooks/use-chat-quick-panel.ts"),
+    read("../src/app/api/chats/[id]/stream/route.ts")
+  ]);
+
+  assert.match(panelHook, /chatId \? \{ chatId \} : \{\}/);
+  assert.match(panelHook, /characterId: characterId \?\? null/);
+  assert.match(panelHook, /pinned: true/);
+  assert.match(panelHook, /Applied to next reply|saved for the next message/i);
+  assert.match(webStream, /persona: true/);
+  assert.match(webStream, /const userPersona = chat\.persona \?\? defaultUserPersona/);
+  assert.match(webStream, /getPromptMemories\(\{/);
+  assert.match(webStream, /formatUserPersonaForPrompt\(userPersona\)/);
 });

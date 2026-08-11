@@ -178,6 +178,7 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
 
   const applyUpdate = useCallback(async () => {
     const registration = await navigator.serviceWorker.getRegistration();
+    reloadOnControllerChangeRef.current = true;
     registration?.waiting?.postMessage({ type: "SKIP_WAITING" });
   }, []);
 

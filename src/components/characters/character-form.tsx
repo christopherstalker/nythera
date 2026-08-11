@@ -22,7 +22,7 @@ import {
   type CharacterFileImportResult
 } from "@/components/characters/character-file-import-panel";
 import { RichMessageText } from "@/components/chat/rich-message-text";
-import { PromptGeneratorPanel, type PromptGeneratorOptions } from "@/components/characters/prompt-generator-panel";
+import { BotGenerator } from "@/components/character/BotGenerator";
 import { TagChipInput } from "@/components/characters/tag-chip-input";
 import { FormattedTextarea } from "@/components/rich-text/formatted-textarea";
 import { Button } from "@/components/ui/button";
@@ -48,12 +48,12 @@ import {
   type CharacterFormMode,
   type CharacterFormValue,
   type CustomSectionId,
-  type GeneratedCharacterPreview,
-  type PromptGenerationMeta
+  type GeneratedCharacterPreview
 } from "@/lib/character-form-types";
 import { RESPONSE_LENGTH_OPTIONS } from "@/lib/response-length";
 import { cn } from "@/lib/utils";
 import { FIRST_CLASS_PROVIDER_PRESETS } from "@/lib/provider-presets";
+import type { GeneratedCharacterConcept } from "@/lib/generation/character-generator-types";
 
 type CharacterFormProps = {
   mode: "create" | "edit";
@@ -105,10 +105,6 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
   );
   const [activeChapter, setActiveChapter] = useState<StudioChapterId>("identity");
   const [generatedPreview, setGeneratedPreview] = useState<GeneratedCharacterPreview | null>(null);
-  const [prompt, setPrompt] = useState("");
-  const [generationMeta, setGenerationMeta] = useState<PromptGenerationMeta | null>(null);
-  const [promptGenerated, setPromptGenerated] = useState(false);
-  const [promptOptions, setPromptOptions] = useState<PromptGeneratorOptions | null>(null);
   const [savedProviderOptions, setSavedProviderOptions] = useState<ProviderOption[]>([]);
   const [importTargetMode, setImportTargetMode] = useState<CharacterCreationMode>(() =>
     formMode === "custom" ? "custom" : "simple"
@@ -167,9 +163,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
     [draft, generatedPreview]
   );
 
-  const canSubmit = isPromptMode
-    ? promptGenerated && draft.name.trim().length >= 2 && draft.description.trim().length >= 10
-    : draft.name.trim().length >= 2 && draft.description.trim().length >= 10;
+  const canSubmit = !isPromptMode && draft.name.trim().length >= 2 && draft.description.trim().length >= 10;
   const canGeneratePreview = !isPromptMode && draft.name.trim().length >= 2 && draft.description.trim().length >= 10;
 
   function update<K extends keyof CharacterFormValue>(field: K, value: CharacterFormValue[K]) {
@@ -183,7 +177,6 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
     if (nextMode === "custom" && generatedPreview) {
       setDraft((current) => mergePreviewIntoDraft(current, generatedPreview));
     }
-    if (nextMode === "custom" && promptGenerated) setActiveChapter("identity");
     if (nextMode === "simple" && !guidedChapters.some((chapter) => chapter.id === activeChapter)) {
       setActiveChapter("identity");
     }
@@ -255,13 +248,11 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
       } else if (body?.kind === "generated" && body.generated) {
         setDraft((current) => applyPromptGenerationToDraft(current, body.generated));
         setGeneratedPreview(promptPreviewFromGeneration(body.generated));
-        setGenerationMeta({ source: body.generated.source, provider: body.generated.provider });
       } else {
         setError("The file was read, but no character draft was returned.");
         return;
       }
 
-      setPromptGenerated(false);
       setFormMode(importTargetMode);
       setActiveChapter("identity");
       setFileImportResult({
@@ -276,61 +267,32 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
     }
   }
 
-  async function generateFromPrompt(options: PromptGeneratorOptions) {
-    if (prompt.trim().length < 12) {
-      setError("Write at least 12 characters in your prompt.");
-      return;
-    }
-
-    if (!options.provider.trim() || !options.model.trim()) {
-      setError("Choose a provider and model before generating.");
-      return;
-    }
-
-    setGeneratingPreview(true);
+  function applyGeneratedCharacter(generated: GeneratedCharacterConcept) {
+    setDraft((current) => ({
+      ...current,
+      name: generated.name,
+      avatarUrl: generated.avatarUrl ?? current.avatarUrl,
+      description: generated.description,
+      personality: generated.personality,
+      background: generated.background,
+      speakingStyle: generated.speechPattern,
+      scenario: generated.scenario,
+      greeting: generated.firstMessage,
+      tags: generated.tags,
+      visualAvatarPrompt: generated.avatarPrompt
+    }));
+    setGeneratedPreview({
+      name: generated.name,
+      description: generated.description,
+      personality: generated.personality,
+      scenario: generated.scenario,
+      greeting: generated.firstMessage,
+      tags: generated.tags
+    });
+    setImportTargetMode("custom");
+    setFormMode("custom");
+    setActiveChapter("identity");
     setError(null);
-    setPromptOptions(options);
-
-    try {
-      const response = await fetch("/api/characters/generate-from-prompt", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          prompt: prompt.trim(),
-          provider: options.provider,
-          model: options.model
-        })
-      });
-
-      if (response.status === 401) {
-        router.push("/login");
-        return;
-      }
-
-      const body = await response.json().catch(() => null);
-      if (!response.ok) {
-        setError(body?.error ?? "Could not generate character from prompt.");
-        return;
-      }
-
-      const generated = body?.generated;
-      if (!generated) {
-        setError("Could not generate character from prompt.");
-        return;
-      }
-
-      setDraft((current) => applyPromptGenerationToDraft(current, generated));
-      setGeneratedPreview(promptPreviewFromGeneration(generated));
-      setGenerationMeta({
-        source: generated.source,
-        provider: generated.provider
-      });
-      setPromptGenerated(true);
-    } catch {
-      setError("Could not generate character from prompt.");
-    } finally {
-      setGeneratingPreview(false);
-    }
   }
 
   function selectChapter(chapter: StudioChapterId) {
@@ -484,12 +446,6 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
 
     const preview = generatedPreview;
 
-    if (isPromptMode && !preview) {
-      setSaving(false);
-      setError("Generate a character from your prompt before creating.");
-      return;
-    }
-
     if (!isSimpleMode && draft.visibility === "PUBLIC" && !draft.avatarUrl.trim()) {
       setSaving(false);
       setError("Add an avatar before publishing publicly, or save the character as private.");
@@ -606,32 +562,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
                 <p>Describe the person, tension, world, and desired relationship. Nythera will draft the complete dossier for review.</p>
               </div>
             </div>
-            <PromptGeneratorPanel
-              prompt={prompt}
-              onPromptChange={(value) => {
-                setPrompt(value);
-                setPromptGenerated(false);
-                setGenerationMeta(null);
-                setPromptOptions(null);
-              }}
-              onGenerate={generateFromPrompt}
-              generating={generatingPreview}
-              generationMeta={generationMeta}
-            />
-            {promptGenerated ? (
-              <div className="codex-generated-leaf">
-                <p className="codex-kicker">Draft received</p>
-                <h3 className="font-editorial mt-2 text-3xl text-[var(--codex-ivory)]">Review the opening leaf</h3>
-                <div className="mt-6 grid gap-6">
-                  <Field label="Portrait"><AvatarUpload value={draft.avatarUrl} name={draft.name} onChange={(value) => update("avatarUrl", value)} onError={setError} /></Field>
-                  <Field label="Character name" required><Input value={draft.name} onChange={(event) => update("name", event.target.value)} required /></Field>
-                  <Field label="Essence" hint="Formatting is rendered everywhere this subtitle appears." required><FormattedTextarea value={draft.description} onChange={(value) => update("description", value)} required /></Field>
-                  <Field label="Index terms"><TagChipInput value={draft.tags} onChange={(tags) => update("tags", tags)} presets={VIBE_PRESETS} /></Field>
-                  <Field label="First message"><FormattedTextarea value={draft.greeting} onChange={(value) => update("greeting", value)} className="min-h-36" /></Field>
-                  {generatedPreview ? <GeneratedPreviewCard preview={generatedPreview} /> : null}
-                </div>
-              </div>
-            ) : null}
+            <BotGenerator onApply={applyGeneratedCharacter} />
           </section>
         ) : isSimpleMode ? (
           <div className="codex-chapter-stack">
@@ -643,6 +574,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
             </StudioChapter>
             <StudioChapter id="voice" number="02" title="Personality & scenario" description="Add the character's inner logic and the world around them, or let Nythera draft only what is missing." active={activeChapter === "voice"} onSelect={() => selectChapter("voice")}>
               <Field label="Personality" hint="Optional. Describe how they think, react, and carry themselves."><Textarea value={draft.personality} onChange={(event) => update("personality", event.target.value)} placeholder="Calm under pressure, fiercely observant, and reluctant to trust easy answers." className="min-h-44" /></Field>
+              <Field label="Background"><Textarea value={draft.background} onChange={(event) => update("background", event.target.value)} placeholder="What shaped them, and what do they want now?" className="min-h-44" /></Field>
               <Field label="Scenario / world" hint="Optional. Establish where the story starts and what must remain true."><Textarea value={draft.scenario} onChange={(event) => update("scenario", event.target.value)} placeholder="The archive is sealed for the night when a forbidden volume opens by itself." className="min-h-44" /></Field>
               {generatedPreview ? <GeneratedPreviewCard preview={generatedPreview} /> : null}
               <Button type="button" variant="outline" onClick={generatePreview} disabled={!canGeneratePreview || generatingPreview}><Sparkles className="h-4 w-4" />{generatingPreview ? "Drafting..." : "Draft empty fields"}</Button>
@@ -651,6 +583,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
               <Field label="Greeting / first message" hint="This becomes the first page of every new conversation."><FormattedTextarea value={draft.greeting} onChange={(value) => update("greeting", value)} placeholder="Set the scene, place the character in motion, and leave the user room to answer." className="min-h-52" /></Field>
             </StudioChapter>
             <StudioChapter id="publishing" number="04" title="Bind the volume" description="Choose how this character enters your library." active={activeChapter === "publishing"} onSelect={() => selectChapter("publishing")}>
+              <Field label="Default experience"><select value={draft.defaultChatMode} onChange={(event) => update("defaultChatMode", event.target.value === "fantasy" ? "fantasy" : "realism")} className="focus-ring glass-input h-12 w-full px-4 text-sm text-[var(--text-primary)]"><option value="realism">Realism — natural and grounded</option><option value="fantasy">Fantasy — vivid and immersive</option></select></Field>
               <BehaviorControls
                 draft={draft}
                 onSliderChange={update}
@@ -670,6 +603,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
 
             <StudioChapter id="voice" number="02" title="Voice & personality" description="The private logic beneath every response." active={activeChapter === "voice"} onSelect={() => selectChapter("voice")} onAssist={() => assistSection("personality")} assisting={assistingSection === "personality"}>
               <Field label="Personality"><Textarea value={draft.personality} onChange={(event) => update("personality", event.target.value)} placeholder="How they think, react, and carry themselves." className="min-h-44" /></Field>
+              <Field label="Background"><Textarea value={draft.background} onChange={(event) => update("background", event.target.value)} placeholder="The history and motivations that shaped them." className="min-h-44" /></Field>
               <Field label="Traits"><Textarea value={draft.personaTraits} onChange={(event) => update("personaTraits", event.target.value)} placeholder="One trait per line." /></Field>
               <Field label="Speaking style"><Textarea value={draft.speakingStyle} onChange={(event) => update("speakingStyle", event.target.value)} placeholder="Cadence, vocabulary, restraint, recurring habits." /></Field>
               <div className="grid gap-6 sm:grid-cols-2"><Field label="Emotional tone"><Input value={draft.emotionalTone} onChange={(event) => update("emotionalTone", event.target.value)} /></Field><Field label="Tone"><Input value={draft.tone} onChange={(event) => update("tone", event.target.value)} /></Field><Field label="Relationship style"><Input value={draft.relationshipStyle} onChange={(event) => update("relationshipStyle", event.target.value)} /></Field></div>
@@ -689,11 +623,12 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
             <StudioChapter id="appearance" number="05" title="Visual language" description="A restrained palette and environmental cue for the conversation." active={activeChapter === "appearance"} onSelect={() => selectChapter("appearance")} onAssist={() => assistSection("visual")} assisting={assistingSection === "visual"}>
               <div className="grid gap-6 sm:grid-cols-3"><Field label="Accent"><Input type="color" value={draft.visualAccentColor} onChange={(event) => update("visualAccentColor", event.target.value)} /></Field><Field label="Secondary"><Input type="color" value={draft.visualGradientFrom} onChange={(event) => update("visualGradientFrom", event.target.value)} /></Field><Field label="Fallback"><Input type="color" value={draft.visualGradientTo} onChange={(event) => update("visualGradientTo", event.target.value)} /></Field></div>
               <Field label="Chat atmosphere"><Input value={draft.visualChatBackground} onChange={(event) => update("visualChatBackground", event.target.value)} placeholder="moonlit archive, neon rain, warm cabin..." /></Field>
+              <Field label="Avatar prompt"><Textarea value={draft.visualAvatarPrompt} onChange={(event) => update("visualAvatarPrompt", event.target.value)} placeholder="Portrait direction for an image generator." /></Field>
               <div className="codex-color-proof" style={{ borderColor: draft.visualAccentColor }}><span style={{ background: draft.visualGradientFrom }} /><p>{draft.visualChatBackground.trim() || "The environmental cue will guide the chat surface."}</p></div>
             </StudioChapter>
 
             <StudioChapter id="publishing" number="06" title="Behavior & publishing" description="Model direction, boundaries, intensity, and who may discover the character." active={activeChapter === "publishing"} onSelect={() => selectChapter("publishing")} onAssist={() => assistSection("advanced")} assisting={assistingSection === "advanced"}>
-              <div className="codex-subleaf"><p className="codex-kicker">Model direction</p><div className="mt-6 grid gap-6 sm:grid-cols-2"><Field label="Provider override"><select value={draft.preferredProvider} onChange={(event) => { const provider = event.target.value; const option = providerOptions.find((item) => item.provider === provider); setDraft((current) => ({ ...current, preferredProvider: provider, preferredModel: provider && !current.preferredModel ? option?.defaultModel ?? "" : current.preferredModel })); }} className="focus-ring glass-input h-12 w-full px-4 text-sm text-[var(--text-primary)]"><option value="">Use global default</option>{providerOptions.map((provider) => <option key={provider.provider} value={provider.provider}>{provider.displayName}</option>)}</select></Field><Field label="Model override"><Input value={draft.preferredModel} onChange={(event) => update("preferredModel", event.target.value)} /></Field><OptionalNumberInput label="Temperature" value={draft.temperature} min={0} max={2} step={0.1} onChange={(value) => update("temperature", value)} /><OptionalNumberInput label="Top P" value={draft.topP} min={0} max={1} step={0.05} onChange={(value) => update("topP", value)} /><OptionalNumberInput label="Frequency penalty" value={draft.frequencyPenalty} min={-2} max={2} step={0.1} onChange={(value) => update("frequencyPenalty", value)} /><OptionalNumberInput label="Presence penalty" value={draft.presencePenalty} min={-2} max={2} step={0.1} onChange={(value) => update("presencePenalty", value)} /><OptionalNumberInput label="Max tokens" value={draft.maxTokens} min={1} max={4096} step={1} onChange={(value) => update("maxTokens", value)} /></div><Field label="System prompt override" hint="Creator instructions below platform safety and above the persona."><Textarea value={draft.systemPromptOverride} onChange={(event) => update("systemPromptOverride", event.target.value)} maxLength={8000} className="min-h-36" /></Field></div>
+              <div className="codex-subleaf"><p className="codex-kicker">Model direction</p><div className="mt-6 grid gap-6 sm:grid-cols-2"><Field label="Default experience"><select value={draft.defaultChatMode} onChange={(event) => update("defaultChatMode", event.target.value === "fantasy" ? "fantasy" : "realism")} className="focus-ring glass-input h-12 w-full px-4 text-sm text-[var(--text-primary)]"><option value="realism">Realism — natural and grounded</option><option value="fantasy">Fantasy — vivid and immersive</option></select></Field><Field label="Provider override"><select value={draft.preferredProvider} onChange={(event) => { const provider = event.target.value; const option = providerOptions.find((item) => item.provider === provider); setDraft((current) => ({ ...current, preferredProvider: provider, preferredModel: provider && !current.preferredModel ? option?.defaultModel ?? "" : current.preferredModel })); }} className="focus-ring glass-input h-12 w-full px-4 text-sm text-[var(--text-primary)]"><option value="">Use global default</option>{providerOptions.map((provider) => <option key={provider.provider} value={provider.provider}>{provider.displayName}</option>)}</select></Field><Field label="Model override"><Input value={draft.preferredModel} onChange={(event) => update("preferredModel", event.target.value)} /></Field><OptionalNumberInput label="Temperature" value={draft.temperature} min={0} max={2} step={0.1} onChange={(value) => update("temperature", value)} /><OptionalNumberInput label="Top P" value={draft.topP} min={0} max={1} step={0.05} onChange={(value) => update("topP", value)} /><OptionalNumberInput label="Frequency penalty" value={draft.frequencyPenalty} min={-2} max={2} step={0.1} onChange={(value) => update("frequencyPenalty", value)} /><OptionalNumberInput label="Presence penalty" value={draft.presencePenalty} min={-2} max={2} step={0.1} onChange={(value) => update("presencePenalty", value)} /><OptionalNumberInput label="Max tokens" value={draft.maxTokens} min={1} max={4096} step={1} onChange={(value) => update("maxTokens", value)} /></div><Field label="System prompt override" hint="Creator instructions below platform safety and above the persona."><Textarea value={draft.systemPromptOverride} onChange={(event) => update("systemPromptOverride", event.target.value)} maxLength={8000} className="min-h-36" /></Field></div>
               <Field label="Boundaries"><Textarea value={draft.boundaries} onChange={(event) => update("boundaries", event.target.value)} /></Field>
               <Field label="Behavioral rules"><Textarea value={draft.behavioralRules} onChange={(event) => update("behavioralRules", event.target.value)} /></Field>
               <Field label="Forbidden behaviors"><Textarea value={draft.forbiddenBehaviors} onChange={(event) => update("forbiddenBehaviors", event.target.value)} /></Field>
@@ -715,7 +650,6 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
           <div className="codex-studio-secondary-actions flex min-w-0 items-center gap-2">
             {!isPromptMode && currentChapterIndex > 0 ? <Button type="button" variant="ghost" onClick={() => selectChapter(visibleChapters[currentChapterIndex - 1].id)}>Previous</Button> : null}
             {!isPromptMode && currentChapterIndex < visibleChapters.length - 1 ? <Button type="button" variant="outline" onClick={() => selectChapter(visibleChapters[currentChapterIndex + 1].id)}>Next chapter</Button> : null}
-            {isPromptMode ? <><Button type="button" variant="outline" onClick={() => promptOptions && void generateFromPrompt(promptOptions)} disabled={generatingPreview || prompt.trim().length < 12 || !promptOptions}><Sparkles className="h-4 w-4" />Regenerate</Button><Button type="button" variant="ghost" onClick={() => switchFormMode("custom")} disabled={!promptGenerated}>Review full dossier</Button></> : null}
           </div>
           <Button className="codex-studio-primary-action" type="submit" size="lg" disabled={saving || !canSubmit}><Save className="h-4 w-4" />{saving ? "Binding..." : mode === "edit" ? "Save revision" : "Create character"}</Button>
         </footer>

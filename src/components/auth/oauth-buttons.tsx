@@ -21,6 +21,7 @@ import { usePwa } from "@/components/providers/pwa-provider";
 type OAuthButtonsProps = {
   intent: "login" | "register";
   callbackUrl?: string;
+  disabled?: boolean;
 };
 
 type ProviderConfig = {
@@ -79,7 +80,7 @@ function ProviderIcon({ id }: { id: OAuthProviderId }) {
   );
 }
 
-export function OAuthButtons({ intent, callbackUrl = "/explore" }: OAuthButtonsProps) {
+export function OAuthButtons({ intent, callbackUrl = "/explore", disabled = false }: OAuthButtonsProps) {
   const { standalone } = usePwa();
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
   const [loadingProvider, setLoadingProvider] = useState<OAuthProviderId | null>(null);
@@ -221,6 +222,9 @@ export function OAuthButtons({ intent, callbackUrl = "/explore" }: OAuthButtonsP
   }, [pollPwaTransaction, standalone]);
 
   async function handleSignIn(provider: OAuthProviderId) {
+    if (disabled) {
+      return;
+    }
     setLoadingProvider(provider);
     setError(null);
     setManualStartUrl(null);
@@ -362,7 +366,7 @@ export function OAuthButtons({ intent, callbackUrl = "/explore" }: OAuthButtonsP
               aria-label={isLoading ? `Opening ${provider.shortLabel}` : label}
               title={label}
               onClick={() => handleSignIn(provider.id)}
-              disabled={loadingProvider !== null}
+              disabled={disabled || loadingProvider !== null}
               className={cn(
                 "focus-ring flex h-12 min-w-0 flex-1 items-center justify-center rounded-2xl border text-foreground transition-all duration-150 active:scale-[0.98] disabled:opacity-50",
                 provider.className,

@@ -51,6 +51,7 @@ export function normalizeInitialCharacterValue(value?: CharacterFormInitialValue
     archetype: textValue(persona.archetype ?? value.archetype),
     personaTraits: listToText(persona.personalityTraits, value.personaTraits),
     speakingStyle: textValue(persona.speakingStyle ?? value.speakingStyle),
+    background: textValue(persona.background ?? value.background),
     emotionalTone: textValue(persona.emotionalTone ?? value.emotionalTone),
     relationshipStyle: textValue(persona.relationshipStyle ?? value.relationshipStyle),
     initiativeLevel: textValue(persona.initiativeLevel ?? value.initiativeLevel),
@@ -79,6 +80,7 @@ export function normalizeInitialCharacterValue(value?: CharacterFormInitialValue
     visualGradientFrom: hexColorValue(visualIdentity.gradientFrom, emptyCharacterDraft.visualGradientFrom),
     visualGradientTo: hexColorValue(visualIdentity.gradientTo, emptyCharacterDraft.visualGradientTo),
     visualChatBackground: textValue(visualIdentity.chatBackground ?? value.visualChatBackground),
+    visualAvatarPrompt: textValue(visualIdentity.avatarPrompt ?? value.visualAvatarPrompt),
     characterCardJson: ""
   };
 }
@@ -153,6 +155,7 @@ export function buildCharacterCreatePayload({
     archetype: limitText(merged.archetype || merged.personaRole || merged.description, 120),
     personalityTraits: normalizeList(merged.personaTraits || merged.personality || merged.description, 16, 160),
     speakingStyle: limitText(merged.speakingStyle || "Natural, consistent, and in character.", 500),
+    background: limitText(merged.background, 5000),
     emotionalTone: limitText(merged.emotionalTone || "attentive", 240),
     relationshipStyle: normalizeEnum(merged.relationshipStyle, RELATIONSHIP_OPTIONS),
     relationshipDynamics: normalizeEnum(merged.relationshipStyle, RELATIONSHIP_OPTIONS),
@@ -178,7 +181,8 @@ export function buildCharacterCreatePayload({
     accentColor: hexColorValue(merged.visualAccentColor, emptyCharacterDraft.visualAccentColor),
     gradientFrom: hexColorValue(merged.visualGradientFrom, emptyCharacterDraft.visualGradientFrom),
     gradientTo: hexColorValue(merged.visualGradientTo, emptyCharacterDraft.visualGradientTo),
-    chatBackground: limitText(merged.visualChatBackground, 500)
+    chatBackground: limitText(merged.visualChatBackground, 500),
+    avatarPrompt: limitText(merged.visualAvatarPrompt, 800)
   });
 
   const payload: CharacterCreatePayload = {
@@ -200,6 +204,7 @@ export function buildCharacterCreatePayload({
     presencePenalty: merged.presencePenalty,
     maxTokens: merged.maxTokens,
     systemPromptOverride: merged.systemPromptOverride.trim() || null,
+    defaultChatMode: merged.defaultChatMode,
     ...(Object.keys(persona).length > 0 ? { persona } : {}),
     ...(Object.keys(communicationStyle).length > 0 ? { communicationStyle } : {}),
     ...(lorebook.entries.length > 0 ? { lorebook } : {}),

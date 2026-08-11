@@ -30,9 +30,10 @@ test("character surfaces revalidate across devices instead of keeping mount-time
 
   for (const source of [profile, explore, library]) {
     assert.match(source, /visibilitychange/);
-    assert.match(source, /30_000/);
+    assert.match(source, /STALE_REFRESH_MS\s*=\s*300_000/);
+    assert.doesNotMatch(source, /setInterval/);
   }
   assert.match(profile, /cache:\s*"no-store"/);
-  assert.match(explore, /cache:\s*"no-store"/);
+  assert.doesNotMatch(explore, /cache:\s*"no-store"/);
   assert.match(form, /nythera:characters-updated/);
 });

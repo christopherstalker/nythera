@@ -9,7 +9,15 @@ import type { PromptMessage, StreamChunk } from "@/types";
 import { eligibleFallbackKeys } from "@/lib/provider-fallback";
 import { logPerformanceMetric } from "@/lib/performance-logger";
 import { logSafeError } from "@/lib/secret-redaction";
-import { abortableAsyncIterable, createTimeoutSignal, LLM_EMBEDDING_TIMEOUT_MS, LLM_PROVIDER_TIMEOUT_MS } from "@/lib/llm-timeouts";
+import {
+  abortableAsyncIterable,
+  createActivityTimeoutSignal,
+  createTimeoutSignal,
+  LLM_EMBEDDING_TIMEOUT_MS,
+  LLM_FIRST_TOKEN_TIMEOUT_MS,
+  LLM_PROVIDER_TIMEOUT_MS,
+  LLM_STREAM_IDLE_TIMEOUT_MS
+} from "@/lib/llm-timeouts";
 import { assertSafeOutboundUrl } from "@/lib/safe-outbound-url";
 import { CANONICAL_SITE_ORIGIN } from "@/lib/site-origin";
 
@@ -39,112 +47,132 @@ type GatewayRoute = {
 export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator<StreamChunk> {
   const keys = input.providerKeys ?? [];
   const route = routeModel(input.model, keys);
-  const attempts = [route, ...fallbackRoutes(route, keys)];
+  const attempts = attemptRoutes(route, keys);
+  const primaryKeyCount = keys.filter((key) => key.provider === route.providerName).length;
   let lastError: unknown = null;
   const started = Date.now();
   const attemptLabels: string[] = [];
+  const gatewayDeadline = createTimeoutSignal(input.signal, LLM_PROVIDER_TIMEOUT_MS, "Provider request timed out.");
 
-  for (const [index, attempt] of attempts.entries()) {
-    if (input.signal?.aborted) {
-      return;
-    }
+  try {
+    for (const [index, attempt] of attempts.entries()) {
+      if (gatewayDeadline.signal.aborted) {
+        break;
+      }
 
-    let emittedAny = false;
-    let firstTokenLogged = false;
-    const attemptStarted = Date.now();
-    const attemptSignal = createTimeoutSignal(input.signal, LLM_PROVIDER_TIMEOUT_MS, "Provider request timed out.");
-    attemptLabels.push(`${attempt.providerName}:${attempt.model}`);
-    try {
-      let outputText = "";
-      const usage = await streamProvider({
-        provider: attempt.provider,
-        model: attempt.model,
-        messages: input.messages,
-        temperature: input.temperature,
-        topP: input.topP,
-        frequencyPenalty: input.frequencyPenalty,
-        presencePenalty: input.presencePenalty,
-        maxTokens: input.maxTokens,
-        key: attempt.key,
-        signal: attemptSignal.signal,
-        writeDelta(delta) {
-          outputText += delta;
-          return delta;
+      let emittedAny = false;
+      let firstTokenLogged = false;
+      const attemptStarted = Date.now();
+      const attemptSignal = createActivityTimeoutSignal(
+        gatewayDeadline.signal,
+        LLM_FIRST_TOKEN_TIMEOUT_MS,
+        "Provider did not start responding in time."
+      );
+      attemptLabels.push(`${attempt.providerName}:${attempt.model}`);
+      try {
+        let outputText = "";
+        const usage = await streamProvider({
+          provider: attempt.provider,
+          model: attempt.model,
+          messages: input.messages,
+          temperature: input.temperature,
+          topP: input.topP,
+          frequencyPenalty: input.frequencyPenalty,
+          presencePenalty: input.presencePenalty,
+          maxTokens: input.maxTokens,
+          maxRetries: primaryKeyCount > 1 ? 0 : undefined,
+          key: attempt.key,
+          signal: attemptSignal.signal,
+          writeDelta(delta) {
+            outputText += delta;
+            return delta;
+          }
+        });
+
+        for await (const delta of abortableAsyncIterable(usage.deltas, attemptSignal.signal)) {
+          emittedAny = true;
+          attemptSignal.reset(LLM_STREAM_IDLE_TIMEOUT_MS, "Provider stream stalled.");
+          if (!firstTokenLogged) {
+            firstTokenLogged = true;
+            logPerformanceMetric("llm_time_to_first_token", {
+              route: "chat:gateway",
+              provider: attempt.providerName,
+              model: attempt.model,
+              attempt: index + 1,
+              keySlot: (attempt.key?.providerPriority ?? 0) + 1,
+              fallbackTriggered: index > 0,
+              durationMs: Date.now() - started,
+              providerLatencyMs: Date.now() - attemptStarted
+            });
+          }
+          yield { type: "delta", text: delta };
         }
-      });
 
-      for await (const delta of abortableAsyncIterable(usage.deltas, attemptSignal.signal)) {
-        emittedAny = true;
-        if (!firstTokenLogged) {
-          firstTokenLogged = true;
-          logPerformanceMetric("llm_time_to_first_token", {
-            route: "chat:gateway",
-            provider: attempt.providerName,
-            model: attempt.model,
-            attempt: index + 1,
-            fallbackTriggered: index > 0,
-            durationMs: Date.now() - started,
-            providerLatencyMs: Date.now() - attemptStarted
-          });
+        const providerUsage = usage.getUsage();
+
+        logPerformanceMetric("llm_provider_attempt", {
+          route: "chat:gateway",
+          provider: attempt.providerName,
+          model: attempt.model,
+          keySlot: (attempt.key?.providerPriority ?? 0) + 1,
+          success: true,
+          statusCode: 200,
+          latencyMs: Date.now() - attemptStarted
+        });
+
+        yield {
+          type: "usage",
+          inputTokens: providerUsage?.inputTokens ?? estimateTokens(input.messages.map((message) => message.content).join("\n")),
+          outputTokens: providerUsage?.outputTokens ?? estimateTokens(outputText),
+          provider: attempt.providerName,
+          model: attempt.model,
+          usageEstimated: providerUsage === null,
+          latencyMs: Date.now() - started,
+          fallbackTriggered: index > 0,
+          attempts: attemptLabels
+        };
+        yield { type: "done" };
+        return;
+      } catch (error) {
+        if (input.signal?.aborted) {
+          return;
         }
-        yield { type: "delta", text: delta };
-      }
 
-      const providerUsage = usage.getUsage();
-
-      logPerformanceMetric("llm_provider_attempt", {
-        route: "chat:gateway",
-        provider: attempt.providerName,
-        model: attempt.model,
-        success: true,
-        statusCode: 200,
-        latencyMs: Date.now() - attemptStarted
-      });
-
-      yield {
-        type: "usage",
-        inputTokens: providerUsage?.inputTokens ?? estimateTokens(input.messages.map((message) => message.content).join("\n")),
-        outputTokens: providerUsage?.outputTokens ?? estimateTokens(outputText),
-        provider: attempt.providerName,
-        model: attempt.model,
-        usageEstimated: providerUsage === null,
-        latencyMs: Date.now() - started,
-        fallbackTriggered: index > 0,
-        attempts: attemptLabels
-      };
-      yield { type: "done" };
-      return;
-    } catch (error) {
-      if (input.signal?.aborted) {
-        return;
+        lastError = attemptSignal.timedOut() || gatewayDeadline.timedOut() ? new Error("Provider request timed out.") : error;
+        const classified = classifyProviderError(lastError);
+        logPerformanceMetric("llm_provider_attempt", {
+          route: "chat:gateway",
+          provider: attempt.providerName,
+          model: attempt.model,
+          keySlot: (attempt.key?.providerPriority ?? 0) + 1,
+          success: false,
+          statusCode: classified.status,
+          errorCode: classified.code,
+          latencyMs: Date.now() - attemptStarted
+        });
+        if (emittedAny) {
+          yield { type: "error", message: "The model stream was interrupted." };
+          return;
+        }
+        const nextAttempt = attempts[index + 1];
+        const hasNextKeyForProvider = nextAttempt?.providerName === attempt.providerName;
+        if (!classified.retryable && !(hasNextKeyForProvider && isKeyScopedFailure(classified.code))) {
+          yield {
+            type: "error",
+            message: exhaustedProviderMessage(route, primaryKeyCount, classified.message)
+          };
+          return;
+        }
+      } finally {
+        attemptSignal.dispose();
       }
-
-      lastError = attemptSignal.timedOut() ? new Error("Provider request timed out.") : error;
-      const classified = classifyProviderError(lastError);
-      logPerformanceMetric("llm_provider_attempt", {
-        route: "chat:gateway",
-        provider: attempt.providerName,
-        model: attempt.model,
-        success: false,
-        statusCode: classified.status,
-        errorCode: classified.code,
-        latencyMs: Date.now() - attemptStarted
-      });
-      if (emittedAny) {
-        yield { type: "error", message: "The model stream was interrupted." };
-        return;
-      }
-      if (!classified.retryable) {
-        yield { type: "error", message: classified.message };
-        return;
-      }
-    } finally {
-      attemptSignal.dispose();
     }
+  } finally {
+    gatewayDeadline.dispose();
   }
 
   const classified = classifyProviderError(lastError);
-  yield { type: "error", message: classified.message };
+  yield { type: "error", message: exhaustedProviderMessage(route, primaryKeyCount, classified.message) };
 }
 
 export async function createGatewayEmbedding(text: string, providerKeys?: ProviderKeys) {
@@ -240,6 +268,34 @@ function fallbackRoutes(primary: GatewayRoute, keys: ProviderKeys) {
   return routes.filter((route) => route.providerName !== primary.providerName || route.model !== primary.model);
 }
 
+function attemptRoutes(primary: GatewayRoute, keys: ProviderKeys) {
+  const sameProvider = keys
+    .filter((key) => key.provider === primary.providerName && key.id !== primary.key?.id)
+    .sort((left, right) =>
+      (left.providerPriority ?? Number.MAX_SAFE_INTEGER) - (right.providerPriority ?? Number.MAX_SAFE_INTEGER)
+    )
+    .map((key) => routeFromKey(key, primary.model));
+  return [primary, ...sameProvider, ...fallbackRoutes(primary, keys)];
+}
+
+function isKeyScopedFailure(code: ReturnType<typeof classifyProviderError>["code"]) {
+  return code === "invalid_api_key" ||
+    code === "insufficient_balance" ||
+    code === "rate_limit" ||
+    code === "provider_unavailable" ||
+    code === "network_error" ||
+    code === "provider_error";
+}
+
+function exhaustedProviderMessage(route: GatewayRoute, keyCount: number, fallbackMessage: string) {
+  if (keyCount <= 1) {
+    return fallbackMessage;
+  }
+
+  const provider = route.key?.displayName || route.providerName;
+  return `All ${keyCount} saved keys for ${provider} failed for this request. Check or replace them in Settings.`;
+}
+
 function parseExplicitProviderModel(requested: string, keys: ProviderKeys) {
   const separator = requested.indexOf(":");
   if (separator <= 0) {
@@ -281,6 +337,7 @@ async function streamProvider(input: {
   frequencyPenalty?: number | null;
   presencePenalty?: number | null;
   maxTokens?: number | null;
+  maxRetries?: number;
   key?: ProviderKey;
   signal: AbortSignal;
   writeDelta: (delta: string) => string;
@@ -301,6 +358,7 @@ async function streamProvider(input: {
         client: new OpenAI({
           apiKey: input.key.apiKey,
           baseURL,
+          maxRetries: input.maxRetries,
           defaultHeaders:
             input.key.provider === "openrouter"
               ? {
@@ -333,7 +391,7 @@ async function streamProvider(input: {
     const usage = createUsageTracker();
     return {
       deltas: streamAnthropic({
-        client: new Anthropic({ apiKey: input.key.apiKey }),
+        client: new Anthropic({ apiKey: input.key.apiKey, maxRetries: input.maxRetries }),
         model: input.model,
         messages: input.messages,
         temperature: input.temperature,

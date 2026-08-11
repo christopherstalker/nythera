@@ -10,7 +10,7 @@ test("public character catalog requests use the shared cached discovery query", 
   assert.match(discoveryFeed, /DISCOVERY_FEED_REVALIDATE_SECONDS\s*=\s*60/);
   assert.match(discoveryFeed, /shouldCachePublicCharacterQuery/);
   assert.match(route, /getPublicCharacters\(query\)/);
-  assert.match(route, /discoveryFeedCacheHeaders\(\)/);
+  assert.match(route, /discoveryFeedCacheHeaders\(query\)/);
   assert.match(discoveryFeed, /s-maxage/);
 });
 

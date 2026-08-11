@@ -29,7 +29,7 @@ test("Explore keeps mobile and tablet filters behind a search-adjacent drawer tr
   assert.match(explore, /const \[filtersOpen, setFiltersOpen\] = useState\(false\)/);
   assert.match(explore, /filterControls="explore-filter-drawer"/);
   assert.match(explore, /id="explore-filter-drawer"/);
-  assert.match(explore, /hidden gap-5 xl:grid/);
+  assert.match(explore, /hidden gap-5[^"\n]*xl:grid/);
   assert.match(explore, /fixed inset-x-3 bottom-\[calc\(var\(--bottom-nav-offset\)_\+_8px\)\]/);
   assert.match(explore, /md:bottom-6/);
   assert.match(explore, /<DiscoveryFilterControls/);

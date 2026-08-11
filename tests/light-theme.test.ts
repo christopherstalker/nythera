@@ -28,13 +28,15 @@ test("Living Codex is a single permanent dark theme", async () => {
   await assert.rejects(() => access(new URL("../src/components/settings/appearance-settings-client.tsx", import.meta.url)));
 });
 
-test("profile APIs no longer accept theme or global accent overrides", async () => {
+test("profile APIs keep the app theme fixed while allowing a profile-only accent", async () => {
   const [profile, mobileProfile] = await Promise.all([
     read("../src/app/api/profile/route.ts"),
     read("../src/app/api/mobile/profile/route.ts")
   ]);
 
-  assert.doesNotMatch([profile, mobileProfile].join("\n"), /preferredTheme|accentColor/);
+  assert.doesNotMatch([profile, mobileProfile].join("\n"), /preferredTheme/);
+  assert.match(profile, /accentColor/);
+  assert.doesNotMatch(mobileProfile, /accentColor/);
 });
 
 test("shared buttons use the fixed Living Codex action treatment", async () => {

@@ -4,9 +4,14 @@ import test from "node:test";
 
 import {
   canEditMessageRole,
+  continuationClientRequestId,
+  latestAssistantVariantGroup,
   partitionMessagesForRewind,
+  prepareContinuationTurn,
   prepareRegenerationTurn,
+  prepareUserRetryTurn,
   resolveVariantSelection,
+  selectPersistedConversationBranch,
   shouldRegenerateAfterMessageEdit
 } from "../src/lib/message-actions";
 import { streamMessageSchema } from "../src/lib/validation";
@@ -33,6 +38,7 @@ test("a newly streamed regeneration automatically selects the latest attempt", (
   assert.equal(resolveVariantSelection(0, 2, 2), 0);
   assert.equal(resolveVariantSelection(1, 2, 3), 2);
   assert.equal(resolveVariantSelection(2, 3, 4), 3);
+  assert.equal(resolveVariantSelection(undefined, undefined, 4, 2), 2);
 });
 
 test("regeneration targets only the latest assistant variant group without duplicating the user turn", () => {
@@ -62,6 +68,23 @@ test("regeneration after a user edit removes the edited turn from recent context
   assert.deepEqual(result?.recentMessages.map((message) => message.id), ["u1", "a1"]);
 });
 
+test("retry targets only the latest unanswered user turn", () => {
+  const unanswered = [
+    { id: "u1", role: "USER" as const, content: "First request" },
+    { id: "a1", role: "ASSISTANT" as const, content: "First response" },
+    { id: "u2", role: "USER" as const, content: "Try this again" }
+  ];
+
+  const retry = prepareUserRetryTurn(unanswered, "u2");
+  assert.equal(retry?.currentMessage, "Try this again");
+  assert.deepEqual(retry?.recentMessages.map((message) => message.id), ["u1", "a1"]);
+  assert.equal(prepareUserRetryTurn(unanswered, "u1"), null);
+  assert.equal(
+    prepareUserRetryTurn([...unanswered, { id: "a2", role: "ASSISTANT" as const, content: "Already answered" }], "u2"),
+    null
+  );
+});
+
 test("regeneration supports opening and continued assistant-only turns", () => {
   const opening = { id: "a1", role: "ASSISTANT" as const, content: "Welcome to the paddock." };
   const continuation = {
@@ -85,13 +108,67 @@ test("regeneration supports opening and continued assistant-only turns", () => {
   assert.deepEqual(continuedResult?.recentMessages.map((message) => message.id), ["a1"]);
 });
 
-test("stream validation permits empty text only for continue and regenerate actions", () => {
+test("continuation follows the selected response from the latest regeneration group", () => {
+  const conversation = [
+    { id: "u1", role: "USER" as const, content: "Open the archive." },
+    { id: "a1", role: "ASSISTANT" as const, content: "First response." },
+    { id: "a2", role: "ASSISTANT" as const, content: "Second response." },
+    { id: "a3", role: "ASSISTANT" as const, content: "Third response." }
+  ];
+
+  const selectedBranch = prepareContinuationTurn(conversation, "a2");
+  assert.deepEqual(selectedBranch?.map((message) => message.id), ["u1", "a2"]);
+  assert.equal(prepareContinuationTurn(conversation, "a1")?.at(-1)?.content, "First response.");
+  assert.equal(prepareContinuationTurn(conversation, "missing"), null);
+});
+
+test("active response selection moves to the latest assistant turn", () => {
+  const conversation = [
+    { id: "u1", role: "USER" as const, content: "Open the archive." },
+    { id: "a1", role: "ASSISTANT" as const, content: "The red door opens." },
+    { id: "a2", role: "ASSISTANT" as const, content: "The blue door opens." },
+    { id: "u2", role: "USER" as const, content: "Step inside." },
+    { id: "a3", role: "ASSISTANT" as const, content: "Cold air spills out." }
+  ];
+
+  assert.deepEqual(latestAssistantVariantGroup(conversation).map((message) => message.id), ["a3"]);
+  assert.deepEqual(
+    latestAssistantVariantGroup([
+      ...conversation,
+      { id: "a4", role: "ASSISTANT" as const, content: "A lantern flickers." }
+    ]).map((message) => message.id),
+    ["a3", "a4"]
+  );
+  assert.deepEqual(
+    latestAssistantVariantGroup([
+      ...conversation,
+      { id: "a4", role: "ASSISTANT" as const, content: "A lantern flickers.", clientRequestId: "continue-request-2" }
+    ]).map((message) => message.id),
+    ["a4"]
+  );
+});
+
+test("persisted continuations keep the selected regeneration as the canonical branch", () => {
+  const conversation = [
+    { id: "u1", role: "USER" as const, content: "Choose a door." },
+    { id: "a1", role: "ASSISTANT" as const, content: "The red door opens." },
+    { id: "a2", role: "ASSISTANT" as const, content: "The blue door opens." },
+    { id: "a3", role: "ASSISTANT" as const, content: "The black door opens." },
+    { id: "a4", role: "ASSISTANT" as const, content: "Cold air spills out.", clientRequestId: continuationClientRequestId("request-1", "a2") },
+    { id: "u2", role: "USER" as const, content: "Step inside." }
+  ];
+
+  assert.deepEqual(selectPersistedConversationBranch(conversation).map((message) => message.id), ["u1", "a2", "a4", "u2"]);
+});
+
+test("stream validation permits empty text only for continue, regenerate, and retry actions", () => {
   assert.equal(streamMessageSchema.safeParse({ message: "" }).success, false);
   assert.equal(streamMessageSchema.safeParse({ message: "", continueChat: true }).success, true);
   assert.equal(
     streamMessageSchema.safeParse({ message: "", regenerate: true, regenerateMessageId: "assistant-message" }).success,
     true
   );
+  assert.equal(streamMessageSchema.safeParse({ message: "", retryUserMessageId: "user-message" }).success, true);
 });
 
 test("message editing is inline and exposed for both roles", async () => {
@@ -115,6 +192,9 @@ test("rewind uses one server transaction and removes derived future context", as
   assert.doesNotMatch(hook, /toDelete[\s\S]*Promise\.all/);
   assert.match(route, /rewindChat/);
   assert.match(rewind, /TransactionIsolationLevel\.Serializable/);
+  assert.match(rewind, /error\.code === "P2034"/);
+  assert.match(hook, /cache: "no-store"/);
+  assert.match(hook, /await refreshMessages\(\)/);
   assert.match(rewind, /tx\.memory\.deleteMany/);
   assert.doesNotMatch(rewind, /pinned:\s*false/);
   assert.match(rewind, /tx\.storyTurn\.deleteMany/);

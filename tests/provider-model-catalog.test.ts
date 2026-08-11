@@ -17,11 +17,18 @@ test("provider models refresh server-side from official catalogs without exposin
   assert.match(catalog, /\/user\/balance/);
   assert.match(catalog, /redis\.set/);
   assert.match(catalog, /MODEL_CATALOG_TTL_SECONDS/);
+  assert.match(catalog, /MODEL_CATALOG_RETENTION_SECONDS/);
+  assert.match(catalog, /Showing the last successful live catalog/);
+  assert.match(catalog, /anthropic\.com\/v1\/models\?limit=1000/);
   assert.match(route, /requireUser/);
   assert.match(route, /getDecryptedProviderKeys/);
   assert.doesNotMatch(route, /apiKey\s*:/);
   assert.match(settings, /Live model catalog/);
   assert.match(settings, /Refresh models/);
+  assert.match(settings, /MODEL_CATALOG_REFRESH_INTERVAL_MS/);
+  assert.match(settings, /visibilitychange/);
+  assert.match(settings, /View available models/);
+  assert.doesNotMatch(route, /provider\.source === "live" \? "VALID" as const : "UNVERIFIED"/);
 });
 
 test("Gemini receives native system instructions instead of flattened SYSTEM text", async () => {

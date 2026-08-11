@@ -9,6 +9,7 @@ import { defaultModelForProvider } from "@/lib/provider-model-options";
 export type { ProviderApiFormat } from "@/lib/provider-presets";
 
 export type ProviderKey = {
+  id?: string;
   provider: string;
   displayName: string;
   apiFormat: ProviderApiFormat;
@@ -19,6 +20,9 @@ export type ProviderKey = {
   isDefault?: boolean;
   fallbackEnabled?: boolean;
   fallbackPriority?: number | null;
+  providerPriority?: number;
+  credentialStatus?: "UNVERIFIED" | "VALID" | "INVALID";
+  validatedAt?: Date | null;
   source?: "user" | "platform";
 };
 
@@ -45,32 +49,32 @@ export async function saveUserApiKey(input: {
   });
 
   return prisma.$transaction(async (tx) => {
-    await tx.userApiKey.updateMany({
-      where: {
-        userId: input.userId,
-        provider: { not: provider }
-      },
-      data: { isDefault: false }
+    const providerKeys = await tx.userApiKey.findMany({
+      where: { userId: input.userId, provider },
+      orderBy: [{ providerPriority: "asc" }, { createdAt: "asc" }],
+      select: {
+        providerPriority: true,
+        fallbackEnabled: true,
+        fallbackPriority: true
+      }
     });
+    const firstProviderKey = providerKeys[0];
+    const isFirstForProvider = !firstProviderKey;
 
-    return tx.userApiKey.upsert({
-      where: {
-        userId_provider: {
-          userId: input.userId,
-          provider
-        }
-      },
-      update: {
-        displayName: config.displayName,
-        apiFormat: config.apiFormat,
-        baseUrl: normalizeOptionalUrl(config.baseUrl),
-        defaultModel: config.defaultModel || null,
-        encryptedKey: encryptSecret(trimmed),
-        last4: trimmed.slice(-4),
-        label: input.label || null,
-        isDefault: true
-      },
-      create: {
+    if (isFirstForProvider) {
+      await tx.userApiKey.updateMany({
+        where: { userId: input.userId },
+        data: { isDefault: false }
+      });
+    }
+
+    const providerPriority = providerKeys.reduce(
+      (highest, key) => Math.max(highest, key.providerPriority),
+      -1
+    ) + 1;
+
+    return tx.userApiKey.create({
+      data: {
         userId: input.userId,
         provider,
         displayName: config.displayName,
@@ -79,9 +83,13 @@ export async function saveUserApiKey(input: {
         defaultModel: config.defaultModel || null,
         encryptedKey: encryptSecret(trimmed),
         last4: trimmed.slice(-4),
-        label: input.label || null,
-        isDefault: true,
-        fallbackEnabled: false
+        label: input.label?.trim() || `${config.displayName} key ${providerPriority + 1}`,
+        isDefault: isFirstForProvider,
+        fallbackEnabled: firstProviderKey?.fallbackEnabled ?? false,
+        fallbackPriority: firstProviderKey?.fallbackPriority ?? null,
+        providerPriority,
+        credentialStatus: "VALID",
+        validatedAt: new Date()
       }
     });
   });
@@ -90,7 +98,7 @@ export async function saveUserApiKey(input: {
 export async function listUserApiKeys(userId: string) {
   return prisma.userApiKey.findMany({
     where: { userId },
-    orderBy: [{ isDefault: "desc" }, { fallbackPriority: "asc" }, { updatedAt: "desc" }, { provider: "asc" }],
+    orderBy: [{ isDefault: "desc" }, { fallbackPriority: "asc" }, { provider: "asc" }, { providerPriority: "asc" }, { createdAt: "asc" }],
     select: {
       id: true,
       provider: true,
@@ -103,17 +111,24 @@ export async function listUserApiKeys(userId: string) {
       isDefault: true,
       fallbackEnabled: true,
       fallbackPriority: true,
+      providerPriority: true,
+      credentialStatus: true,
+      validatedAt: true,
       createdAt: true,
       updatedAt: true
     }
   });
 }
 
-export async function getDecryptedProviderKeys(userId: string): Promise<ProviderKeys> {
+export async function getDecryptedProviderKeys(userId: string, options: { includeInvalid?: boolean } = {}): Promise<ProviderKeys> {
   const rows = await prisma.userApiKey.findMany({
-    where: { userId },
-    orderBy: [{ isDefault: "desc" }, { fallbackPriority: "asc" }, { updatedAt: "desc" }],
+    where: {
+      userId,
+      ...(options.includeInvalid ? {} : { credentialStatus: "VALID" })
+    },
+    orderBy: [{ isDefault: "desc" }, { fallbackPriority: "asc" }, { provider: "asc" }, { providerPriority: "asc" }, { createdAt: "asc" }],
     select: {
+      id: true,
       provider: true,
       displayName: true,
       apiFormat: true,
@@ -123,11 +138,15 @@ export async function getDecryptedProviderKeys(userId: string): Promise<Provider
       isDefault: true,
       fallbackEnabled: true,
       fallbackPriority: true,
+      providerPriority: true,
+      credentialStatus: true,
+      validatedAt: true,
       encryptedKey: true
     }
   });
 
   return rows.map((row) => ({
+    id: row.id,
     provider: row.provider,
     displayName: row.displayName,
     apiFormat: row.apiFormat as ProviderApiFormat,
@@ -138,6 +157,9 @@ export async function getDecryptedProviderKeys(userId: string): Promise<Provider
     isDefault: row.isDefault,
     fallbackEnabled: row.fallbackEnabled,
     fallbackPriority: row.fallbackPriority,
+    providerPriority: row.providerPriority,
+    credentialStatus: row.credentialStatus as ProviderKey["credentialStatus"],
+    validatedAt: row.validatedAt,
     source: "user"
   }));
 }
@@ -158,17 +180,17 @@ export async function updateUserProviderFallbacks(input: {
   await prisma.$transaction(async (tx) => {
     const existing = await tx.userApiKey.findMany({
       where: { userId: input.userId },
-      select: { id: true, provider: true }
+      select: { provider: true }
     });
-    const byProvider = new Map(existing.map((key) => [key.provider, key]));
-    if (normalized.some((item) => !byProvider.has(item.provider))) {
+    const existingProviders = new Set(existing.map((key) => key.provider));
+    if (normalized.some((item) => !existingProviders.has(item.provider))) {
       throw new Error("Fallback chain contains an unknown provider.");
     }
 
     await Promise.all(
       normalized.map((item, index) =>
-        tx.userApiKey.update({
-          where: { id: byProvider.get(item.provider)!.id },
+        tx.userApiKey.updateMany({
+          where: { userId: input.userId, provider: item.provider },
           data: {
             fallbackEnabled: item.enabled,
             fallbackPriority: item.enabled ? index : null
@@ -237,18 +259,41 @@ export function getServerProviderKeys(): ProviderKeys {
   return keys;
 }
 
-export async function deleteUserApiKey(input: { userId: string; provider: string }) {
-  const provider = normalizeProviderId(input.provider);
+export async function deleteUserApiKey(input: { userId: string; keyId?: string | null; provider?: string | null }) {
+  const provider = input.provider ? normalizeProviderId(input.provider) : "";
 
   await prisma.$transaction(async (tx) => {
-    const deleted = await tx.userApiKey.deleteMany({
-      where: {
-        userId: input.userId,
-        provider
-      }
+    const targets = await tx.userApiKey.findMany({
+      where: input.keyId
+        ? { id: input.keyId, userId: input.userId }
+        : { userId: input.userId, provider },
+      select: { id: true, provider: true, isDefault: true }
+    });
+    if (targets.length === 0) {
+      return;
+    }
+    await tx.userApiKey.deleteMany({
+      where: { id: { in: targets.map((target) => target.id) }, userId: input.userId }
     });
 
-    if (deleted.count === 0) {
+    const deletedDefault = targets.some((target) => target.isDefault);
+    if (!deletedDefault) {
+      return;
+    }
+
+    const deletedDefaultProvider = targets.find((target) => target.isDefault)?.provider;
+    const sameProviderReplacement = deletedDefaultProvider
+      ? await tx.userApiKey.findFirst({
+          where: { userId: input.userId, provider: deletedDefaultProvider },
+          orderBy: [{ providerPriority: "asc" }, { createdAt: "asc" }],
+          select: { id: true }
+        })
+      : null;
+    if (sameProviderReplacement) {
+      await tx.userApiKey.update({
+        where: { id: sameProviderReplacement.id },
+        data: { isDefault: true }
+      });
       return;
     }
 
@@ -266,7 +311,7 @@ export async function deleteUserApiKey(input: { userId: string; provider: string
 
     const nextDefault = await tx.userApiKey.findFirst({
       where: { userId: input.userId },
-      orderBy: [{ updatedAt: "desc" }, { provider: "asc" }],
+      orderBy: [{ fallbackPriority: "asc" }, { provider: "asc" }, { providerPriority: "asc" }],
       select: { id: true }
     });
 

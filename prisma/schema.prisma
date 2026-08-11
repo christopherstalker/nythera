@@ -22,14 +22,19 @@ model User {
   role                 Role      @default(USER)
   ageVerified          Boolean   @default(false)
   birthDate            DateTime?
+  adultTermsAcceptedAt DateTime?
+  adultTermsVersion    String?
   memoryEnabled        Boolean   @default(true)
   compactMode          Boolean   @default(false)
   notificationsEnabled Boolean   @default(false)
   preferredTheme       String    @default("dark")
   accentColor          String    @default("#8F81F7")
+  profileSettings      Json?
   preferredProvider    String?
   preferredModel       String    @default("gpt-4o-mini")
+  lastPersonaId        String?
   defaultResponsePrompt String?  @db.Text
+  preferredChatMode    String    @default("realism")
   bannedAt             DateTime?
   banReason            String?   @db.Text
   createdAt            DateTime  @default(now())
@@ -51,6 +56,7 @@ model User {
   reports             Report[]            @relation("ReporterReports")
   characterLikes      CharacterLike[]
   characterRatings    CharacterRating[]
+  chatSidebarPins     ChatSidebarPin[]
   llmRequestLogs      LlmRequestLog[]
   apiKeys             UserApiKey[]
   voiceApiKeys       VoiceApiKey[]
@@ -139,6 +145,7 @@ model Character {
   presencePenalty      Float?
   maxTokens            Int?
   systemPromptOverride String?               @db.Text
+  defaultChatMode      String                @default("realism")
   discoveryPlacement   DiscoveryPlacement    @default(STANDARD)
   visibility           Visibility            @default(PRIVATE)
   moderationStatus     ModerationStatus      @default(PENDING)
@@ -165,6 +172,7 @@ model Character {
   reports             Report[]
   likedBy             CharacterLike[]
   ratings             CharacterRating[]
+  sidebarPins         ChatSidebarPin[]
 
   @@index([creatorId, updatedAt(sort: Desc)], map: "character_creator_updated_idx")
   @@index([creatorId, cloneSourceId, updatedAt(sort: Desc)], map: "character_creator_clone_updated_idx")
@@ -185,6 +193,19 @@ model CharacterLike {
   @@id([userId, characterId])
   @@index([characterId])
   @@index([userId, createdAt(sort: Desc)], map: "character_like_user_created_idx")
+}
+
+model ChatSidebarPin {
+  userId      String
+  characterId String
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@id([userId, characterId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([characterId])
 }
 
 model CharacterRating {
@@ -213,9 +234,12 @@ model Chat {
   temperature    Float     @default(0.7)
   model          String    @default("gpt-4o-mini")
   responsePrompt String?   @db.Text
+  chatMode       String    @default("realism")
+  appearance     Json?
   messageCount   Int       @default(0)
   summary        String?   @db.Text
   summaryThroughSequence Int @default(0)
+  activeAssistantMessageId String?
   archivedAt     DateTime?
   lastActiveAt   DateTime  @default(now())
   createdAt      DateTime  @default(now())
@@ -340,6 +364,7 @@ model Message {
   estimatedCost   Decimal?    @db.Decimal(12, 8)
   usageEstimated  Boolean?
   clientRequestId String?     @unique
+  branchSourceMessageId String?
   flagged         Boolean     @default(false)
   createdAt       DateTime    @default(now())
 
@@ -351,6 +376,7 @@ model Message {
 
   @@unique([chatId, sequence])
   @@index([chatId, createdAt, sequence, id], map: "message_chat_created_sequence_id_idx")
+  @@index([chatId, branchSourceMessageId])
 }
 
 model RoomMessage {
@@ -966,13 +992,17 @@ model UserApiKey {
   isDefault        Boolean  @default(true)
   fallbackEnabled  Boolean  @default(false)
   fallbackPriority Int?
+  providerPriority Int      @default(0)
+  credentialStatus String   @default("UNVERIFIED")
+  validatedAt      DateTime?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, provider])
   @@index([userId])
+  @@index([userId, provider, providerPriority])
+  @@index([userId, credentialStatus])
   @@index([userId, fallbackEnabled, fallbackPriority])
   @@index([apiFormat])
 }

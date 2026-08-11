@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Copy, Edit3, Flag, Globe, Heart, Lock, MessageCircle, MessageSquarePlus, Share2, Sparkles, Star, Trash2, User, X } from "lucide-react";
@@ -15,6 +15,8 @@ import { PageShell, Surface, SurfaceMuted } from "@/components/ui/page";
 import { cn } from "@/lib/utils";
 import { displayTagLabel } from "@/lib/character-tags";
 import type { PublicCharacterProfile } from "@/types";
+
+const STALE_REFRESH_MS = 300_000;
 
 export default function CharacterProfileClient({
   initialCharacter
@@ -42,6 +44,7 @@ export default function CharacterProfileClient({
   const [visibilitySaving, setVisibilitySaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [chatStarting, setChatStarting] = useState(false);
+  const lastLoadedAt = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,23 +64,22 @@ export default function CharacterProfileClient({
         setLiked(Boolean(body.viewer?.liked));
         setRatingValue(Number(body.viewer?.rating?.value ?? 0));
         setReviewText(body.viewer?.rating?.review ?? "");
+        lastLoadedAt.current = Date.now();
       } catch {
         if (!cancelled) setError("Character not found or unavailable.");
       }
     }
 
     void loadCharacter();
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") void loadCharacter();
+    const refreshWhenStale = () => {
+      if (document.visibilityState === "visible" && Date.now() - lastLoadedAt.current >= STALE_REFRESH_MS) {
+        void loadCharacter();
+      }
     };
-    window.addEventListener("focus", refreshWhenVisible);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-    const interval = window.setInterval(refreshWhenVisible, 30_000);
+    document.addEventListener("visibilitychange", refreshWhenStale);
     return () => {
       cancelled = true;
-      window.removeEventListener("focus", refreshWhenVisible);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshWhenStale);
     };
   }, [params.id]);
 
@@ -170,6 +172,14 @@ export default function CharacterProfileClient({
       if (response.status === 401) {
         router.push("/login");
         return;
+      }
+
+      if (response.status === 403) {
+        const body = await response.json().catch(() => null);
+        if (typeof body?.error === "string" && body.error.includes("Adult consent")) {
+          router.push(`/auth/new-user?callbackUrl=${encodeURIComponent(`/character/${character.id}`)}`);
+          return;
+        }
       }
 
       if (!response.ok) {

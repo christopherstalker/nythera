@@ -53,6 +53,8 @@ export async function getPromptMemories(input: {
   semanticLimit?: number;
   totalLimit?: number;
   providerKeys?: ProviderKeys;
+  includeGlobal?: boolean;
+  semanticEnabled?: boolean;
 }): Promise<RetrievedMemory[]> {
   const pinnedLimit = Math.max(1, Math.min(input.pinnedLimit ?? 5, 10));
   const totalLimit = Math.max(pinnedLimit, Math.min(input.totalLimit ?? 8, 12));
@@ -76,16 +78,19 @@ export async function getPromptMemories(input: {
   });
 
   let semantic: RetrievedMemory[] = [];
-  try {
-    semantic = await searchMemories({
-      userId: input.userId,
-      characterId: input.characterId,
-      query: input.query,
-      limit: Math.max(1, Math.min(input.semanticLimit ?? 5, 10)),
-      providerKeys: input.providerKeys
-    });
-  } catch (error) {
-    logSafeError("Prompt memory semantic retrieval failed.", error);
+  if (input.semanticEnabled !== false) {
+    try {
+      semantic = await searchMemories({
+        userId: input.userId,
+        characterId: input.characterId,
+        query: input.query,
+        limit: Math.max(1, Math.min(input.semanticLimit ?? 5, 10)),
+        providerKeys: input.providerKeys,
+        includeGlobal: input.includeGlobal ?? true
+      });
+    } catch (error) {
+      logSafeError("Prompt memory semantic retrieval failed.", error);
+    }
   }
 
   const seenIds = new Set<string>();

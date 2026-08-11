@@ -21,7 +21,7 @@ test("registration verifies the new session before leaving the auth surface", as
   assert.match(source, /signIn\("credentials"/);
   assert.match(source, /redirect: false/);
   assert.match(source, /hasAuthenticatedSession\(\)/);
-  assert.match(source, /disabled=\{submitting\}/);
+  assert.match(source, /disabled=\{submitting \|\| !formValid\}/);
 });
 
 test("OAuth startup cannot leave every provider stuck behind an endless spinner", async () => {

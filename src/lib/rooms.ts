@@ -264,14 +264,13 @@ export async function sendRoomMessage(input: {
   });
 
   const [memories, defaultPersona, storyContext] = await Promise.all([
-    input.user.memoryEnabled
-      ? getPromptMemories({
-          userId: input.user.id,
-          characterId: speaker.id,
-          query: message,
-          providerKeys
-        })
-      : Promise.resolve([]),
+    getPromptMemories({
+      userId: input.user.id,
+      characterId: speaker.id,
+      query: message,
+      providerKeys,
+      semanticEnabled: input.user.memoryEnabled
+    }),
     prisma.userPersona.findFirst({
       where: { userId: input.user.id, isDefault: true }
     }),

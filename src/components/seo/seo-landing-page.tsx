@@ -41,12 +41,34 @@ export async function SeoLandingPage({
       }
     ]
   };
+  const collectionJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "@id": `${canonicalUrl}#collection`,
+    name: content.title,
+    description: content.description,
+    url: canonicalUrl,
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: characters.length,
+      itemListElement: characters.map((character, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        name: character.name,
+        url: `${CANONICAL_SITE_ORIGIN}/character/${character.id}`
+      }))
+    }
+  };
 
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd).replace(/</g, "\\u003c") }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd).replace(/</g, "\\u003c") }}
       />
       <PageShell className="space-y-14 pb-24">
         <header className="grid gap-8 border-b border-[var(--codex-rule)] pb-10 lg:grid-cols-[minmax(0,1.35fr)_minmax(300px,.65fr)] lg:items-end">

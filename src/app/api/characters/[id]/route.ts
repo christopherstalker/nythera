@@ -145,7 +145,8 @@ export async function POST(request: Request, context: Context) {
         visibility: "PRIVATE",
         moderationStatus: "APPROVED",
         tags: source.tags,
-        isNSFW: source.isNSFW
+        isNSFW: source.isNSFW,
+        defaultChatMode: source.defaultChatMode
       }
     });
 

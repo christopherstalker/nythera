@@ -12,8 +12,8 @@ import {
   discoveryFeedCacheHeaders,
   getPublicCharacters,
   normalizePublicCharacterQuery,
-  shouldCachePublicCharacterQuery
 } from "@/lib/discovery-feed";
+import { MAX_DISCOVERY_FILTER_TAGS, MAX_DISCOVERY_QUERY_LENGTH } from "@/lib/discovery-query";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +24,11 @@ export async function GET(request: Request) {
       route: "characters:read"
     });
     const { searchParams } = new URL(request.url);
-    if ((searchParams.get("q")?.length ?? 0) > 120 || searchParams.getAll("tag").length > 10) {
+    if (
+      (searchParams.get("q")?.length ?? 0) > MAX_DISCOVERY_QUERY_LENGTH ||
+      searchParams.getAll("tag").length > MAX_DISCOVERY_FILTER_TAGS ||
+      searchParams.getAll("tag").some((tag) => tag.length > 32)
+    ) {
       throw new HttpError(400, "Search query is too large.");
     }
     const mine = searchParams.get("mine") === "true";
@@ -38,16 +42,14 @@ export async function GET(request: Request) {
       tags: rawTags,
       sort: searchParams.get("sort"),
       nsfw: searchParams.get("nsfw"),
+      tagMatch: searchParams.get("match"),
       minRating: Number(searchParams.get("ratingMin") ?? 0),
       take: Number(searchParams.get("take") ?? 24)
     });
 
     if (!mine) {
       const characters = await getPublicCharacters(query);
-      return json(
-        { characters, tags: DISCOVERY_TAGS },
-        shouldCachePublicCharacterQuery(query) ? { headers: discoveryFeedCacheHeaders() } : undefined
-      );
+      return json({ characters, tags: DISCOVERY_TAGS }, { headers: discoveryFeedCacheHeaders(query) });
     }
 
     const session = await auth();
@@ -68,7 +70,11 @@ export async function GET(request: Request) {
     }
 
     if (query.tags.length > 0) {
-      where.tags = { hasSome: query.tags.flatMap(expandTagQuery) };
+      if (query.tagMatch === "all") {
+        where.AND = query.tags.map((tag) => ({ tags: { hasSome: expandTagQuery(tag) } }));
+      } else {
+        where.tags = { hasSome: query.tags.flatMap(expandTagQuery) };
+      }
     }
 
     if (query.minRating > 0) {

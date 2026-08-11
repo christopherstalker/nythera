@@ -69,16 +69,20 @@ export async function PATCH(request: Request, context: Context) {
         temperature: input.temperature,
         model: input.model,
         responsePrompt: input.responsePrompt === undefined ? undefined : input.responsePrompt || null,
+        chatMode: input.chatMode,
         lastActiveAt: new Date()
       }
     });
-    const [updated] = input.responsePrompt === undefined
+    const [updated] = input.responsePrompt === undefined && input.chatMode === undefined
       ? [await chatUpdate]
       : await prisma.$transaction([
           chatUpdate,
           prisma.user.update({
             where: { id: user.id },
-            data: { defaultResponsePrompt: input.responsePrompt || null }
+            data: {
+              defaultResponsePrompt: input.responsePrompt === undefined ? undefined : input.responsePrompt || null,
+              preferredChatMode: input.chatMode
+            }
           })
         ]);
 

@@ -105,7 +105,7 @@ test("first-time OAuth users return to the PWA completion route", async () => {
 
   assert.match(auth, /newUser:\s*"\/auth\/new-user"/);
   assert.match(newUserPage, /startsWith\("\/auth\/pwa\/complete\?transactionId="\)/);
-  assert.match(newUserPage, /redirect\("\/settings"\)/);
+  assert.match(newUserPage, /redirect\(`\/settings\/providers\?onboarding=1/);
 });
 
 test("legacy installs receive an explicit canonical migration surface", async () => {

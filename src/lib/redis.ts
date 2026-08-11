@@ -24,12 +24,11 @@ export function hasDistributedRateLimitStore() {
 
 export async function incrementWithExpiry(key: string, windowSeconds: number, amount = 1) {
   if (redis) {
-    const count = await redis.incrby(key, amount);
-    if (count === amount) {
-      await redis.expire(key, windowSeconds);
-    }
-
-    return count;
+    return redis.eval<[number, number], number>(
+      "local count = redis.call('INCRBY', KEYS[1], ARGV[1]); if count == tonumber(ARGV[1]) then redis.call('EXPIRE', KEYS[1], ARGV[2]); end; return count",
+      [key],
+      [amount, windowSeconds]
+    );
   }
 
   const now = Date.now();

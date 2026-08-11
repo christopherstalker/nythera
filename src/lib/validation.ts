@@ -1,8 +1,18 @@
 import { z } from "zod";
+import { MAX_CHAT_MESSAGE_LENGTH } from "@/lib/chat-limits";
+import { resolveMusicEmbed } from "@/lib/music-embed";
 
 const MAX_IMAGE_DATA_URL_BYTES = 140_000;
 const MAX_IMAGE_DATA_URL_LENGTH = 190_000;
 const imageDataUrlPattern = /^data:image\/(png|jpe?g|webp|gif);base64,([a-zA-Z0-9+/=\s]+)$/i;
+
+function isHttpsUrl(value: string) {
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
 
 function decodeBase64ImageBytes(value: string) {
   const normalized = value.replace(/\s/g, "");
@@ -120,6 +130,7 @@ export const characterPersonaSchema = z.object({
   archetype: z.string().trim().min(1).max(120).optional(),
   personalityTraits: personaListSchema.optional(),
   speakingStyle: z.string().trim().max(500).optional(),
+  background: z.string().trim().max(5000).optional(),
   emotionalTone: z.string().trim().max(240).optional(),
   initiativeLevel: z.enum(["low", "medium", "high"]).optional(),
   boundaries: personaListSchema.optional(),
@@ -153,7 +164,8 @@ export const characterCreateSchema = z.object({
   frequencyPenalty: z.number().min(-2).max(2).nullable().optional(),
   presencePenalty: z.number().min(-2).max(2).nullable().optional(),
   maxTokens: z.number().int().min(1).max(4096).nullable().optional(),
-  systemPromptOverride: z.string().trim().max(8000).nullable().optional()
+  systemPromptOverride: z.string().trim().max(8000).nullable().optional(),
+  defaultChatMode: z.enum(["realism", "fantasy"]).default("realism")
 });
 
 export const characterUpdateSchema = characterCreateSchema.partial();
@@ -162,7 +174,30 @@ export const chatCreateSchema = z.object({
   characterId: z.string().min(1),
   title: z.string().max(120).optional(),
   temperature: z.coerce.number().min(0).max(2).default(0.7),
-  model: z.string().trim().min(1).max(160).optional()
+  model: z.string().trim().min(1).max(160).optional(),
+  chatMode: z.enum(["realism", "fantasy"]).optional()
+});
+
+export const chatAppearanceSchema = z.object({
+  backgroundMode: z.enum(["default", "custom", "none"]),
+  backgroundUrl: z.string().trim().max(1000),
+  backgroundType: z.enum(["auto", "image", "video"]),
+  backgroundFit: z.enum(["cover", "contain"]),
+  backgroundPosition: z.enum(["center", "top", "bottom"]),
+  backgroundDim: z.coerce.number().min(0).max(0.92),
+  backgroundBlur: z.coerce.number().min(0).max(24),
+  fontFamily: z.string().trim().min(1).max(120).regex(/^[\p{L}\p{N}\s._-]+$/u),
+  fontUrl: z.string().trim().max(1000).refine((value) => !value || isHttpsUrl(value), "Custom fonts must use HTTPS."),
+  fontSize: z.coerce.number().min(14).max(38),
+  fontWeight: z.coerce.number().min(300).max(800),
+  lineHeight: z.coerce.number().min(1.15).max(2.2),
+  contentWidth: z.coerce.number().min(560).max(1200),
+  textColor: hexColorSchema,
+  music: z.object({
+    enabled: z.boolean(),
+    url: z.string().trim().max(500).refine((value) => !value || Boolean(resolveMusicEmbed(value)), "Use a supported HTTPS music link."),
+    title: z.string().trim().max(100)
+  })
 });
 
 export const chatUpdateSchema = z.object({
@@ -170,33 +205,51 @@ export const chatUpdateSchema = z.object({
   archived: z.boolean().optional(),
   temperature: z.coerce.number().min(0).max(2).optional(),
   model: z.string().trim().min(1).max(160).optional(),
-  responsePrompt: z.string().trim().max(2000).optional()
+  responsePrompt: z.string().trim().max(2000).optional(),
+  chatMode: z.enum(["realism", "fantasy"]).optional(),
+  activeAssistantMessageId: z.string().trim().min(1).max(120).nullable().optional(),
+  appearance: chatAppearanceSchema.nullable().optional()
 });
 
 export const streamMessageSchema = z
   .object({
-    message: z.string().max(4000).optional().default(""),
+    message: z.string().max(MAX_CHAT_MESSAGE_LENGTH).optional().default(""),
     temperature: z.coerce.number().min(0).max(2).optional(),
     model: z.string().trim().min(1).max(160).optional(),
     responsePrompt: z.string().trim().max(2000).optional(),
     requestId: z.string().min(8).max(120).optional(),
     regenerate: z.boolean().optional(),
     regenerateMessageId: z.string().min(1).max(120).optional(),
-    continueChat: z.boolean().optional()
+    retryUserMessageId: z.string().min(1).max(120).optional(),
+    continueChat: z.boolean().optional(),
+    continueMessageId: z.string().min(1).max(120).optional(),
+    branchMessageId: z.string().min(1).max(120).optional()
   })
-  .refine((input) => input.continueChat || input.regenerate || input.message.trim().length > 0, {
+  .refine((input) => input.continueChat || input.regenerate || input.retryUserMessageId || input.message.trim().length > 0, {
     message: "Message is required.",
     path: ["message"]
   });
 
 export const registerSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().email(),
   username: z
     .string()
+    .trim()
     .min(3)
     .max(24)
     .regex(/^[a-zA-Z0-9_]+$/, "Username can contain letters, numbers, and underscores only."),
-  password: z.string().min(8).max(128)
+  password: z.string().min(8).max(128),
+  adultAcknowledged: z.literal(true, {
+    errorMap: () => ({ message: "Confirm that you are 18 or older before creating an account." })
+  }),
+  turnstileToken: z.string().trim().max(2048).optional()
+});
+
+export const adultConsentSchema = z.object({
+  adultAcknowledged: z.literal(true, {
+    errorMap: () => ({ message: "Confirm that you are 18 or older before continuing." })
+  }),
+  turnstileToken: z.string().trim().max(2048).optional()
 });
 
 export const reportSchema = z.object({
@@ -258,8 +311,8 @@ export const storyFactCreateSchema = z.object({
   subjectEntityId: z.string().trim().min(1).optional().nullable(),
   objectEntityId: z.string().trim().min(1).optional().nullable(),
   sourceMessageId: z.string().trim().min(1).optional().nullable(),
-  predicate: z.string().trim().min(1).max(80),
-  objectText: z.string().trim().min(1).max(2000),
+  predicate: z.string().trim().min(1, "Choose whether the fact is true now.").max(120, "Truth state is too long."),
+  objectText: z.string().trim().min(1, "Write the canonical fact.").max(6000, "Canonical facts can be up to 6,000 characters."),
   scope: z.enum(["STORY", "PARTICIPANT", "CHARACTER", "OWNER"]).default("STORY"),
   confidence: z.coerce.number().min(0).max(1).default(1),
   importance: z.coerce.number().min(0).max(5).default(1),

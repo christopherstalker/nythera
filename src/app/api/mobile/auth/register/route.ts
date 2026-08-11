@@ -5,6 +5,8 @@ import { createMobileToken, publicMobileUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { registerSchema } from "@/lib/validation";
+import { ADULT_CONSENT_VERSION } from "@/lib/adult-consent";
+import { verifyTurnstile } from "@/lib/turnstile";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +18,7 @@ export async function POST(request: Request) {
       route: "mobile-auth:register"
     });
     const input = await parseJson(request, registerSchema);
+    await verifyTurnstile({ token: input.turnstileToken, action: "register", remoteIp: getRequestIp(request) });
     const email = input.email.toLowerCase().trim();
     const passwordHash = await bcrypt.hash(input.password, 12);
 
@@ -25,7 +28,9 @@ export async function POST(request: Request) {
           email,
           username: input.username,
           name: input.username,
-          emailVerified: new Date()
+          emailVerified: new Date(),
+          adultTermsAcceptedAt: new Date(),
+          adultTermsVersion: ADULT_CONSENT_VERSION
         }
       });
 

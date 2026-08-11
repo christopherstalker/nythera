@@ -1,0 +1,32 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-json
+      - id: check-yaml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: detect-private-key
+  - repo: local
+    hooks:
+      - id: eslint
+        name: ESLint and safe formatting
+        entry: node node_modules/eslint/bin/eslint.js . --fix --max-warnings=0
+        language: system
+        files: \.[cm]?[jt]sx?$
+        pass_filenames: false
+      - id: typecheck
+        name: TypeScript type check
+        entry: node node_modules/typescript/bin/tsc --noEmit
+        language: system
+        files: \.[cm]?[jt]sx?$
+        pass_filenames: false
+      - id: regression-tests
+        name: Fast regression tests
+        entry: node --import tsx --test tests/walkthrough-regressions.test.ts tests/chat-model-picker.test.ts
+        language: system
+        files: \.[cm]?[jt]sx?$
+        pass_filenames: false

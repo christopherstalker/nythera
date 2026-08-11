@@ -2,14 +2,15 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 
-export function getRecentChats(userId: string, take = 8) {
+export function getRecentChats(userId: string, take = 8, characterId?: string | null) {
   return prisma.chat.findMany({
     where: {
       userId,
-      archivedAt: null
+      archivedAt: null,
+      ...(characterId ? { characterId } : {})
     },
     orderBy: [{ lastActiveAt: "desc" }, { updatedAt: "desc" }],
-    take: Math.min(Math.max(take, 1), 20),
+    take: Math.min(Math.max(take, 1), 60),
     include: {
       character: {
         select: {

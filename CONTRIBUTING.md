@@ -1,5 +1,11 @@
 # Contributing
 
+Install the repository checks before making changes:
+
+```bash
+pre-commit install
+```
+
 ## Local setup
 
 ```bash

@@ -11,6 +11,7 @@ test("fixed Roleplay Engine is ordered below safety and above all configurable c
   const orderedLayers = [
     "safetyLayer,",
     "roleplayEngineLayer,",
+    "modeLayer,",
     "characterSystemOverrideLayer,",
     "characterContractLayer,",
     "storyContextLayer,",
@@ -54,7 +55,7 @@ test("Extended Prompt persists as an account default and new chats inherit it", 
   assert.match(migration, /DISTINCT ON \("userId"\)/);
   assert.match(migration, /btrim\("responsePrompt"\) <> ''/);
   assert.match(patchRoute, /defaultResponsePrompt: input\.responsePrompt === undefined \? undefined : input\.responsePrompt \|\| null/);
-  assert.match(mobilePatch, /defaultResponsePrompt: input\.responsePrompt \|\| null/);
+  assert.match(mobilePatch, /defaultResponsePrompt: input\.responsePrompt === undefined \? undefined : input\.responsePrompt \|\| null/);
   for (const createRoute of [webCreate, mobileCreate]) {
     assert.match(createRoute, /responsePrompt: user\.defaultResponsePrompt/);
   }
@@ -82,13 +83,14 @@ test("rolling summaries extend through a watermark instead of repeatedly summari
   const memory = await read("../src/lib/memory.ts");
   const stream = await read("../src/app/api/chats/[id]/stream/route.ts");
   assert.match(memory, /sequence: \{ gt: chat\.summaryThroughSequence, lte: cutoffSequence \}/);
-  assert.match(memory, /buildConversationSummary\(messages, chat\.summary\)/);
+  assert.match(memory, /buildConversationSummary\(branchMessages, chat\.summary\)/);
+  assert.match(memory, /selectPersistedConversationBranch/);
   assert.match(memory, /data: \{ summary, summaryThroughSequence \}/);
   assert.match(stream, /loadAdaptiveChatHistory/);
   assert.doesNotMatch(stream, /take: 40/);
 });
 
-test("chat header identity links to the character and Memory stays nested under Persona", async () => {
+test("chat header links to the character and context exposes memory plus appearance", async () => {
   const [header, tabs, sidePanel] = await Promise.all([
     read("../src/components/chat/ChatHeader.tsx"),
     read("../src/components/chat/chat-panel-tabs.tsx"),
@@ -96,9 +98,9 @@ test("chat header identity links to the character and Memory stays nested under 
   ]);
   assert.match(header, /aria-label=\{`Open \$\{characterName\} profile`\}/);
   assert.doesNotMatch(header, /<Plus className/);
-  assert.match(tabs, /\["persona", "memory"\]/);
   assert.match(tabs, /startEditingMemory/);
   assert.match(tabs, /removeMemory/);
-  assert.equal((sidePanel.match(/id: "/g) ?? []).length, 6);
-  assert.doesNotMatch(sidePanel, /id: "memory"/);
+  assert.equal((sidePanel.match(/id: "/g) ?? []).length, 9);
+  assert.match(sidePanel, /id: "memory"/);
+  assert.match(sidePanel, /id: "appearance"/);
 });

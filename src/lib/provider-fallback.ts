@@ -18,6 +18,7 @@ export function providerFallbackNotice(attempts?: string[]) {
   if (!attempts || attempts.length < 2) return null;
   const primary = attempts[0].split(":", 1)[0];
   const answeredBy = attempts[attempts.length - 1].split(":", 1)[0];
+  if (primary === answeredBy) return null;
   return `${displayProvider(primary)} could not complete this request, so ${displayProvider(answeredBy)} answered through your enabled fallback chain.`;
 }
 

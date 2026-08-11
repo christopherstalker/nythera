@@ -6,12 +6,13 @@ const contentSecurityPolicy = [
   "object-src 'none'",
   "frame-ancestors 'none'",
   "form-action 'self'",
-  `script-src 'self' 'unsafe-inline'${isProduction ? "" : " 'unsafe-eval'"}`,
+  `script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com${isProduction ? "" : " 'unsafe-eval'"}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
   [
     "connect-src 'self'",
+    "https://challenges.cloudflare.com",
     "https://api.openai.com",
     "https://api.anthropic.com",
     "https://generativelanguage.googleapis.com",
@@ -27,6 +28,7 @@ const contentSecurityPolicy = [
     .filter(Boolean)
     .join(" "),
   "media-src 'self' data: blob: https:",
+  "frame-src 'self' https://challenges.cloudflare.com",
   "worker-src 'self' blob:",
   "manifest-src 'self'",
   isProduction ? "upgrade-insecure-requests" : ""

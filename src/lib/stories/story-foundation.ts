@@ -12,6 +12,7 @@ import {
 import { HttpError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { sanitizePromptContext } from "@/lib/prompt-security";
+import { romanceLevelInstruction } from "@/lib/romance-level";
 import { ensureAutomaticStoryCheckpoint } from "@/lib/stories/continuity-store";
 
 const EMPTY_WORLD_STATE = {
@@ -398,9 +399,10 @@ export async function getStoryPromptContext(input: {
   chatId: string;
   userId: string;
   actorCharacterId?: string | null;
+  includeCheckpoint?: boolean;
 }) {
   const foundation = await syncChatTurns(input.chatId, input.userId);
-  return buildStoryPromptContext(foundation, input.userId, input.actorCharacterId);
+  return buildStoryPromptContext(foundation, input.userId, input.actorCharacterId, input.includeCheckpoint);
 }
 
 export async function getRoomStoryPromptContext(input: {
@@ -415,7 +417,8 @@ export async function getRoomStoryPromptContext(input: {
 async function buildStoryPromptContext(
   foundation: { storyId: string; timelineId: string },
   userId: string,
-  actorCharacterId?: string | null
+  actorCharacterId?: string | null,
+  includeCheckpoint = true
 ) {
   const [story, actor] = await Promise.all([
     prisma.story.findFirst({
@@ -426,8 +429,8 @@ async function buildStoryPromptContext(
             status: "ACTIVE",
             OR: [{ timelineId: null }, { timelineId: foundation.timelineId }]
           },
-          orderBy: [{ locked: "desc" }, { importance: "desc" }, { updatedAt: "desc" }],
-          take: 40,
+          orderBy: [{ updatedAt: "desc" }, { locked: "desc" }, { importance: "desc" }],
+          take: 24,
           include: {
             subjectEntity: { select: { name: true } },
             knowledge: { select: { participantId: true, state: true } }
@@ -513,23 +516,24 @@ async function buildStoryPromptContext(
     throw new HttpError(404, "Story not found.");
   }
 
-  const visibleFacts = story.facts.filter((fact) => {
-    if (!actor) {
-      return fact.scope === "STORY" || fact.scope === "OWNER";
-    }
-    if (fact.scope === "OWNER" || fact.scope === "PARTICIPANT") {
-      return false;
-    }
-    if (fact.scope === "STORY" && fact.knowledge.length === 0) {
-      return true;
-    }
-    return fact.knowledge.some((entry) => entry.participantId === actor.id && entry.state !== "FORGOTTEN");
-  });
-
-  const factLines = visibleFacts.slice(0, 24).map((fact, index) => {
-    const subject = fact.subjectEntity?.name ? `${fact.subjectEntity.name} ` : "";
+  const factLines = story.facts.map((fact, index) => {
+    const subject = fact.subjectEntity?.name ? `${sanitizePromptContext(fact.subjectEntity.name, 120)} ` : "";
+    const predicate = sanitizePromptContext(fact.predicate, 180);
+    const objectText = sanitizePromptContext(fact.objectText, 2400);
     const lock = fact.locked ? " [CANON LOCK]" : "";
-    return `${index + 1}. ${subject}${fact.predicate}: ${fact.objectText}${lock}`;
+    const actorKnowledge = actor ? fact.knowledge.find((entry) => entry.participantId === actor.id)?.state : null;
+    const scope = fact.scope === "OWNER"
+      ? " [DIRECTOR ONLY — preserve in narration, do not reveal as character knowledge]"
+      : fact.knowledge.length > 0
+        ? actorKnowledge && actorKnowledge !== "FORGOTTEN"
+          ? ` [ACTOR KNOWLEDGE: ${actorKnowledge}]`
+          : " [NOT KNOWN BY ACTIVE CHARACTER — preserve as world truth without acting on or revealing it]"
+        : ` [${fact.scope} CANON]`;
+    if (fact.predicate === "is true now" || fact.predicate === "is not true now") {
+      const state = fact.predicate === "is true now" ? "CURRENTLY TRUE" : "CURRENTLY FALSE";
+      return `${index + 1}. ${objectText} [${state}]${scope}${lock}`;
+    }
+    return `${index + 1}. ${subject}${predicate}: ${objectText}${scope}${lock}`;
   });
   const currentSequence = story.turns[0]?.sequence ?? 0;
   const now = Date.now();
@@ -586,6 +590,7 @@ async function buildStoryPromptContext(
       : "No story-specific safety profile exists. Continue to obey platform safety and the active persona boundaries.",
     "",
     "STORY CANON (AUTHORITATIVE)",
+    "Every recorded fact below is binding world truth. Canon overrides summaries, alternative regenerations, inferred details, and ordinary Memory. Never omit or contradict an applicable canon fact. Respect knowledge labels: preserve unknown facts without making the active character reveal or act on knowledge they do not have.",
     factLines.length > 0 ? factLines.join("\n") : "No structured canon facts have been recorded yet.",
     "",
     "CURRENT WORLD STATE",
@@ -593,7 +598,7 @@ async function buildStoryPromptContext(
     "",
     "NARRATIVE DIRECTOR",
     director
-      ? `Tone: ${director.tone || "adaptive"}; pacing: ${director.pacing}; initiative: ${director.initiative}; conflict ${director.conflictLevel}/10; romance ${director.romanceLevel}/10; mystery ${director.mysteryLevel}/10; humor ${director.humorLevel}/10; offscreen events ${director.allowOffscreenEvents ? "allowed" : "disabled"}.\n${director.notes ? `Private direction: ${sanitizePromptContext(director.notes, 900)}` : ""}`
+      ? `Tone: ${director.tone || "adaptive"}; pacing: ${director.pacing}; initiative: ${director.initiative}; conflict ${director.conflictLevel}/10; romance ${director.romanceLevel}/10; mystery ${director.mysteryLevel}/10; humor ${director.humorLevel}/10; offscreen events ${director.allowOffscreenEvents ? "allowed" : "disabled"}.\nRomance direction: ${romanceLevelInstruction(director.romanceLevel)}\n${director.notes ? `Private direction: ${sanitizePromptContext(director.notes, 900)}` : ""}`
       : "Balanced pacing and initiative. Preserve player agency.",
     "",
     "ACTIVE STORY ARCS",
@@ -626,9 +631,11 @@ async function buildStoryPromptContext(
     visualLines.length > 0 ? visualLines.join("\n") : "No locked visual references are active.",
     "",
     "LATEST CONTINUITY CHECKPOINT",
-    checkpoint
+    includeCheckpoint && checkpoint
       ? `${checkpoint.title}: ${sanitizePromptContext(checkpoint.summary, 1800)}\nOpen threads: ${checkpoint.openThreads.join("; ") || "none recorded"}`
-      : "No checkpoint exists yet; rely on canon, world state, and recent turns."
+      : includeCheckpoint
+        ? "No checkpoint exists yet; rely on canon, world state, and recent turns."
+        : "Checkpoint omitted because the user selected an earlier response branch; rely on the selected recent turns."
   ].join("\n");
 
   return { ...foundation, text, eventIds: dueEvents.map((event) => event.id) };
