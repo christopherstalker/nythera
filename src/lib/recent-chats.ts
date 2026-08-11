@@ -11,7 +11,13 @@ export function getRecentChats(userId: string, take = 8, characterId?: string | 
     },
     orderBy: [{ lastActiveAt: "desc" }, { updatedAt: "desc" }],
     take: Math.min(Math.max(take, 1), 60),
-    include: {
+    select: {
+      id: true,
+      title: true,
+      characterId: true,
+      lastActiveAt: true,
+      createdAt: true,
+      updatedAt: true,
       character: {
         select: {
           id: true,
@@ -24,10 +30,8 @@ export function getRecentChats(userId: string, take = 8, characterId?: string | 
         orderBy: [{ createdAt: "desc" }, { sequence: "desc" }, { id: "desc" }],
         take: 1,
         select: {
-          id: true,
           content: true,
           role: true,
-          createdAt: true
         }
       }
     }

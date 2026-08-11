@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Copy, Edit3, Flag, Globe, Heart, Lock, MessageCircle, MessageSquarePlus, Share2, Sparkles, Star, Trash2, User, X } from "lucide-react";
@@ -25,6 +26,7 @@ export default function CharacterProfileClient({
 }) {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const { status: sessionStatus } = useSession();
   const [character, setCharacter] = useState<PublicCharacterProfile | null>(initialCharacter);
   const [recentChat, setRecentChat] = useState<{ id: string } | null>(null);
   const [viewer, setViewer] = useState<{ canEdit: boolean; liked: boolean; rating?: { value: number; review?: string | null } | null }>({
@@ -32,7 +34,7 @@ export default function CharacterProfileClient({
     liked: false,
     rating: null
   });
-  const [error, setError] = useState<string | null>(null);
+  const [error] = useState<string | null>(() => initialCharacter ? null : "Character not found or unavailable.");
   const [liked, setLiked] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState("Policy or safety issue");
@@ -47,18 +49,31 @@ export default function CharacterProfileClient({
   const lastLoadedAt = useRef(0);
 
   useEffect(() => {
+    if (sessionStatus === "loading") {
+      return;
+    }
+
+    if (sessionStatus === "unauthenticated") {
+      setRecentChat(null);
+      setViewer({ canEdit: false, liked: false, rating: null });
+      setLiked(false);
+      setRatingValue(0);
+      setReviewText("");
+      lastLoadedAt.current = Date.now();
+      return;
+    }
+
     let cancelled = false;
-    async function loadCharacter() {
+    async function loadViewer() {
       try {
-        const response = await fetch(`/api/characters/${params.id}`, { cache: "no-store" });
+        const response = await fetch(`/api/characters/${params.id}?view=viewer`, { cache: "no-store" });
         if (!response.ok) {
-          if (!cancelled) setError("Character not found or unavailable.");
+          if (!cancelled) setStatus("Account actions are temporarily unavailable.");
           return;
         }
 
         const body = await response.json();
         if (cancelled) return;
-        setCharacter(body.character);
         setRecentChat(body.recentChat ?? null);
         setViewer(body.viewer ?? { canEdit: false, liked: false, rating: null });
         setLiked(Boolean(body.viewer?.liked));
@@ -66,14 +81,14 @@ export default function CharacterProfileClient({
         setReviewText(body.viewer?.rating?.review ?? "");
         lastLoadedAt.current = Date.now();
       } catch {
-        if (!cancelled) setError("Character not found or unavailable.");
+        if (!cancelled) setStatus("Account actions are temporarily unavailable.");
       }
     }
 
-    void loadCharacter();
+    void loadViewer();
     const refreshWhenStale = () => {
       if (document.visibilityState === "visible" && Date.now() - lastLoadedAt.current >= STALE_REFRESH_MS) {
-        void loadCharacter();
+        void loadViewer();
       }
     };
     document.addEventListener("visibilitychange", refreshWhenStale);
@@ -81,7 +96,7 @@ export default function CharacterProfileClient({
       cancelled = true;
       document.removeEventListener("visibilitychange", refreshWhenStale);
     };
-  }, [params.id]);
+  }, [params.id, sessionStatus]);
 
   useEffect(() => {
     async function loadReviews() {
@@ -97,7 +112,7 @@ export default function CharacterProfileClient({
     }
 
     void loadReviews();
-  }, [params.id, viewer.rating]);
+  }, [params.id]);
 
   const styleEntries = useMemo(() => {
     if (!character?.communicationStyle) {
