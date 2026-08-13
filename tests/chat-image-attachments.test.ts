@@ -34,14 +34,32 @@ test("supported providers receive native multimodal message parts", async () => 
 });
 
 test("chat composer supports image upload and reusable Lookbook entries", async () => {
-  const composer = await readFile(new URL("../src/components/chat/ChatInput.tsx", import.meta.url), "utf8");
+  const [input, tools] = await Promise.all([
+    readFile(new URL("../src/components/chat/ChatInput.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/chat/ChatToolsMenu.tsx", import.meta.url), "utf8")
+  ]);
+  const composer = `${input}\n${tools}`;
   const bubble = await readFile(new URL("../src/components/chat/MessageBubble.tsx", import.meta.url), "utf8");
   const lookbook = await readFile(new URL("../src/app/api/lookbook/route.ts", import.meta.url), "utf8");
 
   assert.match(composer, /access: "private"/);
   assert.match(composer, /prepareChatImage/);
-  assert.match(composer, /Open Lookbook/);
+  assert.match(composer, /Lookbook/);
   assert.match(composer, /Save to Lookbook/);
   assert.match(bubble, /attachments\.map/);
   assert.match(lookbook, /lookbookItem\.upsert/);
+});
+
+test("mobile chat tools collapse into one accessible folder menu", async () => {
+  const [input, tools] = await Promise.all([
+    readFile(new URL("../src/components/chat/ChatInput.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/chat/ChatToolsMenu.tsx", import.meta.url), "utf8")
+  ]);
+
+  assert.match(input, /<ChatToolsMenu/);
+  assert.match(tools, /aria-haspopup="menu"/);
+  assert.match(tools, /aria-label="Chat tools"/);
+  for (const label of ["Photos", "Lookbook", "Illustrate", "Context file", "Voice note", "Model & style"]) {
+    assert.match(tools, new RegExp(label.replace(/[&]/g, "\\&")));
+  }
 });

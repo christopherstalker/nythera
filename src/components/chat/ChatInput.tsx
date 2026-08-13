@@ -1,7 +1,7 @@
 "use client";
 
 import { KeyboardEvent, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { ArrowUp, BookmarkPlus, ImagePlus, Images, LoaderCircle, Mic, Paperclip, Settings2, Sparkles, X } from "lucide-react";
+import { ArrowUp, BookmarkPlus, LoaderCircle, X } from "lucide-react";
 import { motion } from "motion/react";
 import { upload } from "@vercel/blob/client";
 import { Avatar } from "@/components/ui/avatar";
@@ -13,6 +13,7 @@ import { applyRichTextFormat, richTextFormatFromShortcut } from "@/lib/rich-text
 import { MAX_CHAT_MESSAGE_LENGTH } from "@/lib/chat-limits";
 import { MAX_CHAT_IMAGE_ATTACHMENTS, type ChatImageAttachment, type LookbookImage } from "@/lib/chat-attachments";
 import { prepareChatImage } from "@/lib/chat-image-client";
+import { ChatToolsMenu } from "@/components/chat/ChatToolsMenu";
 
 const MAX_RESPONSE_PROMPT_LENGTH = 2000;
 
@@ -61,6 +62,7 @@ export function ChatInput({
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [apiOpen, setApiOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [modelSearch, setModelSearch] = useState("");
   const [attachmentStatus, setAttachmentStatus] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<ChatImageAttachment[]>([]);
@@ -511,85 +513,55 @@ export function ChatInput({
             disabled={disabled}
           />
 
-          <div className="relative flex w-full items-center justify-between gap-2 sm:w-auto">
-          <div className="flex min-w-0 items-center gap-2 sm:hidden">
-            {onOpenComposer ? (
-              <motion.button
-                type="button"
-                aria-label="Open memory, history, and persona"
-                onClick={onOpenComposer}
-                whileTap={{ scale: 0.94 }}
-                transition={springSnappy}
-                className="focus-ring flex h-10 min-w-0 items-center gap-2 rounded-sm border border-[var(--codex-rule)] bg-transparent px-2.5 pr-3 text-sm font-semibold text-[var(--text-secondary)]"
-              >
-                <Avatar name={personaName ?? "You"} src={personaAvatarUrl} size="xs" className="h-7 w-7 border-0 bg-transparent" />
-                <span className="max-w-[116px] truncate">{personaName ?? "You"}</span>
-              </motion.button>
-            ) : null}
-            {hasApiControls ? (
-              <motion.button
-                type="button"
-                aria-label="API settings"
-                onClick={() => setApiOpen((current) => !current)}
-                whileTap={{ scale: 0.96 }}
-                transition={springSnappy}
-                className="focus-ring flex h-10 min-w-0 items-center gap-2 rounded-sm border border-[var(--codex-rule)] bg-transparent px-3 text-sm font-semibold text-[var(--text-secondary)]"
-              >
-                <Sparkles className="h-4 w-4 shrink-0" />
-                <span className="max-w-[112px] truncate">{modelLabel}</span>
-              </motion.button>
-            ) : null}
-          </div>
+          <div className="relative flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
+            <div className="flex min-w-0 items-center sm:hidden">
+              {onOpenComposer ? (
+                <motion.button
+                  type="button"
+                  aria-label="Open memory, history, and persona"
+                  onClick={onOpenComposer}
+                  whileTap={{ scale: 0.94 }}
+                  transition={springSnappy}
+                  className="focus-ring flex h-10 min-w-0 items-center gap-2 rounded-sm border border-[var(--codex-rule)] bg-transparent px-2.5 pr-3 text-sm font-semibold text-[var(--text-secondary)]"
+                >
+                  <Avatar name={personaName ?? "You"} src={personaAvatarUrl} size="xs" className="h-7 w-7 border-0 bg-transparent" />
+                  <span className="max-w-[116px] truncate">{personaName ?? "You"}</span>
+                </motion.button>
+              ) : null}
+            </div>
 
             <div className="relative flex shrink-0 items-center gap-2">
-          <label className="focus-ring grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-full border border-[var(--codex-rule)] text-[var(--text-secondary)] hover:border-[var(--codex-mint)] hover:text-[var(--text-primary)]" title="Attach photos">
-            {imageUploading ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
-            <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="sr-only" onChange={attachImages} disabled={imageUploading || attachments.length >= MAX_CHAT_IMAGE_ATTACHMENTS} />
-          </label>
-          <button type="button" onClick={() => void openLookbook()} className="focus-ring grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--codex-rule)] text-[var(--text-secondary)] hover:border-[var(--codex-mint)] hover:text-[var(--text-primary)]" title="Open Lookbook" aria-label="Open Lookbook"><Images className="h-3.5 w-3.5" /></button>
-          <button type="button" onClick={() => void generateSceneImage()} disabled={generatingScene} className="focus-ring grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--codex-rule)] text-[var(--text-secondary)] hover:border-[var(--codex-mint)] hover:text-[var(--text-primary)] disabled:opacity-50" title="Illustrate current scene" aria-label="Illustrate current scene">{generatingScene ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}</button>
-          <label
-            className="focus-ring grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-full border border-[var(--codex-rule)] text-[var(--text-secondary)] hover:border-[var(--codex-violet)] hover:text-[var(--text-primary)]"
-            title="Attach a text context file"
-          >
-            <Paperclip className="h-3.5 w-3.5" />
-            <input type="file" accept=".txt,.md,.json,text/plain,application/json" className="sr-only" onChange={attachContextFile} />
-          </label>
-          <button
-              type="button"
-              onClick={() => void toggleRecording()}
-              aria-label={recording ? "Stop voice recording" : "Record voice message"}
-              className="focus-ring grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--codex-rule)] text-[var(--text-secondary)] hover:border-[var(--codex-violet)] hover:text-[var(--text-primary)]"
-              title={recording ? "Stop recording" : "Record voice message"}
-            >
-              <Mic className={recording ? "h-3.5 w-3.5 animate-pulse text-red-400" : "h-3.5 w-3.5"} />
-            </button>
-          {hasApiControls ? (
-            <motion.button
-              type="button"
-              aria-label="API settings"
-              title="API settings"
-              onClick={() => setApiOpen((current) => !current)}
-              whileTap={{ scale: 0.96 }}
-              transition={springSnappy}
-              className="focus-ring hidden h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--border-subtle)] bg-[var(--color-overlay)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] sm:grid"
-            >
-              {modelLoading ? <Sparkles className="h-3.5 w-3.5" /> : <Settings2 className="h-3.5 w-3.5" />}
-            </motion.button>
-          ) : null}
+              <ChatToolsMenu
+                open={toolsOpen}
+                onOpenChange={setToolsOpen}
+                attachmentCount={attachments.length}
+                imageUploading={imageUploading}
+                imageLimitReached={attachments.length >= MAX_CHAT_IMAGE_ATTACHMENTS}
+                generatingScene={generatingScene}
+                recording={recording}
+                modelLoading={modelLoading}
+                modelLabel={modelLabel}
+                hasApiControls={hasApiControls}
+                onAttachImages={attachImages}
+                onAttachContextFile={attachContextFile}
+                onOpenLookbook={() => void openLookbook()}
+                onGenerateScene={() => void generateSceneImage()}
+                onToggleRecording={() => void toggleRecording()}
+                onOpenApiSettings={() => setApiOpen((current) => !current)}
+              />
 
-          <motion.button
-            type="button"
-            onClick={() => void submit()}
-            disabled={!canSend}
-            aria-label="Send message"
-            whileTap={canSend ? { scale: 0.92 } : undefined}
-            transition={springSnappy}
-            className="focus-ring relative grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[var(--codex-mint)] text-[var(--codex-mint)] disabled:cursor-not-allowed disabled:opacity-45"
-            style={{ background: canSend ? "oklch(var(--color-accent-secondary) / .08)" : "transparent" } as CSSProperties}
-          >
-            <ArrowUp className="h-4 w-4" />
-          </motion.button>
+              <motion.button
+                type="button"
+                onClick={() => void submit()}
+                disabled={!canSend}
+                aria-label="Send message"
+                whileTap={canSend ? { scale: 0.92 } : undefined}
+                transition={springSnappy}
+                className="focus-ring relative grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[var(--codex-mint)] text-[var(--codex-mint)] disabled:cursor-not-allowed disabled:opacity-45"
+                style={{ background: canSend ? "oklch(var(--color-accent-secondary) / .08)" : "transparent" } as CSSProperties}
+              >
+                <ArrowUp className="h-4 w-4" />
+              </motion.button>
             </div>
           </div>
         </div>
