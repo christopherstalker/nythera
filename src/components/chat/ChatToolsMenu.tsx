@@ -70,7 +70,7 @@ export function ChatToolsMenu({
   };
 
   return (
-    <div ref={containerRef} className="relative shrink-0">
+    <div ref={containerRef} className={`relative shrink-0 ${open ? "isolate z-50" : ""}`}>
       {open ? (
         <motion.div
           role="menu"
@@ -78,7 +78,7 @@ export function ChatToolsMenu({
           initial={{ opacity: 0, y: 8, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={springSoft}
-          className="absolute bottom-full right-0 z-40 mb-3 w-[min(310px,calc(100vw-3rem))] rounded-sm border border-white/15 bg-[#090909]/98 p-3 shadow-2xl"
+          className="absolute -right-[3.25rem] bottom-full z-[60] mb-3 w-[min(310px,calc(100vw-3rem))] rounded-sm border border-white/15 bg-[#090909] p-3 shadow-2xl sm:right-0"
         >
           <div className="mb-3 flex items-center justify-between border-b border-white/10 pb-2.5">
             <div>
