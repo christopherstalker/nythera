@@ -1,6 +1,6 @@
 import "server-only";
 
-import { MemoryCategory } from "@prisma/client";
+import { MemoryCategory, MemoryStatus } from "@prisma/client";
 import { streamGatewayResponse } from "@/lib/llm-gateway";
 import type { ProviderKeys } from "@/lib/user-keys";
 import type { ExtractedMemory } from "@/lib/memory/types";
@@ -78,6 +78,7 @@ export async function extractMemoriesWithLlm(input: {
       category: mapCategory(item.category),
       importance: item.tier === "character" ? 1.35 : 1.2,
       confidence: 0.78,
+      status: MemoryStatus.PENDING,
       metadata: { extractor: "llm", tier: item.tier, category: item.category },
       providerKeys: input.providerKeys
     });

@@ -7,6 +7,7 @@ import { splitProviderModelValue } from "@/lib/provider-model-options";
 import { chatUpdateSchema } from "@/lib/validation";
 import { requireAdultConsent } from "@/lib/adult-consent";
 import { prepareContinuationTurn } from "@/lib/message-actions";
+import { messageAttachmentsSelect, serializeChatAttachment } from "@/lib/chat-media";
 
 type Context = {
   params: Promise<{ id: string }>;
@@ -37,6 +38,7 @@ export async function GET(request: Request, context: Context) {
             temperature: true,
             responsePrompt: true,
             chatMode: true,
+            translationLanguage: true,
             appearance: true,
             activeAssistantMessageId: true,
             createdAt: true,
@@ -63,7 +65,8 @@ export async function GET(request: Request, context: Context) {
                 inputTokens: true,
                 outputTokens: true,
                 estimatedCost: true,
-                usageEstimated: true
+                usageEstimated: true,
+                attachments: messageAttachmentsSelect
               }
             }
           }
@@ -89,8 +92,11 @@ export async function GET(request: Request, context: Context) {
       }
     });
 
-    chat.messages.reverse();
-    return json({ chat: { ...chat, chapterNumber } }, { headers: { "Cache-Control": "private, no-store" } });
+    const messages = chat.messages.reverse().map((message) => ({
+      ...message,
+      attachments: message.attachments.map(serializeChatAttachment)
+    }));
+    return json({ chat: { ...chat, messages, chapterNumber } }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return routeError(error);
   }
@@ -125,6 +131,7 @@ export async function PATCH(request: Request, context: Context) {
       input.model === undefined &&
       input.responsePrompt === undefined &&
       input.chatMode === undefined &&
+      input.translationLanguage === undefined &&
       input.appearance === undefined;
     if (isActiveSelectionOnly && chat.activeAssistantMessageId === input.activeAssistantMessageId) {
       return json({ chat });
@@ -159,6 +166,7 @@ export async function PATCH(request: Request, context: Context) {
         model: selectedModel,
         responsePrompt: input.responsePrompt === undefined ? undefined : input.responsePrompt || null,
         chatMode: input.chatMode,
+        translationLanguage: input.translationLanguage === undefined ? undefined : input.translationLanguage || null,
         activeAssistantMessageId: input.activeAssistantMessageId,
         appearance: input.appearance === undefined
           ? undefined

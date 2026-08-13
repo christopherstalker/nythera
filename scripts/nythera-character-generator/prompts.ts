@@ -27,6 +27,7 @@ export function buildSystemPrompt() {
     "- Make each archetype specific (not 'mysterious stranger').",
     "- Greetings are cinematic: 4–8+ sentences, concrete sensory detail, subtext, a meaningful choice, and a scene-forward question.",
     "- emotional_hook is EXACTLY one sentence.",
+    "- Never infer or assign dominant, submissive, switch, top, bottom, or other power-exchange roles from gender, anatomy, body type, archetype, status, or stereotypes. Include one only when the generation brief explicitly requires it.",
     "",
     "Safety / product constraint:",
     "- These are seeds for importing characters. Do NOT mention being a bot, model, assistant, or UI instructions in-character.",
@@ -98,4 +99,3 @@ export function buildRepairPrompt(params: { schemaHint: string; badJson: string 
     params.badJson
   ].join("\n");
 }
-

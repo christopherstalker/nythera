@@ -145,23 +145,41 @@ export async function getDecryptedProviderKeys(userId: string, options: { includ
     }
   });
 
-  return rows.map((row) => ({
-    id: row.id,
-    provider: row.provider,
-    displayName: row.displayName,
-    apiFormat: row.apiFormat as ProviderApiFormat,
-    apiKey: decryptSecret(row.encryptedKey),
-    baseUrl: row.baseUrl,
-    defaultModel: row.defaultModel,
-    label: row.label,
-    isDefault: row.isDefault,
-    fallbackEnabled: row.fallbackEnabled,
-    fallbackPriority: row.fallbackPriority,
-    providerPriority: row.providerPriority,
-    credentialStatus: row.credentialStatus as ProviderKey["credentialStatus"],
-    validatedAt: row.validatedAt,
-    source: "user"
-  }));
+  const keys: ProviderKeys = [];
+  const unreadableKeyIds: string[] = [];
+
+  for (const row of rows) {
+    try {
+      keys.push({
+        id: row.id,
+        provider: row.provider,
+        displayName: row.displayName,
+        apiFormat: row.apiFormat as ProviderApiFormat,
+        apiKey: decryptSecret(row.encryptedKey),
+        baseUrl: row.baseUrl,
+        defaultModel: row.defaultModel,
+        label: row.label,
+        isDefault: row.isDefault,
+        fallbackEnabled: row.fallbackEnabled,
+        fallbackPriority: row.fallbackPriority,
+        providerPriority: row.providerPriority,
+        credentialStatus: row.credentialStatus as ProviderKey["credentialStatus"],
+        validatedAt: row.validatedAt,
+        source: "user"
+      });
+    } catch {
+      unreadableKeyIds.push(row.id);
+    }
+  }
+
+  if (unreadableKeyIds.length > 0) {
+    await prisma.userApiKey.updateMany({
+      where: { id: { in: unreadableKeyIds }, userId },
+      data: { credentialStatus: "INVALID" }
+    });
+  }
+
+  return keys;
 }
 
 export async function updateUserProviderFallbacks(input: {

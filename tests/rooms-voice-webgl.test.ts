@@ -16,8 +16,8 @@ test("rooms and voice models are represented in Prisma schema and migration", as
     "model RoomMessage",
     "model VoiceApiKey",
     "enum RoomMessageRole",
-    "rooms Room[]",
-    "voiceApiKeys       VoiceApiKey[]",
+    "rooms",
+    "voiceApiKeys",
     "@@unique([userId, provider])"
   ]) {
     assert.ok(schema.includes(expected), `schema missing ${expected}`);

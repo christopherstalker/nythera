@@ -455,7 +455,21 @@ async function* streamOpenAI(input: {
   const stream = await input.client.chat.completions.create(
     {
       model: input.model,
-      messages: input.messages,
+      messages: input.messages.map<OpenAI.Chat.Completions.ChatCompletionMessageParam>((message) => {
+        if (message.role !== "user" || !message.images?.length) {
+          return { role: message.role, content: message.content } as OpenAI.Chat.Completions.ChatCompletionMessageParam;
+        }
+        return {
+          role: "user",
+          content: [
+            { type: "text", text: message.content || "Describe and use the attached image as scene context." },
+            ...message.images.map((image) => ({
+              type: "image_url" as const,
+              image_url: { url: `data:${image.mediaType};base64,${image.data}` }
+            }))
+          ]
+        };
+      }),
       temperature: input.temperature,
       top_p: input.topP ?? undefined,
       frequency_penalty: input.providerName === "deepseek" ? undefined : input.frequencyPenalty ?? undefined,
@@ -500,9 +514,17 @@ async function* streamAnthropic(input: {
     .join("\n\n");
   const messages = input.messages
     .filter((message) => message.role !== "system")
-    .map((message) => ({
+    .map<Anthropic.MessageParam>((message) => ({
       role: message.role === "assistant" ? ("assistant" as const) : ("user" as const),
-      content: message.content
+      content: message.role === "user" && message.images?.length
+        ? [
+            { type: "text" as const, text: message.content || "Describe and use the attached image as scene context." },
+            ...message.images.map((image) => ({
+              type: "image" as const,
+              source: { type: "base64" as const, media_type: image.mediaType, data: image.data }
+            }))
+          ]
+        : message.content
     }));
 
   const stream = input.client.messages.stream(
@@ -559,7 +581,12 @@ async function* streamGemini(input: {
     .filter((message) => message.role !== "system")
     .map((message) => ({
       role: message.role === "assistant" ? "model" : "user",
-      parts: [{ text: message.content }]
+      parts: [
+        { text: message.content || "Describe and use the attached image as scene context." },
+        ...(message.images ?? []).map((image) => ({
+          inlineData: { mimeType: image.mediaType, data: image.data }
+        }))
+      ]
     }));
   const result = await model.generateContentStream({ contents }, {
     signal: input.signal,

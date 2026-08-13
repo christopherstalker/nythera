@@ -1,4 +1,4 @@
-import { MemoryCategory } from "@prisma/client";
+import { MemoryCategory, MemoryStatus } from "@prisma/client";
 import { HttpError, getRequestIp, json, parseJson, requireUser, routeError } from "@/lib/api";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { getEffectiveProviderKeys } from "@/lib/user-keys";
@@ -75,6 +75,7 @@ export async function PATCH(request: Request) {
       importance: input.importance,
       pinned: input.pinned,
       category: input.category as MemoryCategory | undefined,
+      status: input.status as MemoryStatus | undefined,
       metadataSource: "manual-edit",
       providerKeys
     });

@@ -29,6 +29,7 @@ import { requireAdultConsent } from "@/lib/adult-consent";
 import { schedulePostResponseTasks } from "@/lib/post-response";
 import { resolveCharacterPersona } from "@/lib/persona";
 import { maxOutputTokensForVerbosity, providerOutputTokenBudget } from "@/lib/response-length";
+import { loadPromptImages, resolveOwnedChatAssets, serializeAsset } from "@/lib/chat-media";
 
 type Context = {
   params: Promise<{ id: string }>;
@@ -74,6 +75,7 @@ export async function POST(request: Request, context: Context) {
           include: {
             character: true,
             persona: true,
+            temporaryPersona: true,
           }
         }),
       (result) => ({
@@ -85,6 +87,12 @@ export async function POST(request: Request, context: Context) {
     if (!chat) {
       throw new HttpError(404, "Chat not found.");
     }
+
+    const attachedAssets = await resolveOwnedChatAssets({
+      assetIds: input.attachmentIds,
+      chatId: chat.id,
+      userId: user.id
+    });
 
     if (input.requestId) {
       const existingMessage = await prisma.message.findUnique({
@@ -188,6 +196,15 @@ export async function POST(request: Request, context: Context) {
         clientRequestId: input.requestId,
         branchSourceMessageId: resolvedBranchMessageId
       });
+      if (attachedAssets.length) {
+        await prisma.messageAttachment.createMany({
+          data: attachedAssets.map((asset, position) => ({
+            messageId: userMessage!.id,
+            assetId: asset.id,
+            position
+          }))
+        });
+      }
     }
 
     const [memories, userGlobalMemories, defaultUserPersona, storyContext] = await Promise.all([
@@ -211,7 +228,7 @@ export async function POST(request: Request, context: Context) {
         includeCheckpoint: !branchInstruction
       })
     ]);
-    const userPersona = chat.persona ?? defaultUserPersona;
+    const userPersona = chat.temporaryPersona ?? chat.persona ?? defaultUserPersona;
     const chatMode = normalizeChatMode(chat.chatMode);
     const tieredMemories = splitMemoriesForPrompt(memories, userGlobalMemories);
     const { characterMemories, userMemories } = formatTieredMemoryBlocks(tieredMemories);
@@ -221,6 +238,7 @@ export async function POST(request: Request, context: Context) {
       userMemories
     });
 
+    const currentImages = await loadPromptImages(attachedAssets);
     const prompt = assembleNytheraPrompt({
       character: chat.character,
       memories,
@@ -228,11 +246,13 @@ export async function POST(request: Request, context: Context) {
       summary: history.overflowed && !branchInstruction ? chat.summary : null,
       recentMessages,
       currentMessage: message,
+      currentImages,
       responsePrompt: input.responsePrompt ?? chat.responsePrompt,
       storyContext: storyContext.text,
       injectionAssessment,
       branchInstruction,
-      modeContext
+      modeContext,
+      translationLanguage: chat.translationLanguage
     });
 
     temperature = modeTemperature(chatMode, input.temperature ?? chat.temperature ?? temperature);
@@ -278,7 +298,13 @@ export async function POST(request: Request, context: Context) {
 
         try {
           if (userMessage) {
-            send({ type: "user_message", message: userMessage });
+            send({
+              type: "user_message",
+              message: {
+                ...userMessage,
+                attachments: attachedAssets.map(serializeAsset)
+              }
+            });
           }
 
           for await (const chunk of streamLlmResponse({
@@ -377,6 +403,7 @@ export async function POST(request: Request, context: Context) {
               summary: continueChat ? null : undefined,
               summaryThroughSequence: continueChat ? 0 : undefined,
               activeAssistantMessageId: assistant.id,
+              temporaryPersonaId: chat.temporaryPersonaId ? null : undefined,
               lastActiveAt: new Date(),
               updatedAt: new Date()
             },
@@ -471,6 +498,7 @@ export async function POST(request: Request, context: Context) {
                 summary: continueChat ? null : undefined,
                 summaryThroughSequence: continueChat ? 0 : undefined,
                 activeAssistantMessageId: assistant.id,
+                temporaryPersonaId: chat.temporaryPersonaId ? null : undefined,
                 lastActiveAt: new Date(),
                 updatedAt: new Date()
               }

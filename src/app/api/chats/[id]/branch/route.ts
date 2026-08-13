@@ -34,7 +34,8 @@ export async function POST(request: Request, context: Context) {
       },
       include: {
         messages: {
-          orderBy: [{ createdAt: "asc" }, { sequence: "asc" }, { id: "asc" }]
+          orderBy: [{ createdAt: "asc" }, { sequence: "asc" }, { id: "asc" }],
+          include: { attachments: { orderBy: { position: "asc" } } }
         },
         timeline: true
       }
@@ -120,6 +121,15 @@ export async function POST(request: Request, context: Context) {
             flagged: message.flagged
           }
         });
+        if (message.attachments.length) {
+          await tx.messageAttachment.createMany({
+            data: message.attachments.map((attachment) => ({
+              messageId: copied.id,
+              assetId: attachment.assetId,
+              position: attachment.position
+            }))
+          });
+        }
         await tx.storyTurn.create({
           data: {
             storyId: foundation.storyId,

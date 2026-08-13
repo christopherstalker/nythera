@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { Bookmark, CalendarClock, Check, Download, FileJson, ImagePlus, LockKeyhole, LockOpen, Mic2, PauseCircle, Pencil, Plus, Route, ShieldAlert, Sparkles, Trash2, Upload, UsersRound, X } from "lucide-react";
+import { Bookmark, CalendarClock, Check, Download, FileJson, ImagePlus, LockKeyhole, LockOpen, Mic2, PauseCircle, Pencil, Plus, Route, ShieldAlert, Sparkles, Star, Trash2, Upload, UsersRound, X } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ImageFilePicker } from "@/components/ui/image-file-picker";
@@ -49,6 +50,19 @@ function PersonaEditor({ panel, compact = false }: { panel: PanelState; compact?
           <Plus className="h-4 w-4" />
         </button>
       </div>
+
+      {panel.activePersona ? (
+        <div className="grid grid-cols-2 gap-2">
+          <Button type="button" size="sm" variant="secondary" onClick={() => void panel.usePersonaOnce(panel.activePersona!)} disabled={!panel.chatId || panel.pendingAction === "persona:temporary"}>
+            <CalendarClock className="h-3.5 w-3.5" />
+            {panel.temporaryProfileId === panel.activePersona.id ? "Queued once" : "Next reply only"}
+          </Button>
+          <Button type="button" size="sm" variant="secondary" onClick={() => void panel.setCharacterDefault(panel.activePersona!)} disabled={!panel.characterId || panel.pendingAction === "persona:character-default"}>
+            <Star className={cn("h-3.5 w-3.5", panel.characterDefaultProfileId === panel.activePersona.id && "fill-current")} />
+            {panel.characterDefaultProfileId === panel.activePersona.id ? "Character default" : "Default here"}
+          </Button>
+        </div>
+      ) : null}
 
       <form onSubmit={panel.savePersona} className="grid gap-2">
         {!compact ? <Input value={panel.draft.label} onChange={(event) => panel.updateDraft("label", event.target.value)} placeholder="Profile label" /> : null}
@@ -165,7 +179,7 @@ export function MemoryTabContent({ panel }: { panel: PanelState }) {
       {panel.memoryStatus ? <PanelStatusText>{panel.memoryStatus}</PanelStatusText> : null}
       <div className="grid gap-2">
         {panel.memories.map((memory) => (
-          <div key={memory.id} className="rounded-sm border border-[var(--border-default)] bg-[var(--bg-input)] p-3">
+          <div key={memory.id} className={cn("rounded-sm border bg-[var(--bg-input)] p-3", memory.status === "PENDING" ? "border-[var(--accent-mint)]/60" : "border-[var(--border-default)]")}>
             {panel.memoryEditingId === memory.id ? (
               <Textarea value={panel.memoryEditDraft} onChange={(event) => panel.setMemoryEditDraft(event.target.value)} className="min-h-24" aria-label="Edit memory fact" />
             ) : (
@@ -173,9 +187,14 @@ export function MemoryTabContent({ panel }: { panel: PanelState }) {
             )}
             <p className="mt-2 text-xs text-[var(--text-muted)]">
               {memory.category}
+              {memory.status === "PENDING" ? " - awaiting approval" : ""}
               {memory.pinned ? " - pinned" : ""}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
+              {memory.status === "PENDING" ? <>
+                <Button type="button" size="sm" onClick={() => void panel.reviewMemory(memory.id, "ACTIVE")}><Check className="h-3.5 w-3.5" />Approve</Button>
+                <Button type="button" size="sm" variant="secondary" onClick={() => void panel.reviewMemory(memory.id, "REJECTED")}><X className="h-3.5 w-3.5" />Reject</Button>
+              </> : null}
               {panel.memoryEditingId === memory.id ? (
                 <>
                   <Button type="button" size="sm" onClick={() => void panel.saveMemory(memory.id)} disabled={!panel.memoryEditDraft.trim() || panel.pendingAction === `memory:edit:${memory.id}`}><Check className="h-3.5 w-3.5" />{panel.pendingAction === `memory:edit:${memory.id}` ? "Saving..." : "Save"}</Button>
@@ -333,7 +352,7 @@ export function PlotTabContent({ panel }: { panel: PanelState }) {
         <RangeField label="Respect" value={panel.storyRelationshipDraft.respect} min={-100} max={100} onChange={(value) => panel.updateStoryRelationshipDraft("respect", value)} />
         <Textarea value={panel.storyRelationshipDraft.notes} onChange={(event) => panel.updateStoryRelationshipDraft("notes", event.target.value)} placeholder="What changed and how it should color future scenes" className="min-h-20" />
         <Button type="submit" disabled={!panel.storyRelationshipDraft.fromParticipantId || !panel.storyRelationshipDraft.toParticipantId || panel.pendingAction === "narrative:relationship"}><Check className="h-4 w-4" />{panel.pendingAction === "narrative:relationship" ? "Saving..." : "Save relationship"}</Button>
-        {panel.storyRelationships.map((relationship) => <p key={relationship.id} className="text-xs leading-5 text-[var(--text-secondary)]"><span className="text-[var(--text-primary)]">{relationship.fromParticipant.displayName} → {relationship.toParticipant.displayName}</span>{relationship.label ? ` · ${relationship.label}` : ""} · trust {relationship.trust}, affection {relationship.affection}, tension {relationship.tension}, respect {relationship.respect}</p>)}
+        {panel.storyRelationships.map((relationship) => <div key={relationship.id} className="grid gap-1 text-xs leading-5 text-[var(--text-secondary)]"><p><span className="text-[var(--text-primary)]">{relationship.fromParticipant.displayName} → {relationship.toParticipant.displayName}</span>{relationship.label ? ` · ${relationship.label}` : ""} · trust {relationship.trust}, affection {relationship.affection}, tension {relationship.tension}, respect {relationship.respect}</p>{relationship.revisions?.length ? <p className="text-[11px] text-[var(--text-muted)]">History: {relationship.revisions.slice(0, 4).map((revision) => `T${revision.trust}/A${revision.affection}/N${revision.tension}/R${revision.respect}`).join(" → ")}</p> : null}</div>)}
       </form>
 
       <section className="grid gap-4">
@@ -343,6 +362,7 @@ export function PlotTabContent({ panel }: { panel: PanelState }) {
           <Input value={panel.storyEventDraft.title} onChange={(event) => panel.updateStoryEventDraft("title", event.target.value)} placeholder="Event title" required />
           <Textarea value={panel.storyEventDraft.instruction} onChange={(event) => panel.updateStoryEventDraft("instruction", event.target.value)} placeholder="What initiative should surface when due" className="min-h-20" required />
           <div className="grid grid-cols-2 gap-2"><select className={panelSelectClass} value={panel.storyEventDraft.channel} onChange={(event) => panel.updateStoryEventDraft("channel", event.target.value as typeof panel.storyEventDraft.channel)} aria-label="Initiative channel"><option value="ACTION">Action</option><option value="DIALOGUE">Dialogue</option><option value="WHISPER">Whisper</option><option value="THOUGHT">Thought</option></select><Input type="number" min={0} max={10000} value={panel.storyEventDraft.afterTurns} onChange={(event) => panel.updateStoryEventDraft("afterTurns", Number(event.target.value))} aria-label="Turns until event" /></div>
+          <label className="grid gap-1"><span className="text-xs text-[var(--text-muted)]">Optional real date and time</span><Input type="datetime-local" value={panel.storyEventDraft.triggerAt} onChange={(event) => panel.updateStoryEventDraft("triggerAt", event.target.value)} /></label>
           <Button type="submit" disabled={!panel.storyEventDraft.title.trim() || !panel.storyEventDraft.instruction.trim() || panel.pendingAction === "narrative:event"}><CalendarClock className="h-4 w-4" />{panel.pendingAction === "narrative:event" ? "Scheduling..." : "Schedule initiative"}</Button>
         </form>
         {pendingEvents.map((event) => <article key={event.id} className="flex items-start justify-between gap-3 border-b border-[var(--border-default)] pb-3"><div><p className="text-sm text-[var(--text-primary)]">{event.title}</p><p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">{event.actorParticipant?.displayName ?? "The world"} · {event.status.toLowerCase()} · due turn {event.dueSequence ?? "time trigger"}</p></div><button type="button" onClick={() => void panel.updateStoryNarrativeItem("event", event.id, { eventStatus: "CANCELLED" })} className="focus-ring text-xs text-[var(--text-muted)] hover:text-[var(--danger)]">Cancel</button></article>)}
@@ -480,6 +500,9 @@ export function HistoryTabContent({
   onNavigate?: () => void;
   onNewChat?: () => void;
 }) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchMatches, setSearchMatches] = useState<Array<{ id: string; content: string; chat: { id: string; title?: string | null; character: { name: string } } }>>([]);
+  const [searching, setSearching] = useState(false);
   const characterChats = panel.chats
     .filter((chat) => !characterId || chat.character.id === characterId)
     .sort((left, right) => new Date(right.lastActiveAt ?? right.createdAt ?? 0).getTime() - new Date(left.lastActiveAt ?? left.createdAt ?? 0).getTime());
@@ -487,6 +510,11 @@ export function HistoryTabContent({
 
   return (
     <div className="grid gap-5">
+      <form className="grid grid-cols-[minmax(0,1fr)_auto] gap-2" onSubmit={async (event) => { event.preventDefault(); if (searchQuery.trim().length < 2) return; setSearching(true); try { const params = new URLSearchParams({ q: searchQuery.trim(), ...(characterId ? { characterId } : {}) }); const response = await fetch(`/api/chats/search?${params}`); const body = await response.json(); setSearchMatches(response.ok && Array.isArray(body.matches) ? body.matches : []); } finally { setSearching(false); } }}>
+        <Input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search words, events, or remembered meaning" aria-label="Search conversation history" />
+        <Button type="submit" variant="outline" disabled={searchQuery.trim().length < 2 || searching}>{searching ? "Searching..." : "Search"}</Button>
+      </form>
+      {searchMatches.length ? <div className="grid gap-2">{searchMatches.map((match) => <Link key={match.id} href={`/chat/${match.chat.id}`} onClick={onNavigate} className="rounded-sm border border-[var(--border-default)] bg-[var(--bg-input)] p-3 no-underline"><p className="text-xs text-[var(--accent-mint)]">{match.chat.title || match.chat.character.name}</p><p className="mt-1 line-clamp-3 text-sm leading-5 text-[var(--text-secondary)]">{match.content}</p></Link>)}</div> : null}
       {panel.storyId ? (
         <section className="grid gap-3 border-b border-[var(--border-default)] pb-5">
           <NarrativeHeading icon={Download} title="Story package" subtitle="Portable canon, state, plot, cast, and manuscript" />

@@ -275,6 +275,7 @@ function MessageRow({
         id={row.message.id}
         role={row.message.role}
         content={row.message.content}
+        attachments={row.message.attachments}
         characterName={characterName}
         characterAvatarUrl={characterAvatarUrl}
         personaName={personaName}
@@ -307,6 +308,7 @@ function MessageRow({
       id={selected.id}
       role={selected.role}
       content={selected.content}
+      attachments={selected.attachments}
       characterName={characterName}
       characterAvatarUrl={characterAvatarUrl}
       personaName={personaName}

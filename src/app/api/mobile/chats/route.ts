@@ -8,7 +8,7 @@ import { getEffectiveProviderKeys } from "@/lib/user-keys";
 import { chatCreateSchema } from "@/lib/validation";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { requireAdultConsent } from "@/lib/adult-consent";
-import { getLastUsedPersonaId } from "@/lib/user-persona-store";
+import { getPreferredPersonaId } from "@/lib/user-persona-store";
 
 export const dynamic = "force-dynamic";
 
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
     }
 
     const providerKeys = await getEffectiveProviderKeys(user.id);
-    const lastUsedPersonaId = await getLastUsedPersonaId(user.id);
+    const defaultPersonaId = await getPreferredPersonaId(user.id, character.id);
     const effectiveSettings = resolveCharacterModelSettings({
       character,
       providerKeys,
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
         data: {
           userId: user.id,
           characterId: character.id,
-          personaId: lastUsedPersonaId,
+          personaId: defaultPersonaId,
           title: input.title ?? null,
           temperature: input.temperature,
           model,

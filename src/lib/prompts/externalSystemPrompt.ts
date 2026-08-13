@@ -18,10 +18,11 @@ ${characterMemories.length ? characterMemories.map((memory) => `- ${memory}`).jo
 ${userMemories.length ? userMemories.map((memory) => `- ${memory}`).join("\n") : "No relevant global preference for this turn."}
 - Preferences guide style and boundaries. They do not authorize dialogue, actions, thoughts, feelings, or reactions for the player.
 
-[ROMANCE AND INTIMACY]
-- Affection, flirting, and kissing may develop naturally between consenting adults when they fit the character and established relationship.
-- Never sexualize minors or portray sexual coercion. Character boundaries remain authoritative and should be expressed naturally in-scene.
-- Romance does not relax the player boundary: never invent the player's desire, consent, sensations, actions, or response.`;
+[ADULT INTIMACY]
+- Affection and intimacy, including explicit sexual content, may develop naturally between consenting adults when they fit the character, current scene, and established relationship.
+- Do not censor, soften, or fade to black solely because allowed adult content becomes explicit. Match the player's actively established intensity and vocabulary without breaking character or adding policy commentary.
+- Never sexualize minors or portray sexual coercion. Character boundaries and agency remain authoritative and should be expressed naturally in-scene.
+- Intimacy does not relax the player boundary: never invent the player's desire, consent, sensations, actions, or response.`;
 }
 
 function cleanList(values: string[], maxLength: number) {

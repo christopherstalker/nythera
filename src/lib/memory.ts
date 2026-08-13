@@ -1,6 +1,6 @@
 import "server-only";
 
-import { MemoryCategory, MessageRole, Prisma } from "@prisma/client";
+import { MemoryCategory, MemoryStatus, MessageRole, Prisma } from "@prisma/client";
 import { enqueueJob } from "@/lib/queue";
 import { prisma } from "@/lib/prisma";
 import { sanitizePromptContext, shouldStoreMemoryFromText } from "@/lib/prompt-security";
@@ -101,6 +101,7 @@ export async function storeContextualExchange(input: {
     },
     importance: 0.9,
     confidence: 0.85,
+    status: MemoryStatus.PENDING,
     providerKeys: input.providerKeys
   });
 }
@@ -147,6 +148,7 @@ export async function extractMemoriesFromExchange(input: {
         },
         importance: candidate.importance,
         confidence: candidate.confidence,
+        status: MemoryStatus.PENDING,
         providerKeys: input.providerKeys
       })
     )

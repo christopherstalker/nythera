@@ -16,6 +16,7 @@ type Chat = {
   temperature?: number | null;
   responsePrompt?: string | null;
   chatMode?: string | null;
+  translationLanguage?: string | null;
   appearance?: unknown;
   activeAssistantMessageId?: string | null;
   character: {
@@ -105,6 +106,7 @@ export default function ChatPage() {
       temperature={chat.temperature}
       responsePrompt={chat.responsePrompt}
       chatMode={chat.chatMode}
+      translationLanguage={chat.translationLanguage}
       appearance={chat.appearance}
       characterBackgroundUrl={getCharacterBackgroundUrl(chat.character.visualIdentity)}
       initialMessages={chat.messages}

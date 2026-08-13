@@ -12,6 +12,7 @@ import { motion } from "motion/react";
 import { ChevronLeft, ChevronRight, MoreHorizontal, PenLine, Pin, RefreshCw, SendHorizontal, Volume2 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { applyRichTextFormat, richTextFormatFromShortcut } from "@/lib/rich-text-formatting";
+import type { ChatImageAttachment } from "@/lib/chat-attachments";
 
 const LONG_PRESS_DELAY_MS = 500;
 const DELETE_EXIT_DELAY_MS = 140;
@@ -20,6 +21,7 @@ type MessageBubbleProps = {
   id: string;
   role: "USER" | "ASSISTANT" | "SYSTEM";
   content: string;
+  attachments?: ChatImageAttachment[];
   characterName: string;
   characterAvatarUrl?: string | null;
   personaName?: string | null;
@@ -48,6 +50,7 @@ function MessageBubbleComponent({
   id,
   role,
   content,
+  attachments = [],
   characterName,
   characterAvatarUrl,
   personaName,
@@ -77,10 +80,24 @@ function MessageBubbleComponent({
   const [editError, setEditError] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   const touchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isUser = role === "USER";
   const hasVariants = !isUser && variantCount !== undefined && variantCount > 1 && variantIndex !== undefined;
+
+  function toggleSpeaking() {
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+    const utterance = new SpeechSynthesisUtterance(content.replace(/[*_#`]/g, ""));
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    setIsSpeaking(true);
+    window.speechSynthesis.speak(utterance);
+  }
 
   if (role === "SYSTEM") {
     return (
@@ -195,15 +212,13 @@ function MessageBubbleComponent({
       onTouchMove={handleTouchEnd}
     >
       <div className="grid w-full min-w-0 grid-cols-[42px_minmax(0,1fr)] gap-4 border-b border-[var(--codex-rule)] pb-7 sm:grid-cols-[48px_minmax(0,1fr)] sm:gap-5">
-        <Avatar
-          name={isUser ? personaName || "You" : characterName}
-          src={isUser ? personaAvatarUrl : characterAvatarUrl}
-          size="sm"
-          className={cn("h-10 w-10 border-[var(--codex-rule)]", isUser && "text-[var(--codex-mint)]")}
-        />
+        <motion.div animate={isSpeaking ? { scale: [1, 1.07, 1], filter: ["brightness(1)", "brightness(1.25)", "brightness(1)"] } : { scale: 1 }} transition={isSpeaking ? { duration: 0.75, repeat: Infinity } : springSoft}>
+          <Avatar name={isUser ? personaName || "You" : characterName} src={isUser ? personaAvatarUrl : characterAvatarUrl} size="sm" className={cn("h-10 w-10 border-[var(--codex-rule)]", isUser && "text-[var(--codex-mint)]")} />
+        </motion.div>
         <div className="flex min-w-0 flex-col items-start">
           <p className={cn("mb-3 text-[10px] font-semibold uppercase tracking-[.23em]", isUser ? "text-[var(--codex-mint)]" : "text-[var(--codex-violet)]")}>
             {isUser ? personaName || "You" : characterName}
+            {!isUser && content ? <button type="button" onClick={toggleSpeaking} className="focus-ring ml-3 inline-flex align-middle text-[var(--text-muted)] hover:text-[var(--text-primary)]" aria-label={isSpeaking ? "Stop speaking" : "Speak with animated avatar"}><Volume2 className={cn("h-3.5 w-3.5", isSpeaking && "text-[var(--accent-mint)]")} /></button> : null}
           </p>
         {!isUser && content && (inputTokens !== null && inputTokens !== undefined || outputTokens !== null && outputTokens !== undefined) ? (
           <span
@@ -235,13 +250,20 @@ function MessageBubbleComponent({
               <Pin className="h-3.5 w-3.5" />
             </span>
           )}
-          {content ? (
-            <div className="chat-message-copy-locked">
-              <RichMessageText text={content} />
+          {attachments.length ? (
+            <div className="mb-4 grid max-w-xl grid-cols-2 gap-2">
+              {attachments.map((attachment) => (
+                <a key={attachment.assetId} href={attachment.url} target="_blank" rel="noreferrer" className={cn("focus-ring block overflow-hidden rounded-sm border border-white/15 bg-black/35", attachments.length === 1 && "col-span-2")}>
+                  <img src={attachment.url} alt={attachment.name || "Message attachment"} className="max-h-[520px] w-full object-cover" />
+                </a>
+              ))}
             </div>
-          ) : (
+          ) : null}
+          {content ? (
+            <div className="chat-message-copy-locked"><RichMessageText text={content} /></div>
+          ) : !attachments.length ? (
             <TypingIndicator />
-          )}
+          ) : null}
         </motion.div>
 
         {hasVariants ? (

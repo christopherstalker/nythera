@@ -1,8 +1,9 @@
 "use client";
 
 import { KeyboardEvent, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { ArrowUp, Mic, Paperclip, Settings2, Sparkles } from "lucide-react";
+import { ArrowUp, BookmarkPlus, ImagePlus, Images, LoaderCircle, Mic, Paperclip, Settings2, Sparkles, X } from "lucide-react";
 import { motion } from "motion/react";
+import { upload } from "@vercel/blob/client";
 import { Avatar } from "@/components/ui/avatar";
 import { RichTextToolbar } from "@/components/rich-text/rich-text-toolbar";
 import type { ProviderModelGroup } from "@/lib/provider-model-options";
@@ -10,13 +11,16 @@ import { RESPONSE_PROMPT_EXAMPLES } from "@/lib/response-prompt";
 import { springSnappy, springSoft } from "@/lib/motion";
 import { applyRichTextFormat, richTextFormatFromShortcut } from "@/lib/rich-text-formatting";
 import { MAX_CHAT_MESSAGE_LENGTH } from "@/lib/chat-limits";
+import { MAX_CHAT_IMAGE_ATTACHMENTS, type ChatImageAttachment, type LookbookImage } from "@/lib/chat-attachments";
+import { prepareChatImage } from "@/lib/chat-image-client";
 
 const MAX_RESPONSE_PROMPT_LENGTH = 2000;
 
 type ChatInputProps = {
+  chatId: string;
   value: string;
   onChange: (value: string) => void;
-  onSubmit: () => void;
+  onSubmit: (attachments: ChatImageAttachment[], contentOverride?: string) => Promise<boolean>;
   disabled?: boolean;
   model?: string;
   modelGroups?: ProviderModelGroup[];
@@ -26,6 +30,8 @@ type ChatInputProps = {
   onTemperatureChange?: (value: number) => void;
   responsePrompt?: string;
   onResponsePromptChange?: (value: string) => void;
+  translationLanguage?: string;
+  onTranslationLanguageChange?: (value: string) => void;
   apiStatus?: string | null;
   personaName?: string | null;
   personaAvatarUrl?: string | null;
@@ -33,6 +39,7 @@ type ChatInputProps = {
 };
 
 export function ChatInput({
+  chatId,
   value,
   onChange,
   onSubmit,
@@ -45,6 +52,8 @@ export function ChatInput({
   onTemperatureChange,
   responsePrompt,
   onResponsePromptChange,
+  translationLanguage,
+  onTranslationLanguageChange,
   apiStatus,
   personaName,
   personaAvatarUrl,
@@ -54,10 +63,24 @@ export function ChatInput({
   const [apiOpen, setApiOpen] = useState(false);
   const [modelSearch, setModelSearch] = useState("");
   const [attachmentStatus, setAttachmentStatus] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<ChatImageAttachment[]>([]);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [lookbookOpen, setLookbookOpen] = useState(false);
+  const [lookbookLoading, setLookbookLoading] = useState(false);
+  const [lookbook, setLookbook] = useState<LookbookImage[]>([]);
+  const [macros, setMacros] = useState<Array<{ id: string; name: string; content: string }>>([]);
+  const [macroName, setMacroName] = useState("");
+  const [macroContent, setMacroContent] = useState("");
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordingStartedRef = useRef(0);
+  const [recording, setRecording] = useState(false);
+  const [generatingScene, setGeneratingScene] = useState(false);
 
   useEffect(() => {
     resize();
   }, [value]);
+
+  useEffect(() => { void fetch("/api/chat-macros").then((response) => response.ok ? response.json() : null).then((body) => setMacros(Array.isArray(body?.macros) ? body.macros : [])); }, []);
 
   function resize() {
     const textarea = textareaRef.current;
@@ -85,7 +108,7 @@ export function ChatInput({
 
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      onSubmit();
+      void submit();
     }
   }
 
@@ -115,8 +138,159 @@ export function ChatInput({
     }
   }
 
-  const canSend = !disabled && Boolean(value.trim()) && value.length <= MAX_CHAT_MESSAGE_LENGTH;
-  const hasApiControls = Boolean(onModelChange || onTemperatureChange || onResponsePromptChange);
+  async function submit() {
+    if (disabled || imageUploading) return;
+    const normalized = value.trim();
+    const macro = normalized.startsWith("/") ? macros.find((entry) => normalized.split(/\s/, 1)[0].slice(1).toLowerCase() === entry.name) : undefined;
+    const expanded = normalized.toLowerCase().startsWith("/ooc ")
+      ? `[OOC — answer out of character]\n${normalized.slice(5).trim()}`
+      : macro
+        ? `${macro.content}${normalized.slice(macro.name.length + 1).trim() ? `\n${normalized.slice(macro.name.length + 1).trim()}` : ""}`
+        : undefined;
+    const accepted = await onSubmit(attachments, expanded);
+    if (accepted) {
+      setAttachments([]);
+      setAttachmentStatus(null);
+    }
+  }
+
+  async function saveMacro() {
+    if (!macroName.trim() || !macroContent.trim()) return;
+    const response = await fetch("/api/chat-macros", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: macroName.trim(), content: macroContent.trim() }) });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) return setAttachmentStatus(body?.error ?? "Could not save macro.");
+    setMacros((current) => [...current.filter((entry) => entry.id !== body.macro.id), body.macro].sort((a, b) => a.name.localeCompare(b.name)));
+    setMacroName(""); setMacroContent(""); setAttachmentStatus(`/${body.macro.name} saved.`);
+  }
+
+  async function toggleRecording() {
+    if (recording) {
+      mediaRecorderRef.current?.stop();
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const chunks: BlobPart[] = [];
+      const recorder = new MediaRecorder(stream);
+      recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
+      recorder.onstop = async () => {
+        setRecording(false);
+        stream.getTracks().forEach((track) => track.stop());
+        const audio = new File(chunks, "voice-message.webm", { type: recorder.mimeType || "audio/webm" });
+        const form = new FormData();
+        form.set("audio", audio);
+        form.set("duration", String((Date.now() - recordingStartedRef.current) / 1000));
+        setAttachmentStatus("Transcribing voice message...");
+        const response = await fetch("/api/voice/transcribe", { method: "POST", body: form });
+        const body = await response.json().catch(() => null);
+        if (!response.ok) return setAttachmentStatus(body?.error ?? "Voice transcription failed.");
+        onChange(`${value.trimEnd()}${value.trim() ? "\n" : ""}[Voice tone: ${body.emotion}] ${body.text}`);
+        setAttachmentStatus("Voice message transcribed with tone.");
+      };
+      mediaRecorderRef.current = recorder;
+      recordingStartedRef.current = Date.now();
+      recorder.start();
+      setRecording(true);
+      setAttachmentStatus("Recording... tap the microphone again to stop.");
+    } catch { setAttachmentStatus("Microphone access is unavailable."); }
+  }
+
+  async function generateSceneImage() {
+    setGeneratingScene(true);
+    setAttachmentStatus("Illustrating the current scene...");
+    try {
+      const response = await fetch(`/api/chats/${chatId}/scene-image`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ direction: value.trim().slice(0, 500) }) });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(body?.error ?? "Scene illustration failed.");
+      setAttachments((current) => [...current.filter((item) => item.assetId !== body.attachment.assetId), body.attachment].slice(-MAX_CHAT_IMAGE_ATTACHMENTS));
+      setAttachmentStatus("Scene illustration attached. Send it or save it to Lookbook.");
+    } catch (error) { setAttachmentStatus(error instanceof Error ? error.message : "Scene illustration failed."); }
+    finally { setGeneratingScene(false); }
+  }
+
+  async function attachImages(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = [...(event.target.files ?? [])];
+    event.target.value = "";
+    const available = MAX_CHAT_IMAGE_ATTACHMENTS - attachments.length;
+    if (!files.length || available <= 0) return;
+
+    setImageUploading(true);
+    setAttachmentStatus("Preparing image…");
+    try {
+      const uploaded: ChatImageAttachment[] = [];
+      for (const source of files.slice(0, available)) {
+        const prepared = await prepareChatImage(source);
+        const safeName = prepared.file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+        const blob = await upload(`chat-images/${chatId}/${Date.now()}-${safeName}`, prepared.file, {
+          access: "private",
+          handleUploadUrl: "/api/chat-images/upload",
+          clientPayload: JSON.stringify({ chatId })
+        });
+        const response = await fetch("/api/chat-images", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            chatId,
+            pathname: blob.pathname,
+            name: source.name,
+            width: prepared.width,
+            height: prepared.height
+          })
+        });
+        const body = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(body?.error ?? "Image upload failed.");
+        uploaded.push(body.attachment as ChatImageAttachment);
+      }
+      setAttachments((current) => [...current, ...uploaded]);
+      setAttachmentStatus(`${uploaded.length} image${uploaded.length === 1 ? "" : "s"} ready.`);
+    } catch (error) {
+      setAttachmentStatus(error instanceof Error ? error.message : "Image upload failed.");
+    } finally {
+      setImageUploading(false);
+    }
+  }
+
+  async function openLookbook() {
+    setLookbookOpen(true);
+    setLookbookLoading(true);
+    try {
+      const response = await fetch("/api/lookbook", { cache: "no-store" });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(body?.error ?? "Lookbook could not be loaded.");
+      setLookbook(Array.isArray(body.items) ? body.items : []);
+    } catch (error) {
+      setAttachmentStatus(error instanceof Error ? error.message : "Lookbook could not be loaded.");
+    } finally {
+      setLookbookLoading(false);
+    }
+  }
+
+  function attachLookbookImage(image: LookbookImage) {
+    if (attachments.some((attachment) => attachment.assetId === image.assetId)) return;
+    if (attachments.length >= MAX_CHAT_IMAGE_ATTACHMENTS) {
+      setAttachmentStatus(`Attach up to ${MAX_CHAT_IMAGE_ATTACHMENTS} images per message.`);
+      return;
+    }
+    setAttachments((current) => [...current, image]);
+    setLookbookOpen(false);
+  }
+
+  async function saveToLookbook(attachment: ChatImageAttachment) {
+    const suggested = attachment.name?.replace(/\.[^.]+$/, "") || "Saved look";
+    const title = window.prompt("Name this look", suggested)?.trim();
+    if (!title) return;
+
+    const response = await fetch("/api/lookbook", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ assetId: attachment.assetId, title })
+    });
+    const body = await response.json().catch(() => null);
+    setAttachmentStatus(response.ok ? `${title} saved to Lookbook.` : body?.error ?? "Could not save this look.");
+  }
+
+  const canSend = !disabled && !imageUploading && Boolean(value.trim() || attachments.length) && value.length <= MAX_CHAT_MESSAGE_LENGTH;
+  const hasApiControls = Boolean(onModelChange || onTemperatureChange || onResponsePromptChange || onTranslationLanguageChange);
   const currentTemperature = temperature ?? 0.7;
   const modelOptions = modelGroups.flatMap((group) => group.options);
   const hasModelOptions = modelOptions.length > 0;
@@ -214,6 +388,21 @@ export function ChatInput({
               </span>
             </label>
           ) : null}
+          {onTranslationLanguageChange ? (
+            <label className="grid gap-1 sm:col-span-2">
+              <span className="px-1 text-[11px] font-medium uppercase text-[var(--text-muted)]">Automatic translation</span>
+              <select value={translationLanguage ?? ""} onChange={(event) => onTranslationLanguageChange(event.target.value)} className="focus-ring h-10 rounded-sm border border-white/15 bg-[#111] px-3 text-xs text-[var(--text-primary)] focus:border-[var(--accent-purple)]">
+                <option value="">Character&apos;s natural language</option>
+                <option value="English">English</option>
+                <option value="Ukrainian">Ukrainian</option>
+                <option value="Russian">Russian</option>
+                <option value="German">German</option>
+                <option value="French">French</option>
+                <option value="Spanish">Spanish</option>
+                <option value="Japanese">Japanese</option>
+              </select>
+            </label>
+          ) : null}
           {onResponsePromptChange ? (
             <label className="grid gap-1.5 sm:col-span-2">
               <span className="flex items-center justify-between gap-3 px-1 text-[11px] font-medium uppercase text-[var(--text-muted)]">
@@ -244,6 +433,11 @@ export function ChatInput({
               </span>
             </label>
           ) : null}
+          <div className="grid gap-2 sm:col-span-2">
+            <span className="px-1 text-[11px] font-medium uppercase text-[var(--text-muted)]">Slash commands & macros</span>
+            <div className="grid gap-2 sm:grid-cols-[140px_minmax(0,1fr)_auto]"><input value={macroName} onChange={(event) => setMacroName(event.target.value.replace(/[^a-z0-9_-]/gi, ""))} placeholder="command" className="focus-ring h-10 border border-white/15 bg-[#111] px-3 text-xs" /><input value={macroContent} onChange={(event) => setMacroContent(event.target.value)} placeholder="Text inserted by /command" className="focus-ring h-10 border border-white/15 bg-[#111] px-3 text-xs" /><button type="button" onClick={() => void saveMacro()} className="focus-ring h-10 border border-white/15 px-3 text-xs text-[var(--accent-mint)]">Save macro</button></div>
+            <p className="px-1 text-xs text-[var(--text-muted)]">Built in: <button type="button" onClick={() => onChange("/ooc ")} className="text-[var(--accent-purple)]">/ooc</button>{macros.map((macro) => <button key={macro.id} type="button" onClick={() => onChange(`/${macro.name} `)} className="ml-2 text-[var(--accent-purple)]">/{macro.name}</button>)}</p>
+          </div>
           {apiStatus ? <p className="px-1 text-xs text-[var(--text-muted)] sm:col-span-2">{apiStatus}</p> : null}
         </motion.div>
       ) : null}
@@ -253,6 +447,47 @@ export function ChatInput({
         animate={{ opacity: 1, y: 0 }}
         transition={springSoft}
       >
+        {attachments.length ? (
+          <div className="flex gap-2 overflow-x-auto border-b border-[var(--border-subtle)] pb-2" aria-label="Attached images">
+            {attachments.map((attachment) => (
+              <div key={attachment.assetId} className="group relative h-20 w-20 shrink-0 overflow-hidden rounded-sm border border-white/15 bg-black/50">
+                <img src={attachment.url} alt={attachment.name || "Attached image"} className="h-full w-full object-cover" />
+                <div className="absolute inset-x-1 bottom-1 flex justify-between gap-1 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
+                  <button type="button" onClick={() => void saveToLookbook(attachment)} className="focus-ring grid h-7 w-7 place-items-center rounded-full bg-black/80 text-white" aria-label="Save to Lookbook">
+                    <BookmarkPlus className="h-3.5 w-3.5" />
+                  </button>
+                  <button type="button" onClick={() => setAttachments((current) => current.filter((item) => item.assetId !== attachment.assetId))} className="focus-ring grid h-7 w-7 place-items-center rounded-full bg-black/80 text-white" aria-label="Remove image">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {lookbookOpen ? (
+          <div className="absolute inset-x-0 bottom-full z-30 mb-2 max-h-72 overflow-y-auto rounded-sm border border-white/15 bg-[#090909]/98 p-3 shadow-2xl">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-[.16em] text-[var(--codex-mint)]">Lookbook</p>
+              <button type="button" onClick={() => setLookbookOpen(false)} className="focus-ring grid h-8 w-8 place-items-center text-[var(--text-secondary)]" aria-label="Close Lookbook"><X className="h-4 w-4" /></button>
+            </div>
+            {lookbookLoading ? (
+              <p className="py-8 text-center text-xs text-[var(--text-muted)]">Loading saved looks…</p>
+            ) : lookbook.length ? (
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                {lookbook.map((image) => (
+                  <button key={image.lookbookId} type="button" onClick={() => attachLookbookImage(image)} className="focus-ring overflow-hidden rounded-sm border border-white/10 bg-white/5 text-left hover:border-[var(--codex-mint)]">
+                    <img src={image.url} alt={image.title} className="aspect-square w-full object-cover" />
+                    <span className="block truncate px-2 py-1.5 text-[11px] text-[var(--text-secondary)]">{image.title}</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="py-8 text-center text-xs text-[var(--text-muted)]">Save an attached image here to reuse the look later.</p>
+            )}
+          </div>
+        ) : null}
+
         <RichTextToolbar
           textareaRef={textareaRef}
           value={value}
@@ -307,6 +542,12 @@ export function ChatInput({
           </div>
 
             <div className="relative flex shrink-0 items-center gap-2">
+          <label className="focus-ring grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-full border border-[var(--codex-rule)] text-[var(--text-secondary)] hover:border-[var(--codex-mint)] hover:text-[var(--text-primary)]" title="Attach photos">
+            {imageUploading ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+            <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="sr-only" onChange={attachImages} disabled={imageUploading || attachments.length >= MAX_CHAT_IMAGE_ATTACHMENTS} />
+          </label>
+          <button type="button" onClick={() => void openLookbook()} className="focus-ring grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--codex-rule)] text-[var(--text-secondary)] hover:border-[var(--codex-mint)] hover:text-[var(--text-primary)]" title="Open Lookbook" aria-label="Open Lookbook"><Images className="h-3.5 w-3.5" /></button>
+          <button type="button" onClick={() => void generateSceneImage()} disabled={generatingScene} className="focus-ring grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--codex-rule)] text-[var(--text-secondary)] hover:border-[var(--codex-mint)] hover:text-[var(--text-primary)] disabled:opacity-50" title="Illustrate current scene" aria-label="Illustrate current scene">{generatingScene ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}</button>
           <label
             className="focus-ring grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-full border border-[var(--codex-rule)] text-[var(--text-secondary)] hover:border-[var(--codex-violet)] hover:text-[var(--text-primary)]"
             title="Attach a text context file"
@@ -314,17 +555,15 @@ export function ChatInput({
             <Paperclip className="h-3.5 w-3.5" />
             <input type="file" accept=".txt,.md,.json,text/plain,application/json" className="sr-only" onChange={attachContextFile} />
           </label>
-          {onOpenComposer ? (
-            <button
+          <button
               type="button"
-              onClick={onOpenComposer}
-              aria-label="Open voice settings"
+              onClick={() => void toggleRecording()}
+              aria-label={recording ? "Stop voice recording" : "Record voice message"}
               className="focus-ring grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--codex-rule)] text-[var(--text-secondary)] hover:border-[var(--codex-violet)] hover:text-[var(--text-primary)]"
-              title="Voice settings"
+              title={recording ? "Stop recording" : "Record voice message"}
             >
-              <Mic className="h-3.5 w-3.5" />
+              <Mic className={recording ? "h-3.5 w-3.5 animate-pulse text-red-400" : "h-3.5 w-3.5"} />
             </button>
-          ) : null}
           {hasApiControls ? (
             <motion.button
               type="button"
@@ -341,7 +580,7 @@ export function ChatInput({
 
           <motion.button
             type="button"
-            onClick={onSubmit}
+            onClick={() => void submit()}
             disabled={!canSend}
             aria-label="Send message"
             whileTap={canSend ? { scale: 0.92 } : undefined}

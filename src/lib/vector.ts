@@ -1,6 +1,6 @@
 import "server-only";
 
-import { MemoryCategory, Prisma } from "@prisma/client";
+import { MemoryCategory, MemoryStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { sanitizePromptContext, shouldStoreMemoryFromText } from "@/lib/prompt-security";
 import { createEmbedding } from "@/lib/proxy";
@@ -26,6 +26,7 @@ export async function searchMemories(input: {
         SELECT id, content, importance, category, confidence, metadata, pinned, 1 - (embedding <=> ${vector}::vector) AS similarity
         FROM "Memory"
         WHERE "userId" = ${input.userId}
+          AND status = 'ACTIVE'::"MemoryStatus"
           AND embedding IS NOT NULL
           AND ("characterId" = ${input.characterId ?? null} OR (${includeGlobal} AND "characterId" IS NULL))
           AND (1 - (embedding <=> ${vector}::vector)) >= 0.18
@@ -48,6 +49,7 @@ export async function createMemory(input: {
   metadata?: Prisma.InputJsonValue;
   importance?: number;
   confidence?: number;
+  status?: MemoryStatus;
   providerKeys?: ProviderKeys;
 }) {
   const content = sanitizePromptContext(input.content, 1000);
@@ -101,7 +103,8 @@ export async function createMemory(input: {
         category: input.category ?? MemoryCategory.OTHER,
         metadata: input.metadata ?? Prisma.JsonNull,
         importance: input.importance ?? 1,
-        confidence: input.confidence ?? 0.75
+        confidence: input.confidence ?? 0.75,
+        status: input.status ?? MemoryStatus.ACTIVE
       }
     });
   } catch (error) {

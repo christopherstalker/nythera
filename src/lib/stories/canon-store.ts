@@ -90,6 +90,23 @@ export async function createStoryFact(storyId: string, userId: string, input: St
   });
 
   return prisma.$transaction(async (tx) => {
+    if (input.subjectEntityId || !/^is (?:not )?true now$/i.test(input.predicate)) {
+      const contradiction = await tx.storyFact.findFirst({
+        where: {
+          storyId,
+          timelineId,
+          subjectEntityId: input.subjectEntityId ?? null,
+          predicate: input.predicate,
+          locked: true,
+          status: StoryFactStatus.ACTIVE,
+          NOT: { objectText: { equals: input.objectText, mode: "insensitive" } }
+        },
+        select: { objectText: true }
+      });
+      if (contradiction) {
+        throw new HttpError(409, `Canon contradiction detected. Locked fact says: ${contradiction.objectText}`);
+      }
+    }
     const existing = await tx.storyFact.findFirst({
       where: {
         storyId,

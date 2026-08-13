@@ -1,6 +1,6 @@
 import "server-only";
 
-import { MemoryCategory, Prisma } from "@prisma/client";
+import { MemoryCategory, MemoryStatus, Prisma } from "@prisma/client";
 import { HttpError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { logSafeError } from "@/lib/secret-redaction";
@@ -17,6 +17,7 @@ const memorySelect = {
   confidence: true,
   metadata: true,
   pinned: true,
+  status: true,
   sourceChatId: true,
   createdAt: true,
   updatedAt: true,
@@ -62,7 +63,8 @@ export async function getPromptMemories(input: {
     where: {
       userId: input.userId,
       characterId: input.characterId,
-      pinned: true
+      pinned: true,
+      status: MemoryStatus.ACTIVE
     },
     orderBy: [{ importance: "desc" }, { updatedAt: "desc" }],
     take: pinnedLimit,
@@ -150,6 +152,7 @@ export async function updateMemory(input: {
   importance?: number;
   pinned?: boolean;
   category?: MemoryCategory;
+  status?: MemoryStatus;
   metadataSource: string;
   providerKeys?: ProviderKeys;
 }) {
@@ -172,6 +175,7 @@ export async function updateMemory(input: {
       importance: input.importance,
       pinned: input.pinned,
       category: input.category,
+      status: input.status,
       metadata: input.content
         ? {
             source: input.metadataSource,

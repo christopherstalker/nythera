@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, ChevronRight, Plus, UserRound } from "lucide-react";
+import { Check, ChevronRight, Plus, Star, UserRound } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
@@ -21,10 +21,10 @@ type PersonaSwitcherProps = {
 
 export function PersonaSwitcher({ collapsed = false }: PersonaSwitcherProps) {
   const [profiles, setProfiles] = useState<PersonaProfile[]>([]);
-  const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
+  const [defaultProfileId, setDefaultProfileId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-  const activeProfile = profiles.find((profile) => profile.id === activeProfileId) ?? profiles[0] ?? null;
+  const defaultProfile = profiles.find((profile) => profile.id === defaultProfileId) ?? null;
 
   useEffect(() => {
     void loadPersonas();
@@ -48,23 +48,23 @@ export function PersonaSwitcher({ collapsed = false }: PersonaSwitcherProps) {
     const response = await fetch("/api/user-persona", { cache: "no-store" });
     if (!response.ok) {
       setProfiles([]);
-      setActiveProfileId(null);
+      setDefaultProfileId(null);
       return;
     }
 
     const body = await response.json().catch(() => null);
     const nextProfiles = Array.isArray(body?.profiles) ? body.profiles.map(profileFromApi) : [];
     setProfiles(nextProfiles);
-    setActiveProfileId(body?.activeProfileId ?? nextProfiles[0]?.id ?? null);
+    setDefaultProfileId(body?.defaultProfileId ?? null);
   }
 
   async function switchPersona(profile: PersonaProfile) {
-    setActiveProfileId(profile.id);
+    setDefaultProfileId(profile.id);
     setOpen(false);
     const response = await fetch("/api/user-persona", {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ activeProfileId: profile.id })
+      body: JSON.stringify({ defaultProfileId: profile.id })
     });
 
     if (response.ok) {
@@ -83,18 +83,18 @@ export function PersonaSwitcher({ collapsed = false }: PersonaSwitcherProps) {
           "focus-ring flex h-12 w-full items-center gap-3 rounded-2xl px-2 text-left text-[var(--text-secondary)] transition-colors hover:bg-white/[0.05] hover:text-[var(--text-primary)]",
           open && "bg-[var(--accent-purple-soft)] text-[var(--text-primary)]"
         )}
-        title={activeProfile ? `Persona: ${activeProfile.displayName}` : "Persona"}
+        title={defaultProfile ? `Default persona: ${defaultProfile.displayName}` : "Default persona"}
       >
-        {activeProfile ? (
-          <Avatar name={activeProfile.displayName} src={activeProfile.avatarUrl} size="xs" />
+        {defaultProfile ? (
+          <Avatar name={defaultProfile.displayName} src={defaultProfile.avatarUrl} size="xs" />
         ) : (
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-secondary)]">
             <UserRound className="h-4 w-4" />
           </span>
         )}
         <span className={cn("min-w-0 flex-1 md:hidden lg:block", collapsed && "lg:hidden")}>
-          <span className="block truncate text-sm font-semibold text-[var(--text-primary)]">Persona</span>
-          <span className="block truncate text-xs text-[var(--text-muted)]">{activeProfile?.displayName ?? "Create persona"}</span>
+          <span className="block truncate text-sm font-semibold text-[var(--text-primary)]">Default persona</span>
+          <span className="block truncate text-xs text-[var(--text-muted)]">{defaultProfile?.displayName ?? (profiles.length ? "Not selected" : "Create persona")}</span>
         </span>
         <ChevronRight className={cn("h-4 w-4 shrink-0 transition-transform", open && "rotate-90", collapsed && "lg:hidden")} />
       </button>
@@ -115,7 +115,7 @@ export function PersonaSwitcher({ collapsed = false }: PersonaSwitcherProps) {
                     <span className="block truncate font-medium text-[var(--text-primary)]">{profile.label || profile.displayName}</span>
                     <span className="block truncate text-xs text-[var(--text-muted)]">{profile.summary || profile.displayName}</span>
                   </span>
-                  {activeProfileId === profile.id ? <Check className="h-4 w-4 text-[var(--accent-purple)]" /> : null}
+                  {defaultProfileId === profile.id ? <Check className="h-4 w-4 text-[var(--accent-purple)]" /> : null}
                 </button>
               ))}
             </div>
@@ -123,7 +123,7 @@ export function PersonaSwitcher({ collapsed = false }: PersonaSwitcherProps) {
             <p className="px-3 py-2 text-sm leading-5 text-[var(--text-secondary)]">No persona yet.</p>
           )}
           <Link href="/settings/personas" onClick={() => setOpen(false)} className="nav-item mt-1 h-10">
-            <Plus className="h-4 w-4" />
+            {profiles.length ? <Star className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
             Manage personas
           </Link>
         </div>

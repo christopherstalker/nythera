@@ -59,6 +59,15 @@ const nextConfig = {
     minimumCacheTTL: 86400
   },
   async redirects() {
+    if (
+      process.env.AUTH_URL ===
+        "https://nythera-ai-character-platform.vercel.app" ||
+      process.env.NEXTAUTH_URL ===
+        "https://nythera-ai-character-platform.vercel.app"
+    ) {
+      return [];
+    }
+
     return [
       {
         source: "/:path*",

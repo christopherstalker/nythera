@@ -14,6 +14,7 @@ import { normalizeChatAppearance, resolveBackgroundType } from "@/lib/chat-appea
 import { useUiStore } from "@/stores/use-ui-store";
 import { CHAT_CUSTOM_FONT_FAMILY, useCustomFontFace } from "@/hooks/use-custom-font";
 import { latestAssistantVariantGroup } from "@/lib/message-actions";
+import type { ChatImageAttachment } from "@/lib/chat-attachments";
 
 type ChatClientProps = {
   chatId: string;
@@ -26,6 +27,7 @@ type ChatClientProps = {
   temperature?: number | null;
   responsePrompt?: string | null;
   chatMode?: string | null;
+  translationLanguage?: string | null;
   appearance?: unknown;
   characterBackgroundUrl?: string | null;
   initialMessages: ChatMessage[];
@@ -35,11 +37,12 @@ type ChatClientProps = {
 const API_SETTINGS_SAVE_DEBOUNCE_MS = 500;
 const ACTIVE_VARIANT_SAVE_DEBOUNCE_MS = 500;
 
-export function ChatClient({ chatId, chapterNumber, characterId, characterName, characterAvatarUrl, characterBackgroundUrl, summary, model: initialModel, temperature: initialTemperature, responsePrompt: initialResponsePrompt, chatMode: initialChatMode, appearance: initialAppearance, initialMessages, initialActiveAssistantMessageId }: ChatClientProps) {
+export function ChatClient({ chatId, chapterNumber, characterId, characterName, characterAvatarUrl, characterBackgroundUrl, summary, model: initialModel, temperature: initialTemperature, responsePrompt: initialResponsePrompt, chatMode: initialChatMode, translationLanguage: initialTranslationLanguage, appearance: initialAppearance, initialMessages, initialActiveAssistantMessageId }: ChatClientProps) {
   const [draft, setDraft] = useState("");
   const [model, setModel] = useState(initialModel || "gpt-4o-mini");
   const [temperature, setTemperature] = useState(initialTemperature ?? 0.7);
   const [responsePrompt, setResponsePrompt] = useState(initialResponsePrompt ?? "");
+  const [translationLanguage, setTranslationLanguage] = useState(initialTranslationLanguage ?? "");
   const [apiSaveStatus, setApiSaveStatus] = useState<string | null>(null);
   const [activeAssistantMessageId, setActiveAssistantMessageId] = useState<string | null>(
     initialActiveAssistantMessageId ?? latestAssistantMessageId(initialMessages)
@@ -49,7 +52,7 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
   const [rejectedProviderIds, setRejectedProviderIds] = useState<string[]>([]);
   const [providerKeysLoading, setProviderKeysLoading] = useState(true);
   const [modelCatalogStatus, setModelCatalogStatus] = useState<string | null>(null);
-  const persistedApiRef = useRef({ model: initialModel || "gpt-4o-mini", temperature: initialTemperature ?? 0.7, responsePrompt: initialResponsePrompt ?? "" });
+  const persistedApiRef = useRef({ model: initialModel || "gpt-4o-mini", temperature: initialTemperature ?? 0.7, responsePrompt: initialResponsePrompt ?? "", translationLanguage: initialTranslationLanguage ?? "" });
   const { messages, summary: activeSummary, send, retryUserMessage, editMessage, deleteMessage, rewindToMessage, refreshMessages, branchFromMessage, pinMessage, unpinMessage, isStreaming, refreshing, error, providerNotice } = useChat(chatId, initialMessages, summary);
   const messagesRef = useRef(messages);
   const isStreamingRef = useRef(isStreaming);
@@ -113,6 +116,42 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
   }, [isStreaming]);
 
   useEffect(() => {
+    const checkScheduledMessages = async () => {
+      if (document.visibilityState !== "visible" || isStreamingRef.current) return;
+      const response = await fetch(`/api/chats/${chatId}/scheduled`, { cache: "no-store" });
+      const body = await response.json().catch(() => null);
+      if (response.ok && body?.created) await refreshMessages();
+    };
+    void checkScheduledMessages();
+    const interval = window.setInterval(() => void checkScheduledMessages(), 30_000);
+    return () => window.clearInterval(interval);
+  }, [chatId, refreshMessages]);
+
+  useEffect(() => {
+    const flushOfflineQueue = async () => {
+      const queueKey = `nythera:offline-queue:${chatId}`;
+      const queued = JSON.parse(window.localStorage.getItem(queueKey) || "[]") as Array<{ content: string; attachments: ChatImageAttachment[] }>;
+      if (!queued.length || isStreamingRef.current) return;
+      setApiSaveStatus(`Sending ${queued.length} queued message${queued.length === 1 ? "" : "s"}...`);
+      const remaining = [...queued];
+      while (remaining.length && navigator.onLine) {
+        const item = remaining[0];
+        const accepted = await send(item.content, { ...chatSettingsRef.current, attachments: item.attachments });
+        if (!accepted) break;
+        remaining.shift();
+        window.localStorage.setItem(queueKey, JSON.stringify(remaining));
+      }
+      if (!remaining.length) {
+        window.localStorage.removeItem(queueKey);
+        setApiSaveStatus("Offline messages sent.");
+      }
+    };
+    window.addEventListener("online", flushOfflineQueue);
+    if (navigator.onLine) void flushOfflineQueue();
+    return () => window.removeEventListener("online", flushOfflineQueue);
+  }, [chatId, send]);
+
+  useEffect(() => {
     chatSettingsRef.current = { model, temperature, responsePrompt };
   }, [model, responsePrompt, temperature]);
 
@@ -121,8 +160,9 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
     setTemperature(initialTemperature ?? 0.7);
     setResponsePrompt(initialResponsePrompt ?? "");
     setApiSaveStatus(null);
-    persistedApiRef.current = { model: initialModel || "gpt-4o-mini", temperature: initialTemperature ?? 0.7, responsePrompt: initialResponsePrompt ?? "" };
-  }, [chatId, initialModel, initialResponsePrompt, initialTemperature]);
+    setTranslationLanguage(initialTranslationLanguage ?? "");
+    persistedApiRef.current = { model: initialModel || "gpt-4o-mini", temperature: initialTemperature ?? 0.7, responsePrompt: initialResponsePrompt ?? "", translationLanguage: initialTranslationLanguage ?? "" };
+  }, [chatId, initialModel, initialResponsePrompt, initialTemperature, initialTranslationLanguage]);
 
   useEffect(() => {
     setActiveChatId(chatId);
@@ -137,8 +177,9 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
     const nextModel = model.trim() || "gpt-4o-mini";
     const nextTemperature = Number.isFinite(temperature) ? temperature : 0.7;
     const nextResponsePrompt = responsePrompt.trim();
+    const nextTranslationLanguage = translationLanguage.trim();
     const persisted = persistedApiRef.current;
-    if (persisted.model === nextModel && persisted.temperature === nextTemperature && persisted.responsePrompt === nextResponsePrompt) {
+    if (persisted.model === nextModel && persisted.temperature === nextTemperature && persisted.responsePrompt === nextResponsePrompt && persisted.translationLanguage === nextTranslationLanguage) {
       return;
     }
 
@@ -153,7 +194,7 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
         const response = await fetch(`/api/chats/${chatId}`, {
           method: "PATCH",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ model: nextModel, temperature: nextTemperature, responsePrompt: nextResponsePrompt }),
+          body: JSON.stringify({ model: nextModel, temperature: nextTemperature, responsePrompt: nextResponsePrompt, translationLanguage: nextTranslationLanguage || null }),
           signal: activeController.signal
         });
 
@@ -162,7 +203,7 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
           throw new Error(typeof body?.error === "string" ? body.error : "Could not save API settings.");
         }
 
-        persistedApiRef.current = { model: nextModel, temperature: nextTemperature, responsePrompt: nextResponsePrompt };
+        persistedApiRef.current = { model: nextModel, temperature: nextTemperature, responsePrompt: nextResponsePrompt, translationLanguage: nextTranslationLanguage };
         setApiSaveStatus("Saved for this chat and future chats.");
       } catch (error) {
         if (!(error instanceof DOMException && error.name === "AbortError")) {
@@ -175,7 +216,7 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
       window.clearTimeout(timeout);
       controller.abort();
     };
-  }, [chatId, model, responsePrompt, temperature]);
+  }, [chatId, model, responsePrompt, temperature, translationLanguage]);
 
   useEffect(() => {
     // Streaming state is still emitted for favicon compatibility without UI glow.
@@ -277,24 +318,34 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
     setModel(value);
   }, []);
 
-  const submitMessage = useCallback(async () => {
-    const content = draft.trim();
-    if (!content || isStreaming) {
-      return;
+  const submitMessage = useCallback(async (attachments: ChatImageAttachment[], contentOverride?: string) => {
+    const content = contentOverride?.trim() || draft.trim();
+    if ((!content && !attachments.length) || isStreaming) {
+      return false;
     }
 
     setDraft("");
+    if (!navigator.onLine) {
+      const queueKey = `nythera:offline-queue:${chatId}`;
+      const queued = JSON.parse(window.localStorage.getItem(queueKey) || "[]") as Array<{ content: string; attachments: ChatImageAttachment[] }>;
+      queued.push({ content, attachments });
+      window.localStorage.setItem(queueKey, JSON.stringify(queued));
+      setApiSaveStatus("Offline: message queued and will send automatically when you reconnect.");
+      return true;
+    }
     const branchMessageId = activeAssistantMessageIdRef.current;
     const accepted = await send(content, {
       model,
       temperature,
       responsePrompt,
+      attachments,
       branchMessageId: branchMessageId?.startsWith("local-") ? undefined : branchMessageId ?? undefined
     });
     if (!accepted) {
       setDraft((current) => current || content);
     }
-  }, [draft, isStreaming, model, responsePrompt, send, temperature]);
+    return accepted;
+  }, [chatId, draft, isStreaming, model, responsePrompt, send, temperature]);
 
   const selectActiveVariant = useCallback((messageId: string) => {
     if (activeAssistantMessageIdRef.current === messageId) return;
@@ -355,6 +406,7 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
 
     void send(previousUser?.content ?? "", {
       ...chatSettingsRef.current,
+      attachments: previousUser?.attachments,
       regenerate: true,
       regenerateMessageId: assistantMessageId
     });
@@ -458,6 +510,7 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
             hasSoundtrack={activeChatAppearance.music.enabled}
           />
           <ChatInput
+            chatId={chatId}
             value={draft}
             onChange={setDraft}
             onSubmit={submitMessage}
@@ -470,6 +523,8 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
             onTemperatureChange={setTemperature}
             responsePrompt={responsePrompt}
             onResponsePromptChange={setResponsePrompt}
+            translationLanguage={translationLanguage}
+            onTranslationLanguageChange={setTranslationLanguage}
             apiStatus={apiSaveStatus ?? modelCatalogStatus}
             personaName={activePersona?.displayName}
             personaAvatarUrl={activePersona?.avatarUrl}

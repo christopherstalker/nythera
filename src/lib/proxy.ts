@@ -29,7 +29,7 @@ type StreamInput = {
 };
 
 export async function* streamLlmResponse(input: StreamInput): AsyncGenerator<StreamChunk> {
-  if (!env.LLM_PROXY_URL || !env.INTERNAL_API_TOKEN) {
+  if (!env.LLM_PROXY_URL || !env.INTERNAL_API_TOKEN || input.messages.some((message) => message.images?.length)) {
     yield* streamGatewayResponse(input);
     return;
   }

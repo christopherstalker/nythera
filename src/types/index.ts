@@ -61,6 +61,12 @@ export type PublicCharacterProfile = {
 export type PromptMessage = {
   role: ChatRole;
   content: string;
+  images?: PromptImage[];
+};
+
+export type PromptImage = {
+  data: string;
+  mediaType: "image/jpeg" | "image/png" | "image/webp";
 };
 
 export type ModelSamplingSettings = {

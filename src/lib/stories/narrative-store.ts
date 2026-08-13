@@ -45,7 +45,8 @@ export async function getStoryNarrative(storyId: string, userId: string, request
       orderBy: { updatedAt: "desc" },
       include: {
         fromParticipant: { select: { id: true, displayName: true, role: true } },
-        toParticipant: { select: { id: true, displayName: true, role: true } }
+        toParticipant: { select: { id: true, displayName: true, role: true } },
+        revisions: { orderBy: { createdAt: "desc" }, take: 12 }
       }
     }),
     prisma.storyProactiveEvent.findMany({
@@ -176,7 +177,7 @@ export async function upsertStoryRelationship(storyId: string, userId: string, i
   }
   const context = await resolveOwnedNarrativeContext(storyId, userId, input.timelineId);
   assertParticipantsBelongToStory(context.participants, [input.fromParticipantId, input.toParticipantId]);
-  return prisma.storyRelationshipState.upsert({
+  const relationship = await prisma.storyRelationshipState.upsert({
     where: {
       timelineId_fromParticipantId_toParticipantId: {
         timelineId: context.timelineId,
@@ -206,6 +207,8 @@ export async function upsertStoryRelationship(storyId: string, userId: string, i
       version: { increment: 1 }
     }
   });
+  await prisma.storyRelationshipRevision.create({ data: { relationshipId: relationship.id, label: relationship.label, trust: relationship.trust, affection: relationship.affection, tension: relationship.tension, respect: relationship.respect, notes: relationship.notes } });
+  return relationship;
 }
 
 export async function createStoryProactiveEvent(storyId: string, userId: string, input: {
@@ -312,6 +315,9 @@ export async function updateStoryNarrativeItem(storyId: string, userId: string, 
     return prisma.storyHook.findUniqueOrThrow({ where: { id: input.id } });
   }
   if (input.kind === "relationship") {
+    const existing = await prisma.storyRelationshipState.findFirst({ where: { id: input.id, storyId } });
+    if (!existing) throw new HttpError(404, "Story item not found.");
+    await prisma.storyRelationshipRevision.create({ data: { relationshipId: existing.id, label: existing.label, trust: existing.trust, affection: existing.affection, tension: existing.tension, respect: existing.respect, notes: existing.notes } });
     const result = await prisma.storyRelationshipState.updateMany({
       where: { id: input.id, storyId },
       data: {

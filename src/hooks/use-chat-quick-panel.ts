@@ -36,6 +36,7 @@ export type MemoryRow = {
   content: string;
   category: string;
   pinned: boolean;
+  status?: "PENDING" | "ACTIVE" | "REJECTED";
   character?: { name: string } | null;
 };
 
@@ -153,6 +154,7 @@ export type StoryRelationshipRow = {
   notes?: string | null;
   fromParticipant: StoryParticipantRow;
   toParticipant: StoryParticipantRow;
+  revisions?: Array<{ id: string; trust: number; affection: number; tension: number; respect: number; createdAt: string }>;
 };
 
 export type StoryProactiveEventRow = {
@@ -170,7 +172,7 @@ export type StoryArcDraft = { title: string; premise: string };
 export type StoryBeatDraft = { arcId: string; title: string; description: string; status: "PLANNED" | "READY" };
 export type StoryHookDraft = { arcId: string; title: string; description: string; urgency: number; directorOnly: boolean };
 export type StoryRelationshipDraft = { fromParticipantId: string; toParticipantId: string; label: string; trust: number; affection: number; tension: number; respect: number; notes: string };
-export type StoryEventDraft = { actorParticipantId: string; title: string; instruction: string; channel: StoryProactiveEventRow["channel"]; afterTurns: number };
+export type StoryEventDraft = { actorParticipantId: string; title: string; instruction: string; channel: StoryProactiveEventRow["channel"]; afterTurns: number; triggerAt: string };
 
 export type StoryParticipantStateRow = {
   id: string;
@@ -273,7 +275,7 @@ export const emptyStoryArcDraft: StoryArcDraft = { title: "", premise: "" };
 export const emptyStoryBeatDraft: StoryBeatDraft = { arcId: "", title: "", description: "", status: "PLANNED" };
 export const emptyStoryHookDraft: StoryHookDraft = { arcId: "", title: "", description: "", urgency: 3, directorOnly: false };
 export const emptyStoryRelationshipDraft: StoryRelationshipDraft = { fromParticipantId: "", toParticipantId: "", label: "", trust: 0, affection: 0, tension: 0, respect: 0, notes: "" };
-export const emptyStoryEventDraft: StoryEventDraft = { actorParticipantId: "", title: "", instruction: "", channel: "ACTION", afterTurns: 0 };
+export const emptyStoryEventDraft: StoryEventDraft = { actorParticipantId: "", title: "", instruction: "", channel: "ACTION", afterTurns: 0, triggerAt: "" };
 export const emptyStoryCastStateDraft: StoryCastStateDraft = { displayNameOverride: "", pronouns: "", currentMood: "", appearance: "", currentGoal: "", innerConflict: "", voiceStyle: "", speakingStyle: "" };
 export const emptyStoryVoiceDraft: StoryVoiceDraft = { provider: "elevenlabs", voiceId: "", style: "", speed: 1, pitch: 0, autoPlay: false };
 export const emptyStoryVisualDraft: StoryVisualDraft = { participantId: "", entityId: "", visualKind: "PORTRAIT", title: "", imageUrl: "", prompt: "", notes: "", locked: true };
@@ -289,6 +291,8 @@ type UseChatQuickPanelOptions = {
 export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseChatQuickPanelOptions) {
   const [profiles, setProfiles] = useState<PersonaProfile[]>([]);
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
+  const [temporaryProfileId, setTemporaryProfileId] = useState<string | null>(null);
+  const [characterDefaultProfileId, setCharacterDefaultProfileId] = useState<string | null>(null);
   const [activePersona, setActivePersona] = useState<PersonaProfile | null>(null);
   const [draft, setDraft] = useState<PersonaDraft>(emptyPersonaDraft);
   const [personaStatus, setPersonaStatus] = useState<string | null>(null);
@@ -496,6 +500,8 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
         const active = body.activeProfile ? profileFromApi(body.activeProfile) : nextProfiles[0] ?? null;
         setProfiles(nextProfiles);
         setActiveProfileId(body.activeProfileId ?? nextProfiles[0]?.id ?? null);
+        setTemporaryProfileId(body.temporaryProfileId ?? null);
+        setCharacterDefaultProfileId(body.characterDefaultProfileId ?? null);
         setActivePersona(active);
         if (body.activeProfile) {
           setDraft(profileToDraft(body.activeProfile));
@@ -634,6 +640,31 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     }
   }
 
+  async function usePersonaOnce(profile: PersonaProfile) {
+    if (!chatId) return;
+    const response = await performWrite("persona:temporary", "/api/user-persona", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ activeProfileId: profile.id, chatId, temporary: true })
+    }, setPersonaStatus, "Could not set the temporary persona.");
+    if (!response) return;
+    setTemporaryProfileId(profile.id);
+    setPersonaStatus(`${profile.displayName} will be used for the next reply only.`);
+  }
+
+  async function setCharacterDefault(profile: PersonaProfile) {
+    if (!characterId) return;
+    const nextProfileId = characterDefaultProfileId === profile.id ? null : profile.id;
+    const response = await performWrite("persona:character-default", "/api/user-persona", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ characterId, characterDefaultProfileId: nextProfileId })
+    }, setPersonaStatus, "Could not update this character's default persona.");
+    if (!response) return;
+    setCharacterDefaultProfileId(nextProfileId);
+    setPersonaStatus(nextProfileId ? `${profile.displayName} is now the default for this character.` : "Character-specific default removed.");
+  }
+
   async function savePersona(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!draft.displayName.trim() || !draft.summary.trim()) {
@@ -750,6 +781,18 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     setMemories((current) => current.filter((memory) => memory.id !== memoryId));
     setMemoryStatus("Memory removed from character context.");
     await loadMemories().catch((error) => setMemoryStatus(error instanceof Error ? error.message : "Memory removed, but the list could not refresh."));
+  }
+
+  async function reviewMemory(memoryId: string, status: "ACTIVE" | "REJECTED") {
+    const response = await performWrite(`memory:review:${memoryId}`, `/api/memories?id=${encodeURIComponent(memoryId)}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ status })
+    }, setMemoryStatus, "Could not review memory.");
+    if (!response) return;
+    if (status === "REJECTED") setMemories((current) => current.filter((memory) => memory.id !== memoryId));
+    else setMemories((current) => current.map((memory) => memory.id === memoryId ? { ...memory, status } : memory));
+    setMemoryStatus(status === "ACTIVE" ? "Memory approved and available to the character." : "Memory rejected.");
   }
 
   function updateCanonDraft<K extends keyof CanonDraft>(field: K, value: CanonDraft[K]) {
@@ -996,6 +1039,7 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
       timelineId: storyTimelineId,
       ...storyEventDraft,
       actorParticipantId: storyEventDraft.actorParticipantId || null,
+      triggerAt: storyEventDraft.triggerAt ? new Date(storyEventDraft.triggerAt).toISOString() : null,
       priority: 2
     });
     if (response?.ok) {
@@ -1163,8 +1207,12 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
   }
 
   return {
+    chatId,
+    characterId,
     profiles,
     activeProfileId,
+    temporaryProfileId,
+    characterDefaultProfileId,
     activePersona,
     draft,
     personaStatus,
@@ -1218,12 +1266,15 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     setAvatarPickError,
     setAvatarUploadingState,
     switchPersona,
+    usePersonaOnce,
+    setCharacterDefault,
     savePersona,
     addMemory,
     startEditingMemory,
     cancelEditingMemory,
     saveMemory,
     removeMemory,
+    reviewMemory,
     updateCanonDraft,
     toggleCanonKnowledge,
     addCanonFact,
