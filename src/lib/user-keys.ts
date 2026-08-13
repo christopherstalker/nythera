@@ -124,7 +124,7 @@ export async function getDecryptedProviderKeys(userId: string, options: { includ
   const rows = await prisma.userApiKey.findMany({
     where: {
       userId,
-      ...(options.includeInvalid ? {} : { credentialStatus: "VALID" })
+      ...(options.includeInvalid ? {} : { credentialStatus: { not: "INVALID" } })
     },
     orderBy: [{ isDefault: "desc" }, { fallbackPriority: "asc" }, { provider: "asc" }, { providerPriority: "asc" }, { createdAt: "asc" }],
     select: {
@@ -230,7 +230,8 @@ export async function getEffectiveProviderKeys(userId: string): Promise<Provider
 }
 
 export function isUserOwnedProvider(provider: string | null, keys: ProviderKeys) {
-  const selected = provider ? keys.find((key) => key.provider === provider) : null;
+  const normalizedProvider = provider ? normalizeProviderId(provider) : "";
+  const selected = normalizedProvider ? keys.find((key) => key.provider === normalizedProvider) : null;
   return Boolean(selected && selected.source !== "platform");
 }
 

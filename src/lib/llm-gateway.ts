@@ -36,6 +36,8 @@ type StreamInput = {
 };
 
 const APP_DEFAULT_MODELS = new Set(["gpt-4o-mini", "gpt-3.5-turbo"]);
+const MAX_SAME_PROVIDER_ATTEMPTS = 2;
+const keyCooldowns = new Map<string, number>();
 
 type GatewayRoute = {
   provider: "openai" | "anthropic" | "gemini" | "openai-compatible";
@@ -46,7 +48,9 @@ type GatewayRoute = {
 
 export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator<StreamChunk> {
   const keys = input.providerKeys ?? [];
-  const route = routeModel(input.model, keys);
+  const initialRoute = routeModel(input.model, keys);
+  const turnNumber = input.messages.filter((message) => message.role === "user").length;
+  const route = rotatePrimaryKey(initialRoute, keys, `${input.userId}:${input.chatId}:${turnNumber}`);
   const attempts = attemptRoutes(route, keys);
   const primaryKeyCount = keys.filter((key) => key.provider === route.providerName).length;
   let lastError: unknown = null;
@@ -109,6 +113,7 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
         }
 
         const providerUsage = usage.getUsage();
+        clearKeyCooldown(attempt.key);
 
         logPerformanceMetric("llm_provider_attempt", {
           route: "chat:gateway",
@@ -140,6 +145,7 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
 
         lastError = attemptSignal.timedOut() || gatewayDeadline.timedOut() ? new Error("Provider request timed out.") : error;
         const classified = classifyProviderError(lastError);
+        setKeyCooldown(attempt.key, classified.code);
         logPerformanceMetric("llm_provider_attempt", {
           route: "chat:gateway",
           provider: attempt.providerName,
@@ -270,12 +276,71 @@ function fallbackRoutes(primary: GatewayRoute, keys: ProviderKeys) {
 
 function attemptRoutes(primary: GatewayRoute, keys: ProviderKeys) {
   const sameProvider = keys
-    .filter((key) => key.provider === primary.providerName && key.id !== primary.key?.id)
+    .filter((key) => key.provider === primary.providerName && key.id !== primary.key?.id && !isKeyCoolingDown(key))
     .sort((left, right) =>
       (left.providerPriority ?? Number.MAX_SAFE_INTEGER) - (right.providerPriority ?? Number.MAX_SAFE_INTEGER)
     )
+    .slice(0, MAX_SAME_PROVIDER_ATTEMPTS - 1)
     .map((key) => routeFromKey(key, primary.model));
   return [primary, ...sameProvider, ...fallbackRoutes(primary, keys)];
+}
+
+function rotatePrimaryKey(primary: GatewayRoute, keys: ProviderKeys, seed: string) {
+  if (!primary.key) return primary;
+
+  const providerKeys = keys
+    .filter((key) => key.provider === primary.providerName)
+    .sort((left, right) =>
+      (left.providerPriority ?? Number.MAX_SAFE_INTEGER) - (right.providerPriority ?? Number.MAX_SAFE_INTEGER)
+    );
+  const availableKeys = providerKeys.filter((key) => !isKeyCoolingDown(key));
+  const candidates = availableKeys.length > 0 ? availableKeys : providerKeys;
+  if (candidates.length < 2) return candidates[0] ? routeFromKey(candidates[0], primary.model) : primary;
+
+  return routeFromKey(candidates[stableIndex(seed, candidates.length)], primary.model);
+}
+
+function stableIndex(seed: string, length: number) {
+  let hash = 0;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = Math.imul(hash ^ seed.charCodeAt(index), 16_777_619);
+  }
+  return Math.abs(hash) % length;
+}
+
+function keyIdentity(key?: ProviderKey) {
+  if (!key) return null;
+  return key.id ?? `${key.provider}:${key.providerPriority ?? 0}:${key.apiKey.slice(-8)}`;
+}
+
+function isKeyCoolingDown(key: ProviderKey) {
+  const identity = keyIdentity(key);
+  if (!identity) return false;
+  const cooldownUntil = keyCooldowns.get(identity) ?? 0;
+  if (cooldownUntil <= Date.now()) {
+    keyCooldowns.delete(identity);
+    return false;
+  }
+  return true;
+}
+
+function setKeyCooldown(key: ProviderKey | undefined, code: ReturnType<typeof classifyProviderError>["code"]) {
+  const identity = keyIdentity(key);
+  if (!identity) return;
+
+  const duration = code === "rate_limit"
+    ? 5 * 60_000
+    : code === "invalid_api_key" || code === "insufficient_balance"
+      ? 15 * 60_000
+      : code === "provider_unavailable" || code === "network_error" || code === "provider_error"
+        ? 30_000
+        : 0;
+  if (duration > 0) keyCooldowns.set(identity, Date.now() + duration);
+}
+
+function clearKeyCooldown(key?: ProviderKey) {
+  const identity = keyIdentity(key);
+  if (identity) keyCooldowns.delete(identity);
 }
 
 function isKeyScopedFailure(code: ReturnType<typeof classifyProviderError>["code"]) {
@@ -293,7 +358,7 @@ function exhaustedProviderMessage(route: GatewayRoute, keyCount: number, fallbac
   }
 
   const provider = route.key?.displayName || route.providerName;
-  return `All ${keyCount} saved keys for ${provider} failed for this request. Check or replace them in Settings.`;
+  return `${provider} is temporarily unavailable. Nythera will rotate across your ${keyCount} saved keys on the next request.`;
 }
 
 function parseExplicitProviderModel(requested: string, keys: ProviderKeys) {

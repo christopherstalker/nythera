@@ -71,7 +71,7 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
   const toggleSidePanel = useUiStore((state) => state.toggleSidePanel);
   const activePersona = useUiStore((state) => state.activePersona);
   const providerModelGroups: ProviderModelGroup[] = useMemo(
-    () => buildProviderModelGroups(providerKeys.filter((key) => key.credentialStatus === "VALID" && !rejectedProviderIds.includes(key.provider)), providerModels),
+    () => buildProviderModelGroups(providerKeys.filter((key) => key.credentialStatus !== "INVALID" && !rejectedProviderIds.includes(key.provider)), providerModels),
     [providerKeys, providerModels, rejectedProviderIds]
   );
   const latestAssistantId = useMemo(() => latestAssistantMessageId(messages), [messages]);

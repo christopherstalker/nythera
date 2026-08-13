@@ -67,6 +67,14 @@ test("chat composer replaces provider:model free text with a grouped picker", as
   assert.match(clientSource, /\/api\/keys\/models/);
   assert.match(clientSource, /modelGroups=\{providerModelGroups\}/);
   assert.match(clientSource, /rejectedProviderIds/);
+  assert.match(clientSource, /credentialStatus !== "INVALID"/);
+});
+
+test("automatic catalog refreshes use the cache while manual refresh remains explicit", async () => {
+  const settingsSource = await readFile(new URL("../src/components/settings/key-settings-client.tsx", import.meta.url), "utf8");
+
+  assert.match(settingsSource, /await refreshModels\(false\)/);
+  assert.match(settingsSource, /onClick=\{\(\) => void refreshModels\(true\)\}/);
 });
 
 test("custom provider settings are presented as named endpoints", async () => {

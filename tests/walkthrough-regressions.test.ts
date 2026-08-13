@@ -80,7 +80,7 @@ test("local production registration bypasses missing Turnstile without weakening
   assert.match(turnstile, /throw new HttpError\(503, "Human verification is not configured\."\)/);
 });
 
-test("legacy invalid provider keys are quarantined before chat routing", async () => {
+test("invalid provider keys are quarantined while pending keys remain usable", async () => {
   const [schema, keys, modelsRoute, chat] = await Promise.all([
     read("../prisma/schema.prisma"),
     read("../src/lib/user-keys.ts"),
@@ -92,7 +92,8 @@ test("legacy invalid provider keys are quarantined before chat routing", async (
   assert.match(keys, /credentialStatus: "VALID"/);
   assert.match(modelsRoute, /credentialStatusFromDiscovery/);
   assert.match(modelsRoute, /fallbackEnabled: false/);
-  assert.match(chat, /key\.credentialStatus === "VALID"/);
+  assert.match(keys, /credentialStatus: \{ not: "INVALID" \}/);
+  assert.match(chat, /key\.credentialStatus !== "INVALID"/);
   assert.match(chat, /verifiedKeysResponse/);
 });
 
