@@ -60,7 +60,8 @@ test("chat composer replaces provider:model free text with a grouped picker", as
   assert.match(inputSource, /<select[\s\S]*onModelChange/);
   assert.match(inputSource, /<optgroup/);
   assert.match(inputSource, /Search provider or model/);
-  assert.match(inputSource, /Showing.*core models/);
+  assert.match(inputSource, /Showing all.*available models/);
+  assert.doesNotMatch(inputSource, /index < 6/);
   assert.match(inputSource, /Add a provider key in Settings/);
   assert.match(clientSource, /fetch\("\/api\/keys"/);
   assert.match(clientSource, /buildProviderModelGroups/);

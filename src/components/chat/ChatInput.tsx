@@ -298,8 +298,8 @@ export function ChatInput({
   const hasModelOptions = modelOptions.length > 0;
   const currentModelIsKnown = Boolean(model && modelOptions.some((option) => option.value === model));
   const visibleModelGroups = useMemo(
-    () => filterModelGroups(modelGroups, modelSearch, model),
-    [model, modelGroups, modelSearch]
+    () => filterModelGroups(modelGroups, modelSearch),
+    [modelGroups, modelSearch]
   );
   const visibleModelCount = visibleModelGroups.reduce((count, group) => count + group.options.length, 0);
   const modelLabel = modelLoading ? "Loading" : formatModelLabel(model ?? "Model");
@@ -360,7 +360,7 @@ export function ChatInput({
                 <span className="px-1 text-[11px] text-[var(--text-muted)]">
                   {modelSearch.trim()
                     ? `${visibleModelCount} matching model${visibleModelCount === 1 ? "" : "s"}.`
-                    : `Showing ${visibleModelCount} core models. Search to browse all ${modelOptions.length}.`}
+                    : `Showing all ${visibleModelCount} available models.`}
                 </span>
               )}
             </label>
@@ -576,14 +576,14 @@ export function ChatInput({
   );
 }
 
-function filterModelGroups(groups: ProviderModelGroup[], query: string, currentModel?: string) {
+function filterModelGroups(groups: ProviderModelGroup[], query: string) {
   const normalizedQuery = query.trim().toLowerCase();
 
   return groups.flatMap((group) => {
     const providerMatches = group.displayName.toLowerCase().includes(normalizedQuery) || group.provider.toLowerCase().includes(normalizedQuery);
     const options = normalizedQuery
       ? group.options.filter((option) => providerMatches || option.model.toLowerCase().includes(normalizedQuery))
-      : group.options.filter((option, index) => index < 6 || option.value === currentModel);
+      : group.options;
 
     return options.length ? [{ ...group, options }] : [];
   });
