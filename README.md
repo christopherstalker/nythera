@@ -32,6 +32,7 @@ Unlike platforms that bind every conversation to a single hosted model, Nythera 
 ### Character creation
 
 - Prompt-based generation, simple mode, and custom editing paths.
+- Source-grounded catalog factory with multi-pass drafting, QA scoring, resumable batches, and private-only imports. See [Catalog factory](./docs/catalog-factory.md).
 - Character persona, scenario, greeting, lorebook, visual identity, safety, and sampling settings.
 - Public, unlisted, and private visibility with moderation checks before public discovery.
 - Character ratings, likes, reports, remixes, and library views.

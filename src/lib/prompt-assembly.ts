@@ -19,6 +19,7 @@ import {
   renderCharacterTemplate
 } from "@/lib/character-prompt-contract";
 import { buildAdultRoleplayPolicyLayer } from "@/lib/adult-roleplay-policy";
+import { matchLorebookEntries } from "@/lib/lorebook";
 
 type PromptCharacter = Pick<Character, "name" | "description" | "personality" | "scenario" | "greeting" | "communicationStyle" | "persona" | "lorebook" | "systemPromptOverride" | "tags" | "isNSFW">;
 
@@ -281,15 +282,10 @@ function preparePromptCharacter(character: PromptCharacter, userPersona?: string
 }
 
 function buildLorebookLayer(value: unknown, currentMessage: string, recentMessages: Pick<Message, "role" | "content">[]) {
-  const entries = parseLorebookEntries(value);
-  if (entries.length === 0) {
-    return null;
-  }
-
-  const lookupText = [currentMessage, ...recentMessages.slice(-10).map((message) => message.content)].join("\n").toLowerCase();
-  const matched = entries
-    .filter((entry) => entry.keywords.some((keyword) => lookupText.includes(keyword.toLowerCase())))
-    .slice(0, 8);
+  const matched = matchLorebookEntries(
+    value,
+    [currentMessage, ...recentMessages.slice(-10).map((message) => message.content)]
+  );
 
   if (matched.length === 0) {
     return null;
@@ -300,28 +296,6 @@ function buildLorebookLayer(value: unknown, currentMessage: string, recentMessag
     "- These are canonical facts triggered by recent conversation keywords.",
     ...matched.map((entry, index) => `${index + 1}. ${sanitizePromptContext(entry.text, 700)}`)
   ].join("\n");
-}
-
-function parseLorebookEntries(value: unknown) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return [];
-  }
-
-  const entries = Array.isArray((value as { entries?: unknown }).entries) ? (value as { entries: unknown[] }).entries : [];
-  return entries
-    .map((entry) => {
-      if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
-        return null;
-      }
-      const record = entry as Record<string, unknown>;
-      const keywords = Array.isArray(record.keywords)
-        ? record.keywords.map((keyword) => String(keyword).trim()).filter(Boolean).slice(0, 12)
-        : [];
-      const text = typeof record.text === "string" ? record.text.trim() : "";
-      return keywords.length && text ? { keywords, text } : null;
-    })
-    .filter((entry): entry is { keywords: string[]; text: string } => Boolean(entry))
-    .slice(0, 24);
 }
 
 function buildUserPersonaLayer(userPersona?: string | null) {

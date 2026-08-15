@@ -36,6 +36,9 @@ const publicCharacterSelect = {
   ratingAverage: true,
   ratingCount: true,
   isNSFW: true,
+  originType: true,
+  isRealPerson: true,
+  aiDisclosure: true,
   creator: {
     select: {
       username: true
@@ -97,7 +100,7 @@ export async function getPublicCharacters(query: PublicCharacterQuery) {
 
 const readCachedPublicCharacters = unstable_cache(
   async (_cacheKey: string, query: PublicCharacterQuery) => readPublicCharacters(query),
-  ["public-character-feed-v1"],
+  ["public-character-feed-v2"],
   {
     revalidate: DISCOVERY_FEED_REVALIDATE_SECONDS,
     tags: ["public-character-feed"]

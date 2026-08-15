@@ -28,6 +28,11 @@ const readPublicCharacterProfile = unstable_cache(async (id: string): Promise<Pu
       ratingCount: true,
       isNSFW: true,
       visibility: true,
+      originType: true,
+      sourceLabel: true,
+      sourceUrl: true,
+      isRealPerson: true,
+      aiDisclosure: true,
       communicationStyle: true,
       persona: true,
       lorebook: true,
@@ -41,7 +46,7 @@ const readPublicCharacterProfile = unstable_cache(async (id: string): Promise<Pu
   });
 
   return character as PublicCharacterProfile | null;
-}, ["public-character-profile-v1"], {
+}, ["public-character-profile-v2"], {
   revalidate: 60 * 60,
   tags: ["public-character-feed"]
 });
@@ -74,6 +79,11 @@ export const getCharacterProfileForViewer = cache(async (id: string, viewerId?: 
       ratingCount: true,
       isNSFW: true,
       visibility: true,
+      originType: true,
+      sourceLabel: true,
+      sourceUrl: true,
+      isRealPerson: true,
+      aiDisclosure: true,
       communicationStyle: true,
       persona: true,
       lorebook: true,

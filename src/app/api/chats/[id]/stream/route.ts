@@ -30,6 +30,7 @@ import { schedulePostResponseTasks } from "@/lib/post-response";
 import { resolveCharacterPersona } from "@/lib/persona";
 import { maxOutputTokensForVerbosity, providerOutputTokenBudget } from "@/lib/response-length";
 import { loadPromptImages, resolveOwnedChatAssets, serializeAsset } from "@/lib/chat-media";
+import { containsRussianLanguage, RUSSIAN_LANGUAGE_ERROR } from "@/lib/language-policy";
 
 type Context = {
   params: Promise<{ id: string }>;
@@ -175,6 +176,10 @@ export async function POST(request: Request, context: Context) {
         const selectedResponse = branchMessages.at(-1)?.content ?? "";
         branchInstruction = `The selected response quoted below is the only valid branch. Ignore every sibling regeneration, even if it was created later. Continue directly from this exact response:\n<selected_response>\n${sanitizePromptContext(selectedResponse, 1800)}\n</selected_response>`;
       }
+    }
+
+    if (containsRussianLanguage(message)) {
+      throw new HttpError(400, RUSSIAN_LANGUAGE_ERROR);
     }
 
     const injectionAssessment = detectPromptInjection(message);

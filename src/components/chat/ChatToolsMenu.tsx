@@ -114,7 +114,7 @@ export function ChatToolsMenu({
 
             <button type="button" role="menuitem" onClick={() => run(onGenerateScene)} disabled={generatingScene} className={menuItemClass}>
               {generatingScene ? <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" /> : <Sparkles className="h-4 w-4 shrink-0" />}
-              <span><span className="block text-xs font-semibold text-[var(--text-primary)]">Illustrate</span><span className="mt-0.5 block text-[10px]">Current scene</span></span>
+              <span><span className="block text-xs font-semibold text-[var(--text-primary)]">Illustrate</span><span className="mt-0.5 block text-[10px]">Gemini / OpenAI BYOK</span></span>
             </button>
 
             <label role="menuitem" className={`${menuItemClass} cursor-pointer`}>
@@ -133,7 +133,7 @@ export function ChatToolsMenu({
 
             <button type="button" role="menuitem" onClick={() => run(onToggleRecording)} className={menuItemClass}>
               <Mic className={`h-4 w-4 shrink-0 ${recording ? "animate-pulse text-red-400" : ""}`} />
-              <span><span className="block text-xs font-semibold text-[var(--text-primary)]">{recording ? "Stop voice" : "Voice note"}</span><span className="mt-0.5 block text-[10px]">Transcribe tone</span></span>
+              <span><span className="block text-xs font-semibold text-[var(--text-primary)]">{recording ? "Stop voice" : "Voice note"}</span><span className="mt-0.5 block text-[10px]">Record & transcribe</span></span>
             </button>
 
             {hasApiControls ? (

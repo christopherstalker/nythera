@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
 import { z } from "zod";
 import { canEditMessageRole, shouldRegenerateAfterMessageEdit } from "@/lib/message-actions";
+import { containsRussianLanguage, RUSSIAN_LANGUAGE_ERROR } from "@/lib/language-policy";
 
 const messageUpdateSchema = z.object({
   content: z.string().trim().min(1).max(4000).optional(),
@@ -102,6 +103,9 @@ export async function PATCH(request: Request) {
     }
 
     const input = await parseJson(request, messageUpdateSchema);
+    if (input.content !== undefined && containsRussianLanguage(input.content)) {
+      throw new HttpError(400, RUSSIAN_LANGUAGE_ERROR);
+    }
     const message = await prisma.message.findFirst({
       where: {
         id: messageId,

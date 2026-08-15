@@ -14,8 +14,11 @@ import { MAX_CHAT_MESSAGE_LENGTH } from "@/lib/chat-limits";
 import { MAX_CHAT_IMAGE_ATTACHMENTS, type ChatImageAttachment, type LookbookImage } from "@/lib/chat-attachments";
 import { prepareChatImage } from "@/lib/chat-image-client";
 import { ChatToolsMenu } from "@/components/chat/ChatToolsMenu";
+import { containsRussianLanguage, RUSSIAN_LANGUAGE_ERROR } from "@/lib/language-policy";
+import { matchLorebookEntries } from "@/lib/lorebook";
 
 const MAX_RESPONSE_PROMPT_LENGTH = 2000;
+const EMPTY_RECENT_MESSAGES: NonNullable<ChatInputProps["recentMessages"]> = [];
 
 type ChatInputProps = {
   chatId: string;
@@ -37,6 +40,8 @@ type ChatInputProps = {
   personaName?: string | null;
   personaAvatarUrl?: string | null;
   onOpenComposer?: () => void;
+  lorebook?: unknown;
+  recentMessages?: Array<{ role: string; content: string }>;
 };
 
 export function ChatInput({
@@ -58,9 +63,13 @@ export function ChatInput({
   apiStatus,
   personaName,
   personaAvatarUrl,
-  onOpenComposer
+  onOpenComposer,
+  lorebook,
+  recentMessages = EMPTY_RECENT_MESSAGES
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const apiPanelRef = useRef<HTMLDivElement | null>(null);
+  const lookbookPanelRef = useRef<HTMLDivElement | null>(null);
   const [apiOpen, setApiOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [modelSearch, setModelSearch] = useState("");
@@ -77,10 +86,37 @@ export function ChatInput({
   const recordingStartedRef = useRef(0);
   const [recording, setRecording] = useState(false);
   const [generatingScene, setGeneratingScene] = useState(false);
+  const activeLorebookEntries = useMemo(
+    () => matchLorebookEntries(lorebook, [value, ...recentMessages.slice(-10).map((message) => message.content)]),
+    [lorebook, recentMessages, value]
+  );
 
   useEffect(() => {
     resize();
   }, [value]);
+
+  useEffect(() => {
+    if (!apiOpen && !lookbookOpen) return;
+
+    const closeOnOutsidePress = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (apiOpen && !apiPanelRef.current?.contains(target)) setApiOpen(false);
+      if (lookbookOpen && !lookbookPanelRef.current?.contains(target)) setLookbookOpen(false);
+    };
+    const closeOnEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setApiOpen(false);
+        setLookbookOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", closeOnOutsidePress);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePress);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [apiOpen, lookbookOpen]);
 
   useEffect(() => { void fetch("/api/chat-macros").then((response) => response.ok ? response.json() : null).then((body) => setMacros(Array.isArray(body?.macros) ? body.macros : [])); }, []);
 
@@ -149,6 +185,10 @@ export function ChatInput({
       : macro
         ? `${macro.content}${normalized.slice(macro.name.length + 1).trim() ? `\n${normalized.slice(macro.name.length + 1).trim()}` : ""}`
         : undefined;
+    if (containsRussianLanguage(expanded ?? normalized)) {
+      setAttachmentStatus(RUSSIAN_LANGUAGE_ERROR);
+      return;
+    }
     const accepted = await onSubmit(attachments, expanded);
     if (accepted) {
       setAttachments([]);
@@ -170,31 +210,53 @@ export function ChatInput({
       mediaRecorderRef.current?.stop();
       return;
     }
+    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setAttachmentStatus("Microphone recording requires HTTPS or localhost in a supported browser.");
+      return;
+    }
+
+    let stream: MediaStream | null = null;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const activeStream = stream;
       const chunks: BlobPart[] = [];
-      const recorder = new MediaRecorder(stream);
+      const recorder = new MediaRecorder(activeStream);
       recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
       recorder.onstop = async () => {
         setRecording(false);
-        stream.getTracks().forEach((track) => track.stop());
+        activeStream.getTracks().forEach((track) => track.stop());
         const audio = new File(chunks, "voice-message.webm", { type: recorder.mimeType || "audio/webm" });
         const form = new FormData();
         form.set("audio", audio);
         form.set("duration", String((Date.now() - recordingStartedRef.current) / 1000));
         setAttachmentStatus("Transcribing voice message...");
-        const response = await fetch("/api/voice/transcribe", { method: "POST", body: form });
-        const body = await response.json().catch(() => null);
-        if (!response.ok) return setAttachmentStatus(body?.error ?? "Voice transcription failed.");
-        onChange(`${value.trimEnd()}${value.trim() ? "\n" : ""}[Voice tone: ${body.emotion}] ${body.text}`);
-        setAttachmentStatus("Voice message transcribed with tone.");
+        try {
+          const response = await fetch("/api/voice/transcribe", { method: "POST", body: form });
+          const body = await response.json().catch(() => null);
+          if (!response.ok) {
+            setAttachmentStatus(body?.error ?? "Voice transcription failed.");
+            return;
+          }
+          onChange(`${value.trimEnd()}${value.trim() ? "\n" : ""}[Voice tone: ${body.emotion}] ${body.text}`);
+          setAttachmentStatus("Voice message transcribed with tone.");
+        } catch {
+          setAttachmentStatus("Voice transcription could not reach the server. Try again.");
+        }
+      };
+      recorder.onerror = () => {
+        setRecording(false);
+        activeStream.getTracks().forEach((track) => track.stop());
+        setAttachmentStatus("The microphone stopped unexpectedly. Try again.");
       };
       mediaRecorderRef.current = recorder;
       recordingStartedRef.current = Date.now();
       recorder.start();
       setRecording(true);
       setAttachmentStatus("Recording... tap the microphone again to stop.");
-    } catch { setAttachmentStatus("Microphone access is unavailable."); }
+    } catch (error) {
+      stream?.getTracks().forEach((track) => track.stop());
+      setAttachmentStatus(microphoneErrorMessage(error));
+    }
   }
 
   async function generateSceneImage() {
@@ -205,7 +267,7 @@ export function ChatInput({
       const body = await response.json().catch(() => null);
       if (!response.ok) throw new Error(body?.error ?? "Scene illustration failed.");
       setAttachments((current) => [...current.filter((item) => item.assetId !== body.attachment.assetId), body.attachment].slice(-MAX_CHAT_IMAGE_ATTACHMENTS));
-      setAttachmentStatus("Scene illustration attached. Send it or save it to Lookbook.");
+      setAttachmentStatus(`Scene illustration attached via ${body.provider ?? "your image provider"}. Send it or save it to Lookbook.`);
     } catch (error) { setAttachmentStatus(error instanceof Error ? error.message : "Scene illustration failed."); }
     finally { setGeneratingScene(false); }
   }
@@ -253,6 +315,7 @@ export function ChatInput({
   }
 
   async function openLookbook() {
+    setApiOpen(false);
     setLookbookOpen(true);
     setLookbookLoading(true);
     try {
@@ -308,6 +371,9 @@ export function ChatInput({
     <div className="pointer-events-none sticky bottom-0 z-20 shrink-0 border-t border-white/10 bg-gradient-to-t from-black/75 via-black/55 to-transparent px-4 pb-[calc(.75rem+env(safe-area-inset-bottom))] pt-3 sm:px-7 md:px-10 md:pb-4">
       {hasApiControls && apiOpen ? (
         <motion.div
+          ref={apiPanelRef}
+          role="dialog"
+          aria-label="Model and style"
           className="api-panel-enter pointer-events-auto mx-auto mb-3 grid max-w-[var(--chat-max-width)] gap-3 rounded-sm border border-white/10 bg-[#090909]/95 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(220px,280px)]"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -397,7 +463,7 @@ export function ChatInput({
                 <option value="">Character&apos;s natural language</option>
                 <option value="English">English</option>
                 <option value="Ukrainian">Ukrainian</option>
-                <option value="Russian">Russian</option>
+                <option value="Chinese">Chinese</option>
                 <option value="German">German</option>
                 <option value="French">French</option>
                 <option value="Spanish">Spanish</option>
@@ -468,7 +534,7 @@ export function ChatInput({
         ) : null}
 
         {lookbookOpen ? (
-          <div className="absolute inset-x-0 bottom-full z-30 mb-2 max-h-72 overflow-y-auto rounded-sm border border-white/15 bg-[#090909]/98 p-3 shadow-2xl">
+          <div ref={lookbookPanelRef} className="absolute inset-x-0 bottom-full z-30 mb-2 max-h-72 overflow-y-auto rounded-sm border border-white/15 bg-[#090909]/98 p-3 shadow-2xl">
             <div className="mb-3 flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-[.16em] text-[var(--codex-mint)]">Lookbook</p>
               <button type="button" onClick={() => setLookbookOpen(false)} className="focus-ring grid h-8 w-8 place-items-center text-[var(--text-secondary)]" aria-label="Close Lookbook"><X className="h-4 w-4" /></button>
@@ -487,6 +553,22 @@ export function ChatInput({
             ) : (
               <p className="py-8 text-center text-xs text-[var(--text-muted)]">Save an attached image here to reuse the look later.</p>
             )}
+          </div>
+        ) : null}
+
+        {activeLorebookEntries.length ? (
+          <div className="rounded-sm border border-[var(--codex-mint)]/35 bg-[var(--codex-mint)]/[.06] px-3 py-2" role="status">
+            <p className="text-[10px] font-semibold uppercase tracking-[.16em] text-[var(--codex-mint)]">
+              Lorebook active · {activeLorebookEntries.length}
+            </p>
+            <div className="mt-1.5 grid gap-1">
+              {activeLorebookEntries.map((entry, index) => (
+                <p key={entry.id ?? `${entry.matchedKeywords.join("-")}-${index}`} className="line-clamp-2 text-[11px] leading-4 text-[var(--text-secondary)]">
+                  <span className="font-semibold text-[var(--text-primary)]">{entry.matchedKeywords.join(", ")}</span>
+                  {` → ${entry.text}`}
+                </p>
+              ))}
+            </div>
           </div>
         ) : null}
 
@@ -533,7 +615,13 @@ export function ChatInput({
             <div className="relative flex shrink-0 items-center gap-2">
               <ChatToolsMenu
                 open={toolsOpen}
-                onOpenChange={setToolsOpen}
+                onOpenChange={(open) => {
+                  setToolsOpen(open);
+                  if (open) {
+                    setApiOpen(false);
+                    setLookbookOpen(false);
+                  }
+                }}
                 attachmentCount={attachments.length}
                 imageUploading={imageUploading}
                 imageLimitReached={attachments.length >= MAX_CHAT_IMAGE_ATTACHMENTS}
@@ -547,7 +635,10 @@ export function ChatInput({
                 onOpenLookbook={() => void openLookbook()}
                 onGenerateScene={() => void generateSceneImage()}
                 onToggleRecording={() => void toggleRecording()}
-                onOpenApiSettings={() => setApiOpen((current) => !current)}
+                onOpenApiSettings={() => {
+                  setLookbookOpen(false);
+                  setApiOpen((current) => !current);
+                }}
               />
 
               <motion.button
@@ -599,4 +690,21 @@ function formatModelLabel(value: string) {
     .replace(/^xai:/, "")
     .replace(/^openrouter:/, "")
     .replace(/-/g, " ");
+}
+
+function microphoneErrorMessage(error: unknown) {
+  if (!(error instanceof DOMException)) {
+    return "Microphone access failed. Check browser and system permissions, then try again.";
+  }
+
+  if (error.name === "NotAllowedError" || error.name === "SecurityError") {
+    return "Microphone access was denied. Allow it in this site's permissions and try again.";
+  }
+  if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+    return "No microphone was found. Connect one and try again.";
+  }
+  if (error.name === "NotReadableError" || error.name === "TrackStartError") {
+    return "The microphone is being used by another app or blocked by the operating system.";
+  }
+  return "Microphone access failed. Check browser and system permissions, then try again.";
 }

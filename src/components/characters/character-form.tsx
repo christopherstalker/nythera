@@ -38,6 +38,7 @@ import {
   creationModeForNewCharacter,
   firstValidationIssue,
   normalizeInitialCharacterValue,
+  parseLorebookText,
   promptPreviewFromGeneration,
   validateCharacterCreatePayload
 } from "@/lib/character-form-payload";
@@ -54,6 +55,7 @@ import { RESPONSE_LENGTH_OPTIONS } from "@/lib/response-length";
 import { cn } from "@/lib/utils";
 import { FIRST_CLASS_PROVIDER_PRESETS } from "@/lib/provider-presets";
 import type { GeneratedCharacterConcept } from "@/lib/generation/character-generator-types";
+import { matchLorebookEntries } from "@/lib/lorebook";
 
 type CharacterFormProps = {
   mode: "create" | "edit";
@@ -112,6 +114,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
   const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [importingFile, setImportingFile] = useState(false);
   const [fileImportResult, setFileImportResult] = useState<CharacterFileImportResult | null>(null);
+  const [lorebookPreviewText, setLorebookPreviewText] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -161,6 +164,11 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
   const previewDraft = useMemo(
     () => (generatedPreview ? mergePreviewIntoDraft(draft, generatedPreview) : draft),
     [draft, generatedPreview]
+  );
+  const parsedLorebook = useMemo(() => parseLorebookText(draft.lorebookText), [draft.lorebookText]);
+  const lorebookMatches = useMemo(
+    () => matchLorebookEntries(parsedLorebook, [lorebookPreviewText]),
+    [lorebookPreviewText, parsedLorebook]
   );
 
   const canSubmit = !isPromptMode && draft.name.trim().length >= 2 && draft.description.trim().length >= 10;
@@ -441,6 +449,8 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (saving) return;
+
     setSaving(true);
     setError(null);
 
@@ -467,29 +477,37 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
     }
 
     const url = mode === "edit" && draft.id ? `/api/characters/${draft.id}` : "/api/characters";
-    const response = await fetch(url, {
-      method: mode === "edit" ? "PATCH" : "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload)
-    });
+    try {
+      const response = await fetch(url, {
+        method: mode === "edit" ? "PATCH" : "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload)
+      });
 
-    setSaving(false);
+      if (response.status === 401) {
+        router.push("/login");
+        return;
+      }
 
-    if (response.status === 401) {
-      router.push("/login");
-      return;
-    }
-
-    if (!response.ok) {
       const body = await response.json().catch(() => null);
-      const issueMessage = firstIssueMessage(body?.issues);
-      setError(issueMessage ? `${body?.error ?? "Could not save character."} ${issueMessage}` : body?.error ?? "Could not save character.");
-      return;
-    }
+      if (!response.ok) {
+        const issueMessage = firstIssueMessage(body?.issues);
+        setError(issueMessage ? `${body?.error ?? "Could not save character."} ${issueMessage}` : body?.error ?? "Could not save character.");
+        return;
+      }
 
-    const body = await response.json();
-    window.dispatchEvent(new CustomEvent("nythera:characters-updated", { detail: { characterId: body.character.id } }));
-    router.push(`/character/${body.character.id}`);
+      if (typeof body?.character?.id !== "string") {
+        setError("The character was saved, but the server returned an invalid response. Refresh your library before trying again.");
+        return;
+      }
+
+      window.dispatchEvent(new CustomEvent("nythera:characters-updated", { detail: { characterId: body.character.id } }));
+      router.push(`/character/${body.character.id}`);
+    } catch {
+      setError("Could not reach the server. Check your connection and try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   const visibleChapters = isSimpleMode ? guidedChapters : studioChapters;
@@ -617,7 +635,28 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
             </StudioChapter>
 
             <StudioChapter id="lore" number="04" title="Lore & memory" description="Canonical facts that surface only when the story calls for them." active={activeChapter === "lore"} onSelect={() => selectChapter("lore")} onAssist={() => assistSection("lorebook")} assisting={assistingSection === "lorebook"}>
-              <Field label="Keyword lorebook" hint="Use blocks like: keyword, alias => canonical fact."><Textarea value={draft.lorebookText} onChange={(event) => update("lorebookText", event.target.value)} placeholder={"silver gate, moon gate => The Silver Gate only opens under a full moon.\n\nArchivist oath => Archivists cannot knowingly destroy a true record."} className="min-h-64" /></Field>
+              <div className="codex-subleaf space-y-3">
+                <p className="codex-kicker">How it works</p>
+                <p className="text-sm leading-6 text-[var(--text-secondary)]">Write comma-separated trigger words before <code>=&gt;</code>, then the canonical fact. When a trigger appears in the current turn or recent chat history, Nythera adds that fact to the character&apos;s private context.</p>
+                <p className="text-xs leading-5 text-[var(--text-muted)]">Use a blank line between entries. Matching ignores capitalization and checks text inside longer phrases.</p>
+              </div>
+              <Field label="Keyword lorebook" hint={`${parsedLorebook.entries.length} valid ${parsedLorebook.entries.length === 1 ? "entry" : "entries"}.`}><Textarea value={draft.lorebookText} onChange={(event) => update("lorebookText", event.target.value)} placeholder={"silver gate, moon gate => The Silver Gate only opens under a full moon.\n\nArchivist oath => Archivists cannot knowingly destroy a true record."} className="min-h-64" /></Field>
+              <div className="codex-subleaf space-y-3">
+                <div><p className="codex-kicker">Test triggers</p><p className="mt-2 text-sm text-[var(--text-muted)]">Type a sample player message to see exactly which facts would enter the next reply.</p></div>
+                <Input value={lorebookPreviewText} onChange={(event) => setLorebookPreviewText(event.target.value)} placeholder="We finally reached the silver gate." />
+                {lorebookPreviewText.trim() ? (
+                  lorebookMatches.length ? (
+                    <div className="grid gap-2" role="status">
+                      {lorebookMatches.map((entry, index) => (
+                        <div key={entry.id ?? `${entry.matchedKeywords.join("-")}-${index}`} className="rounded-sm border border-[var(--codex-mint)]/35 bg-[var(--codex-mint)]/[.05] p-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-[.12em] text-[var(--codex-mint)]">Triggered by {entry.matchedKeywords.join(", ")}</p>
+                          <p className="mt-1.5 text-sm leading-6 text-[var(--text-primary)]">{entry.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : <p className="text-sm text-[var(--text-muted)]" role="status">No entries match this sample yet.</p>
+                ) : <p className="text-sm text-[var(--text-muted)]">No sample entered.</p>}
+              </div>
             </StudioChapter>
 
             <StudioChapter id="appearance" number="05" title="Visual language" description="A restrained palette and environmental cue for the conversation." active={activeChapter === "appearance"} onSelect={() => selectChapter("appearance")} onAssist={() => assistSection("visual")} assisting={assistingSection === "visual"}>

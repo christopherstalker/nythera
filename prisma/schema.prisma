@@ -142,6 +142,13 @@ model Character {
   persona              Json?
   lorebook             Json?
   visualIdentity       Json?
+  originType           CharacterOriginType   @default(ORIGINAL)
+  sourceLabel          String?               @db.VarChar(240)
+  sourceUrl            String?               @db.VarChar(1000)
+  isRealPerson         Boolean               @default(false)
+  aiDisclosure         Boolean               @default(true)
+  contentBatchId       String?               @db.VarChar(80)
+  qualityReport        Json?
   creationMode         CharacterCreationMode @default(custom)
   preferredProvider    String?
   preferredModel       String?
@@ -182,6 +189,7 @@ model Character {
   personaPreferences  CharacterPersonaPreference[]
 
   @@index([creatorId, updatedAt(sort: Desc)], map: "character_creator_updated_idx")
+  @@index([contentBatchId, createdAt(sort: Desc)], map: "character_content_batch_created_idx")
   @@index([creatorId, cloneSourceId, updatedAt(sort: Desc)], map: "character_creator_clone_updated_idx")
   @@index([visibility, moderationStatus, isNSFW, blockedAt, likes(sort: Desc), ratingAverage(sort: Desc), createdAt(sort: Desc)], map: "character_discovery_trending_idx")
   @@index([visibility, moderationStatus, isNSFW, blockedAt, createdAt(sort: Desc)], map: "character_discovery_new_idx")
@@ -1187,6 +1195,15 @@ enum Visibility {
 enum CharacterCreationMode {
   simple
   custom
+}
+
+enum CharacterOriginType {
+  ORIGINAL
+  PUBLIC_DOMAIN
+  LICENSED
+  FAN_INTERPRETATION
+  REAL_PERSON
+  HISTORICAL_FIGURE
 }
 
 enum DiscoveryPlacement {

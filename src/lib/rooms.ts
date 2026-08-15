@@ -5,6 +5,7 @@ import { MessageRole, RoomMessageRole, type Character, type UserPersona } from "
 import { HttpError } from "@/lib/api";
 import { resolveCharacterModelSettings } from "@/lib/character-model-settings";
 import { createRoomMessageWithNextSequence } from "@/lib/message-sequence";
+import { containsRussianLanguage, RUSSIAN_LANGUAGE_ERROR } from "@/lib/language-policy";
 import { estimateModelCost } from "@/lib/model-pricing";
 import { assembleNytheraPrompt } from "@/lib/prompt-assembly";
 import { loadAdaptiveRoomHistory } from "@/lib/chat-history";
@@ -195,6 +196,9 @@ export async function sendRoomMessage(input: {
   const started = Date.now();
   const rawMessage = input.body.message;
   const message = sanitizeUserText(rawMessage);
+  if (containsRussianLanguage(message)) {
+    throw new HttpError(400, RUSSIAN_LANGUAGE_ERROR);
+  }
   const injectionAssessment = detectPromptInjection(message);
   const moderation = moderateText({
     text: message,

@@ -749,7 +749,14 @@
   .side-panel-scroll {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
+    padding-bottom: calc(var(--codex-mobile-dock-height) + env(safe-area-inset-bottom) + 1rem) !important;
     touch-action: pan-y;
+  }
+
+  @media (min-width: 768px) {
+    .side-panel-scroll {
+      padding-bottom: max(1rem, env(safe-area-inset-bottom)) !important;
+    }
   }
 
   .chat-scroll::-webkit-scrollbar {

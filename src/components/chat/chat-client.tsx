@@ -30,6 +30,7 @@ type ChatClientProps = {
   translationLanguage?: string | null;
   appearance?: unknown;
   characterBackgroundUrl?: string | null;
+  characterLorebook?: unknown;
   initialMessages: ChatMessage[];
   initialActiveAssistantMessageId?: string | null;
 };
@@ -37,7 +38,7 @@ type ChatClientProps = {
 const API_SETTINGS_SAVE_DEBOUNCE_MS = 500;
 const ACTIVE_VARIANT_SAVE_DEBOUNCE_MS = 500;
 
-export function ChatClient({ chatId, chapterNumber, characterId, characterName, characterAvatarUrl, characterBackgroundUrl, summary, model: initialModel, temperature: initialTemperature, responsePrompt: initialResponsePrompt, chatMode: initialChatMode, translationLanguage: initialTranslationLanguage, appearance: initialAppearance, initialMessages, initialActiveAssistantMessageId }: ChatClientProps) {
+export function ChatClient({ chatId, chapterNumber, characterId, characterName, characterAvatarUrl, characterBackgroundUrl, characterLorebook, summary, model: initialModel, temperature: initialTemperature, responsePrompt: initialResponsePrompt, chatMode: initialChatMode, translationLanguage: initialTranslationLanguage, appearance: initialAppearance, initialMessages, initialActiveAssistantMessageId }: ChatClientProps) {
   const [draft, setDraft] = useState("");
   const [model, setModel] = useState(initialModel || "gpt-4o-mini");
   const [temperature, setTemperature] = useState(initialTemperature ?? 0.7);
@@ -529,6 +530,8 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
             personaName={activePersona?.displayName}
             personaAvatarUrl={activePersona?.avatarUrl}
             onOpenComposer={() => setSidePanelOpen(true)}
+            lorebook={characterLorebook}
+            recentMessages={messages}
           />
         </div>
       </section>

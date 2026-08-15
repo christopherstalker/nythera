@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { Prisma, PrismaClient } from "@prisma/client";
 import { toPrismaCharacterFields } from "../scripts/nythera-character-generator/schema";
 import { normalizeCharacterTags } from "../src/lib/character-tags";
+import { containsRussianLanguage, RUSSIAN_CHARACTER_PUBLICATION_ERROR } from "../src/lib/language-policy";
 
 const prisma = new PrismaClient();
 
@@ -47,6 +48,19 @@ async function main() {
   let imported = 0;
   for (const seed of seeds) {
     const mapped = toCharacterFields(seed);
+    if (
+      visibility === "PUBLIC" &&
+      containsRussianLanguage([
+        mapped.name,
+        mapped.description,
+        mapped.personality,
+        mapped.scenario,
+        mapped.greeting,
+        JSON.stringify(mapped.persona)
+      ].join("\n"))
+    ) {
+      throw new Error(`${RUSSIAN_CHARACTER_PUBLICATION_ERROR} Source: ${seed.id ?? seed.name}`);
+    }
     const existing = seed.id
       ? await prisma.character.findFirst({ where: { creatorId: creator.id, name: mapped.name } })
       : null;

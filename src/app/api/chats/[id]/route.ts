@@ -47,7 +47,11 @@ export async function GET(request: Request, context: Context) {
                 id: true,
                 name: true,
                 avatarUrl: true,
-                visualIdentity: true
+                visualIdentity: true,
+                lorebook: true,
+                originType: true,
+                isRealPerson: true,
+                aiDisclosure: true
               }
             },
             messages: {

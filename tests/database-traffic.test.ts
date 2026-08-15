@@ -12,7 +12,7 @@ test("public discovery and profile reads use durable shared caches", async () =>
   assert.match(discovery, /DISCOVERY_FEED_REVALIDATE_SECONDS\s*=\s*60 \* 60/);
   assert.match(discovery, /DISCOVERY_FEED_STALE_SECONDS\s*=\s*24 \* 60 \* 60/);
   assert.match(profileStore, /unstable_cache/);
-  assert.match(profileStore, /public-character-profile-v1/);
+  assert.match(profileStore, /public-character-profile-v2/);
   assert.ok(profilePage.indexOf("getPublicCharacterProfile(id)") < profilePage.indexOf("auth()"));
 });
 

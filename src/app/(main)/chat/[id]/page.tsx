@@ -24,6 +24,7 @@ type Chat = {
     name: string;
     avatarUrl?: string | null;
     visualIdentity?: unknown;
+    lorebook?: unknown;
   };
   messages: ChatMessage[];
 };
@@ -109,6 +110,7 @@ export default function ChatPage() {
       translationLanguage={chat.translationLanguage}
       appearance={chat.appearance}
       characterBackgroundUrl={getCharacterBackgroundUrl(chat.character.visualIdentity)}
+      characterLorebook={chat.character.lorebook}
       initialMessages={chat.messages}
       initialActiveAssistantMessageId={chat.activeAssistantMessageId}
     />

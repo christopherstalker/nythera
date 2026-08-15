@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { MAX_CHAT_MESSAGE_LENGTH } from "@/lib/chat-limits";
 import { resolveMusicEmbed } from "@/lib/music-embed";
+import { isRussianLanguageLabel, RUSSIAN_LANGUAGE_ERROR } from "@/lib/language-policy";
 
 const MAX_IMAGE_DATA_URL_BYTES = 140_000;
 const MAX_IMAGE_DATA_URL_LENGTH = 190_000;
@@ -207,7 +208,13 @@ export const chatUpdateSchema = z.object({
   model: z.string().trim().min(1).max(160).optional(),
   responsePrompt: z.string().trim().max(2000).optional(),
   chatMode: z.enum(["realism", "fantasy"]).optional(),
-  translationLanguage: z.string().trim().max(80).nullable().optional(),
+  translationLanguage: z
+    .string()
+    .trim()
+    .max(80)
+    .refine((value) => !isRussianLanguageLabel(value), RUSSIAN_LANGUAGE_ERROR)
+    .nullable()
+    .optional(),
   activeAssistantMessageId: z.string().trim().min(1).max(120).nullable().optional(),
   appearance: chatAppearanceSchema.nullable().optional()
 });

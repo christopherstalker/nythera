@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { parseLorebookText } from "../src/lib/character-form-payload";
+import { matchLorebookEntries } from "../src/lib/lorebook";
 import { characterCreateSchema } from "../src/lib/validation";
 
 test("character lorebook and visual identity are first-class persisted fields", async () => {
@@ -22,11 +23,20 @@ test("character lorebook and visual identity are first-class persisted fields", 
   assert.match(mutations, /visualIdentity/);
 
   assert.match(prompt, /CHARACTER LOREBOOK \(KEYWORD MATCHED\)/);
-  assert.match(prompt, /lookupText\.includes/);
+  assert.match(prompt, /matchLorebookEntries/);
   assert.match(form, /Character Card V2/);
   assert.match(form, /Export Card V2/);
   assert.match(form, /Keyword lorebook/);
   assert.match(formTypes, /Visual Identity/);
+});
+
+test("lorebook preview reports the exact keywords that activate canonical facts", () => {
+  const lorebook = parseLorebookText("silver gate, moon gate => Opens only under a full moon.\n\nArchivist oath => Never destroy true records.");
+  const matches = matchLorebookEntries(lorebook, ["We finally reached the Silver Gate."]);
+
+  assert.equal(matches.length, 1);
+  assert.deepEqual(matches[0]?.matchedKeywords, ["silver gate"]);
+  assert.equal(matches[0]?.text, "Opens only under a full moon.");
 });
 
 test("lorebook text parser and validation keep keyword-triggered entries structured", () => {

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Copy, Edit3, Flag, Globe, Heart, Lock, MessageCircle, MessageSquarePlus, Share2, Sparkles, Star, Trash2, User, X } from "lucide-react";
+import { Bot, Copy, Edit3, ExternalLink, Flag, Globe, Heart, Lock, MessageCircle, MessageSquarePlus, Share2, Sparkles, Star, Trash2, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ResponsiveActions } from "@/components/ui/responsive-actions";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ import { PageShell, Surface, SurfaceMuted } from "@/components/ui/page";
 import { cn } from "@/lib/utils";
 import { displayTagLabel } from "@/lib/character-tags";
 import type { PublicCharacterProfile } from "@/types";
+import { characterDisclosure } from "@/lib/character-provenance";
 
 const STALE_REFRESH_MS = 300_000;
 
@@ -367,6 +368,8 @@ export default function CharacterProfileClient({
     );
   }
 
+  const disclosure = characterDisclosure(character);
+
   return (
     <PageShell className="codex-character-page">
       <div className="grid overflow-hidden border-y border-[var(--codex-rule)] lg:grid-cols-[minmax(300px,.72fr)_minmax(0,1.5fr)]">
@@ -376,6 +379,11 @@ export default function CharacterProfileClient({
             <div className="absolute inset-0 bg-gradient-to-t from-[var(--codex-paper-raised)] via-transparent to-transparent" />
             <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8">
               <p className="mb-2 text-[10px] uppercase tracking-[.26em] text-[var(--codex-mint)]">Character dossier</p>
+              {disclosure ? (
+                <span className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/45 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[.14em] text-[var(--codex-ivory)] backdrop-blur-sm">
+                  <Bot className="h-3.5 w-3.5" /> {disclosure.label}
+                </span>
+              ) : null}
               <h1 className="font-editorial text-[clamp(4rem,10vw,7.5rem)] font-medium leading-[.72] tracking-[-.05em] text-[var(--codex-ivory)]">{character.name}</h1>
               <p className="mt-5 flex items-center gap-2 text-xs uppercase tracking-[.16em] text-muted-foreground">
                 <User className="h-3.5 w-3.5" /> by @{character.creator?.username ?? "user"}
@@ -385,6 +393,23 @@ export default function CharacterProfileClient({
 
           <div className="space-y-6 p-6 sm:p-8">
             <p className="font-editorial text-xl leading-8 text-[var(--codex-ivory)]"><RichMessageText text={character.description} /></p>
+            {disclosure ? (
+              <div className="border-l-2 border-[var(--codex-mint)] bg-[var(--codex-paper)] px-4 py-3">
+                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[.12em] text-[var(--codex-mint)]">
+                  <Bot className="h-4 w-4" /> {disclosure.label}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{disclosure.detail}</p>
+                {character.sourceLabel ? (
+                  <p className="mt-2 text-xs text-[var(--text-muted)]">
+                    Source: {character.sourceUrl ? (
+                      <a href={character.sourceUrl} target="_blank" rel="noreferrer" className="focus-ring inline-flex items-center gap-1 underline decoration-current/35 underline-offset-4">
+                        {character.sourceLabel}<ExternalLink className="h-3 w-3" />
+                      </a>
+                    ) : character.sourceLabel}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             <div className="flex flex-wrap gap-2">
               {character.tags.map((tag) => (
                 <Link key={tag} href={`/tags/${tag}`} className="focus-ring rounded-full no-underline">
