@@ -9,6 +9,7 @@ import { normalizeCharacterTags } from "@/lib/character-tags";
 import { prisma } from "@/lib/prisma";
 import { moderateText } from "@/lib/safety";
 import { characterCreateSchema, characterUpdateSchema } from "@/lib/validation";
+import { containsRussianLanguage, RUSSIAN_CHARACTER_PUBLICATION_ERROR } from "@/lib/language-policy";
 
 type CharacterCreateInput = z.infer<typeof characterCreateSchema>;
 type CharacterUpdateInput = z.infer<typeof characterUpdateSchema>;
@@ -27,6 +28,17 @@ export async function createCharacterForUser(input: CharacterCreateInput, user: 
     avatarUrl: input.avatarUrl,
     scenario: input.scenario,
     persona
+  });
+  assertCharacterLanguageAllowed({
+    visibility: input.visibility,
+    name: input.name,
+    description: input.description,
+    personality: input.personality,
+    scenario: input.scenario,
+    greeting: input.greeting,
+    systemPromptOverride: input.systemPromptOverride,
+    persona,
+    lorebook: input.lorebook
   });
   assertCharacterModeration({
     user,
@@ -114,6 +126,17 @@ export async function updateCharacterForUser(characterId: string, input: Charact
 
   assertAgeGate(isNSFW, user);
   assertPublicCharacterComplete({ visibility, avatarUrl, scenario, persona });
+  assertCharacterLanguageAllowed({
+    visibility,
+    name,
+    description: input.description ?? character.description,
+    personality: input.personality ?? character.personality,
+    scenario,
+    greeting: input.greeting ?? character.greeting,
+    systemPromptOverride: input.systemPromptOverride === undefined ? character.systemPromptOverride : input.systemPromptOverride,
+    persona,
+    lorebook: input.lorebook ?? character.lorebook
+  });
   assertCharacterModeration({
     user,
     name,
@@ -188,6 +211,39 @@ function assertPublicCharacterComplete(input: {
   }
   if (!input.persona || (typeof input.persona === "object" && !Array.isArray(input.persona) && Object.keys(input.persona).length === 0)) {
     throw new HttpError(400, "Add persona details before publishing a character publicly.");
+  }
+}
+
+function assertCharacterLanguageAllowed(input: {
+  visibility: string;
+  name: string;
+  description: string;
+  personality?: string | null;
+  scenario?: string | null;
+  greeting?: string | null;
+  systemPromptOverride?: string | null;
+  persona?: Prisma.JsonValue | null;
+  lorebook?: Prisma.JsonValue | null;
+}) {
+  if (input.visibility === "PRIVATE") {
+    return;
+  }
+
+  const authoredText = [
+    input.name,
+    input.description,
+    input.personality,
+    input.scenario,
+    input.greeting,
+    input.systemPromptOverride,
+    JSON.stringify(input.persona ?? {}),
+    JSON.stringify(input.lorebook ?? {})
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  if (containsRussianLanguage(authoredText)) {
+    throw new HttpError(400, RUSSIAN_CHARACTER_PUBLICATION_ERROR);
   }
 }
 

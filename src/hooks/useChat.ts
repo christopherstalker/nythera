@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { partitionMessagesForRewind, shouldRegenerateAfterMessageEdit } from "@/lib/message-actions";
+import type { ChatImageAttachment } from "@/lib/chat-attachments";
 
 export type ChatMessage = {
   id: string;
@@ -17,6 +18,7 @@ export type ChatMessage = {
   outputTokens?: number | null;
   estimatedCost?: number | string | null;
   usageEstimated?: boolean | null;
+  attachments?: ChatImageAttachment[];
 };
 
 type SendOptions = {
@@ -29,6 +31,7 @@ type SendOptions = {
   retryUserMessageId?: string;
   continueMessageId?: string;
   branchMessageId?: string;
+  attachments?: ChatImageAttachment[];
 };
 
 const CHAT_STREAM_INACTIVITY_TIMEOUT_MS = 55_000;
@@ -71,7 +74,8 @@ export function useChat(chatId: string, initialMessages: ChatMessage[], initialS
       const isContinuation = options?.continueChat === true;
       const isUserRetry = Boolean(options?.retryUserMessageId);
       const isRegeneration = options?.regenerate === true || isUserRetry;
-      if ((!trimmedContent && !isContinuation && !isRegeneration) || inFlightRef.current) {
+      const attachments = options?.attachments ?? [];
+      if ((!trimmedContent && !attachments.length && !isContinuation && !isRegeneration) || inFlightRef.current) {
         return false;
       }
 
@@ -97,7 +101,8 @@ export function useChat(chatId: string, initialMessages: ChatMessage[], initialS
         id: `local-user-${requestId}`,
         role: "USER",
         content: trimmedContent,
-        clientRequestId: requestId
+        clientRequestId: requestId,
+        attachments
       };
       const assistantMessage: ChatMessage = {
         id: `local-assistant-${requestId}`,
@@ -153,6 +158,7 @@ export function useChat(chatId: string, initialMessages: ChatMessage[], initialS
           signal: abortController.signal,
           body: JSON.stringify({
             message: trimmedContent,
+            attachmentIds: attachments.map((attachment) => attachment.assetId),
             model: options?.model,
             temperature: options?.temperature,
             responsePrompt: options?.responsePrompt,
@@ -360,6 +366,7 @@ export function useChat(chatId: string, initialMessages: ChatMessage[], initialS
     if (persisted && messagesRef.current.at(-1)?.id === persisted.id) {
       await send(persisted.content, {
         ...options,
+        attachments: persisted.attachments,
         regenerate: undefined,
         regenerateMessageId: undefined,
         retryUserMessageId: persisted.id
@@ -371,7 +378,7 @@ export function useChat(chatId: string, initialMessages: ChatMessage[], initialS
       return;
     }
 
-    await send(original.content, options);
+    await send(original.content, { ...options, attachments: original.attachments });
   }, [refreshMessages, send]);
 
   const editMessage = useCallback(async (messageId: string, content: string) => {

@@ -12,7 +12,7 @@ export async function GET(request: Request, context: Context) {
     const user = await requireUser();
     await enforceRateLimit({ userId: user.id, ip: getRequestIp(request), route: "rooms:read" });
     const room = await getRoomForUser((await context.params).id, user.id);
-    return json({ room });
+    return json({ room: { ...room, canManage: room.userId === user.id } });
   } catch (error) {
     return routeError(error);
   }

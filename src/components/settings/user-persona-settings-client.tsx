@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import { Check, ImagePlus, Plus, Save, SlidersHorizontal, Trash2, Upload, Wand2, X } from "lucide-react";
+import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { Check, Download, History, ImagePlus, Plus, RotateCcw, Save, SlidersHorizontal, Star, Trash2, Upload, Wand2, X } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ImageFilePicker } from "@/components/ui/image-file-picker";
@@ -30,6 +30,7 @@ type PersonaProfile = PersonaDraft & {
 };
 
 type FormMode = "simple" | "advanced";
+type PersonaRevision = { id: string; version: number; createdAt: string };
 
 const emptyDraft: PersonaDraft = {
   label: "",
@@ -50,12 +51,16 @@ export function UserPersonaSettingsClient() {
   const [formMode, setFormMode] = useState<FormMode>("simple");
   const [profiles, setProfiles] = useState<PersonaProfile[]>([]);
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
+  const [defaultProfileId, setDefaultProfileId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [changingDefault, setChangingDefault] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [revisions, setRevisions] = useState<PersonaRevision[]>([]);
   const isSimpleMode = formMode === "simple";
   const canSaveSimple = Boolean(draft.displayName.trim().length >= 2 && freeform.trim().length >= 10);
   const canSaveAdvanced = Boolean(draft.displayName.trim() && draft.summary.trim());
+  const activeProfile = profiles.find((profile) => profile.id === activeProfileId) ?? null;
 
   useEffect(() => {
     fetchPersona()
@@ -72,6 +77,7 @@ export function UserPersonaSettingsClient() {
     const nextProfiles = Array.isArray(body.profiles) ? body.profiles.map(profileFromApi) : [];
     setProfiles(nextProfiles);
     setActiveProfileId(body.activeProfileId ?? nextProfiles[0]?.id ?? null);
+    setDefaultProfileId(body.defaultProfileId ?? null);
 
     if (body.activeProfile) {
       const nextDraft = profileFromApi(body.activeProfile);
@@ -192,33 +198,39 @@ export function UserPersonaSettingsClient() {
       setDraft(nextDraft);
       setFreeform(buildFreeformFromDraft(nextDraft));
       setActiveProfileId(body.activeProfileId ?? body.activeProfile.id);
+      setDefaultProfileId(body.defaultProfileId ?? null);
       setProfiles(Array.isArray(body.profiles) ? body.profiles.map(profileFromApi) : []);
       window.dispatchEvent(new CustomEvent("nythera:persona-updated"));
     }
   }
 
-  async function switchProfile(profile: PersonaProfile) {
+  function switchProfile(profile: PersonaProfile) {
     const nextDraft = profileFromApi(profile);
     setDraft(nextDraft);
     setFreeform(buildFreeformFromDraft(nextDraft));
     setActiveProfileId(profile.id);
+    setStatus(null);
+  }
 
+  async function changeDefaultPersona(profileId: string | null) {
+    setChangingDefault(true);
+    setStatus(null);
     const response = await fetch("/api/user-persona", {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ activeProfileId: profile.id })
+      body: JSON.stringify({ defaultProfileId: profileId })
     });
+    const body = await response.json().catch(() => null);
+    setChangingDefault(false);
 
     if (!response.ok) {
-      setStatus("Could not switch persona.");
+      setStatus(body?.error ?? "Could not update default persona.");
       return;
     }
 
-    const body = await response.json().catch(() => null);
-    const nextProfiles = Array.isArray(body?.profiles) ? body.profiles.map(profileFromApi) : [];
-    setProfiles(nextProfiles);
-    setActiveProfileId(body?.activeProfileId ?? profile.id);
-    setStatus(`${profile.label || profile.displayName} is active.`);
+    setProfiles(Array.isArray(body?.profiles) ? body.profiles.map(profileFromApi) : []);
+    setDefaultProfileId(body?.defaultProfileId ?? null);
+    setStatus(profileId ? "Default persona updated. New chats will use it." : "Default persona removed.");
     window.dispatchEvent(new CustomEvent("nythera:persona-updated"));
   }
 
@@ -250,6 +262,7 @@ export function UserPersonaSettingsClient() {
     const nextProfiles = Array.isArray(body?.profiles) ? body.profiles.map(profileFromApi) : [];
     setProfiles(nextProfiles);
     setActiveProfileId(body?.activeProfileId ?? nextProfiles[0]?.id ?? null);
+    setDefaultProfileId(body?.defaultProfileId ?? null);
     if (body?.activeProfile) {
       const nextDraft = profileFromApi(body.activeProfile);
       setDraft(nextDraft);
@@ -260,6 +273,49 @@ export function UserPersonaSettingsClient() {
     }
     setStatus("Persona deleted.");
     window.dispatchEvent(new CustomEvent("nythera:persona-updated"));
+  }
+
+  async function exportPersonas() {
+    const response = await fetch("/api/user-persona/portable");
+    if (!response.ok) return setStatus("Could not export personas.");
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "nythera-personas.json";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function importPersonas(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      const payload = JSON.parse(await file.text());
+      const response = await fetch("/api/user-persona/portable", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
+      if (!response.ok) throw new Error("Import failed");
+      await fetchPersona();
+      setStatus(`${payload.personas?.length ?? 0} persona profiles imported.`);
+    } catch {
+      setStatus("That file is not a valid Nythera persona export.");
+    }
+  }
+
+  async function loadHistory() {
+    if (!activeProfileId) return;
+    const response = await fetch(`/api/user-persona/versions?personaId=${encodeURIComponent(activeProfileId)}`, { cache: "no-store" });
+    if (!response.ok) return setStatus("Could not load persona history.");
+    const body = await response.json();
+    setRevisions(Array.isArray(body.revisions) ? body.revisions : []);
+  }
+
+  async function restoreRevision(revisionId: string) {
+    if (!activeProfileId) return;
+    const response = await fetch("/api/user-persona/versions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ personaId: activeProfileId, revisionId }) });
+    if (!response.ok) return setStatus("Could not restore that version.");
+    await fetchPersona();
+    await loadHistory();
+    setStatus("Persona version restored.");
   }
 
   return (
@@ -275,12 +331,18 @@ export function UserPersonaSettingsClient() {
             New
           </Button>
         </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" size="sm" variant="outline" onClick={() => void exportPersonas()}><Download className="h-4 w-4" />Export</Button>
+          <Button type="button" size="sm" variant="outline" asChild><label><Upload className="h-4 w-4" />Import<input type="file" accept="application/json,.json" onChange={(event) => void importPersonas(event)} className="sr-only" /></label></Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => void loadHistory()} disabled={!activeProfileId}><History className="h-4 w-4" />Version history</Button>
+        </div>
+        {revisions.length ? <div className="grid gap-2 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3">{revisions.map((revision) => <div key={revision.id} className="flex items-center justify-between gap-3 text-xs text-[var(--text-secondary)]"><span>Version {revision.version} · {new Date(revision.createdAt).toLocaleString()}</span><Button type="button" size="sm" variant="secondary" onClick={() => void restoreRevision(revision.id)}><RotateCcw className="h-3.5 w-3.5" />Restore</Button></div>)}</div> : null}
         <div className="flex gap-2 overflow-x-auto pb-1">
           {profiles.map((profile) => (
             <button
               key={profile.id}
               type="button"
-              onClick={() => void switchProfile(profile)}
+              onClick={() => switchProfile(profile)}
               className={cn(
                 "focus-ring flex h-12 shrink-0 items-center gap-2 rounded-2xl border px-3 text-left text-sm font-medium transition-colors",
                 activeProfileId === profile.id
@@ -295,6 +357,29 @@ export function UserPersonaSettingsClient() {
             </button>
           ))}
         </div>
+        {activeProfile ? (
+          <div className="flex flex-col gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-[var(--text-primary)]">Default persona</p>
+              <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">
+                Used automatically in new chats. Existing chats keep their own persona.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant={defaultProfileId === activeProfile.id ? "outline" : "primary"}
+              disabled={changingDefault}
+              onClick={() => void changeDefaultPersona(defaultProfileId === activeProfile.id ? null : activeProfile.id)}
+            >
+              <Star className={cn("h-4 w-4", defaultProfileId === activeProfile.id && "fill-current")} />
+              {changingDefault
+                ? "Updating..."
+                : defaultProfileId === activeProfile.id
+                  ? "Remove default"
+                  : "Make default"}
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       <div className="glass-panel grid grid-cols-2 gap-2 p-2">

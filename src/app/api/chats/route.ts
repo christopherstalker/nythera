@@ -9,7 +9,7 @@ import { chatCreateSchema } from "@/lib/validation";
 import { ensureStoryForChat } from "@/lib/stories/story-foundation";
 import { getRecentChats } from "@/lib/recent-chats";
 import { requireAdultConsent } from "@/lib/adult-consent";
-import { getLastUsedPersonaId } from "@/lib/user-persona-store";
+import { getPreferredPersonaId } from "@/lib/user-persona-store";
 
 export async function GET(request: Request) {
   try {
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     }
 
     const providerKeys = await getEffectiveProviderKeys(user.id);
-    const lastUsedPersonaId = await getLastUsedPersonaId(user.id);
+    const defaultPersonaId = await getPreferredPersonaId(user.id, character.id);
     const effectiveSettings = resolveCharacterModelSettings({
       character,
       providerKeys,
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
         data: {
           userId: user.id,
           characterId: character.id,
-          personaId: lastUsedPersonaId,
+          personaId: defaultPersonaId,
           title: input.title ?? null,
           temperature: input.temperature,
           model,

@@ -28,6 +28,7 @@ import { formatTieredMemoryBlocks, getUserMemories, splitMemoriesForPrompt } fro
 import { normalizeChatMode } from "@/lib/chat-mode";
 import { requireAdultConsent } from "@/lib/adult-consent";
 import { schedulePostResponseTasks } from "@/lib/post-response";
+import { containsRussianLanguage, RUSSIAN_LANGUAGE_ERROR } from "@/lib/language-policy";
 
 type Context = {
   params: Promise<{ id: string }>;
@@ -54,6 +55,9 @@ export async function POST(request: Request, context: Context) {
     const continuationPrompt =
       "Continue the roleplay naturally from the immediately preceding selected assistant response. Do not speak as the user, do not invent a user reply, and keep the scene moving in the character's voice.";
     const message = continueChat ? continuationPrompt : sanitizeUserText(input.message);
+    if (containsRussianLanguage(message)) {
+      throw new HttpError(400, RUSSIAN_LANGUAGE_ERROR);
+    }
     const injectionAssessment = detectPromptInjection(message);
     const moderation = moderateText({
       text: message,

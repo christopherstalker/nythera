@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, ExternalLink, Heart, MessageCircle, Plus, Search, ShieldAlert, Sparkles, Star } from "lucide-react";
+import { Bot, ChevronRight, ExternalLink, Heart, MessageCircle, Plus, Search, ShieldAlert, Sparkles, Star } from "lucide-react";
 import { motion } from "motion/react";
 import { RichMessageText } from "@/components/chat/rich-message-text";
 import type { CharacterSummary } from "@/components/characters/CharacterCard";
@@ -395,15 +395,20 @@ function HomeCharacterCard({
             <Star className="h-3.5 w-3.5 text-[oklch(var(--color-accent-secondary))]" />
             {(character.ratingAverage ?? 0).toFixed(1)}
           </span>
-          {character.isNSFW ? (
-            <span
-              className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold text-[var(--text-primary)]"
-              style={{ background: "oklch(var(--color-danger) / .74)" }}
-            >
-              <ShieldAlert className="h-3.5 w-3.5" />
-              18+
+          <span className="flex items-center gap-1.5">
+            <span className="inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[9px] font-bold uppercase tracking-[.12em] text-[var(--codex-ivory)] backdrop-blur-sm">
+              <Bot className="h-3 w-3" /> AI
             </span>
-          ) : null}
+            {character.isNSFW ? (
+              <span
+                className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold text-[var(--text-primary)]"
+                style={{ background: "oklch(var(--color-danger) / .74)" }}
+              >
+                <ShieldAlert className="h-3.5 w-3.5" />
+                18+
+              </span>
+            ) : null}
+          </span>
         </div>
         <div
           className="absolute inset-x-0 bottom-0 z-10 flex flex-col justify-end p-4"

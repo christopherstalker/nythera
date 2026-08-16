@@ -77,7 +77,7 @@ export function BotGenerator({ onApply }: { onApply: (generated: GeneratedCharac
       <Field label="Character concept">
         <Textarea value={concept} onChange={(event) => setConcept(event.target.value)} placeholder={'Describe your character... e.g. "A mysterious vampire librarian"'} rows={4} maxLength={2000} />
       </Field>
-      <GlassButton variant="glass-primary" onClick={() => void generate()} disabled={loading || concept.trim().length < 8}>
+      <GlassButton type="button" variant="glass-primary" onClick={() => void generate()} disabled={loading || concept.trim().length < 8}>
         <Sparkles className="h-4 w-4" /> {loading ? "Generating..." : "Generate"}
       </GlassButton>
 
@@ -119,8 +119,8 @@ export function BotGenerator({ onApply }: { onApply: (generated: GeneratedCharac
           <Field label="Avatar prompt"><Textarea value={preview.avatarPrompt} onChange={(event) => update("avatarPrompt", event.target.value)} rows={3} /></Field>
 
           <div className="flex flex-wrap gap-2">
-            <GlassButton variant="glass-primary" onClick={() => onApply(preview)} disabled={!ready}>Looks good</GlassButton>
-            <GlassButton variant="glass-secondary" onClick={() => void generate()} disabled={loading}>Regenerate</GlassButton>
+            <GlassButton type="button" variant="glass-primary" onClick={() => onApply(preview)} disabled={!ready}>Use this draft</GlassButton>
+            <GlassButton type="button" variant="glass-secondary" onClick={() => void generate()} disabled={loading}>Regenerate</GlassButton>
           </div>
         </div>
       ) : null}

@@ -102,7 +102,7 @@ export function KeySettingsClient({ onboarding = false, callbackUrl = "/explore"
 
     const body = await response.json();
     setKeys(body.keys ?? []);
-    await refreshModels(true);
+    await refreshModels(false);
   }, [refreshModels]);
 
   useEffect(() => {
@@ -121,7 +121,7 @@ export function KeySettingsClient({ onboarding = false, callbackUrl = "/explore"
 
     const refreshIfStale = () => {
       if (document.visibilityState === "visible" && Date.now() - lastCatalogRefreshRef.current >= MODEL_CATALOG_REFRESH_INTERVAL_MS) {
-        void refreshModels(true);
+        void refreshModels(false);
       }
     };
     const intervalId = window.setInterval(refreshIfStale, MODEL_CATALOG_REFRESH_INTERVAL_MS);

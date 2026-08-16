@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { MAX_CHAT_MESSAGE_LENGTH } from "@/lib/chat-limits";
 import { resolveMusicEmbed } from "@/lib/music-embed";
+import { isRussianLanguageLabel, RUSSIAN_LANGUAGE_ERROR } from "@/lib/language-policy";
 
 const MAX_IMAGE_DATA_URL_BYTES = 140_000;
 const MAX_IMAGE_DATA_URL_LENGTH = 190_000;
@@ -207,6 +208,13 @@ export const chatUpdateSchema = z.object({
   model: z.string().trim().min(1).max(160).optional(),
   responsePrompt: z.string().trim().max(2000).optional(),
   chatMode: z.enum(["realism", "fantasy"]).optional(),
+  translationLanguage: z
+    .string()
+    .trim()
+    .max(80)
+    .refine((value) => !isRussianLanguageLabel(value), RUSSIAN_LANGUAGE_ERROR)
+    .nullable()
+    .optional(),
   activeAssistantMessageId: z.string().trim().min(1).max(120).nullable().optional(),
   appearance: chatAppearanceSchema.nullable().optional()
 });
@@ -214,6 +222,7 @@ export const chatUpdateSchema = z.object({
 export const streamMessageSchema = z
   .object({
     message: z.string().max(MAX_CHAT_MESSAGE_LENGTH).optional().default(""),
+    attachmentIds: z.array(z.string().cuid()).max(2).optional().default([]),
     temperature: z.coerce.number().min(0).max(2).optional(),
     model: z.string().trim().min(1).max(160).optional(),
     responsePrompt: z.string().trim().max(2000).optional(),
@@ -225,7 +234,7 @@ export const streamMessageSchema = z
     continueMessageId: z.string().min(1).max(120).optional(),
     branchMessageId: z.string().min(1).max(120).optional()
   })
-  .refine((input) => input.continueChat || input.regenerate || input.retryUserMessageId || input.message.trim().length > 0, {
+  .refine((input) => input.continueChat || input.regenerate || input.retryUserMessageId || input.message.trim().length > 0 || input.attachmentIds.length > 0, {
     message: "Message is required.",
     path: ["message"]
   });
@@ -303,7 +312,8 @@ export const memoryUpdateSchema = z.object({
   content: z.string().trim().min(2).max(2000).optional(),
   importance: z.coerce.number().min(0).max(5).optional(),
   pinned: z.boolean().optional(),
-  category: memoryCreateSchema.shape.category.optional()
+  category: memoryCreateSchema.shape.category.optional(),
+  status: z.enum(["PENDING", "ACTIVE", "REJECTED"]).optional()
 });
 
 export const storyFactCreateSchema = z.object({

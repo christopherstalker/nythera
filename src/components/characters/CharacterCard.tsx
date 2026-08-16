@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Heart, ShieldAlert, Star } from "lucide-react";
+import { Bot, Heart, ShieldAlert, Star } from "lucide-react";
 import { motion } from "motion/react";
 import { RichMessageText } from "@/components/chat/rich-message-text";
 import { cn } from "@/lib/utils";
@@ -23,6 +23,9 @@ export type CharacterSummary = {
   ratingAverage?: number;
   ratingCount?: number;
   isNSFW?: boolean;
+  originType?: "ORIGINAL" | "PUBLIC_DOMAIN" | "LICENSED" | "FAN_INTERPRETATION" | "REAL_PERSON" | "HISTORICAL_FIGURE";
+  isRealPerson?: boolean;
+  aiDisclosure?: boolean;
   creator?: {
     username?: string | null;
   } | null;
@@ -83,6 +86,9 @@ export function CharacterCard({
             {rating.toFixed(1)}
           </span>
           <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[9px] font-bold uppercase tracking-[.12em] text-[var(--codex-ivory)] backdrop-blur-sm">
+              <Bot className="h-3 w-3" /> AI
+            </span>
             {featured ? (
               <span className="rounded-full bg-[var(--codex-mint)] px-2 py-1 text-[9px] font-bold uppercase tracking-[.12em] text-[var(--codex-paper)]">
                 Featured
@@ -164,6 +170,10 @@ export function CharacterCard({
             18+
           </span>
         ) : null}
+        <span className="inline-flex items-center gap-1">
+          <Bot className="h-3.5 w-3.5" />
+          AI character
+        </span>
         {character.tags?.length ? (
           <>
             {character.tags.slice(0, 3).map((tag) => (

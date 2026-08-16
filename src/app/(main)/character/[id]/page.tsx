@@ -81,11 +81,12 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
         name: `${character.name} — AI roleplay character`,
         description: createDescription(character.description),
         mainEntity: {
-          "@type": "Person",
-          name: character.name,
+          "@type": "CreativeWork",
+          name: `${character.name} — AI roleplay character`,
           description: createDescription(character.description),
           image: character.avatarUrl || undefined,
-          url: canonicalUrl
+          url: canonicalUrl,
+          isAccessibleForFree: true
         },
         isPartOf: {
           "@id": `${CANONICAL_SITE_ORIGIN}/#website`

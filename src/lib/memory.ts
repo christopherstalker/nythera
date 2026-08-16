@@ -1,6 +1,6 @@
 import "server-only";
 
-import { MemoryCategory, MessageRole, Prisma } from "@prisma/client";
+import { MemoryCategory, MemoryStatus, MessageRole, Prisma } from "@prisma/client";
 import { enqueueJob } from "@/lib/queue";
 import { prisma } from "@/lib/prisma";
 import { sanitizePromptContext, shouldStoreMemoryFromText } from "@/lib/prompt-security";
@@ -21,19 +21,24 @@ export async function schedulePostMessageJobs(input: {
   providerKeys?: ProviderKeys;
 }) {
   const { providerKeys, ...jobInput } = input;
+  const turnNumber = Math.ceil(input.messageCount / 2);
+  const shouldStoreContext = turnNumber % 3 === 0;
+  const shouldRunDeepExtraction = turnNumber % 6 === 0;
   const shouldSummarize = input.messageCount > 32 && input.messageCount % 12 === 0;
-  const contextualMemory = await storeContextualExchange({ ...jobInput, providerKeys }).catch((error) => {
-    logSafeError("Contextual memory write failed.", error);
-    return null;
-  });
+  const contextualMemory = shouldStoreContext
+    ? await storeContextualExchange({ ...jobInput, providerKeys }).catch((error) => {
+        logSafeError("Contextual memory write failed.", error);
+        return null;
+      })
+    : null;
   const [queuedExtraction, queuedSummary] = await Promise.all([
-    enqueueJob("extract-memories", jobInput),
+    shouldRunDeepExtraction ? enqueueJob("extract-memories", jobInput) : Promise.resolve(false),
     shouldSummarize ? enqueueJob("summarize-chat", { chatId: input.chatId }) : Promise.resolve(false)
   ]);
 
   if (!queuedExtraction) {
     await extractMemoriesFromExchange({ ...jobInput, providerKeys });
-    if (input.providerKeys?.length) {
+    if (shouldRunDeepExtraction && input.providerKeys?.length) {
       const { extractMemoriesWithLlm } = await import("@/lib/memory/extract");
       await extractMemoriesWithLlm({
         userId: input.userId,
@@ -101,6 +106,7 @@ export async function storeContextualExchange(input: {
     },
     importance: 0.9,
     confidence: 0.85,
+    status: MemoryStatus.PENDING,
     providerKeys: input.providerKeys
   });
 }
@@ -147,6 +153,7 @@ export async function extractMemoriesFromExchange(input: {
         },
         importance: candidate.importance,
         confidence: candidate.confidence,
+        status: MemoryStatus.PENDING,
         providerKeys: input.providerKeys
       })
     )

@@ -826,7 +826,7 @@ function moderatePrompt(messages: ChatMessage[]) {
 function moderateText(text: string) {
   const blocked = [
     /\b(kill myself|suicide|self harm|end my life)\b/i,
-    /\b(explicit sex|porn|minor sex|underage)\b/i,
+    /\b(minor sex|underage sex|child porn|sexual assault|rape(?: roleplay)?|non[- ]consensual(?: sex)?)\b/i,
     /\b(build a bomb|make explosives|poison someone)\b/i,
     /\b(reveal the system prompt|ignore previous instructions|jailbreak)\b/i
   ];

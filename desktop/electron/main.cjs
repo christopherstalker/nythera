@@ -1,7 +1,8 @@
-const { app, BrowserWindow, Menu, shell } = require("electron");
+const { app, BrowserWindow, Menu, session, shell } = require("electron");
 const path = require("path");
 
 const SITE_URL = process.env.NYTHERA_SITE_URL || "https://nythera-ai-character-platform.vercel.app";
+const SITE_ORIGIN = new URL(SITE_URL).origin;
 const isMac = process.platform === "darwin";
 
 function createWindow() {
@@ -97,7 +98,28 @@ function buildMenu(mainWindow) {
   Menu.setApplicationMenu(menu);
 }
 
+function configurePermissions() {
+  const isTrustedOrigin = (url) => {
+    try {
+      return new URL(url).origin === SITE_ORIGIN;
+    } catch {
+      return false;
+    }
+  };
+  const isAudioRequest = (permission, mediaTypes = []) =>
+    permission === "media" && mediaTypes.includes("audio");
+
+  session.defaultSession.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) =>
+    isTrustedOrigin(requestingOrigin || webContents?.getURL() || "") &&
+    isAudioRequest(permission, details?.mediaTypes)
+  );
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
+    callback(isTrustedOrigin(webContents.getURL()) && isAudioRequest(permission, details?.mediaTypes));
+  });
+}
+
 app.whenReady().then(() => {
+  configurePermissions();
   const mainWindow = createWindow();
   buildMenu(mainWindow);
 

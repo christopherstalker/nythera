@@ -44,6 +44,11 @@ export type PublicCharacterProfile = {
   ratingCount: number;
   isNSFW?: boolean;
   visibility?: string;
+  originType?: "ORIGINAL" | "PUBLIC_DOMAIN" | "LICENSED" | "FAN_INTERPRETATION" | "REAL_PERSON" | "HISTORICAL_FIGURE";
+  sourceLabel?: string | null;
+  sourceUrl?: string | null;
+  isRealPerson?: boolean;
+  aiDisclosure?: boolean;
   communicationStyle?: Record<string, unknown> | null;
   persona?: CharacterPersona | null;
   lorebook?: { entries?: Array<{ id?: string; keywords?: string[]; text?: string }> } | null;
@@ -61,6 +66,12 @@ export type PublicCharacterProfile = {
 export type PromptMessage = {
   role: ChatRole;
   content: string;
+  images?: PromptImage[];
+};
+
+export type PromptImage = {
+  data: string;
+  mediaType: "image/jpeg" | "image/png" | "image/webp";
 };
 
 export type ModelSamplingSettings = {

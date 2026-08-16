@@ -22,6 +22,8 @@ test("provider models refresh server-side from official catalogs without exposin
   assert.match(catalog, /anthropic\.com\/v1\/models\?limit=1000/);
   assert.match(route, /requireUser/);
   assert.match(route, /getDecryptedProviderKeys/);
+  assert.match(route, /keysByProvider/);
+  assert.match(route, /representative/);
   assert.doesNotMatch(route, /apiKey\s*:/);
   assert.match(settings, /Live model catalog/);
   assert.match(settings, /Refresh models/);
@@ -50,6 +52,7 @@ test("personal BYOK requests bypass only Nythera's token-cost budget", async () 
     read("../src/app/api/mobile/chats/[id]/message/route.ts")
   ]);
   assert.match(keys, /isUserOwnedProvider/);
+  assert.match(keys, /credentialStatus: \{ not: "INVALID" \}/);
   for (const source of [web, mobile]) {
     assert.match(source, /if \(!isUserOwnedProvider\(effectiveSettings\.provider, providerKeys\)\)/);
     assert.match(source, /route: "chat:stream"|route: "mobile:chat:message"/);

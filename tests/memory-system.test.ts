@@ -76,7 +76,7 @@ test("right-panel persona and manual memory changes are used by the next chat re
   assert.match(panelHook, /pinned: true/);
   assert.match(panelHook, /Applied to next reply|saved for the next message/i);
   assert.match(webStream, /persona: true/);
-  assert.match(webStream, /const userPersona = chat\.persona \?\? defaultUserPersona/);
+  assert.match(webStream, /const userPersona = chat\.temporaryPersona \?\? chat\.persona \?\? defaultUserPersona/);
   assert.match(webStream, /getPromptMemories\(\{/);
   assert.match(webStream, /formatUserPersonaForPrompt\(userPersona\)/);
 });

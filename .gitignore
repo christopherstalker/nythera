@@ -26,3 +26,4 @@ proxy-service/dist
 public/downloads/*.exe
 
 .env*
+.vercel

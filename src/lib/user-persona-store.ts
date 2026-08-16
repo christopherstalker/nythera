@@ -28,36 +28,42 @@ export async function getUserPersonaState(userId: string, chatId?: string | null
     chatId
       ? prisma.chat.findFirst({
           where: { id: chatId, userId },
-          select: { personaId: true }
+          select: { personaId: true, temporaryPersonaId: true, characterId: true }
         })
       : Promise.resolve(null)
   ]);
 
+  const characterPreference = chat
+    ? await prisma.characterPersonaPreference.findUnique({
+        where: { userId_characterId: { userId, characterId: chat.characterId } },
+        select: { personaId: true }
+      })
+    : null;
+  const activePersonaId = chat?.temporaryPersonaId ?? chat?.personaId ?? null;
+
   return {
-    persona: personas.find((persona) => persona.id === chat?.personaId) ?? personas.find((persona) => persona.isDefault) ?? personas[0] ?? null,
-    ...normalizePersonaRows(personas, chat?.personaId ?? null)
+    persona: personas.find((persona) => persona.id === activePersonaId) ?? personas.find((persona) => persona.isDefault) ?? personas[0] ?? null,
+    temporaryProfileId: chat?.temporaryPersonaId ?? null,
+    characterDefaultProfileId: characterPreference?.personaId ?? null,
+    ...normalizePersonaRows(personas, activePersonaId)
   };
 }
 
-export async function getLastUsedPersonaId(userId: string) {
-  const account = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      lastPersonaId: true,
-      personas: {
-        orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }],
-        select: { id: true }
-      }
-    }
+export async function getDefaultPersonaId(userId: string) {
+  const persona = await prisma.userPersona.findFirst({
+    where: { userId, isDefault: true },
+    select: { id: true }
   });
 
-  if (!account) {
-    return null;
-  }
+  return persona?.id ?? null;
+}
 
-  return account.personas.find((persona) => persona.id === account.lastPersonaId)?.id
-    ?? account.personas[0]?.id
-    ?? null;
+export async function getPreferredPersonaId(userId: string, characterId: string) {
+  const preference = await prisma.characterPersonaPreference.findUnique({
+    where: { userId_characterId: { userId, characterId } },
+    select: { personaId: true }
+  });
+  return preference?.personaId ?? getDefaultPersonaId(userId);
 }
 
 export async function saveUserPersona(userId: string, input: PersonaInput, chatId?: string | null) {
@@ -69,10 +75,11 @@ export async function saveUserPersona(userId: string, input: PersonaInput, chatI
     const existing = input.profileId
       ? existingPersonas.find((persona) => persona.id === input.profileId)
       : null;
-    const shouldBecomeDefault = !chatId || existingPersonas.length === 0 || existing?.isDefault === true;
+    const shouldBecomeDefault = existingPersonas.length === 0;
 
     let saved;
     if (existing) {
+      await createPersonaRevision(tx, existing);
       saved = await tx.userPersona.update({
         where: { id: existing.id },
         data: personaInputToData(input)
@@ -85,6 +92,7 @@ export async function saveUserPersona(userId: string, input: PersonaInput, chatI
           isDefault: false
         }
       });
+      await createPersonaRevision(tx, saved);
     }
 
     if (shouldBecomeDefault) {
@@ -102,16 +110,18 @@ export async function saveUserPersona(userId: string, input: PersonaInput, chatI
       }
     }
 
-    await tx.user.update({
-      where: { id: userId },
-      data: { lastPersonaId: saved.id }
-    });
+    if (chatId) {
+      await tx.user.update({
+        where: { id: userId },
+        data: { lastPersonaId: saved.id }
+      });
+    }
 
-    return personaStateInTransaction(tx, userId, chatId ?? null);
+    return personaStateInTransaction(tx, userId, chatId ?? null, saved.id);
   });
 }
 
-export async function activateUserPersona(userId: string, personaId: string, chatId?: string | null) {
+export async function activateUserPersona(userId: string, personaId: string, chatId: string) {
   return prisma.$transaction(async (tx) => {
     const persona = await tx.userPersona.findFirst({
       where: { id: personaId, userId }
@@ -121,16 +131,12 @@ export async function activateUserPersona(userId: string, personaId: string, cha
       throw new HttpError(404, "Persona profile not found.");
     }
 
-    if (chatId) {
-      const updated = await tx.chat.updateMany({
-        where: { id: chatId, userId },
-        data: { personaId: persona.id }
-      });
-      if (updated.count === 0) {
-        throw new HttpError(404, "Chat not found.");
-      }
-    } else {
-      await setDefaultPersona(tx, userId, persona.id);
+    const updated = await tx.chat.updateMany({
+      where: { id: chatId, userId },
+      data: { personaId: persona.id, temporaryPersonaId: null }
+    });
+    if (updated.count === 0) {
+      throw new HttpError(404, "Chat not found.");
     }
 
     await tx.user.update({
@@ -138,7 +144,104 @@ export async function activateUserPersona(userId: string, personaId: string, cha
       data: { lastPersonaId: persona.id }
     });
 
-    return personaStateInTransaction(tx, userId, chatId ?? null);
+    return personaStateInTransaction(tx, userId, chatId);
+  });
+}
+
+export async function activateTemporaryUserPersona(userId: string, personaId: string, chatId: string) {
+  return prisma.$transaction(async (tx) => {
+    const persona = await tx.userPersona.findFirst({ where: { id: personaId, userId }, select: { id: true } });
+    if (!persona) throw new HttpError(404, "Persona profile not found.");
+
+    const updated = await tx.chat.updateMany({
+      where: { id: chatId, userId },
+      data: { temporaryPersonaId: persona.id }
+    });
+    if (!updated.count) throw new HttpError(404, "Chat not found.");
+    return personaStateInTransaction(tx, userId, chatId, persona.id);
+  });
+}
+
+export async function setCharacterDefaultPersona(userId: string, characterId: string, personaId: string | null) {
+  return prisma.$transaction(async (tx) => {
+    const character = await tx.character.findUnique({ where: { id: characterId }, select: { id: true } });
+    if (!character) throw new HttpError(404, "Character not found.");
+
+    if (!personaId) {
+      await tx.characterPersonaPreference.deleteMany({ where: { userId, characterId } });
+      return { ok: true, characterDefaultProfileId: null };
+    }
+
+    const persona = await tx.userPersona.findFirst({ where: { id: personaId, userId }, select: { id: true } });
+    if (!persona) throw new HttpError(404, "Persona profile not found.");
+    await tx.characterPersonaPreference.upsert({
+      where: { userId_characterId: { userId, characterId } },
+      create: { userId, characterId, personaId },
+      update: { personaId }
+    });
+    return { ok: true, characterDefaultProfileId: personaId };
+  });
+}
+
+export async function listPersonaRevisions(userId: string, personaId: string) {
+  const persona = await prisma.userPersona.findFirst({ where: { id: personaId, userId }, select: { id: true } });
+  if (!persona) throw new HttpError(404, "Persona profile not found.");
+  return prisma.userPersonaRevision.findMany({
+    where: { personaId },
+    orderBy: { version: "desc" },
+    take: 30
+  });
+}
+
+export async function restorePersonaRevision(userId: string, personaId: string, revisionId: string) {
+  return prisma.$transaction(async (tx) => {
+    const persona = await tx.userPersona.findFirst({ where: { id: personaId, userId } });
+    if (!persona) throw new HttpError(404, "Persona profile not found.");
+    const revision = await tx.userPersonaRevision.findFirst({ where: { id: revisionId, personaId } });
+    if (!revision) throw new HttpError(404, "Persona version not found.");
+    await createPersonaRevision(tx, persona);
+    const snapshot = revision.snapshot as Record<string, unknown>;
+    return tx.userPersona.update({
+      where: { id: persona.id },
+      data: {
+        label: typeof snapshot.label === "string" ? snapshot.label : persona.label,
+        displayName: typeof snapshot.displayName === "string" ? snapshot.displayName : persona.displayName,
+        avatarUrl: typeof snapshot.avatarUrl === "string" ? snapshot.avatarUrl : null,
+        summary: typeof snapshot.summary === "string" ? snapshot.summary : persona.summary,
+        background: typeof snapshot.background === "string" ? snapshot.background : null,
+        traits: stringArray(snapshot.traits),
+        likes: stringArray(snapshot.likes),
+        dislikes: stringArray(snapshot.dislikes),
+        boundaries: stringArray(snapshot.boundaries)
+      }
+    });
+  });
+}
+
+export async function setDefaultUserPersona(userId: string, personaId: string | null) {
+  return prisma.$transaction(async (tx) => {
+    if (personaId) {
+      const persona = await tx.userPersona.findFirst({
+        where: { id: personaId, userId },
+        select: { id: true }
+      });
+      if (!persona) {
+        throw new HttpError(404, "Persona profile not found.");
+      }
+    }
+
+    await tx.userPersona.updateMany({
+      where: { userId, isDefault: true },
+      data: { isDefault: false }
+    });
+    if (personaId) {
+      await tx.userPersona.update({
+        where: { id: personaId },
+        data: { isDefault: true }
+      });
+    }
+
+    return personaStateInTransaction(tx, userId, null, personaId);
   });
 }
 
@@ -150,7 +253,15 @@ export async function deleteUserPersona(userId: string, personaId?: string | nul
         where: { id: userId },
         data: { lastPersonaId: null }
       });
-      return { ok: true, persona: null, profiles: [], activeProfileId: null, activeProfile: null };
+      return {
+        ok: true,
+        persona: null,
+        profiles: [],
+        defaultProfileId: null,
+        defaultProfile: null,
+        activeProfileId: null,
+        activeProfile: null
+      };
     }
 
     const persona = await tx.userPersona.findFirst({
@@ -161,16 +272,6 @@ export async function deleteUserPersona(userId: string, personaId?: string | nul
     }
 
     await tx.userPersona.delete({ where: { id: persona.id } });
-
-    if (persona.isDefault) {
-      const nextDefault = await tx.userPersona.findFirst({
-        where: { userId },
-        orderBy: [{ updatedAt: "desc" }]
-      });
-      if (nextDefault) {
-        await setDefaultPersona(tx, userId, nextDefault.id);
-      }
-    }
 
     const account = await tx.user.findUnique({
       where: { id: userId },
@@ -192,7 +293,12 @@ export async function deleteUserPersona(userId: string, personaId?: string | nul
   });
 }
 
-async function personaStateInTransaction(tx: Prisma.TransactionClient, userId: string, chatId: string | null) {
+async function personaStateInTransaction(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  chatId: string | null,
+  preferredActivePersonaId?: string | null
+) {
   const [personas, chat] = await Promise.all([
     tx.userPersona.findMany({
       where: { userId },
@@ -201,13 +307,18 @@ async function personaStateInTransaction(tx: Prisma.TransactionClient, userId: s
     chatId
       ? tx.chat.findFirst({
           where: { id: chatId, userId },
-          select: { personaId: true }
+          select: { personaId: true, temporaryPersonaId: true }
         })
       : Promise.resolve(null)
   ]);
   return {
-    persona: personas.find((persona) => persona.id === chat?.personaId) ?? personas.find((persona) => persona.isDefault) ?? personas[0] ?? null,
-    ...normalizePersonaRows(personas, chat?.personaId ?? null)
+    persona:
+      personas.find((persona) => persona.id === (preferredActivePersonaId ?? chat?.temporaryPersonaId ?? chat?.personaId))
+      ?? personas.find((persona) => persona.isDefault)
+      ?? personas[0]
+      ?? null,
+    temporaryProfileId: chat?.temporaryPersonaId ?? null,
+    ...normalizePersonaRows(personas, preferredActivePersonaId ?? chat?.temporaryPersonaId ?? chat?.personaId ?? null)
   };
 }
 
@@ -235,4 +346,44 @@ function personaInputToData(input: PersonaInput) {
     boundaries: input.boundaries,
     visibility: input.visibility
   };
+}
+
+async function createPersonaRevision(tx: Prisma.TransactionClient, persona: {
+  id: string;
+  label: string | null;
+  displayName: string;
+  avatarUrl: string | null;
+  summary: string;
+  background: string | null;
+  traits: string[];
+  likes: string[];
+  dislikes: string[];
+  boundaries: string[];
+}) {
+  const latest = await tx.userPersonaRevision.findFirst({
+    where: { personaId: persona.id },
+    orderBy: { version: "desc" },
+    select: { version: true }
+  });
+  await tx.userPersonaRevision.create({
+    data: {
+      personaId: persona.id,
+      version: (latest?.version ?? 0) + 1,
+      snapshot: {
+        label: persona.label,
+        displayName: persona.displayName,
+        avatarUrl: persona.avatarUrl,
+        summary: persona.summary,
+        background: persona.background,
+        traits: persona.traits,
+        likes: persona.likes,
+        dislikes: persona.dislikes,
+        boundaries: persona.boundaries
+      }
+    }
+  });
+}
+
+function stringArray(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }

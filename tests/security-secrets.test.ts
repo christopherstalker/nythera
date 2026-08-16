@@ -13,6 +13,15 @@ test("BYOK encryption uses a dedicated master secret and authenticated encryptio
   assert.doesNotMatch(cryptoSource, /INTERNAL_API_TOKEN/);
 });
 
+test("unreadable legacy BYOK entries do not break platform provider fallback", async () => {
+  const keyStore = await readFile(new URL("../src/lib/user-keys.ts", import.meta.url), "utf8");
+
+  assert.match(keyStore, /catch\s*\{\s*unreadableKeyIds\.push\(row\.id\)/);
+  assert.match(keyStore, /credentialStatus:\s*"INVALID"/);
+  assert.match(keyStore, /return keys;/);
+  assert.match(keyStore, /getServerProviderKeys\(\)\.filter/);
+});
+
 test("security log redaction covers provider keys and bearer tokens", async () => {
   const redactionSource = await readFile(new URL("../src/lib/secret-redaction.ts", import.meta.url), "utf8");
 

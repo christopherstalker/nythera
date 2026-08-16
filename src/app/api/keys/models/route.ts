@@ -16,18 +16,36 @@ export async function GET(request: Request) {
     });
     const force = new URL(request.url).searchParams.get("refresh") === "1";
     const keys = await getDecryptedProviderKeys(user.id, { includeInvalid: true });
-    const providers = await Promise.all(keys.map(async (key) => ({
-      ...(await discoverProviderModels(key, { force })),
+    const keysByProvider = new Map<string, typeof keys>();
+    for (const key of keys) {
+      const providerKeys = keysByProvider.get(key.provider) ?? [];
+      providerKeys.push(key);
+      keysByProvider.set(key.provider, providerKeys);
+    }
+    const discoveries = await Promise.all(Array.from(keysByProvider.values(), async (providerKeys) => {
+      const representative = [...providerKeys].sort((left, right) =>
+        Number(right.credentialStatus === "VALID") - Number(left.credentialStatus === "VALID") ||
+        Number(Boolean(right.isDefault)) - Number(Boolean(left.isDefault)) ||
+        (left.providerPriority ?? 0) - (right.providerPriority ?? 0)
+      )[0]!;
+      return {
+        representative,
+        providerKeys,
+        catalog: await discoverProviderModels(representative, { force })
+      };
+    }));
+    const providers = discoveries.flatMap(({ catalog, providerKeys }) => providerKeys.map((key) => ({
+      ...catalog,
       keyId: key.id,
       keyLabel: key.label,
       last4: key.apiKey.slice(-4)
     })));
-    await Promise.all(providers.map(async (provider) => {
-      const status = credentialStatusFromDiscovery(provider);
-      if (!status || !provider.keyId) return;
+    await Promise.all(discoveries.map(async ({ catalog, representative }) => {
+      const status = credentialStatusFromDiscovery(catalog);
+      if (!status || !representative.id) return;
 
       await prisma.userApiKey.updateMany({
-        where: { id: provider.keyId, userId: user.id },
+        where: { id: representative.id, userId: user.id },
         data: {
           credentialStatus: status,
           validatedAt: new Date(),

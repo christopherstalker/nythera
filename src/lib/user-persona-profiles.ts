@@ -38,6 +38,8 @@ export function normalizePersonaProfiles(persona?: PersonaLike | null) {
   if (!persona) {
     return {
       profiles: [] as UserPersonaProfile[],
+      defaultProfileId: null as string | null,
+      defaultProfile: null as UserPersonaProfile | null,
       activeProfileId: null as string | null,
       activeProfile: null as UserPersonaProfile | null
     };
@@ -51,8 +53,15 @@ export function normalizePersonaProfiles(persona?: PersonaLike | null) {
     ? metadata.activeProfileId ?? profiles[0]?.id ?? null
     : profiles[0]?.id ?? null;
   const activeProfile = profiles.find((profile) => profile.id === activeProfileId) ?? profiles[0] ?? null;
+  const defaultProfile = profiles.find((profile) => profile.isDefault) ?? null;
 
-  return { profiles, activeProfileId, activeProfile };
+  return {
+    profiles,
+    defaultProfileId: defaultProfile?.id ?? null,
+    defaultProfile,
+    activeProfileId,
+    activeProfile
+  };
 }
 
 export function personaToProfile(persona: Omit<PersonaLike, "metadata">): UserPersonaProfile {
@@ -74,12 +83,14 @@ export function personaToProfile(persona: Omit<PersonaLike, "metadata">): UserPe
 
 export function normalizePersonaRows(personas: PersonaRowLike[], activePersonaId?: string | null) {
   const profiles = personas.map(personaToProfile);
-  const defaultProfile = profiles.find((profile) => profile.isDefault) ?? profiles[0] ?? null;
+  const defaultProfile = profiles.find((profile) => profile.isDefault) ?? null;
   const activeProfile =
-    (activePersonaId ? profiles.find((profile) => profile.id === activePersonaId) : null) ?? defaultProfile;
+    (activePersonaId ? profiles.find((profile) => profile.id === activePersonaId) : null) ?? defaultProfile ?? profiles[0] ?? null;
 
   return {
     profiles,
+    defaultProfileId: defaultProfile?.id ?? null,
+    defaultProfile,
     activeProfileId: activeProfile?.id ?? null,
     activeProfile: activeProfile ?? null
   };

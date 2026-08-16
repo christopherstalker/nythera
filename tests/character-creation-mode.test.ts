@@ -105,6 +105,7 @@ test("guided submit saves directly while optional drafting fills only empty fiel
 
   assert.doesNotMatch(submit, /\/api\/characters\/generate/);
   assert.match(submit, /fetch\(url/);
+  assert.match(submit, /finally \{[\s\S]*?setSaving\(false\)/);
   assert.match(form, /title="Personality & scenario"/);
   assert.match(form, /label="Personality"/);
   assert.match(form, /label="Scenario \/ world"/);
@@ -133,4 +134,12 @@ test("guided submit saves directly while optional drafting fills only empty fiel
   assert.match(behaviorSliderDefinition, /field: "seriousness", label: "Seriousness"/);
   assert.match(behaviorSliderDefinition, /field: "initiative", label: "Initiative"/);
   assert.match(behaviorSliderDefinition, /field: "roleplayIntensity", label: "Roleplay intensity"/);
+});
+
+test("prompt generator controls never submit the parent character form", async () => {
+  const generator = await readFile(new URL("../src/components/character/BotGenerator.tsx", import.meta.url), "utf8");
+
+  assert.match(generator, /type="button"[^>]*onClick=\{\(\) => void generate\(\)\}/);
+  assert.match(generator, /type="button"[^>]*onClick=\{\(\) => onApply\(preview\)\}/);
+  assert.equal(generator.match(/<GlassButton type="button"/g)?.length, 3);
 });

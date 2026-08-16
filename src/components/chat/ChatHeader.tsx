@@ -65,7 +65,7 @@ export function ChatHeader({ chatId, chapterNumber, characterId, characterName, 
               <span className="min-w-0 flex-1">
                 <h1 className="truncate text-sm font-semibold uppercase tracking-[.16em] text-[var(--codex-ivory)] sm:text-base">{characterName}</h1>
                 <p className="truncate text-[9px] font-medium uppercase tracking-[.18em] text-[var(--codex-violet)] sm:text-[10px]">
-                  Chapter {chapterNumber} · {personaName ? `${personaName} active` : "After the storm"}
+                  Chapter {chapterNumber} · AI character · {personaName ? `${personaName} active` : "After the storm"}
                 </p>
               </span>
             </Link>

@@ -6,9 +6,11 @@ import { moderateText } from "../src/lib/safety";
 
 const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
-test("consenting-adult affection is allowed while minor and non-consensual content stays blocked", () => {
+test("consenting-adult explicit content is allowed while minor and non-consensual content stays blocked", () => {
   assert.equal(moderateText({ text: "Kiss me", userIsMinor: false, context: "message" }).allowed, true);
   assert.equal(moderateText({ text: "A consensual romantic scene", userIsMinor: false, context: "message" }).allowed, true);
+  assert.equal(moderateText({ text: "Explicit sex between consenting adults", userIsMinor: false, context: "message" }).allowed, true);
+  assert.equal(moderateText({ text: "Adult porn scene", userIsMinor: false, context: "assistant" }).allowed, true);
   assert.equal(moderateText({ text: "Kiss me", userIsMinor: true, context: "message" }).allowed, false);
   assert.equal(moderateText({ text: "Non-consensual sex", userIsMinor: false, context: "message" }).allowed, false);
 });
@@ -20,11 +22,13 @@ test("prompts support in-character adult romance without weakening hard safety b
     read("../src/lib/prompt-assembly.ts")
   ]);
 
-  assert.match(externalPrompt, /ROMANCE AND INTIMACY/);
+  assert.match(externalPrompt, /ADULT INTIMACY/);
   assert.match(externalPrompt, /consenting adults/i);
+  assert.match(externalPrompt, /explicit sexual content/i);
+  assert.match(externalPrompt, /Do not censor, soften, or fade to black/i);
   assert.match(externalPrompt, /Never sexualize minors/i);
-  assert.match(fantasyPrompt, /consenting-adult intimacy/i);
-  assert.match(assembly, /consenting adult characters become romantic/i);
+  assert.match(fantasyPrompt, /consensual-adult intimacy/i);
+  assert.match(assembly, /romantic, sexual, or explicit/i);
 });
 
 test("custom chat and profile fonts upload to durable storage and load through FontFace", async () => {

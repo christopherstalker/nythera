@@ -185,7 +185,7 @@ export function SidePanel() {
 
         <div
           data-testid="story-context-scroll"
-          className="chat-scroll side-panel-scroll min-h-0 min-w-0 touch-pan-y overflow-y-auto overscroll-y-contain p-4 pb-[max(1rem,env(safe-area-inset-bottom))] [scrollbar-gutter:stable]"
+          className="chat-scroll side-panel-scroll min-h-0 min-w-0 touch-pan-y overflow-y-auto overscroll-y-contain p-4 [scrollbar-gutter:stable]"
         >
           {panel.panelLoadStatus ? <p role="alert" className="mb-3 rounded-2xl border border-red-400/30 bg-red-500/10 p-3 text-xs leading-5 text-red-200">{panel.panelLoadStatus}</p> : null}
           {activeTab === "persona" ? <PersonaTabContent panel={panel} /> : null}

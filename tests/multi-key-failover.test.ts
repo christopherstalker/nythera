@@ -25,7 +25,7 @@ test("key APIs update and remove individual credentials", async () => {
   ]);
 
   assert.match(keyRoute, /searchParams\.get\("id"\)/);
-  assert.match(modelsRoute, /where: \{ id: provider\.keyId, userId: user\.id \}/);
+  assert.match(modelsRoute, /where: \{ id: representative\.id, userId: user\.id \}/);
   assert.match(settings, /failover pool/);
   assert.match(settings, /Verify and add backup key/);
 });
@@ -40,7 +40,17 @@ test("same-provider retries precede cross-provider fallbacks", async () => {
   for (const source of [gateway, proxy]) {
     assert.match(source, /attemptRoutes\(route,/);
     assert.match(source, /key\.provider === primary\.providerName/);
-    assert.match(source, /All \$\{keyCount\} saved keys/);
   }
+  assert.match(gateway, /MAX_SAME_PROVIDER_ATTEMPTS = 2/);
+  assert.match(gateway, /rotatePrimaryKey/);
+  assert.match(gateway, /setKeyCooldown/);
+  assert.match(gateway, /rotate across your \$\{keyCount\} saved keys/);
   assert.match(notices, /if \(primary === answeredBy\) return null/);
+});
+
+test("personal keys stay in the Vercel gateway where rotation and cooldown are enforced", async () => {
+  const proxyClient = await readFile(new URL("../src/lib/proxy.ts", import.meta.url), "utf8");
+
+  assert.match(proxyClient, /key\.source === "user"/);
+  assert.match(proxyClient, /usesPersonalKeys/);
 });

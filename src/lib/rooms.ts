@@ -5,6 +5,7 @@ import { MessageRole, RoomMessageRole, type Character, type UserPersona } from "
 import { HttpError } from "@/lib/api";
 import { resolveCharacterModelSettings } from "@/lib/character-model-settings";
 import { createRoomMessageWithNextSequence } from "@/lib/message-sequence";
+import { containsRussianLanguage, RUSSIAN_LANGUAGE_ERROR } from "@/lib/language-policy";
 import { estimateModelCost } from "@/lib/model-pricing";
 import { assembleNytheraPrompt } from "@/lib/prompt-assembly";
 import { loadAdaptiveRoomHistory } from "@/lib/chat-history";
@@ -47,7 +48,7 @@ type RoomMessageInput = {
 
 export async function listRoomsForUser(userId: string) {
   return prisma.room.findMany({
-    where: { userId, archivedAt: null },
+    where: { OR: [{ userId }, { members: { some: { userId } } }], archivedAt: null },
     orderBy: [{ lastActiveAt: "desc" }, { updatedAt: "desc" }],
     include: {
       characters: {
@@ -73,7 +74,7 @@ export async function listRoomsForUser(userId: string) {
 
 export async function getRoomForUser(roomId: string, userId: string) {
   const room = await prisma.room.findFirst({
-    where: { id: roomId, userId, archivedAt: null },
+    where: { id: roomId, OR: [{ userId }, { members: { some: { userId } } }], archivedAt: null },
     include: roomInclude()
   });
 
@@ -125,6 +126,7 @@ export async function createRoomForUser(user: RoomUser, input: RoomInput) {
         model: input.model || settings.model,
         temperature: settings.temperature,
         responsePrompt: input.responsePrompt?.trim() || null,
+        inviteCode: crypto.randomBytes(12).toString("base64url"),
         messageCount: orderedCharacters.length,
         characters: {
           create: orderedCharacters.map((character, position) => ({
@@ -194,6 +196,9 @@ export async function sendRoomMessage(input: {
   const started = Date.now();
   const rawMessage = input.body.message;
   const message = sanitizeUserText(rawMessage);
+  if (containsRussianLanguage(message)) {
+    throw new HttpError(400, RUSSIAN_LANGUAGE_ERROR);
+  }
   const injectionAssessment = detectPromptInjection(message);
   const moderation = moderateText({
     text: message,
@@ -206,7 +211,7 @@ export async function sendRoomMessage(input: {
   }
 
   const room = await prisma.room.findFirst({
-    where: { id: input.roomId, userId: input.user.id, archivedAt: null },
+    where: { id: input.roomId, OR: [{ userId: input.user.id }, { members: { some: { userId: input.user.id, role: "PLAYER" } } }], archivedAt: null },
     include: {
       persona: true,
       characters: {
@@ -260,6 +265,7 @@ export async function sendRoomMessage(input: {
     roomId: room.id,
     role: RoomMessageRole.USER,
     content: message,
+    actorUserId: input.user.id,
     clientRequestId: input.body.requestId
   });
 
@@ -274,9 +280,9 @@ export async function sendRoomMessage(input: {
     prisma.userPersona.findFirst({
       where: { userId: input.user.id, isDefault: true }
     }),
-    getRoomStoryPromptContext({ roomId: room.id, userId: input.user.id, actorCharacterId: speaker.id })
+    getRoomStoryPromptContext({ roomId: room.id, userId: room.userId, actorCharacterId: speaker.id })
   ]);
-  const userPersona = room.persona ?? defaultPersona;
+  const userPersona = room.userId === input.user.id ? room.persona ?? defaultPersona : defaultPersona;
   const recentMessages = history.messages
     .map((roomMessage) => ({
       role: roomMessage.role === RoomMessageRole.CHARACTER ? MessageRole.ASSISTANT : roomMessage.role === RoomMessageRole.SYSTEM ? MessageRole.SYSTEM : MessageRole.USER,
@@ -413,7 +419,7 @@ export async function sendRoomMessage(input: {
     }
   });
 
-  await syncRoomTurns(room.id, input.user.id).catch((storyError) => {
+  await syncRoomTurns(room.id, room.userId).catch((storyError) => {
     logSafeError("Room story turn sync failed.", storyError);
   });
   await markStoryProactiveEventsFired({
@@ -438,6 +444,7 @@ export async function sendRoomMessage(input: {
 
 function roomInclude() {
   return {
+    members: { include: { user: { select: { id: true, name: true, image: true } } }, orderBy: { joinedAt: "asc" as const } },
     persona: true,
     characters: {
       orderBy: { position: "asc" as const },
@@ -462,7 +469,8 @@ function roomInclude() {
       include: {
         character: {
           select: { id: true, name: true, avatarUrl: true }
-        }
+        },
+        actorUser: { select: { id: true, name: true, image: true } }
       }
     }
   };
