@@ -9,6 +9,7 @@ import type { ProviderKey } from "@/lib/user-keys";
 const GEMINI_IMAGE_MODEL = "gemini-3.1-flash-image";
 const OPENAI_IMAGE_MODEL = "gpt-image-2";
 const GEMINI_INTERACTIONS_URL = "https://generativelanguage.googleapis.com/v1beta/interactions";
+const GEMINI_IMAGE_MIME_TYPE = "image/jpeg";
 
 type ImageProvider = "gemini" | "openai";
 
@@ -75,7 +76,7 @@ async function generateWithGemini(key: ProviderKey, prompt: string): Promise<Gen
       input: [{ type: "text", text: prompt }],
       response_format: {
         type: "image",
-        mime_type: "image/png",
+        mime_type: GEMINI_IMAGE_MIME_TYPE,
         aspect_ratio: "1:1",
         image_size: "1K"
       }
@@ -179,11 +180,12 @@ function classifyProviderFailure(provider: ImageProvider, error: unknown): Provi
   const code = typeof record.code === "string" ? record.code.toLowerCase() : "";
   const message = error instanceof Error ? error.message.toLowerCase() : "";
   const label = providerLabel(provider);
+  const providerMessage = `${code} ${message}`;
 
   if (status === 401 || status === 403 || code.includes("api_key")) {
     return { provider, status: 400, message: `${label} rejected this API key. Update it in Settings.` };
   }
-  if (status === 429 && /quota|billing|credit|balance|spend/.test(`${code} ${message}`)) {
+  if ([400, 402, 429].includes(status) && /quota|billing|credit|balance|spend|hard limit/.test(providerMessage)) {
     return { provider, status: 429, message: `${label} API credits or spending limit are exhausted.` };
   }
   if (status === 429) {
@@ -192,7 +194,7 @@ function classifyProviderFailure(provider: ImageProvider, error: unknown): Provi
   if (status === 404 || code.includes("model") || message.includes("model not found")) {
     return { provider, status: 400, message: `${label} image generation is not available for this key.` };
   }
-  if (status === 400 && /safety|policy|blocked|responsible/.test(`${code} ${message}`)) {
+  if (status === 400 && /safety|policy|blocked|responsible/.test(providerMessage)) {
     return { provider, status: 400, message: `${label} could not illustrate this scene. Adjust the scene description and try again.` };
   }
   if (status === 400) {

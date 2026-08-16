@@ -34,7 +34,10 @@ test("scene illustration uses Gemini and current OpenAI image models through BYO
 
   assert.match(generation, /gemini-3\.1-flash-image/);
   assert.match(generation, /generativelanguage\.googleapis\.com\/v1beta\/interactions/);
+  assert.match(generation, /GEMINI_IMAGE_MIME_TYPE = "image\/jpeg"/);
   assert.match(generation, /gpt-image-2/);
+  assert.match(generation, /\[400, 402, 429\]\.includes\(status\)/);
+  assert.match(generation, /hard limit/);
   assert.match(generation, /credits or spending limit are exhausted/);
   assert.match(route, /generateSceneImageWithFallback/);
   assert.match(route, /provider: generated\.provider/);
