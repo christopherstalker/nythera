@@ -16,7 +16,10 @@ test("fixed Roleplay Engine is ordered below safety and above all configurable c
     "characterContractLayer,",
     "storyContextLayer,",
     "responsePromptLayer,",
-    "memoryLayer,"
+    "memoryLayer,",
+    "userPersonaLayer,",
+    "translationLayer,",
+    "physicalContinuityLayer"
   ];
   let cursor = -1;
   for (const layer of orderedLayers) {
