@@ -55,6 +55,7 @@ test("response sizes have hard prompt ranges and matching provider caps", () => 
 test("explicit character and player heights become authoritative spatial constraints", () => {
   const layer = buildPhysicalContinuityLayer(
     {
+      name: "Marek",
       description: "Marek is 178 cm tall.",
       personality: "Reserved and observant.",
       scenario: null
@@ -62,9 +63,42 @@ test("explicit character and player heights become authoritative spatial constra
     "Active user persona: Rowan\nUser persona summary: Rowan is 213 cm tall."
   );
 
-  assert.match(layer ?? "", /Character measurements: Marek is 178 cm tall/);
-  assert.match(layer ?? "", /Player measurements: .*Rowan is 213 cm tall/);
-  assert.match(layer ?? "", /Do not describe a shorter standing character as looking down at a taller standing character/);
+  assert.match(layer ?? "", /Canonical character height \(Marek\): 178 cm/);
+  assert.match(layer ?? "", /Canonical player height: 213 cm/);
+  assert.match(layer ?? "", /player is 35 cm taller than Marek/);
+  assert.match(layer ?? "", /Marek must look up to meet the player's eyes/);
+  assert.match(layer ?? "", /Forbidden.*Marek looking down at/);
+});
+
+test("imperial heights are normalized before deriving the standing eye line", () => {
+  const layer = buildPhysicalContinuityLayer(
+    {
+      name: "Noah",
+      description: "Noah's height is 5 ft 10 in.",
+      personality: "Reserved and observant.",
+      scenario: null
+    },
+    "User persona summary: Height: 6'4\"."
+  );
+
+  assert.match(layer ?? "", /Canonical character height \(Noah\): 178 cm/);
+  assert.match(layer ?? "", /Canonical player height: 193 cm/);
+  assert.match(layer ?? "", /player is 15 cm taller than Noah/);
+});
+
+test("near-equal heights produce a level eye line instead of arbitrary dominance", () => {
+  const layer = buildPhysicalContinuityLayer(
+    {
+      name: "Ari",
+      description: "Ari is 180 cm tall.",
+      personality: "Direct.",
+      scenario: null
+    },
+    "User persona summary: 182 cm tall."
+  );
+
+  assert.match(layer ?? "", /approximately the same height/);
+  assert.match(layer ?? "", /describe their eye line as level/);
 });
 
 test("maximum romance is an actionable direction while zero remains non-romantic", () => {
