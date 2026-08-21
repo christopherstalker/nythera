@@ -99,7 +99,8 @@ export const communicationStyleSchema = z.object({
   seriousness: z.coerce.number().min(0).max(10).optional(),
   initiative: z.coerce.number().min(0).max(10).optional(),
   messageLength: z.enum(["short", "medium", "long"]).optional(),
-  roleplayIntensity: z.coerce.number().min(0).max(10).optional()
+  roleplayIntensity: z.coerce.number().min(0).max(10).optional(),
+  prologuePov: z.enum(["second", "third"]).optional()
 });
 
 const personaListSchema = z.array(z.string().trim().min(1).max(160)).max(16);
@@ -150,7 +151,7 @@ export const characterCreateSchema = z.object({
   description: z.string().min(10).max(5000),
   personality: z.string().min(20).max(5000),
   scenario: z.string().max(5000).optional(),
-  greeting: z.string().min(2).max(2000),
+  greeting: z.string().min(2),
   communicationStyle: communicationStyleSchema.optional(),
   persona: characterPersonaSchema.optional(),
   lorebook: characterLorebookSchema.optional(),
@@ -238,6 +239,24 @@ export const streamMessageSchema = z
     message: "Message is required.",
     path: ["message"]
   });
+
+export const mobileStreamMessageSchema = streamMessageSchema.superRefine((input, context) => {
+  const unsupported = [
+    input.regenerate ? "regenerate" : null,
+    input.regenerateMessageId ? "regenerateMessageId" : null,
+    input.retryUserMessageId ? "retryUserMessageId" : null,
+    input.attachmentIds.length > 0 ? "attachmentIds" : null,
+    input.continueMessageId ? "continueMessageId" : null,
+    input.branchMessageId ? "branchMessageId" : null
+  ].filter((field): field is string => Boolean(field));
+  if (unsupported.length > 0) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Mobile chat does not support: ${unsupported.join(", ")}.`,
+      path: [unsupported[0]]
+    });
+  }
+});
 
 export const registerSchema = z.object({
   email: z.string().trim().email(),

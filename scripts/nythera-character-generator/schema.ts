@@ -40,7 +40,7 @@ export const NytheraCharacterSeedSchema = z
     emotional_hook: z.string().min(12).max(240),
     persona: NytheraPersonaSchema,
     scenario: z.string().min(40).max(1200),
-    greeting: z.string().min(220).max(2200),
+    greeting: z.string().min(220),
     conversation_hooks: z.array(z.string().min(10).max(220)).min(4).max(12),
     tags: z.array(z.string().min(2).max(40)).min(4).max(18)
   })
@@ -117,4 +117,3 @@ export function toPrismaCharacterFields(seed: NytheraCharacterSeed) {
     communicationStyle
   };
 }
-

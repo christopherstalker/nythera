@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createHmac, timingSafeEqual } from "crypto";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { HttpError } from "@/lib/api";
@@ -176,41 +177,54 @@ export async function findOrCreateGoogleMobileUser(google: Awaited<ReturnType<ty
   }
 
   const email = google.email.toLowerCase();
-  const existing = await prisma.user.findUnique({ where: { email } });
-  const user =
-    existing ??
-    (await prisma.user.create({
-      data: {
-        email,
-        emailVerified: new Date(),
-        name: google.name,
-        image: google.picture
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const existing = await tx.user.findUnique({ where: { email }, select: { id: true } });
+      if (existing) {
+        throw new HttpError(409, "An account already uses this email. Sign in with its existing method before linking Google.");
       }
-    }));
 
-  if (user.bannedAt) {
-    throw new HttpError(403, "This account cannot access the platform.");
-  }
-
-  await prisma.account.upsert({
-    where: {
-      provider_providerAccountId: {
-        provider: "google",
-        providerAccountId: google.sub
-      }
-    },
-    create: {
-      userId: user.id,
-      type: "oauth",
-      provider: "google",
-      providerAccountId: google.sub
-    },
-    update: {
-      userId: user.id
+      const user = await tx.user.create({
+        data: {
+          email,
+          emailVerified: new Date(),
+          name: google.name,
+          image: google.picture
+        }
+      });
+      await tx.account.create({
+        data: {
+          userId: user.id,
+          type: "oauth",
+          provider: "google",
+          providerAccountId: google.sub
+        }
+      });
+      return user;
+    });
+  } catch (error) {
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") {
+      throw error;
     }
-  });
 
-  return user;
+    const concurrentAccount = await prisma.account.findUnique({
+      where: {
+        provider_providerAccountId: {
+          provider: "google",
+          providerAccountId: google.sub
+        }
+      },
+      include: { user: true }
+    });
+    if (concurrentAccount?.user) {
+      if (concurrentAccount.user.bannedAt) {
+        throw new HttpError(403, "This account cannot access the platform.");
+      }
+      return concurrentAccount.user;
+    }
+
+    throw new HttpError(409, "An account already uses this email. Sign in with its existing method before linking Google.");
+  }
 }
 
 export function publicMobileUser(user: {

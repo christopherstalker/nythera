@@ -7,7 +7,8 @@ import { moderateText, sanitizeUserText } from "@/lib/safety";
 import { detectPromptInjection, sanitizePromptContext } from "@/lib/prompt-security";
 import { streamMessageSchema } from "@/lib/validation";
 import { assembleNytheraPrompt } from "@/lib/prompt-assembly";
-import { buildFullPromptAddon, modeTemperature } from "@/lib/prompts/buildPrompt";
+import { buildPromptAddonLayers, modeTemperature } from "@/lib/prompts/buildPrompt";
+import { selectCustomPrompt } from "@/lib/response-prompt";
 import { formatTieredMemoryBlocks, getUserMemories, splitMemoriesForPrompt } from "@/lib/memory/promptBuilder";
 import { getPromptMemories } from "@/lib/memory-store";
 import { normalizeChatMode } from "@/lib/chat-mode";
@@ -28,7 +29,7 @@ import { logSafeError } from "@/lib/secret-redaction";
 import { requireAdultConsent } from "@/lib/adult-consent";
 import { schedulePostResponseTasks } from "@/lib/post-response";
 import { resolveCharacterPersona } from "@/lib/persona";
-import { maxOutputTokensForVerbosity, providerOutputTokenBudget } from "@/lib/response-length";
+import { maxOutputTokensForVerbosity } from "@/lib/response-length";
 import { loadPromptImages, resolveOwnedChatAssets, serializeAsset } from "@/lib/chat-media";
 import { containsRussianLanguage, RUSSIAN_LANGUAGE_ERROR } from "@/lib/language-policy";
 
@@ -116,11 +117,6 @@ export async function POST(request: Request, context: Context) {
     const model = effectiveSettings.model;
     const characterPersona = resolveCharacterPersona(chat.character);
     const maxOutputTokens = maxOutputTokensForVerbosity(characterPersona.verbosityLevel, effectiveSettings.maxTokens);
-    const providerMaxOutputTokens = providerOutputTokenBudget({
-      visibleTokenLimit: maxOutputTokens,
-      provider: effectiveSettings.provider,
-      model
-    });
     let temperature = effectiveSettings.temperature;
     if (!isUserOwnedProvider(effectiveSettings.provider, providerKeys)) {
       await enforceRateLimit({
@@ -237,7 +233,9 @@ export async function POST(request: Request, context: Context) {
     const chatMode = normalizeChatMode(chat.chatMode);
     const tieredMemories = splitMemoriesForPrompt(memories, userGlobalMemories);
     const { characterMemories, userMemories } = formatTieredMemoryBlocks(tieredMemories);
-    const modeContext = buildFullPromptAddon({
+    const responsePrompt = input.responsePrompt ?? chat.responsePrompt;
+    const customPromptActive = Boolean(selectCustomPrompt(responsePrompt, effectiveSettings.systemPromptOverride));
+    const promptAddon = buildPromptAddonLayers({
       mode: chatMode,
       characterMemories,
       userMemories
@@ -252,15 +250,17 @@ export async function POST(request: Request, context: Context) {
       recentMessages,
       currentMessage: message,
       currentImages,
-      responsePrompt: input.responsePrompt ?? chat.responsePrompt,
+      responsePrompt,
       storyContext: storyContext.text,
+      factualStoryContext: storyContext.factualText,
       injectionAssessment,
       branchInstruction,
-      modeContext,
+      modeContext: promptAddon.modeStyle,
+      sessionMemoryContext: promptAddon.sessionMemory,
       translationLanguage: chat.translationLanguage
     });
 
-    temperature = modeTemperature(chatMode, input.temperature ?? chat.temperature ?? temperature);
+    temperature = customPromptActive ? effectiveSettings.temperature : modeTemperature(chatMode, effectiveSettings.temperature);
 
     const encoder = new TextEncoder();
     let assistantText = "";
@@ -319,7 +319,7 @@ export async function POST(request: Request, context: Context) {
             topP: effectiveSettings.topP,
             frequencyPenalty: effectiveSettings.frequencyPenalty,
             presencePenalty: effectiveSettings.presencePenalty,
-            maxTokens: providerMaxOutputTokens,
+            maxTokens: maxOutputTokens,
             userId: user.id,
             chatId: chat.id,
             providerKeys,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { compressImageFile } from "@/lib/image-upload";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +11,7 @@ type ImageFilePickerProps = {
   disabled?: boolean;
   className?: string;
   inputClassName?: string;
+  ariaLabel?: string;
   children: React.ReactNode;
 };
 
@@ -21,15 +22,17 @@ export function ImageFilePicker({
   disabled = false,
   className,
   inputClassName,
+  ariaLabel = "Choose image",
   children
 }: ImageFilePickerProps) {
   const inputId = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const isDisabled = disabled || uploading;
 
   async function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
+    const input = event.currentTarget;
+    const file = input.files?.[0];
 
     if (!file) {
       return;
@@ -44,25 +47,47 @@ export function ImageFilePicker({
     } catch (error) {
       onError?.(error instanceof Error ? error.message : "Could not read image.");
     } finally {
+      input.value = "";
       setUploading(false);
       onUploadingChange?.(false);
     }
   }
 
+  function openFileDialog() {
+    if (isDisabled) return;
+
+    const input = inputRef.current;
+    if (!input) return;
+
+    input.value = "";
+    input.click();
+  }
+
   return (
-    <label
-      htmlFor={inputId}
-      className={cn("relative block", isDisabled ? "pointer-events-none opacity-60" : "cursor-pointer", className)}
-    >
+    <div className="relative block min-w-0">
       <input
+        ref={inputRef}
         id={inputId}
         type="file"
         accept="image/*"
-        disabled={isDisabled}
+        disabled={disabled}
         onChange={handleChange}
-        className={cn("absolute inset-0 z-20 h-full w-full cursor-pointer opacity-[0.001]", inputClassName)}
+        className={cn("sr-only", inputClassName)}
       />
-      {children}
-    </label>
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        aria-controls={inputId}
+        disabled={isDisabled}
+        onClick={openFileDialog}
+        className={cn(
+          "block w-full min-w-0 appearance-none border-0 bg-transparent p-0 text-inherit",
+          isDisabled ? "cursor-wait opacity-60" : "cursor-pointer",
+          className
+        )}
+      >
+        {children}
+      </button>
+    </div>
   );
 }

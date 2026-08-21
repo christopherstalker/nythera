@@ -34,15 +34,15 @@ export function FormattedTextarea({ value, onChange, previewLabel = "Rendered pr
   }
 
   return (
-    <div className="overflow-hidden rounded-[var(--radius-control)] border border-[var(--border-default)] bg-[var(--bg-input)] focus-within:border-[var(--accent-purple)]">
-      <RichTextToolbar textareaRef={textareaRef} value={value} onChange={onChange} compact className="border-b border-[var(--border-subtle)] px-2 py-1.5" />
+    <div className="w-full min-w-0 max-w-full overflow-hidden rounded-[var(--radius-control)] border border-[var(--border-default)] bg-[var(--bg-input)] focus-within:border-[var(--accent-purple)]">
+      <RichTextToolbar textareaRef={textareaRef} value={value} onChange={onChange} compact className="max-w-full border-b border-[var(--border-subtle)] px-2 py-1.5" />
       <Textarea
         ref={textareaRef}
         {...props}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={handleKeyDown}
-        className={cn("rounded-none border-0 bg-transparent focus:border-transparent", className)}
+        className={cn("w-full min-w-0 max-w-full rounded-none border-0 bg-transparent focus:border-transparent", className)}
       />
       {value.trim() ? (
         <div className="border-t border-[var(--border-subtle)] px-4 py-3">

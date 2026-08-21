@@ -12,7 +12,7 @@ const promptGeneratedSchema = z.object({
   description: z.string().trim().min(10).max(5000),
   personality: z.string().trim().min(20).max(5000),
   scenario: z.string().trim().min(20).max(5000),
-  greeting: z.string().trim().min(80).max(2000),
+  greeting: z.string().trim().min(80),
   tags: z.array(z.string().trim().min(1).max(32)).min(1).max(12),
   isNSFW: z.boolean().optional(),
   archetype: z.string().trim().min(2).max(120),

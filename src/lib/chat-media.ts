@@ -3,7 +3,7 @@ import "server-only";
 import { get } from "@vercel/blob";
 import type { MediaAsset, MessageAttachment } from "@prisma/client";
 import { HttpError } from "@/lib/api";
-import { CHAT_IMAGE_TYPES, MAX_CHAT_IMAGE_ATTACHMENTS, MAX_CHAT_IMAGE_BYTES, type ChatImageAttachment, type ChatImageType } from "@/lib/chat-attachments";
+import { CHAT_IMAGE_BLOB_ACCESS, CHAT_IMAGE_TYPES, MAX_CHAT_IMAGE_ATTACHMENTS, MAX_CHAT_IMAGE_BYTES, type ChatImageAttachment, type ChatImageType } from "@/lib/chat-attachments";
 import { prisma } from "@/lib/prisma";
 import type { PromptImage } from "@/types";
 
@@ -62,7 +62,7 @@ export async function loadPromptImages(assets: MediaAsset[]): Promise<PromptImag
       throw new HttpError(400, "Unsupported image attachment.");
     }
 
-    const blob = await get(asset.pathname, { access: "private" });
+    const blob = await get(asset.pathname, { access: CHAT_IMAGE_BLOB_ACCESS });
     if (!blob || blob.statusCode !== 200 || blob.blob.size > MAX_CHAT_IMAGE_BYTES) {
       throw new HttpError(400, "An attached image could not be loaded.");
     }

@@ -96,7 +96,7 @@ export function ChatToolsMenu({
               <span><span className="block text-xs font-semibold text-[var(--text-primary)]">Photos</span><span className="mt-0.5 block text-[10px]">Attach an image</span></span>
               <input
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
+                accept="image/*"
                 multiple
                 className="sr-only"
                 disabled={imageUploading || imageLimitReached}
@@ -109,7 +109,7 @@ export function ChatToolsMenu({
 
             <button type="button" role="menuitem" onClick={() => run(onOpenLookbook)} className={menuItemClass}>
               <Images className="h-4 w-4 shrink-0" />
-              <span><span className="block text-xs font-semibold text-[var(--text-primary)]">Lookbook</span><span className="mt-0.5 block text-[10px]">Saved looks</span></span>
+              <span><span className="block text-xs font-semibold text-[var(--text-primary)]">Lookbook</span><span className="mt-0.5 block text-[10px]">Reusable images</span></span>
             </button>
 
             <button type="button" role="menuitem" onClick={() => run(onGenerateScene)} disabled={generatingScene} className={menuItemClass}>

@@ -19,6 +19,13 @@ export type ProviderErrorClassification = {
 export function classifyProviderError(error: unknown): ProviderErrorClassification {
   const status = readStatus(error);
   const rawMessage = readMessage(error).toLowerCase();
+  const reportsTemporaryOutage =
+    rawMessage.includes("temporarily unavailable") ||
+    rawMessage.includes("service unavailable") ||
+    rawMessage.includes("provider unavailable") ||
+    rawMessage.includes("provider is unavailable") ||
+    rawMessage.includes("overloaded") ||
+    rawMessage.includes("try again later");
 
   if (status === 401 || status === 403 || rawMessage.includes("api key not valid")) {
     return {
@@ -32,7 +39,7 @@ export function classifyProviderError(error: unknown): ProviderErrorClassificati
   if (status === 402) {
     return {
       code: "insufficient_balance",
-      message: "DeepSeek accepted the API key, but the account has no available balance. Add funds in DeepSeek or choose another provider.",
+      message: "The provider account cannot cover this request. Add credits, reduce the response length, or choose another provider.",
       status,
       retryable: false
     };
@@ -65,7 +72,7 @@ export function classifyProviderError(error: unknown): ProviderErrorClassificati
     };
   }
 
-  if (status !== null && status >= 500) {
+  if ((status !== null && status >= 500) || reportsTemporaryOutage) {
     return {
       code: "provider_unavailable",
       message: "The selected model provider is temporarily unavailable. Try again shortly.",

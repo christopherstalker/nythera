@@ -1,5 +1,6 @@
 import type { MessageLength } from "@/lib/response-length";
 import type { ChatMode } from "@/lib/chat-mode";
+import type { ProloguePov } from "@/lib/prologue-pov";
 
 export type CharacterVisibility = "PRIVATE" | "PUBLIC" | "UNLISTED";
 export type CharacterCreationMode = "simple" | "custom";
@@ -38,6 +39,7 @@ export type CharacterFormValue = {
   initiative: number;
   messageLength: MessageLength;
   roleplayIntensity: number;
+  prologuePov: ProloguePov;
   preferredProvider: string;
   preferredModel: string;
   temperature: number | null;
@@ -173,6 +175,7 @@ export const emptyCharacterDraft: CharacterFormValue = {
   initiative: 5,
   messageLength: "medium",
   roleplayIntensity: 5,
+  prologuePov: "second",
   preferredProvider: "",
   preferredModel: "",
   temperature: null,

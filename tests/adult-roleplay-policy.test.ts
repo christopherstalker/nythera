@@ -28,7 +28,7 @@ test("power dynamics use explicit character facts and never gender stereotypes",
 test("platform prompt orders adult policy above configurable character instructions", async () => {
   const assembly = await read("../src/lib/prompt-assembly.ts");
 
-  assert.match(assembly, /safetyLayer,[\s\S]*adultRoleplayPolicyLayer,[\s\S]*characterSystemOverrideLayer/);
+  assert.match(assembly, /safetyLayer,[\s\S]*adultRoleplayPolicyLayer,[\s\S]*customPromptLayer/);
   assert.match(assembly, /Character tags:/);
 });
 

@@ -20,6 +20,7 @@ import { getPromptMemories } from "@/lib/memory-store";
 import { ensureStoryForRoom, getRoomStoryPromptContext, syncRoomTurns } from "@/lib/stories/story-foundation";
 import { markStoryProactiveEventsFired } from "@/lib/stories/narrative-store";
 import { logSafeError } from "@/lib/secret-redaction";
+import { renderCharacterPrologue } from "@/lib/prologue-pov";
 
 type RoomUser = {
   id: string;
@@ -106,7 +107,7 @@ export async function createRoomForUser(user: RoomUser, input: RoomInput) {
   const providerKeys = await getEffectiveProviderKeys(user.id);
   const defaultPersona = await prisma.userPersona.findFirst({
     where: { userId: user.id, isDefault: true },
-    select: { id: true }
+    select: { id: true, displayName: true }
   });
   const primary = orderedCharacters[0];
   const settings = resolveCharacterModelSettings({
@@ -145,7 +146,12 @@ export async function createRoomForUser(user: RoomUser, input: RoomInput) {
             sequence: index + 1,
             role: RoomMessageRole.CHARACTER,
             characterId: character.id,
-            content: character.greeting,
+            content: renderCharacterPrologue({
+              greeting: character.greeting,
+              characterName: character.name,
+              communicationStyle: character.communicationStyle,
+              userPersonaName: defaultPersona?.displayName
+            }),
             model: room.model
           }
         })
@@ -295,13 +301,13 @@ export async function sendRoomMessage(input: {
     summary: history.overflowed ? room.summary : null,
     recentMessages,
     currentMessage: message,
-    responsePrompt: buildRoomResponsePrompt({
-      roomPrompt: room.responsePrompt,
-      transientPrompt: undefined,
+    responsePrompt: room.responsePrompt?.trim() || null,
+    modeContext: buildGroupRoomRules({
       speaker,
       characters: room.characters.map((link) => link.character)
     }),
     storyContext: storyContext.text,
+    factualStoryContext: storyContext.factualText,
     injectionAssessment
   });
 
@@ -516,9 +522,7 @@ function formatRoomMessageForPrompt(message: {
   return `User: ${message.content}`;
 }
 
-function buildRoomResponsePrompt(input: {
-  roomPrompt?: string | null;
-  transientPrompt?: string;
+function buildGroupRoomRules(input: {
   speaker: Character;
   characters: Character[];
 }) {
@@ -529,10 +533,7 @@ function buildRoomResponsePrompt(input: {
     `Room cast: ${cast}.`,
     "- Lead the turn with the current speaker while keeping other present NPCs believably active when scene logic calls for it.",
     "- Do not write the user's next message.",
-    "- Keep continuity with the other characters' visible turns.",
-    input.roomPrompt?.trim() ? `Room direction: ${input.roomPrompt.trim()}` : null,
-    input.transientPrompt?.trim() ? `Turn direction: ${input.transientPrompt.trim()}` : null
+    "- Keep continuity with the other characters' visible turns."
   ]
-    .filter(Boolean)
     .join("\n");
 }

@@ -73,7 +73,8 @@ test("guided creation preserves authored personality and scenario", () => {
     seriousness: 8,
     initiative: 6,
     messageLength: "medium",
-    roleplayIntensity: 9
+    roleplayIntensity: 9,
+    prologuePov: "second"
   });
 });
 
@@ -96,6 +97,7 @@ test("response length is normalized and persisted from the shared behavior contr
   assert.equal(verbosityForMessageLength("short"), "concise");
   assert.equal(verbosityForMessageLength("long"), "immersive");
   assert.match(responseLengthTarget("concise"), /1-2 compact paragraphs.*60-140 words/);
+  assert.match(responseLengthTarget("balanced"), /3-4 developed paragraphs.*200-300 words.*hard maximum.*fifth paragraph/);
   assert.match(responseLengthTarget("immersive"), /4-7 immersive paragraphs.*320-650 words/);
 });
 
@@ -111,6 +113,13 @@ test("guided submit saves directly while optional drafting fills only empty fiel
   assert.match(form, /label="Scenario \/ world"/);
   assert.match(form, /Draft empty fields/);
   assert.match(form, /setDraft\(\(current\) => applyGeneratedPreview\(current, preview\)\)/);
+  assert.match(form, /<form noValidate onSubmit=\{onSubmit\}/);
+  assert.match(form, /id="character-name"[\s\S]*?minLength=\{2\}/);
+  assert.match(form, /id="character-description"[\s\S]*?minLength=\{10\}/);
+  assert.match(form, /disabled=\{saving\}/);
+  assert.doesNotMatch(form, /disabled=\{saving \|\| !canSubmit\}/);
+  assert.match(submit, /revealFormError\("Enter a character name[\s\S]*?"identity", "character-name"\)/);
+  assert.match(submit, /revealFormError\("Describe the character's core idea[\s\S]*?"identity", "character-description"\)/);
 
   const guidedPublishing = form.slice(
     form.indexOf('id="publishing" number="04"'),
@@ -123,6 +132,9 @@ test("guided submit saves directly while optional drafting fills only empty fiel
   assert.match(guidedPublishing, /onMessageLengthChange=\{\(value\) => update\("messageLength", value\)\}/);
   assert.doesNotMatch(form, /label="Message length"/);
   assert.match(form, /Response length/);
+  assert.match(form, /Prologue point of view/);
+  assert.match(form, /Second person — narrates to you/);
+  assert.match(form, /Third person — describes your persona/);
 
   const behaviorSliderDefinition = form.slice(
     form.indexOf("const behaviorSliderFields"),
@@ -142,4 +154,12 @@ test("prompt generator controls never submit the parent character form", async (
   assert.match(generator, /type="button"[^>]*onClick=\{\(\) => void generate\(\)\}/);
   assert.match(generator, /type="button"[^>]*onClick=\{\(\) => onApply\(preview\)\}/);
   assert.equal(generator.match(/<GlassButton type="button"/g)?.length, 3);
+});
+
+test("prompt generation returns a local character draft after provider failover is exhausted", async () => {
+  const generator = await readFile(new URL("../src/lib/generation/characterGenerator.ts", import.meta.url), "utf8");
+
+  assert.match(generator, /try \{[\s\S]*callJsonStage/);
+  assert.match(generator, /catch \(error\) \{[\s\S]*return localFallback\(concept, input\.fallbackName\)/);
+  assert.match(generator, /logSafeError\("Character generation failed after provider failover; using a local draft\."/);
 });

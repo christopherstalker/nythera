@@ -10,10 +10,10 @@ export const RESPONSE_LENGTH_OPTIONS = [
   {
     value: "medium",
     label: "Medium",
-    description: "2-4 developed paragraphs",
-    promptInstruction: "Write 2-4 developed paragraphs and stay within 140-320 words.",
+    description: "3-4 developed paragraphs",
+    promptInstruction: "Write 3-4 developed paragraphs and stay within 200-300 words. Four paragraphs is a hard maximum; never add a fifth paragraph.",
     verbosityLevel: "balanced",
-    maxOutputTokens: 520
+    maxOutputTokens: 480
   },
   {
     value: "long",
@@ -63,10 +63,14 @@ export function maxOutputTokensForVerbosity(verbosity: ResponseVerbosity, config
 }
 
 export function providerOutputTokenBudget(input: {
-  visibleTokenLimit: number;
+  visibleTokenLimit?: number | null;
   provider?: string | null;
   model?: string | null;
 }) {
+  if (input.visibleTokenLimit == null) {
+    return undefined;
+  }
+
   const provider = input.provider?.trim().toLowerCase() ?? "";
 
   if (provider !== "gemini") {

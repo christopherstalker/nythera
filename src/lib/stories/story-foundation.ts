@@ -638,7 +638,64 @@ async function buildStoryPromptContext(
         : "Checkpoint omitted because the user selected an earlier response branch; rely on the selected recent turns."
   ].join("\n");
 
-  return { ...foundation, text, eventIds: dueEvents.map((event) => event.id) };
+  const factualParticipantStateLines = story.participantStates
+    .filter((state) => !actor || state.participantId === actor.id)
+    .map((state) => {
+      const details = [
+        state.displayNameOverride ? `name ${state.displayNameOverride}` : null,
+        state.pronouns ? `pronouns ${state.pronouns}` : null,
+        state.currentMood ? `mood ${state.currentMood}` : null,
+        state.appearance ? `appearance ${sanitizePromptContext(state.appearance, 400)}` : null,
+        state.currentGoal ? `goal ${sanitizePromptContext(state.currentGoal, 400)}` : null,
+        state.innerConflict ? `inner conflict ${sanitizePromptContext(state.innerConflict, 400)}` : null
+      ].filter(Boolean);
+      return `- ${state.participant.displayName}: ${details.join("; ")}`;
+    });
+  const factualText = [
+    "STORY SAFETY SETTINGS (FACTUAL CONTEXT)",
+    safety
+      ? [
+          `Content rating: ${safety.contentRating}.`,
+          `Session paused: ${safety.paused ? "yes" : "no"}.`,
+          `Hard limits: ${safety.hardLimits.join("; ") || "none recorded"}.`,
+          `Soft limits: ${safety.softLimits.join("; ") || "none recorded"}.`,
+          `Fade-to-black topics: ${safety.fadeToBlack.join("; ") || "none recorded"}.`,
+          safety.notes ? `Safety notes: ${sanitizePromptContext(safety.notes, 900)}` : null
+        ].filter(Boolean).join("\n")
+      : "No story-specific safety settings are recorded.",
+    "",
+    "STORY CANON (FACTUAL CONTEXT)",
+    factLines.length > 0 ? factLines.join("\n") : "No structured canon facts have been recorded yet.",
+    "",
+    "CURRENT WORLD STATE (FACTUAL CONTEXT)",
+    sanitizePromptContext(JSON.stringify(world), 2200),
+    "",
+    "ACTIVE STORY ARCS (FACTUAL CONTEXT)",
+    story.arcs.length > 0
+      ? story.arcs.map((arc) => `- ${arc.title} (${arc.progress}%): ${sanitizePromptContext(arc.premise, 500)}`).join("\n")
+      : "No explicit arc is active.",
+    "",
+    "OPEN STORY HOOKS (FACTUAL CONTEXT)",
+    story.hooks.length > 0
+      ? story.hooks.slice(0, 8).map((hook) => `- ${hook.title}: ${sanitizePromptContext(hook.description, 420)}`).join("\n")
+      : "No unresolved hooks are recorded.",
+    "",
+    "RELATIONSHIP STATE (FACTUAL CONTEXT)",
+    relationshipLines.length > 0 ? relationshipLines.join("\n") : "No explicit relationship meters are recorded.",
+    "",
+    "DYNAMIC PARTICIPANT STATE (FACTUAL CONTEXT)",
+    factualParticipantStateLines.length > 0 ? factualParticipantStateLines.join("\n") : "No participant state overrides are active.",
+    "",
+    "LOCKED VISUAL CONTINUITY (FACTUAL CONTEXT)",
+    visualLines.length > 0 ? visualLines.join("\n") : "No locked visual references are active.",
+    "",
+    "LATEST CONTINUITY CHECKPOINT (FACTUAL CONTEXT)",
+    includeCheckpoint && checkpoint
+      ? `${checkpoint.title}: ${sanitizePromptContext(checkpoint.summary, 1800)}\nOpen threads: ${checkpoint.openThreads.join("; ") || "none recorded"}`
+      : "No applicable checkpoint is included."
+  ].join("\n");
+
+  return { ...foundation, text, factualText, eventIds: dueEvents.map((event) => event.id) };
 }
 
 class StoryClaimConflict extends Error {}

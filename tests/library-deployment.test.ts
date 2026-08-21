@@ -14,7 +14,7 @@ test("Library reports authentication and server failures separately", async () =
   assert.doesNotMatch(source, /setInterval/);
 });
 
-test("production builds deploy Prisma migrations before compiling and tolerate database outages", async () => {
+test("production builds fail closed when Prisma migrations cannot be deployed", async () => {
   const packageJson = JSON.parse(await readFile(`${root}/package.json`, "utf8")) as {
     scripts?: Record<string, string>;
   };
@@ -24,11 +24,9 @@ test("production builds deploy Prisma migrations before compiling and tolerate d
   assert.match(buildScript, /node scripts\/build\.mjs/);
   assert.match(buildRunner, /VERCEL_ENV === "production"/);
   assert.match(buildRunner, /SKIP_PRISMA_MIGRATE !== "1"/);
-  assert.match(buildRunner, /P1001/);
-  assert.match(buildRunner, /exceeded the data transfer quota/);
-  assert.match(buildRunner, /\.neon\\\.tech/);
-  assert.match(buildRunner, /Schema engine error/);
-  assert.match(buildRunner, /allowFailure: isTemporaryDatabaseFailure/);
+  assert.match(buildRunner, /result\.status !== 0/);
+  assert.match(buildRunner, /process\.exit\(result\.status \?\? 1\)/);
+  assert.doesNotMatch(buildRunner, /allowFailure|isTemporaryDatabaseFailure|P1001/);
   assert.ok(buildRunner.indexOf("migrate\", \"deploy") < buildRunner.indexOf("generate"));
 });
 
@@ -44,4 +42,18 @@ test("character cards open the most recently active chat for that character", ()
 
   assert.equal(roster[0]?.chatId, "latest");
   assert.equal(roster[0]?.preview, "Latest");
+});
+
+test("library roster sorts chats by latest activity instead of character name", () => {
+  const roster = buildCharacterRoster({
+    mine: [{ id: "custom", name: "Aster", description: "No chat yet" }],
+    liked: [],
+    chats: [
+      { id: "older", lastActiveAt: "2026-08-05T10:00:00.000Z", character: { id: "character-1", name: "Ada" }, messages: [{ content: "Older" }] },
+      { id: "latest", lastActiveAt: "2026-08-07T10:00:00.000Z", character: { id: "character-2", name: "Zara" }, messages: [{ content: "Latest" }] },
+      { id: "middle", lastActiveAt: "2026-08-06T10:00:00.000Z", character: { id: "character-3", name: "Mira" }, messages: [{ content: "Middle" }] }
+    ]
+  });
+
+  assert.deepEqual(roster.map((character) => character.chatId), ["latest", "middle", "older", undefined]);
 });

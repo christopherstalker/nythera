@@ -1,6 +1,7 @@
 import { put } from "@vercel/blob";
 import { z } from "zod";
 import { HttpError, getRequestIp, json, parseJson, requireUser, routeError } from "@/lib/api";
+import { CHAT_IMAGE_BLOB_ACCESS } from "@/lib/chat-attachments";
 import { serializeAsset } from "@/lib/chat-media";
 import { prisma } from "@/lib/prisma";
 import { getEffectiveProviderKeys } from "@/lib/user-keys";
@@ -30,8 +31,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const extension = generated.contentType === "image/jpeg" ? "jpg" : "png";
     const pathname = `chat-images/${chat.id}/scene-${Date.now()}.${extension}`;
     try {
-      await put(pathname, generated.bytes, { access: "private", contentType: generated.contentType, addRandomSuffix: false });
-      const asset = await prisma.mediaAsset.create({ data: { userId: user.id, chatId: chat.id, pathname, contentType: generated.contentType, size: generated.bytes.byteLength, width: 1024, height: 1024, originalName: `scene-illustration.${extension}` } });
+      const storedImage = await put(pathname, generated.bytes, { access: CHAT_IMAGE_BLOB_ACCESS, contentType: generated.contentType, addRandomSuffix: true });
+      const asset = await prisma.mediaAsset.create({ data: { userId: user.id, chatId: chat.id, pathname: storedImage.pathname, contentType: generated.contentType, size: generated.bytes.byteLength, width: 1024, height: 1024, originalName: `scene-illustration.${extension}` } });
       return json({ attachment: serializeAsset(asset), provider: generated.provider, model: generated.model }, { status: 201 });
     } catch (error) {
       logSafeError("Generated scene illustration could not be persisted.", error);
