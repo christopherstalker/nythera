@@ -46,6 +46,16 @@ test("mobile chat keeps primary actions and attempt navigation visible without t
   assert.match(menu, /grid-cols-4/);
 });
 
+test("story controls stay inside the phone viewport and scroll independently", async () => {
+  const input = await read("../src/components/chat/ChatInput.tsx");
+
+  assert.match(input, /max-h-\[min\(56dvh,36rem\)\]/);
+  assert.match(input, /sm:max-h-\[min\(68dvh,40rem\)\]/);
+  assert.match(input, /w-full min-w-0 max-w-\[var\(--chat-max-width\)\]/);
+  assert.match(input, /overflow-x-hidden overflow-y-auto overscroll-contain/);
+  assert.match(input, /aria-label="Close story controls"/);
+});
+
 test("phones stay portrait while tablets and larger devices keep their natural orientation", async () => {
   const [layout, manifest, nativeConfig, styles, orientationGuard] = await Promise.all([
     read("../src/app/layout.tsx"),
@@ -66,4 +76,20 @@ test("phones stay portrait while tablets and larger devices keep their natural o
   assert.match(orientationGuard, /orientation\.lock\("portrait-primary"\)/);
   assert.doesNotMatch(layout, /LivingCodexIntro|living-codex-intro/);
   assert.doesNotMatch(styles, /\.living-codex-intro|@keyframes living-codex-copy/);
+});
+
+test("character creation stays usable above the mobile dock without horizontal overflow", async () => {
+  const [form, editor, styles] = await Promise.all([
+    read("../src/components/characters/character-form.tsx"),
+    read("../src/components/rich-text/formatted-textarea.tsx"),
+    read("../src/app/globals.css")
+  ]);
+
+  assert.match(form, /className="codex-studio-primary-action" type="submit" size="lg" disabled=\{saving\}/);
+  assert.match(form, /className="block min-w-0"/);
+  assert.match(editor, /w-full min-w-0 max-w-full overflow-hidden/);
+  assert.match(styles, /\.codex-dossier-portrait\s*\{\s*display: none;/);
+  assert.match(styles, /\.codex-mode-index button\s*\{[\s\S]*?min-width: 0;/);
+  assert.match(styles, /\.codex-studio-actions\s*\{[\s\S]*?bottom: var\(--bottom-nav-offset\);/);
+  assert.match(styles, /\.codex-studio-primary-wrap\s*\{[\s\S]*?width: 100%;/);
 });

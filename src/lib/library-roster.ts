@@ -27,12 +27,18 @@ export function buildCharacterRoster(input: {
   chats: LibraryChat[];
 }): RosterCharacter[] {
   const map = new Map<string, RosterCharacter>();
+  const lastActiveByCharacter = new Map<string, number>();
 
-  for (const chat of input.chats) {
+  const chatsByRecentActivity = [...input.chats].sort(
+    (left, right) => chatActivityTime(right.lastActiveAt) - chatActivityTime(left.lastActiveAt)
+  );
+
+  for (const chat of chatsByRecentActivity) {
     if (map.has(chat.character.id)) {
       continue;
     }
     const preview = toChatPreview(chat.messages.at(-1)?.content || chat.character.description || "No messages yet");
+    lastActiveByCharacter.set(chat.character.id, chatActivityTime(chat.lastActiveAt));
     map.set(chat.character.id, {
       id: chat.character.id,
       name: chat.character.name,
@@ -79,7 +85,19 @@ export function buildCharacterRoster(input: {
     });
   }
 
-  return [...map.values()].sort((a, b) => Number(b.isRecent) - Number(a.isRecent) || a.name.localeCompare(b.name));
+  return [...map.values()].sort((left, right) => {
+    const recentDifference = Number(right.isRecent) - Number(left.isRecent);
+    if (recentDifference !== 0) return recentDifference;
+
+    const activityDifference = (lastActiveByCharacter.get(right.id) ?? 0) - (lastActiveByCharacter.get(left.id) ?? 0);
+    return activityDifference || left.name.localeCompare(right.name);
+  });
+}
+
+function chatActivityTime(value?: string | Date) {
+  if (!value) return 0;
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 function formatLastActive(value?: string | Date) {

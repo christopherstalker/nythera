@@ -40,10 +40,10 @@ test("the persisted third regeneration remains selected after four attempts", ()
 
 test("response sizes have hard prompt ranges and matching provider caps", () => {
   assert.match(responseLengthTarget("concise"), /stay within 60-140 words/);
-  assert.match(responseLengthTarget("balanced"), /stay within 140-320 words/);
+  assert.match(responseLengthTarget("balanced"), /3-4 developed paragraphs.*200-300 words.*hard maximum.*fifth paragraph/);
   assert.match(responseLengthTarget("immersive"), /stay within 320-650 words/);
   assert.equal(maxOutputTokensForVerbosity("concise"), 240);
-  assert.equal(maxOutputTokensForVerbosity("balanced"), 520);
+  assert.equal(maxOutputTokensForVerbosity("balanced"), 480);
   assert.equal(maxOutputTokensForVerbosity("immersive"), 1_050);
   assert.equal(maxOutputTokensForVerbosity("immersive", 700), 700);
   assert.equal(providerOutputTokenBudget({ visibleTokenLimit: 520, provider: "openai", model: "gpt-5" }), 520);
@@ -68,6 +68,46 @@ test("explicit character and player heights become authoritative spatial constra
   assert.match(layer ?? "", /player is 35 cm taller than Marek/);
   assert.match(layer ?? "", /Marek must look up to meet the player's eyes/);
   assert.match(layer ?? "", /Forbidden.*Marek looking down at/);
+  assert.match(layer ?? "", /no player-authored seated, kneeling, crouched, or lying pose is established/);
+});
+
+test("Russian height labels beat unrelated body measurements", () => {
+  const layer = buildPhysicalContinuityLayer(
+    {
+      name: "Ирина",
+      description: "Параметры: 90 см. Рост Ирины — 175 см.",
+      personality: "Спокойная.",
+      scenario: null
+    },
+    "Параметры тела: 100 см. Рост пользователя: 195 см."
+  );
+
+  assert.match(layer ?? "", /Canonical character height \(Ирина\): 175 cm/);
+  assert.match(layer ?? "", /Canonical player height: 195 cm/);
+  assert.match(layer ?? "", /player is 20 cm taller than Ирина/);
+});
+
+test("the latest player-authored posture overrides stale seating narration", () => {
+  const layer = buildPhysicalContinuityLayer(
+    {
+      name: "Marek",
+      description: "Marek is 178 cm tall.",
+      personality: "Reserved.",
+      scenario: null
+    },
+    "User persona summary: 195 cm tall.",
+    {
+      recentMessages: [
+        { role: "USER", content: "I sit in the chair." },
+        { role: "ASSISTANT", content: "Marek looks down at you." },
+        { role: "USER", content: "I stand back up." }
+      ],
+      currentMessage: "I am not sitting now."
+    }
+  );
+
+  assert.match(layer ?? "", /CURRENT PLAYER POSTURE: upright\/standing/);
+  assert.match(layer ?? "", /Apply the computed standing relation now/);
 });
 
 test("imperial heights are normalized before deriving the standing eye line", () => {
@@ -102,7 +142,8 @@ test("near-equal heights produce a level eye line instead of arbitrary dominance
 });
 
 test("maximum romance is an actionable direction while zero remains non-romantic", () => {
-  assert.match(romanceLevelInstruction(10), /actively advance established, consensual romance in each response/);
+  assert.match(romanceLevelInstruction(10), /maximum scene-supported romantic and intimate intensity/);
+  assert.match(romanceLevelInstruction(10), /instead of substituting vague tension, generic tenderness, or a fade to black/);
   assert.match(romanceLevelInstruction(0), /Do not initiate or imply romance/);
 });
 
@@ -120,7 +161,7 @@ test("rewind, sidebar refresh, and provider payloads clear every stale context l
   assert.match(rewind, /selectPersistedConversationBranch\(retainedMessages\)/);
   assert.match(stream, /branchMessageId/);
   assert.match(stream, /branchSourceMessageId/);
-  assert.match(stream, /maxTokens: providerMaxOutputTokens/);
+  assert.match(stream, /maxTokens: maxOutputTokens/);
   assert.match(stream, /includeCheckpoint: !branchInstruction/);
   assert.match(hook, /nythera:chat-context-updated/);
   assert.match(panel, /contextRevision/);

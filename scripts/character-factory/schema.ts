@@ -117,7 +117,7 @@ export const FactoryCharacterSchema = z
     description: z.string().trim().min(30).max(700),
     personality: z.string().trim().min(200).max(5000),
     scenario: z.string().trim().min(100).max(5000),
-    greeting: z.string().trim().min(180).max(2000),
+    greeting: z.string().trim().min(180),
     tags: z.array(z.string().trim().min(1).max(32)).min(3).max(12),
     persona: PersonaSchema,
     communicationStyle: CommunicationStyleSchema,

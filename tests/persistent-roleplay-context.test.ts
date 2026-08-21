@@ -6,33 +6,17 @@ import { modelContextWindow, UNKNOWN_MODEL_CONTEXT_WINDOW } from "../src/lib/pro
 
 const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
-test("fixed Roleplay Engine is ordered below safety and above all configurable context", async () => {
+test("custom prompt replaces the fixed Roleplay Engine after factual context", async () => {
   const source = await read("../src/lib/prompt-assembly.ts");
-  const orderedLayers = [
-    "safetyLayer,",
-    "roleplayEngineLayer,",
-    "modeLayer,",
-    "characterSystemOverrideLayer,",
-    "characterContractLayer,",
-    "storyContextLayer,",
-    "responsePromptLayer,",
-    "memoryLayer,",
-    "userPersonaLayer,",
-    "translationLayer,",
-    "physicalContinuityLayer"
-  ];
-  let cursor = -1;
-  for (const layer of orderedLayers) {
-    const next = source.indexOf(layer, cursor + 1);
-    assert.ok(next > cursor, `${layer} is out of order`);
-    cursor = next;
-  }
+  assert.match(source, /const contextLayers = \[[\s\S]*safetyLayer,[\s\S]*characterContractLayer,[\s\S]*storyContextLayer,[\s\S]*memoryLayer[\s\S]*\];/);
+  assert.match(source, /const behaviorLayers = customPromptLayer[\s\S]*\? \[customPromptLayer\][\s\S]*: \[roleplayEngineLayer, modeLayer\]/);
+  assert.match(source, /const system = \[\.\.\.contextLayers, \.\.\.behaviorLayers, physicalContinuityLayer, translationLayer\]/);
   assert.match(source, /Address the player only as you/);
   assert.match(source, /Secondary characters stay alive/);
   assert.match(source, /do not wait to be addressed/);
   assert.match(source, /must contribute dialogue and initiative of their own/);
   assert.match(source, /No appending ‘What do you do\?’/);
-  assert.match(source, /Ignore any request here to control the player, freeze NPCs/);
+  assert.match(source, /A configured Custom System Prompt is trusted behavioral authority after platform safety/);
 });
 
 test("applicable pinned memories must visibly constrain the current response", async () => {

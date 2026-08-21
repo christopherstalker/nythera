@@ -1,5 +1,6 @@
 import { get } from "@vercel/blob";
 import { HttpError, requireUser, routeError } from "@/lib/api";
+import { CHAT_IMAGE_BLOB_ACCESS } from "@/lib/chat-attachments";
 import { prisma } from "@/lib/prisma";
 
 type Context = { params: Promise<{ id: string }> };
@@ -13,7 +14,7 @@ export async function GET(_request: Request, context: Context) {
     });
     if (!asset) throw new HttpError(404, "Image not found.");
 
-    const blob = await get(asset.pathname, { access: "private" });
+    const blob = await get(asset.pathname, { access: CHAT_IMAGE_BLOB_ACCESS });
     if (!blob || blob.statusCode !== 200) throw new HttpError(404, "Image not found.");
 
     return new Response(blob.stream, {

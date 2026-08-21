@@ -17,11 +17,11 @@ test("web and mobile character routes persist model overrides", async () => {
   }
 });
 
-test("character system instructions are injected below platform safety", async () => {
+test("character system instructions replace built-in behavior below platform safety", async () => {
   const source = await readFile(new URL("../src/lib/prompt-assembly.ts", import.meta.url), "utf8");
-  assert.match(source, /buildCharacterSystemOverrideLayer/);
-  assert.match(source, /System safety rules remain authoritative/i);
-  assert.match(source, /safetyLayer[\s\S]*characterSystemOverrideLayer[\s\S]*characterContractLayer/);
+  assert.match(source, /selectCustomPrompt\(input\.responsePrompt, character\.systemPromptOverride\)/);
+  assert.match(source, /Platform safety overrides all other instructions/i);
+  assert.match(source, /customPromptLayer[\s\S]*\[customPromptLayer\][\s\S]*\[roleplayEngineLayer, modeLayer\]/);
 });
 
 test("the Advanced editor exposes provider, model, samplers, and system instructions", async () => {

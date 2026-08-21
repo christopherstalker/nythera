@@ -24,27 +24,28 @@ export function CharacterRosterCard({ character, view, onToggleFavorite, onDelet
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={springSoft}
-        className="neo-glass-card group relative flex items-center gap-3 p-3 sm:gap-4 sm:p-4"
+        className="neo-glass-card group relative grid w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 p-3 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] sm:gap-4 sm:p-4"
       >
         <span className="relative shrink-0">
           <Avatar name={character.name} src={character.avatarUrl} size="md" />
           <span className={cn("neo-glass-status-dot absolute bottom-0 right-0", character.isRecent ? "is-online" : "is-away")} />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{character.name}</p>
+          <div className="flex min-w-0 items-start gap-2">
+            <p className="line-clamp-2 min-w-0 break-words text-sm font-semibold leading-5 text-[var(--text-primary)]">{character.name}</p>
             {character.isFavorite ? <Star className="h-3.5 w-3.5 shrink-0 fill-amber-300 text-amber-300" /> : null}
           </div>
           <p className="mt-1 line-clamp-1 text-xs text-[var(--text-secondary)]">{character.preview}</p>
         </div>
         {character.lastActive ? <time className="hidden shrink-0 text-[10px] uppercase tracking-wide text-[var(--text-muted)] sm:block">{character.lastActive}</time> : null}
-        <GlassButton asChild variant="glass-secondary" size="sm">
-          <Link href={character.chatId ? `/chat/${character.chatId}` : `/character/${character.id}`}>
-            <MessageCircle className="h-4 w-4" />
-            <span className="hidden sm:inline">Chat</span>
-          </Link>
-        </GlassButton>
-        <RosterMenu character={character} onToggleFavorite={onToggleFavorite} onDelete={onDelete} />
+        <div className="flex shrink-0 items-center gap-2">
+          <GlassButton asChild variant="glass-secondary" size="icon" aria-label={`Chat with ${character.name}`}>
+            <Link href={character.chatId ? `/chat/${character.chatId}` : `/character/${character.id}`}>
+              <MessageCircle className="h-4 w-4" />
+            </Link>
+          </GlassButton>
+          <RosterMenu character={character} onToggleFavorite={onToggleFavorite} onDelete={onDelete} />
+        </div>
       </motion.article>
     );
   }
@@ -55,7 +56,7 @@ export function CharacterRosterCard({ character, view, onToggleFavorite, onDelet
       transition={springSoft}
       className="neo-glass-card group relative flex h-full flex-col p-5"
     >
-        <span className="relative mx-auto">
+      <span className="relative mx-auto">
         <Avatar name={character.name} src={character.avatarUrl} size="lg" className="h-20 w-20 sm:h-24 sm:w-24" />
         <span className={cn("neo-glass-status-dot absolute bottom-1 right-1", character.isRecent ? "is-online" : "is-away")} />
       </span>

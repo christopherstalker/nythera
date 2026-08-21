@@ -52,6 +52,7 @@ const LLM_PROVIDER_TIMEOUT_MS = 40_000;
 const LLM_FIRST_TOKEN_TIMEOUT_MS = 12_000;
 const LLM_STREAM_IDLE_TIMEOUT_MS = 20_000;
 const LLM_EMBEDDING_TIMEOUT_MS = 15_000;
+const GEMINI_THINKING_TOKEN_RESERVE = 1_536;
 const providerBaseUrlSchema = z.string().url().max(240).refine(isSafeProviderBaseUrl, {
   message: "Provider URL must use public HTTPS."
 });
@@ -241,7 +242,7 @@ app.post("/v1/chat/stream", async (request, response) => {
         topP: parsed.data.topP,
         frequencyPenalty: parsed.data.frequencyPenalty,
         presencePenalty: parsed.data.presencePenalty,
-        maxTokens: parsed.data.maxTokens,
+        maxTokens: providerOutputTokenBudget(parsed.data.maxTokens, attempt.provider),
         maxRetries: primaryKeyCount > 1 ? 0 : undefined,
         key: attempt.key,
         signal: attemptSignal.signal,
@@ -277,6 +278,10 @@ app.post("/v1/chat/stream", async (request, response) => {
           }
         }
       });
+
+      if (!streamed.slice(streamedBeforeAttempt).trim()) {
+        throw new Error("Provider returned an empty response.");
+      }
 
       writeEvent({
           type: "usage",
@@ -323,7 +328,7 @@ app.post("/v1/chat/stream", async (request, response) => {
         errorCode: classified.code,
         latencyMs: Date.now() - attemptStarted
       });
-      if (streamed.length > streamedBeforeAttempt) {
+      if (streamed.slice(streamedBeforeAttempt).trim()) {
         writeEvent({
           type: "error",
           message: "The model stream was interrupted."
@@ -331,9 +336,10 @@ app.post("/v1/chat/stream", async (request, response) => {
         response.end();
         return;
       }
+      streamed = streamed.slice(0, streamedBeforeAttempt);
       const nextAttempt = attempts[attemptIndex + 1];
-      const hasNextKeyForProvider = nextAttempt?.providerName === attempt.providerName;
-      if (!classified.retryable && !(hasNextKeyForProvider && isKeyScopedFailure(classified.code))) {
+      const canTryAnotherRoute = Boolean(nextAttempt) && isKeyScopedFailure(classified.code);
+      if (!classified.retryable && !canTryAnotherRoute) {
         writeEvent({
           type: "error",
           message: exhaustedProviderMessage(route, primaryKeyCount, classified.message)
@@ -862,6 +868,16 @@ function deterministicEmbedding(text: string) {
 
 function estimateTokens(text: string) {
   return Math.max(1, Math.ceil(text.length / 4));
+}
+
+function providerOutputTokenBudget(visibleTokenLimit: number | null | undefined, provider: GatewayRoute["provider"]) {
+  if (visibleTokenLimit == null) {
+    return undefined;
+  }
+
+  return provider === "gemini"
+    ? Math.min(4_096, visibleTokenLimit + GEMINI_THINKING_TOKEN_RESERVE)
+    : visibleTokenLimit;
 }
 
 function delay(ms: number) {

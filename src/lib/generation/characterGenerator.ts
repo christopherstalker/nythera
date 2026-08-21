@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { GeneratedCharacterConcept } from "@/lib/generation/character-generator-types";
 import { streamGatewayResponse } from "@/lib/llm-gateway";
 import { sanitizePromptContext } from "@/lib/prompt-security";
+import { logSafeError } from "@/lib/secret-redaction";
 import { generateSimpleCharacterDraft } from "@/lib/simple-character-generation";
 import type { ProviderKeys } from "@/lib/user-keys";
 
@@ -15,7 +16,7 @@ const conceptSchema = z.object({
   speechPattern: z.string().trim().min(20).max(1200),
   scenario: z.string().trim().min(20).max(5000),
   tags: z.array(z.string().trim().min(1).max(32)).min(1).max(12),
-  firstMessage: z.string().trim().min(40).max(2000),
+  firstMessage: z.string().trim().min(40),
   avatarPrompt: z.string().trim().min(10).max(800)
 });
 
@@ -27,8 +28,9 @@ export async function generateCharacter(
   const concept = sanitizePromptContext(userConcept, 2000);
   if (providerKeys.length === 0) return localFallback(concept, input.fallbackName);
 
-  const draft = await callJsonStage({
-    prompt: `You are a character creation expert for an AI roleplay platform.
+  try {
+    const draft = await callJsonStage({
+      prompt: `You are a character creation expert for an AI roleplay platform.
 Expand the concept inside <concept> into a rich, specific character profile.
 
 <concept>${concept}</concept>
@@ -47,33 +49,37 @@ Return exactly this JSON shape:
 }
 
 Make the personality nuanced, the voice recognizable in a blind test, and the opening immediately actionable. Avoid generic filler. Return JSON only.`,
-    providerKeys,
-    userId: input.userId,
-    temperature: 0.85
-  });
+      providerKeys,
+      userId: input.userId,
+      temperature: 0.85
+    });
 
-  const enriched = await callJsonStage({
-    prompt: `Act as a demanding character editor. Improve weak or generic fields in this profile.
+    const enriched = await callJsonStage({
+      prompt: `Act as a demanding character editor. Improve weak or generic fields in this profile.
 Ensure the personality contains contrast, the background explains motivation, the speech pattern is unmistakable, and the first message creates an immediate hook.
 Preserve the JSON shape and return JSON only.
 
 <profile>${JSON.stringify(draft)}</profile>`,
-    providerKeys,
-    userId: input.userId,
-    temperature: 0.7
-  });
+      providerKeys,
+      userId: input.userId,
+      temperature: 0.7
+    });
 
-  const consistent = await callJsonStage({
-    prompt: `Perform a final consistency pass on this character.
+    const consistent = await callJsonStage({
+      prompt: `Perform a final consistency pass on this character.
 The background must explain the personality, the speech must match both, and the first message must fit the scenario. Correct contradictions and generic wording. Preserve every required field and return JSON only.
 
 <profile>${JSON.stringify(enriched)}</profile>`,
-    providerKeys,
-    userId: input.userId,
-    temperature: 0.5
-  });
+      providerKeys,
+      userId: input.userId,
+      temperature: 0.5
+    });
 
-  return conceptSchema.parse(consistent);
+    return conceptSchema.parse(consistent);
+  } catch (error) {
+    logSafeError("Character generation failed after provider failover; using a local draft.", error);
+    return localFallback(concept, input.fallbackName);
+  }
 }
 
 async function callJsonStage(input: { prompt: string; providerKeys: ProviderKeys; userId: string; temperature: number }) {

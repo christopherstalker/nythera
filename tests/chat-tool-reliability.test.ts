@@ -75,6 +75,19 @@ test("lorebook UX explains parsing, previews triggers, and surfaces active chat 
   assert.match(chatRoute, /lorebook: true/);
 });
 
+test("Lookbook explains that saved images attach to one message and stay separate from Lorebook", async () => {
+  const [composer, tools] = await Promise.all([
+    read("../src/components/chat/ChatInput.tsx"),
+    read("../src/components/chat/ChatToolsMenu.tsx")
+  ]);
+
+  assert.match(composer, /Lookbook · reusable images/);
+  assert.match(composer, /attach it as visual context for your next message/);
+  assert.match(composer, /Lookbook never changes the character automatically; Lorebook is the separate keyword-based facts system/);
+  assert.match(composer, /Attach next/);
+  assert.match(tools, /Reusable images/);
+});
+
 test("model and style panel closes on outside press and Escape", async () => {
   const composer = await read("../src/components/chat/ChatInput.tsx");
 

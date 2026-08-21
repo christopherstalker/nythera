@@ -28,7 +28,6 @@ export async function POST(request: Request) {
           email,
           username: input.username,
           name: input.username,
-          emailVerified: new Date(),
           adultTermsAcceptedAt: new Date(),
           adultTermsVersion: ADULT_CONSENT_VERSION
         }

@@ -32,17 +32,17 @@ export function CharacterFileImportPanel({
   const inputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <section className="mx-4 mb-8 border-y border-[var(--codex-rule)] bg-[color-mix(in_oklch,var(--codex-ink-raised)_78%,transparent)] px-4 py-5 sm:mx-8 sm:px-6 lg:mx-12">
+    <section className="mx-0 mb-5 border-y border-[var(--codex-rule)] bg-[color-mix(in_oklch,var(--codex-ink-raised)_78%,transparent)] px-0 py-4 sm:mx-8 sm:mb-8 sm:px-6 sm:py-5 lg:mx-12">
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
         <div className="min-w-0">
           <div className="flex items-start gap-3">
-            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--codex-rule)] text-[var(--codex-mint)]">
+            <span className="mt-0.5 hidden h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--codex-rule)] text-[var(--codex-mint)] sm:flex">
               <FileText className="h-4 w-4" />
             </span>
             <div className="min-w-0">
               <p className="codex-kicker">Import source file</p>
-              <h2 className="font-editorial mt-1 text-2xl text-[var(--codex-ivory)]">Turn an existing dossier into a character</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
+              <h2 className="font-editorial mt-1 text-xl text-[var(--codex-ivory)] sm:text-2xl">Turn an existing dossier into a character</h2>
+              <p className="mt-2 hidden max-w-2xl text-sm leading-6 text-[var(--text-secondary)] sm:block">
                 TXT, Markdown, JSON, YAML, DOCX, or text PDF · up to 4 MB. The file is analyzed for this draft and is not stored separately.
               </p>
             </div>

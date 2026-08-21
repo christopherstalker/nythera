@@ -9,7 +9,7 @@ const contentSecurityPolicy = [
   `script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com${isProduction ? "" : " 'unsafe-eval'"}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
-  "font-src 'self' data:",
+  "font-src 'self' data: https://*.blob.vercel-storage.com",
   [
     "connect-src 'self'",
     "https://challenges.cloudflare.com",
@@ -22,6 +22,7 @@ const contentSecurityPolicy = [
     "https://api.x.ai",
     "https://openrouter.ai",
     "https://*.upstash.io",
+    "https://*.blob.vercel-storage.com",
     "https://*.vercel.app",
     isProduction ? "" : "ws://localhost:* http://localhost:* ws://127.0.0.1:* http://127.0.0.1:*"
   ]

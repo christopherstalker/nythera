@@ -7,7 +7,8 @@ import { getEffectiveProviderKeys } from "@/lib/user-keys";
 const generateSchema = z.object({
   name: z.string().trim().min(2).max(80),
   description: z.string().trim().min(10).max(2000),
-  greeting: z.string().trim().max(2000).optional()
+  greeting: z.string().trim().optional(),
+  prologuePov: z.enum(["second", "third"]).default("second")
 });
 
 export async function POST(request: Request) {
@@ -25,6 +26,7 @@ export async function POST(request: Request) {
       name: input.name,
       description: input.description,
       greeting: input.greeting,
+      prologuePov: input.prologuePov,
       userId: user.id,
       providerKeys
     });

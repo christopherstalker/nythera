@@ -9,6 +9,7 @@ import { chatCreateSchema } from "@/lib/validation";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { requireAdultConsent } from "@/lib/adult-consent";
 import { getPreferredPersonaId } from "@/lib/user-persona-store";
+import { renderCharacterPrologue } from "@/lib/prologue-pov";
 
 export const dynamic = "force-dynamic";
 
@@ -78,8 +79,22 @@ export async function POST(request: Request) {
       throw new HttpError(404, "Character not found.");
     }
 
-    const providerKeys = await getEffectiveProviderKeys(user.id);
-    const defaultPersonaId = await getPreferredPersonaId(user.id, character.id);
+    const [providerKeys, defaultPersonaId] = await Promise.all([
+      getEffectiveProviderKeys(user.id),
+      getPreferredPersonaId(user.id, character.id)
+    ]);
+    const defaultPersona = defaultPersonaId
+      ? await prisma.userPersona.findFirst({
+          where: { id: defaultPersonaId, userId: user.id },
+          select: { displayName: true }
+        })
+      : null;
+    const prologue = renderCharacterPrologue({
+      greeting: character.greeting,
+      characterName: character.name,
+      communicationStyle: character.communicationStyle,
+      userPersonaName: defaultPersona?.displayName
+    });
     const effectiveSettings = resolveCharacterModelSettings({
       character,
       providerKeys,
@@ -108,7 +123,7 @@ export async function POST(request: Request) {
           chatId: created.id,
           sequence: 1,
           role: MessageRole.ASSISTANT,
-          content: character.greeting,
+          content: prologue,
           model
         }
       });

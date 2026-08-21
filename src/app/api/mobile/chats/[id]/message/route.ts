@@ -6,10 +6,10 @@ import { requireMobileUser } from "@/lib/mobile-auth";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { moderateText, sanitizeUserText } from "@/lib/safety";
 import { detectPromptInjection } from "@/lib/prompt-security";
-import { streamMessageSchema } from "@/lib/validation";
+import { mobileStreamMessageSchema } from "@/lib/validation";
 import { assembleNytheraPrompt } from "@/lib/prompt-assembly";
 import { resolveCharacterPersona } from "@/lib/persona";
-import { maxOutputTokensForVerbosity, providerOutputTokenBudget } from "@/lib/response-length";
+import { maxOutputTokensForVerbosity } from "@/lib/response-length";
 import { loadAdaptiveChatHistory } from "@/lib/chat-history";
 import { streamLlmResponse } from "@/lib/proxy";
 import { getPromptMemories } from "@/lib/memory-store";
@@ -23,7 +23,8 @@ import { estimateModelCost } from "@/lib/model-pricing";
 import { logSafeError } from "@/lib/secret-redaction";
 import { getStoryPromptContext, syncChatTurns } from "@/lib/stories/story-foundation";
 import { markStoryProactiveEventsFired } from "@/lib/stories/narrative-store";
-import { buildFullPromptAddon, modeTemperature } from "@/lib/prompts/buildPrompt";
+import { buildPromptAddonLayers, modeTemperature } from "@/lib/prompts/buildPrompt";
+import { selectCustomPrompt } from "@/lib/response-prompt";
 import { formatTieredMemoryBlocks, getUserMemories, splitMemoriesForPrompt } from "@/lib/memory/promptBuilder";
 import { normalizeChatMode } from "@/lib/chat-mode";
 import { requireAdultConsent } from "@/lib/adult-consent";
@@ -50,7 +51,7 @@ export async function POST(request: Request, context: Context) {
       route: "mobile:chat:message"
     });
 
-    const input = await parseJson(request, streamMessageSchema);
+    const input = await parseJson(request, mobileStreamMessageSchema);
     const continueChat = input.continueChat === true;
     const continuationPrompt =
       "Continue the roleplay naturally from the immediately preceding selected assistant response. Do not speak as the user, do not invent a user reply, and keep the scene moving in the character's voice.";
@@ -78,6 +79,7 @@ export async function POST(request: Request, context: Context) {
       include: {
         character: true,
         persona: true,
+        temporaryPersona: true
       }
     });
 
@@ -106,11 +108,6 @@ export async function POST(request: Request, context: Context) {
     const model = effectiveSettings.model;
     const characterPersona = resolveCharacterPersona(chat.character);
     const maxOutputTokens = maxOutputTokensForVerbosity(characterPersona.verbosityLevel, effectiveSettings.maxTokens);
-    const providerMaxOutputTokens = providerOutputTokenBudget({
-      visibleTokenLimit: maxOutputTokens,
-      provider: effectiveSettings.provider,
-      model
-    });
     let temperature = effectiveSettings.temperature;
     if (!isUserOwnedProvider(effectiveSettings.provider, providerKeys)) {
       await enforceRateLimit({
@@ -151,14 +148,16 @@ export async function POST(request: Request, context: Context) {
       }),
       getStoryPromptContext({ chatId: chat.id, userId: user.id, actorCharacterId: chat.characterId })
     ]);
-    const userPersona = chat.persona ?? defaultUserPersona;
+    const userPersona = chat.temporaryPersona ?? chat.persona ?? defaultUserPersona;
     const chatMode = normalizeChatMode(chat.chatMode);
     const { characterMemories, userMemories } = formatTieredMemoryBlocks(splitMemoriesForPrompt(memories, userGlobalMemories));
-    const modeContext = buildFullPromptAddon({
+    const responsePrompt = input.responsePrompt ?? chat.responsePrompt;
+    const promptAddon = buildPromptAddonLayers({
       mode: chatMode,
       characterMemories,
       userMemories
     });
+    const customPromptActive = Boolean(selectCustomPrompt(responsePrompt, effectiveSettings.systemPromptOverride));
 
     const prompt = assembleNytheraPrompt({
       character: chat.character,
@@ -167,12 +166,15 @@ export async function POST(request: Request, context: Context) {
       summary: history.overflowed ? chat.summary : null,
       recentMessages: history.messages.slice(-20),
       currentMessage: message,
-      responsePrompt: chat.responsePrompt,
+      responsePrompt,
       storyContext: storyContext.text,
+      factualStoryContext: storyContext.factualText,
       injectionAssessment,
-      modeContext
+      modeContext: promptAddon.modeStyle,
+      sessionMemoryContext: promptAddon.sessionMemory,
+      translationLanguage: chat.translationLanguage
     });
-    temperature = modeTemperature(chatMode, input.temperature ?? chat.temperature ?? temperature);
+    temperature = customPromptActive ? effectiveSettings.temperature : modeTemperature(chatMode, effectiveSettings.temperature);
 
     const encoder = new TextEncoder();
     let assistantText = "";
@@ -224,7 +226,7 @@ export async function POST(request: Request, context: Context) {
             topP: effectiveSettings.topP,
             frequencyPenalty: effectiveSettings.frequencyPenalty,
             presencePenalty: effectiveSettings.presencePenalty,
-            maxTokens: providerMaxOutputTokens,
+            maxTokens: maxOutputTokens,
             userId: user.id,
             chatId: chat.id,
             providerKeys,
@@ -297,6 +299,8 @@ export async function POST(request: Request, context: Context) {
               messageCount: actualMessageCount,
               model,
               temperature,
+              responsePrompt: input.responsePrompt === undefined ? undefined : input.responsePrompt || null,
+              temporaryPersonaId: chat.temporaryPersonaId ? null : undefined,
               lastActiveAt: new Date(),
               updatedAt: new Date()
             },
@@ -386,6 +390,7 @@ export async function POST(request: Request, context: Context) {
               messageCount: actualMessageCount,
               model,
               temperature,
+              temporaryPersonaId: assistantPersisted && chat.temporaryPersonaId ? null : undefined,
               lastActiveAt: new Date(),
               updatedAt: new Date()
             }

@@ -8,12 +8,19 @@ export type ProviderErrorClassification = {
 export function classifyProviderError(error: unknown): ProviderErrorClassification {
   const status = readStatus(error);
   const message = readMessage(error).toLowerCase();
+  const reportsTemporaryOutage =
+    message.includes("temporarily unavailable") ||
+    message.includes("service unavailable") ||
+    message.includes("provider unavailable") ||
+    message.includes("provider is unavailable") ||
+    message.includes("overloaded") ||
+    message.includes("try again later");
 
   if (status === 401 || status === 403 || message.includes("api key not valid")) {
     return { code: "invalid_api_key", message: "The selected provider rejected the API key. Check the key in Settings.", status: status ?? 401, retryable: false };
   }
   if (status === 402) {
-    return { code: "insufficient_balance", message: "DeepSeek accepted the API key, but the account has no available balance. Add funds in DeepSeek or choose another provider.", status, retryable: false };
+    return { code: "insufficient_balance", message: "The provider account cannot cover this request. Add credits, reduce the response length, or choose another provider.", status, retryable: false };
   }
   if (status === 400 || status === 422) {
     return { code: "invalid_parameters", message: "The selected provider rejected the request parameters. Refresh its model list and try again.", status, retryable: false };
@@ -24,7 +31,7 @@ export function classifyProviderError(error: unknown): ProviderErrorClassificati
   if (status === 404 || message.includes("model") && message.includes("not found")) {
     return { code: "model_unavailable", message: "The selected model is unavailable. Choose another model in Settings.", status, retryable: false };
   }
-  if (status !== null && status >= 500) {
+  if ((status !== null && status >= 500) || reportsTemporaryOutage) {
     return { code: "provider_unavailable", message: "The selected model provider is temporarily unavailable. Try again shortly.", status, retryable: true };
   }
   if (message.includes("not configured") || message.includes("base url is required")) {

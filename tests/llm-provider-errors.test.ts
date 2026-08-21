@@ -40,7 +40,7 @@ test("provider errors have safe actionable classifications", async () => {
 
   const insufficientBalance = providerErrors!.classifyProviderError({ status: 402 });
   assert.equal(insufficientBalance.code, "insufficient_balance");
-  assert.match(insufficientBalance.message, /DeepSeek.*balance/i);
+  assert.match(insufficientBalance.message, /provider account.*credits/i);
   assert.equal(insufficientBalance.retryable, false);
   assert.deepEqual(proxyProviderErrors!.classifyProviderError({ status: 402 }), insufficientBalance);
 

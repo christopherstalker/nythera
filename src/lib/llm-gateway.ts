@@ -8,6 +8,7 @@ import type { ProviderKey, ProviderKeys } from "@/lib/user-keys";
 import type { PromptMessage, StreamChunk } from "@/types";
 import { eligibleFallbackKeys } from "@/lib/provider-fallback";
 import { logPerformanceMetric } from "@/lib/performance-logger";
+import { providerOutputTokenBudget } from "@/lib/response-length";
 import { logSafeError } from "@/lib/secret-redaction";
 import {
   abortableAsyncIterable,
@@ -36,7 +37,7 @@ type StreamInput = {
 };
 
 const APP_DEFAULT_MODELS = new Set(["gpt-4o-mini", "gpt-3.5-turbo"]);
-const MAX_SAME_PROVIDER_ATTEMPTS = 2;
+const MAX_SAME_PROVIDER_ATTEMPTS = 4;
 const keyCooldowns = new Map<string, number>();
 
 type GatewayRoute = {
@@ -64,7 +65,7 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
         break;
       }
 
-      let emittedAny = false;
+      let emittedText = false;
       let firstTokenLogged = false;
       const attemptStarted = Date.now();
       const attemptSignal = createActivityTimeoutSignal(
@@ -83,7 +84,11 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
           topP: input.topP,
           frequencyPenalty: input.frequencyPenalty,
           presencePenalty: input.presencePenalty,
-          maxTokens: input.maxTokens,
+          maxTokens: providerOutputTokenBudget({
+            visibleTokenLimit: input.maxTokens,
+            provider: attempt.provider,
+            model: attempt.model
+          }),
           maxRetries: primaryKeyCount > 1 ? 0 : undefined,
           key: attempt.key,
           signal: attemptSignal.signal,
@@ -94,7 +99,7 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
         });
 
         for await (const delta of abortableAsyncIterable(usage.deltas, attemptSignal.signal)) {
-          emittedAny = true;
+          emittedText = outputText.trim().length > 0;
           attemptSignal.reset(LLM_STREAM_IDLE_TIMEOUT_MS, "Provider stream stalled.");
           if (!firstTokenLogged) {
             firstTokenLogged = true;
@@ -110,6 +115,10 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
             });
           }
           yield { type: "delta", text: delta };
+        }
+
+        if (!outputText.trim()) {
+          throw new Error("Provider returned an empty response.");
         }
 
         const providerUsage = usage.getUsage();
@@ -146,6 +155,10 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
         lastError = attemptSignal.timedOut() || gatewayDeadline.timedOut() ? new Error("Provider request timed out.") : error;
         const classified = classifyProviderError(lastError);
         setKeyCooldown(attempt.key, classified.code);
+        logSafeError(
+          `LLM provider attempt failed (${attempt.providerName}:${attempt.model}, key slot ${(attempt.key?.providerPriority ?? 0) + 1}, ${classified.code}).`,
+          lastError
+        );
         logPerformanceMetric("llm_provider_attempt", {
           route: "chat:gateway",
           provider: attempt.providerName,
@@ -156,13 +169,13 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
           errorCode: classified.code,
           latencyMs: Date.now() - attemptStarted
         });
-        if (emittedAny) {
+        if (emittedText) {
           yield { type: "error", message: "The model stream was interrupted." };
           return;
         }
         const nextAttempt = attempts[index + 1];
-        const hasNextKeyForProvider = nextAttempt?.providerName === attempt.providerName;
-        if (!classified.retryable && !(hasNextKeyForProvider && isKeyScopedFailure(classified.code))) {
+        const canTryAnotherRoute = Boolean(nextAttempt) && isKeyScopedFailure(classified.code);
+        if (!classified.retryable && !canTryAnotherRoute) {
           yield {
             type: "error",
             message: exhaustedProviderMessage(route, primaryKeyCount, classified.message)
@@ -358,7 +371,7 @@ function exhaustedProviderMessage(route: GatewayRoute, keyCount: number, fallbac
   }
 
   const provider = route.key?.displayName || route.providerName;
-  return `${provider} is temporarily unavailable. Nythera will rotate across your ${keyCount} saved keys on the next request.`;
+  return `All ${keyCount} saved keys for ${provider} failed. ${fallbackMessage}`;
 }
 
 function parseExplicitProviderModel(requested: string, keys: ProviderKeys) {

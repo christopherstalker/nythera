@@ -3,7 +3,6 @@
 import { KeyboardEvent, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ArrowUp, BookmarkPlus, LoaderCircle, X } from "lucide-react";
 import { motion } from "motion/react";
-import { upload } from "@vercel/blob/client";
 import { Avatar } from "@/components/ui/avatar";
 import { RichTextToolbar } from "@/components/rich-text/rich-text-toolbar";
 import type { ProviderModelGroup } from "@/lib/provider-model-options";
@@ -285,21 +284,15 @@ export function ChatInput({
       for (const source of files.slice(0, available)) {
         const prepared = await prepareChatImage(source);
         const safeName = prepared.file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
-        const blob = await upload(`chat-images/${chatId}/${Date.now()}-${safeName}`, prepared.file, {
-          access: "private",
-          handleUploadUrl: "/api/chat-images/upload",
-          clientPayload: JSON.stringify({ chatId })
-        });
+        const form = new FormData();
+        form.set("chatId", chatId);
+        form.set("image", prepared.file, safeName);
+        form.set("name", source.name.slice(0, 120));
+        form.set("width", String(prepared.width));
+        form.set("height", String(prepared.height));
         const response = await fetch("/api/chat-images", {
           method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            chatId,
-            pathname: blob.pathname,
-            name: source.name,
-            width: prepared.width,
-            height: prepared.height
-          })
+          body: form
         });
         const body = await response.json().catch(() => null);
         if (!response.ok) throw new Error(body?.error ?? "Image upload failed.");
@@ -368,19 +361,28 @@ export function ChatInput({
   const modelLabel = modelLoading ? "Loading" : formatModelLabel(model ?? "Model");
 
   return (
-    <div className="pointer-events-none sticky bottom-0 z-20 shrink-0 border-t border-white/10 bg-gradient-to-t from-black/75 via-black/55 to-transparent px-4 pb-[calc(.75rem+env(safe-area-inset-bottom))] pt-3 sm:px-7 md:px-10 md:pb-4">
+    <div className="pointer-events-none sticky bottom-0 z-40 shrink-0 border-t border-white/10 bg-gradient-to-t from-black/75 via-black/55 to-transparent px-4 pb-[calc(.75rem+env(safe-area-inset-bottom))] pt-3 sm:px-7 md:px-10 md:pb-4">
       {hasApiControls && apiOpen ? (
         <motion.div
           ref={apiPanelRef}
           role="dialog"
           aria-label="Model and style"
-          className="api-panel-enter pointer-events-auto mx-auto mb-3 grid max-w-[var(--chat-max-width)] gap-3 rounded-sm border border-white/10 bg-[#090909]/95 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(220px,280px)]"
+          className="api-panel-enter pointer-events-auto mx-auto mb-3 grid max-h-[min(56dvh,36rem)] w-full min-w-0 max-w-[var(--chat-max-width)] gap-4 overflow-x-hidden overflow-y-auto overscroll-contain rounded-sm border border-white/10 bg-[#090909]/95 p-4 shadow-2xl sm:max-h-[min(68dvh,40rem)] sm:grid-cols-[minmax(0,1fr)_minmax(220px,280px)]"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={springSoft}
         >
+          <div className="sticky top-0 z-10 -mx-1 -mt-1 flex min-w-0 items-center justify-between gap-3 border-b border-white/10 bg-[#090909]/95 px-1 pb-3 sm:col-span-2">
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[.18em] text-[var(--codex-mint)]">Story controls</p>
+              <p className="mt-1 text-xs text-[var(--text-muted)]">Model, language, and response style for this chat</p>
+            </div>
+            <button type="button" onClick={() => setApiOpen(false)} className="focus-ring grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/10 text-[var(--text-secondary)]" aria-label="Close story controls">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
           {onModelChange ? (
-            <label className="grid gap-1">
+            <label className="grid min-w-0 gap-1.5">
               <span className="px-1 text-[11px] font-medium uppercase text-[var(--text-muted)]">Model</span>
               <input
                 type="search"
@@ -389,13 +391,13 @@ export function ChatInput({
                 placeholder="Search provider or model"
                 aria-label="Search provider models"
                 disabled={modelLoading || !hasModelOptions}
-                className="focus-ring h-9 rounded-sm border border-white/15 bg-[#111] px-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent-purple)] disabled:cursor-not-allowed disabled:opacity-60"
+                className="focus-ring h-10 w-full min-w-0 rounded-sm border border-white/15 bg-[#111] px-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent-purple)] disabled:cursor-not-allowed disabled:opacity-60"
               />
               <select
                 value={model ?? ""}
                 onChange={(event) => onModelChange(event.target.value)}
                 disabled={modelLoading || !hasModelOptions}
-                className="focus-ring h-10 rounded-sm border border-white/15 bg-[#111] px-3 text-xs text-[var(--text-primary)] focus:border-[var(--accent-purple)] disabled:cursor-not-allowed disabled:opacity-60"
+                className="focus-ring h-11 w-full min-w-0 rounded-sm border border-white/15 bg-[#111] px-3 text-xs text-[var(--text-primary)] focus:border-[var(--accent-purple)] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {modelLoading ? <option value="">Loading saved providers...</option> : null}
                 {!modelLoading && !hasModelOptions ? <option value="">No saved providers</option> : null}
@@ -432,7 +434,7 @@ export function ChatInput({
             </label>
           ) : null}
           {onTemperatureChange ? (
-            <label className="grid gap-1">
+            <label className="grid min-w-0 gap-1.5">
               <span className="px-1 text-[11px] font-medium uppercase text-[var(--text-muted)]">Temperature</span>
               <span className="flex h-10 items-center gap-2 rounded-sm border border-white/15 bg-[#111] px-3 text-xs text-[var(--text-secondary)]">
                 <input
@@ -457,7 +459,7 @@ export function ChatInput({
             </label>
           ) : null}
           {onTranslationLanguageChange ? (
-            <label className="grid gap-1 sm:col-span-2">
+            <label className="grid min-w-0 gap-1.5 sm:col-span-2">
               <span className="px-1 text-[11px] font-medium uppercase text-[var(--text-muted)]">Automatic translation</span>
               <select value={translationLanguage ?? ""} onChange={(event) => onTranslationLanguageChange(event.target.value)} className="focus-ring h-10 rounded-sm border border-white/15 bg-[#111] px-3 text-xs text-[var(--text-primary)] focus:border-[var(--accent-purple)]">
                 <option value="">Character&apos;s natural language</option>
@@ -472,15 +474,15 @@ export function ChatInput({
             </label>
           ) : null}
           {onResponsePromptChange ? (
-            <label className="grid gap-1.5 sm:col-span-2">
-              <span className="flex items-center justify-between gap-3 px-1 text-[11px] font-medium uppercase text-[var(--text-muted)]">
-                <span>Response instructions</span>
-                <span>Saved for this chat and used by future chats · {(responsePrompt ?? "").length}/{MAX_RESPONSE_PROMPT_LENGTH}</span>
+            <label className="grid min-w-0 gap-1.5 sm:col-span-2">
+              <span className="grid min-w-0 gap-1 px-1 text-[11px] font-medium uppercase text-[var(--text-muted)] sm:flex sm:items-center sm:justify-between sm:gap-3">
+                <span>Custom system prompt</span>
+                <span className="min-w-0 normal-case tracking-normal sm:text-right">Overrides built-in prompt · {(responsePrompt ?? "").length}/{MAX_RESPONSE_PROMPT_LENGTH}</span>
               </span>
               <textarea
                 value={responsePrompt ?? ""}
                 onChange={(event) => onResponsePromptChange(event.target.value.slice(0, MAX_RESPONSE_PROMPT_LENGTH))}
-                placeholder="Example: Write 2–4 immersive paragraphs, lead with dialogue, and never narrate my actions."
+                placeholder="Leave blank to use Nythera's built-in roleplay prompt, or paste a complete system prompt to replace it."
                 rows={3}
                 className="focus-ring min-h-20 resize-y rounded-sm border border-white/15 bg-[#111] px-3 py-2 text-xs leading-5 text-[var(--text-primary)] focus:border-[var(--accent-purple)]"
               />
@@ -501,9 +503,9 @@ export function ChatInput({
               </span>
             </label>
           ) : null}
-          <div className="grid gap-2 sm:col-span-2">
+          <div className="grid min-w-0 gap-2 sm:col-span-2">
             <span className="px-1 text-[11px] font-medium uppercase text-[var(--text-muted)]">Slash commands & macros</span>
-            <div className="grid gap-2 sm:grid-cols-[140px_minmax(0,1fr)_auto]"><input value={macroName} onChange={(event) => setMacroName(event.target.value.replace(/[^a-z0-9_-]/gi, ""))} placeholder="command" className="focus-ring h-10 border border-white/15 bg-[#111] px-3 text-xs" /><input value={macroContent} onChange={(event) => setMacroContent(event.target.value)} placeholder="Text inserted by /command" className="focus-ring h-10 border border-white/15 bg-[#111] px-3 text-xs" /><button type="button" onClick={() => void saveMacro()} className="focus-ring h-10 border border-white/15 px-3 text-xs text-[var(--accent-mint)]">Save macro</button></div>
+            <div className="grid min-w-0 gap-2 sm:grid-cols-[140px_minmax(0,1fr)_auto]"><input value={macroName} onChange={(event) => setMacroName(event.target.value.replace(/[^a-z0-9_-]/gi, ""))} placeholder="command" className="focus-ring h-10 min-w-0 border border-white/15 bg-[#111] px-3 text-xs" /><input value={macroContent} onChange={(event) => setMacroContent(event.target.value)} placeholder="Text inserted by /command" className="focus-ring h-10 min-w-0 border border-white/15 bg-[#111] px-3 text-xs" /><button type="button" onClick={() => void saveMacro()} className="focus-ring h-10 border border-white/15 px-3 text-xs text-[var(--accent-mint)]">Save macro</button></div>
             <p className="px-1 text-xs text-[var(--text-muted)]">Built in: <button type="button" onClick={() => onChange("/ooc ")} className="text-[var(--accent-purple)]">/ooc</button>{macros.map((macro) => <button key={macro.id} type="button" onClick={() => onChange(`/${macro.name} `)} className="ml-2 text-[var(--accent-purple)]">/{macro.name}</button>)}</p>
           </div>
           {apiStatus ? <p className="px-1 text-xs text-[var(--text-muted)] sm:col-span-2">{apiStatus}</p> : null}
@@ -534,24 +536,33 @@ export function ChatInput({
         ) : null}
 
         {lookbookOpen ? (
-          <div ref={lookbookPanelRef} className="absolute inset-x-0 bottom-full z-30 mb-2 max-h-72 overflow-y-auto rounded-sm border border-white/15 bg-[#090909]/98 p-3 shadow-2xl">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-[.16em] text-[var(--codex-mint)]">Lookbook</p>
+          <div ref={lookbookPanelRef} className="absolute inset-x-0 bottom-full z-[60] mb-2 max-h-72 overflow-y-auto rounded-sm border border-white/15 bg-[#090909] p-3 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[.16em] text-[var(--codex-mint)]">Lookbook · reusable images</p>
+                <p className="mt-1 max-w-2xl text-[11px] leading-4 text-[var(--text-secondary)]">
+                  Choose an image to attach it as visual context for your next message. Lookbook never changes the character automatically; Lorebook is the separate keyword-based facts system.
+                </p>
+              </div>
               <button type="button" onClick={() => setLookbookOpen(false)} className="focus-ring grid h-8 w-8 place-items-center text-[var(--text-secondary)]" aria-label="Close Lookbook"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="my-3 rounded-sm border border-white/10 bg-white/[.035] px-3 py-2 text-[10px] leading-4 text-[var(--text-muted)]">
+              Save: attach or generate an image, then press its bookmark icon. Reuse: open Lookbook and select the saved image before sending.
             </div>
             {lookbookLoading ? (
               <p className="py-8 text-center text-xs text-[var(--text-muted)]">Loading saved looks…</p>
             ) : lookbook.length ? (
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
                 {lookbook.map((image) => (
-                  <button key={image.lookbookId} type="button" onClick={() => attachLookbookImage(image)} className="focus-ring overflow-hidden rounded-sm border border-white/10 bg-white/5 text-left hover:border-[var(--codex-mint)]">
+                  <button key={image.lookbookId} type="button" onClick={() => attachLookbookImage(image)} className="focus-ring group overflow-hidden rounded-sm border border-white/10 bg-white/5 text-left hover:border-[var(--codex-mint)]" aria-label={`Attach ${image.title} to the next message`}>
                     <img src={image.url} alt={image.title} className="aspect-square w-full object-cover" />
                     <span className="block truncate px-2 py-1.5 text-[11px] text-[var(--text-secondary)]">{image.title}</span>
+                    <span className="block px-2 pb-1.5 text-[9px] uppercase tracking-[.12em] text-[var(--text-muted)] group-hover:text-[var(--codex-mint)]">Attach next</span>
                   </button>
                 ))}
               </div>
             ) : (
-              <p className="py-8 text-center text-xs text-[var(--text-muted)]">Save an attached image here to reuse the look later.</p>
+              <p className="py-6 text-center text-xs text-[var(--text-muted)]">No saved images yet. Attach a photo or use Illustrate, then press the bookmark icon on its preview.</p>
             )}
           </div>
         ) : null}
