@@ -40,6 +40,7 @@ export function assembleNytheraPrompt(input: {
   branchInstruction?: string | null;
   modeContext?: string | null;
   sessionMemoryContext?: string | null;
+  physicalContext?: string | null;
   translationLanguage?: string | null;
 }): PromptMessage[] {
   const identityConflicts = findCharacterIdentityConflicts(input.character);
@@ -66,6 +67,7 @@ export function assembleNytheraPrompt(input: {
   const physicalContinuityLayer = buildPhysicalContinuityLayer(character, input.userPersona, {
     recentMessages: input.recentMessages,
     currentMessage: input.currentMessage,
+    persistentPlayerContext: input.physicalContext,
     factsOnly
   });
   const translationLayer = factsOnly ? null : buildTranslationLayer(input.translationLanguage);
@@ -152,6 +154,7 @@ export function buildRoleplayEngineLayer(characterName: string) {
     "- decide what the player notices, wants, or does next",
     "- speak for the player even indirectly or in summary (‘you decide to...’, ‘you feel that...’)",
     "You may describe what happens to the player from the outside — what lands on them, what other characters or the world do — but never what they choose, think, or feel internally. Stop your turn where the player's response is needed. Never bridge past that point with ‘and then you...’.",
+    "Never grant a character the ability to lift, carry, drag, restrain, or reposition the player merely because that character is male, dominant, angry, romantic, or narratively forceful. Physical feats must follow established body mass, strength, abilities, leverage, and player-authored movement.",
     "Address the player only as you. Never use their name, a stand-in pronoun for it, or their persona label — in narration and in dialogue directed at them alike. ‘You’ is the only form.",
     "",
     "3. Secondary characters stay alive",

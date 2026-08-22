@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { buildPhysicalContinuityLayer } from "../src/lib/physical-continuity";
+import {
+  buildPhysicalContinuityLayer,
+  extractPlayerPhysicalCanon,
+  formatPlayerPhysicalCanon
+} from "../src/lib/physical-continuity";
 import {
   maxOutputTokensForVerbosity,
   providerOutputTokenBudget,
@@ -139,6 +143,108 @@ test("near-equal heights produce a level eye line instead of arbitrary dominance
 
   assert.match(layer ?? "", /approximately the same height/);
   assert.match(layer ?? "", /describe their eye line as level/);
+});
+
+test("player weight and handling constraints remain authoritative physical canon", () => {
+  const layer = buildPhysicalContinuityLayer(
+    {
+      name: "Adrian",
+      description: "Adrian is 188 cm tall and weighs 82 kg.",
+      personality: "Controlled.",
+      scenario: null
+    },
+    "User persona summary: I am 213 cm tall and weigh 145 kg. I cannot be lifted or carried by another person."
+  );
+
+  assert.match(layer ?? "", /Canonical player weight: 145 kg/);
+  assert.match(layer ?? "", /player is 63 kg heavier than Adrian/);
+  assert.match(layer ?? "", /Adrian cannot lift, carry, hoist, drag, or reposition/);
+  assert.match(layer ?? "", /gender stereotype cannot override this fact/);
+});
+
+test("persistent player canon survives trimmed history and stale API context", () => {
+  const layer = buildPhysicalContinuityLayer(
+    {
+      name: "Adrian",
+      description: "Adrian is 185 cm tall and weighs 78 kg.",
+      personality: "Controlled.",
+      scenario: null
+    },
+    "User persona summary: A veteran navigator.",
+    {
+      recentMessages: [{ role: "ASSISTANT", content: "Adrian checks the route." }],
+      currentMessage: "Continue.",
+      persistentPlayerContext: [
+        "Conversation summary:",
+        "[CANONICAL PLAYER PHYSICAL FACTS]",
+        "- Height: 205 cm.",
+        "- Weight: 132 kg.",
+        "- Handling constraint: the player cannot be lifted or carried by another character.",
+        "ASSISTANT: You are only 160 cm tall and weigh 50 kg, so Adrian picks you up."
+      ].join("\n")
+    }
+  );
+
+  assert.match(layer ?? "", /Canonical player height: 205 cm/);
+  assert.match(layer ?? "", /Canonical player weight: 132 kg/);
+  assert.match(layer ?? "", /CANONICAL HANDLING CONSTRAINT/);
+});
+
+test("Russian qualitative size facts become physical constraints without measurements", () => {
+  const layer = buildPhysicalContinuityLayer(
+    {
+      name: "Илья",
+      description: "Илья действует уверенно.",
+      personality: "Упрямый.",
+      scenario: null
+    },
+    "Мой рост больше, я выше него. Мой вес больше, я тяжелее. Меня нельзя поднять."
+  );
+
+  assert.match(layer ?? "", /player is taller than Илья/);
+  assert.match(layer ?? "", /player is heavier than Илья/);
+  assert.match(layer ?? "", /Илья cannot lift/);
+});
+
+test("external prompts receive physical facts without built-in handling behavior", () => {
+  const layer = buildPhysicalContinuityLayer(
+    {
+      name: "Adrian",
+      description: "Adrian weighs 80 kg.",
+      personality: "Controlled.",
+      scenario: null
+    },
+    "I weigh 140 kg and cannot be lifted.",
+    { recentMessages: [], currentMessage: "Continue.", factsOnly: true }
+  );
+
+  assert.match(layer ?? "", /PHYSICAL CONTINUITY \(FACTUAL CONTEXT\)/);
+  assert.match(layer ?? "", /Canonical player weight: 140 kg/);
+  assert.match(layer ?? "", /Canonical handling constraint/);
+  assert.doesNotMatch(layer ?? "", /gender stereotype|Require established strength|HIGHEST NARRATIVE PRIORITY/);
+});
+
+test("physical canon formatting is deterministic for long-chat summaries", () => {
+  const canon = extractPlayerPhysicalCanon([
+    "I am 6 ft 8 in tall.",
+    "My weight is 310 lbs.",
+    "I cannot be picked up or carried."
+  ]);
+
+  assert.deepEqual(canon, {
+    heightCentimeters: 203.2,
+    weightKilograms: 140.6136347,
+    cannotBeLifted: true
+  });
+  assert.equal(
+    formatPlayerPhysicalCanon(canon),
+    [
+      "[CANONICAL PLAYER PHYSICAL FACTS]",
+      "- Height: 203 cm.",
+      "- Weight: 141 kg.",
+      "- Handling constraint: the player cannot be lifted or carried by another character."
+    ].join("\n")
+  );
 });
 
 test("maximum romance is an actionable direction while zero remains non-romantic", () => {

@@ -9,7 +9,7 @@ import { streamMessageSchema } from "@/lib/validation";
 import { assembleNytheraPrompt } from "@/lib/prompt-assembly";
 import { buildPromptAddonLayers, modeTemperature } from "@/lib/prompts/buildPrompt";
 import { selectCustomPrompt } from "@/lib/response-prompt";
-import { formatTieredMemoryBlocks, getUserMemories, splitMemoriesForPrompt } from "@/lib/memory/promptBuilder";
+import { buildPhysicalMemoryContext, formatTieredMemoryBlocks, getUserMemories, splitMemoriesForPrompt } from "@/lib/memory/promptBuilder";
 import { getPromptMemories } from "@/lib/memory-store";
 import { normalizeChatMode } from "@/lib/chat-mode";
 import { loadAdaptiveChatHistory } from "@/lib/chat-history";
@@ -257,6 +257,7 @@ export async function POST(request: Request, context: Context) {
       branchInstruction,
       modeContext: promptAddon.modeStyle,
       sessionMemoryContext: promptAddon.sessionMemory,
+      physicalContext: buildPhysicalMemoryContext(chat.summary, [...memories, ...userGlobalMemories]),
       translationLanguage: chat.translationLanguage
     });
 

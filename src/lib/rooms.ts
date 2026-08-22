@@ -21,6 +21,7 @@ import { ensureStoryForRoom, getRoomStoryPromptContext, syncRoomTurns } from "@/
 import { markStoryProactiveEventsFired } from "@/lib/stories/narrative-store";
 import { logSafeError } from "@/lib/secret-redaction";
 import { renderCharacterPrologue } from "@/lib/prologue-pov";
+import { buildPhysicalMemoryContext } from "@/lib/memory/promptBuilder";
 
 type RoomUser = {
   id: string;
@@ -308,6 +309,7 @@ export async function sendRoomMessage(input: {
     }),
     storyContext: storyContext.text,
     factualStoryContext: storyContext.factualText,
+    physicalContext: buildPhysicalMemoryContext(room.summary, memories),
     injectionAssessment
   });
 

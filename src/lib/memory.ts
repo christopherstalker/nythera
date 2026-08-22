@@ -8,6 +8,7 @@ import { createMemory } from "@/lib/vector";
 import type { ProviderKeys } from "@/lib/user-keys";
 import { selectPersistedConversationBranch } from "@/lib/message-actions";
 import { logSafeError } from "@/lib/secret-redaction";
+import { buildConversationSummary } from "@/lib/conversation-summary";
 
 export async function schedulePostMessageJobs(input: {
   chatId: string;
@@ -225,29 +226,6 @@ export async function summarizeChat(chatId: string) {
     where: { id: chatId },
     data: { summary, summaryThroughSequence }
   });
-}
-
-export function buildConversationSummary(messages: Array<{ role: MessageRole; content: string }>, previousSummary?: string | null) {
-  const importantLines = messages
-    .filter((message) => message.role !== MessageRole.SYSTEM)
-    .map((message) => `${message.role}: ${cleanSentence(message.content).slice(0, 260)}`);
-
-  if (importantLines.length === 0 && !previousSummary) {
-    return null;
-  }
-
-  const prior = previousSummary?.replace(/^Conversation summary:\n?/, "").trim();
-  const combined = [prior, ...importantLines].filter(Boolean).join("\n");
-  if (combined.length <= 8_000) {
-    return ["Conversation summary:", combined].join("\n");
-  }
-
-  return [
-    "Conversation summary:",
-    combined.slice(0, 3_500),
-    "[Earlier middle turns compacted; pinned Memory and Story canon remain authoritative.]",
-    combined.slice(-4_300)
-  ].join("\n");
 }
 
 function addPattern(
