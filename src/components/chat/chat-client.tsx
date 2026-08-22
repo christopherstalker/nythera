@@ -1,6 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent
+} from "react";
 import Image from "next/image";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { MusicEmbedPlayer } from "@/components/music/MusicEmbedPlayer";
@@ -37,6 +46,8 @@ type ChatClientProps = {
 
 const API_SETTINGS_SAVE_DEBOUNCE_MS = 500;
 const ACTIVE_VARIANT_SAVE_DEBOUNCE_MS = 500;
+const DOUBLE_TAP_MAX_DELAY_MS = 350;
+const DOUBLE_TAP_MAX_DISTANCE_PX = 24;
 
 export function ChatClient({ chatId, chapterNumber, characterId, characterName, characterAvatarUrl, characterBackgroundUrl, characterLorebook, summary, model: initialModel, temperature: initialTemperature, responsePrompt: initialResponsePrompt, chatMode: initialChatMode, translationLanguage: initialTranslationLanguage, appearance: initialAppearance, initialMessages, initialActiveAssistantMessageId }: ChatClientProps) {
   const [draft, setDraft] = useState("");
@@ -45,6 +56,7 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
   const [responsePrompt, setResponsePrompt] = useState(initialResponsePrompt ?? "");
   const [translationLanguage, setTranslationLanguage] = useState(initialTranslationLanguage ?? "");
   const [apiSaveStatus, setApiSaveStatus] = useState<string | null>(null);
+  const [readingMode, setReadingMode] = useState(false);
   const [activeAssistantMessageId, setActiveAssistantMessageId] = useState<string | null>(
     initialActiveAssistantMessageId ?? latestAssistantMessageId(initialMessages)
   );
@@ -62,6 +74,8 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
   const persistedActiveAssistantMessageIdRef = useRef(initialActiveAssistantMessageId ?? latestAssistantMessageId(initialMessages));
   const activeVariantSaveTimeoutRef = useRef<number | null>(null);
   const activeVariantSaveAbortRef = useRef<AbortController | null>(null);
+  const lastTouchRef = useRef({ time: 0, x: 0, y: 0 });
+  const suppressDoubleClickUntilRef = useRef(0);
   const setActiveChatId = useUiStore((state) => state.setActiveChatId);
   const setActiveCharacterId = useUiStore((state) => state.setActiveCharacterId);
   const setActiveChatMode = useUiStore((state) => state.setActiveChatMode);
@@ -226,6 +240,16 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
       window.dispatchEvent(new CustomEvent("nythera:brand-state", { detail: { glowIntensity: 0.56 } }));
     };
   }, [isStreaming]);
+
+  useEffect(() => {
+    if (!readingMode) return;
+
+    const exitReadingMode = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setReadingMode(false);
+    };
+    window.addEventListener("keydown", exitReadingMode);
+    return () => window.removeEventListener("keydown", exitReadingMode);
+  }, [readingMode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -438,8 +462,43 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
     }
   }, [pinMessage, unpinMessage]);
 
+  const toggleReadingMode = useCallback(() => {
+    window.getSelection()?.removeAllRanges();
+    setReadingMode((current) => !current);
+  }, []);
+
+  const handleDoubleClick = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    if (Date.now() < suppressDoubleClickUntilRef.current || isInteractiveTarget(event.target)) return;
+    event.preventDefault();
+    toggleReadingMode();
+  }, [toggleReadingMode]);
+
+  const handlePointerUp = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === "mouse" || isInteractiveTarget(event.target)) return;
+
+    const now = Date.now();
+    const previous = lastTouchRef.current;
+    const closeInTime = now - previous.time <= DOUBLE_TAP_MAX_DELAY_MS;
+    const closeInSpace = Math.hypot(event.clientX - previous.x, event.clientY - previous.y) <= DOUBLE_TAP_MAX_DISTANCE_PX;
+
+    if (closeInTime && closeInSpace) {
+      event.preventDefault();
+      lastTouchRef.current = { time: 0, x: 0, y: 0 };
+      suppressDoubleClickUntilRef.current = now + DOUBLE_TAP_MAX_DELAY_MS;
+      toggleReadingMode();
+      return;
+    }
+
+    lastTouchRef.current = { time: now, x: event.clientX, y: event.clientY };
+  }, [toggleReadingMode]);
+
   return (
-    <div className="chat-codex-workspace grid h-full min-h-0 overflow-hidden bg-[var(--codex-paper)] lg:grid-cols-[minmax(260px,300px)_minmax(0,1fr)]">
+    <div
+      className="chat-codex-workspace grid h-full min-h-0 touch-manipulation overflow-hidden bg-[var(--codex-paper)] lg:grid-cols-[minmax(260px,300px)_minmax(0,1fr)]"
+      onDoubleClick={handleDoubleClick}
+      onPointerUp={handlePointerUp}
+      data-reading-mode={readingMode ? "true" : "false"}
+    >
       <aside className="relative hidden min-h-0 overflow-hidden border-r border-[var(--codex-rule)] bg-[var(--codex-paper-raised)] lg:flex lg:flex-col">
         <div className="relative min-h-0 flex-1 overflow-hidden">
           {characterAvatarUrl && usePlainSceneImage ? (
@@ -472,20 +531,24 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
       >
         <ChatBackdrop appearance={activeChatAppearance} defaultUrl={characterBackgroundUrl || characterAvatarUrl} />
         <div className="relative z-10 flex min-h-0 flex-1 flex-col">
-          <ChatHeader
-            chatId={chatId}
-            chapterNumber={chapterNumber}
-            characterId={characterId}
-            characterName={characterName}
-            characterAvatarUrl={characterAvatarUrl}
-            personaName={activePersona?.displayName}
-            contextOpen={sidePanelOpen}
-            onOpenContext={toggleSidePanel}
-            onRefresh={() => void refreshMessages()}
-            refreshing={refreshing}
-          />
+          <div className={readingMode ? "hidden" : "contents"} aria-hidden={readingMode}>
+            <ChatHeader
+              chatId={chatId}
+              chapterNumber={chapterNumber}
+              characterId={characterId}
+              characterName={characterName}
+              characterAvatarUrl={characterAvatarUrl}
+              personaName={activePersona?.displayName}
+              contextOpen={sidePanelOpen}
+              onOpenContext={toggleSidePanel}
+              onRefresh={() => void refreshMessages()}
+              refreshing={refreshing}
+            />
+          </div>
           {activeChatAppearance.music.enabled ? (
-            <div className="relative z-20 shrink-0 px-4 pt-[calc(78px+env(safe-area-inset-top))] sm:px-7 sm:pt-[calc(86px+env(safe-area-inset-top))] lg:px-10">
+            <div className={readingMode
+              ? "relative z-20 shrink-0 px-4 pt-4 sm:px-7 lg:px-10"
+              : "relative z-20 shrink-0 px-4 pt-[calc(78px+env(safe-area-inset-top))] sm:px-7 sm:pt-[calc(86px+env(safe-area-inset-top))] lg:px-10"}>
               <MusicEmbedPlayer music={activeChatAppearance.music} compact className="mx-auto w-full max-w-[var(--chat-content-width,1000px)]" />
             </div>
           ) : null}
@@ -509,30 +572,33 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
             activeAssistantMessageId={activeAssistantMessageId}
             onActiveVariantChange={selectActiveVariant}
             hasSoundtrack={activeChatAppearance.music.enabled}
+            readingMode={readingMode}
           />
-          <ChatInput
-            chatId={chatId}
-            value={draft}
-            onChange={setDraft}
-            onSubmit={submitMessage}
-            disabled={isStreaming}
-            model={selectedProviderModel || model}
-            modelGroups={providerModelGroups}
-            modelLoading={providerKeysLoading}
-            temperature={temperature}
-            onModelChange={handleModelChange}
-            onTemperatureChange={setTemperature}
-            responsePrompt={responsePrompt}
-            onResponsePromptChange={setResponsePrompt}
-            translationLanguage={translationLanguage}
-            onTranslationLanguageChange={setTranslationLanguage}
-            apiStatus={apiSaveStatus ?? modelCatalogStatus}
-            personaName={activePersona?.displayName}
-            personaAvatarUrl={activePersona?.avatarUrl}
-            onOpenComposer={() => setSidePanelOpen(true)}
-            lorebook={characterLorebook}
-            recentMessages={messages}
-          />
+          <div className={readingMode ? "hidden" : "contents"} aria-hidden={readingMode}>
+            <ChatInput
+              chatId={chatId}
+              value={draft}
+              onChange={setDraft}
+              onSubmit={submitMessage}
+              disabled={isStreaming}
+              model={selectedProviderModel || model}
+              modelGroups={providerModelGroups}
+              modelLoading={providerKeysLoading}
+              temperature={temperature}
+              onModelChange={handleModelChange}
+              onTemperatureChange={setTemperature}
+              responsePrompt={responsePrompt}
+              onResponsePromptChange={setResponsePrompt}
+              translationLanguage={translationLanguage}
+              onTranslationLanguageChange={setTranslationLanguage}
+              apiStatus={apiSaveStatus ?? modelCatalogStatus}
+              personaName={activePersona?.displayName}
+              personaAvatarUrl={activePersona?.avatarUrl}
+              onOpenComposer={() => setSidePanelOpen(true)}
+              lorebook={characterLorebook}
+              recentMessages={messages}
+            />
+          </div>
         </div>
       </section>
     </div>
@@ -569,6 +635,12 @@ function ChatBackdrop({ appearance, defaultUrl }: { appearance: ReturnType<typeo
 
 function isRejectedCredential(warning?: string | null) {
   return Boolean(warning?.toLowerCase().includes("rejected this api key"));
+}
+
+function isInteractiveTarget(target: EventTarget | null) {
+  return target instanceof Element && Boolean(
+    target.closest("a, button, input, textarea, select, option, [contenteditable='true'], [role='button']")
+  );
 }
 
 function latestAssistantMessageId(messages: ChatMessage[]) {

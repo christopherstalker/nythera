@@ -77,6 +77,11 @@ test("persona authorship and post-response work are protected at the prompt and 
 
   assert.match(assembly, /PLAYER PERSONA — REFERENCE ONLY/);
   assert.match(assembly, /Do not repeatedly notice, inventory, praise, fetishize/);
+  assert.match(assembly, /Preserve the profile's facts, never its prose/);
+  assert.match(assembly, /Do not quote, closely paraphrase, echo, enumerate/);
+  assert.match(assembly, /immediate scene-specific consequence in fresh language/);
+  assert.match(assembly, /Build reactions from the character's immediate objective/);
+  assert.match(assembly, /replace every generic gesture, metaphor, and dramatic transition/);
   for (const route of [webRoute, mobileRoute]) {
     assert.match(route, /buildPromptAddonLayers/);
     assert.match(route, /sessionMemoryContext: promptAddon\.sessionMemory/);

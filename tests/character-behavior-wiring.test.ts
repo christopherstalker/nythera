@@ -69,7 +69,8 @@ test("every guided Chapter 4 behavior value persists and has a proportional infe
 test("roleplay engine requires an observable in-scene emotional cue without OOC labels", async () => {
   const assembly = await read("../src/lib/prompt-assembly.ts");
   assert.match(assembly, /current emotional state explicit inside every response/);
-  assert.match(assembly, /narrated action, facial expression, posture change, vocal quality, or deliberate restraint/);
+  assert.match(assembly, /scene-specific choice, action, expression, posture change, vocal quality, or deliberate restraint/);
+  assert.match(assembly, /Prefer consequential behavior and character-specific speech over involuntary micro-gestures/);
   assert.match(assembly, /without an OOC emotion label/);
 });
 

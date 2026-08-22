@@ -25,7 +25,7 @@ import { getStoryPromptContext, syncChatTurns } from "@/lib/stories/story-founda
 import { markStoryProactiveEventsFired } from "@/lib/stories/narrative-store";
 import { buildPromptAddonLayers, modeTemperature } from "@/lib/prompts/buildPrompt";
 import { selectCustomPrompt } from "@/lib/response-prompt";
-import { formatTieredMemoryBlocks, getUserMemories, splitMemoriesForPrompt } from "@/lib/memory/promptBuilder";
+import { buildPhysicalMemoryContext, formatTieredMemoryBlocks, getUserMemories, splitMemoriesForPrompt } from "@/lib/memory/promptBuilder";
 import { normalizeChatMode } from "@/lib/chat-mode";
 import { requireAdultConsent } from "@/lib/adult-consent";
 import { schedulePostResponseTasks } from "@/lib/post-response";
@@ -172,6 +172,7 @@ export async function POST(request: Request, context: Context) {
       injectionAssessment,
       modeContext: promptAddon.modeStyle,
       sessionMemoryContext: promptAddon.sessionMemory,
+      physicalContext: buildPhysicalMemoryContext(chat.summary, [...memories, ...userGlobalMemories]),
       translationLanguage: chat.translationLanguage
     });
     temperature = customPromptActive ? effectiveSettings.temperature : modeTemperature(chatMode, effectiveSettings.temperature);

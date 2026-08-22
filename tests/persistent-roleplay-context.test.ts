@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { historyTokenBudget, selectNewestHistoryWithinBudget } from "../src/lib/prompt-budget";
 import { modelContextWindow, UNKNOWN_MODEL_CONTEXT_WINDOW } from "../src/lib/provider-model-options";
+import { buildConversationSummary } from "../src/lib/conversation-summary";
 
 const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
@@ -75,6 +76,42 @@ test("rolling summaries extend through a watermark instead of repeatedly summari
   assert.match(memory, /data: \{ summary, summaryThroughSequence \}/);
   assert.match(stream, /loadAdaptiveChatHistory/);
   assert.doesNotMatch(stream, /take: 40/);
+});
+
+test("physical player canon is carried across summary compaction and every inference path", async () => {
+  const [summaryBuilder, assembly, webRoute, mobileRoute, rooms] = await Promise.all([
+    read("../src/lib/conversation-summary.ts"),
+    read("../src/lib/prompt-assembly.ts"),
+    read("../src/app/api/chats/[id]/stream/route.ts"),
+    read("../src/app/api/mobile/chats/[id]/message/route.ts"),
+    read("../src/lib/rooms.ts")
+  ]);
+
+  assert.match(summaryBuilder, /formatPlayerPhysicalCanon\(extractPlayerPhysicalCanon/);
+  assert.match(summaryBuilder, /\[CANONICAL PLAYER PHYSICAL FACTS\]/);
+  assert.match(assembly, /persistentPlayerContext: input\.physicalContext/);
+  for (const inferencePath of [webRoute, mobileRoute, rooms]) {
+    assert.match(inferencePath, /physicalContext: buildPhysicalMemoryContext/);
+  }
+});
+
+test("rolling summary output retains user-authored mass and handling facts verbatim as canon", () => {
+  const first = buildConversationSummary([
+    { role: "USER", content: "I am 205 cm tall, weigh 132 kg, and cannot be lifted or carried." },
+    { role: "ASSISTANT", content: "You are only 160 cm tall and weigh 50 kg, so he casually picks you up anyway." }
+  ]);
+  const rolled = buildConversationSummary(
+    [
+      { role: "USER", content: "I point toward the northern road." },
+      { role: "ASSISTANT", content: "He studies the map." }
+    ],
+    first
+  );
+
+  assert.match(rolled ?? "", /\[CANONICAL PLAYER PHYSICAL FACTS\]/);
+  assert.match(rolled ?? "", /- Height: 205 cm\./);
+  assert.match(rolled ?? "", /- Weight: 132 kg\./);
+  assert.match(rolled ?? "", /- Handling constraint: the player cannot be lifted or carried/);
 });
 
 test("chat header links to the character and context exposes memory plus appearance", async () => {

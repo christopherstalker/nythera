@@ -2,7 +2,7 @@ import "server-only";
 
 import { Prisma, StoryBeatStatus, StoryHookStatus, StoryKnowledgeState, StoryProactiveStatus } from "@prisma/client";
 import { HttpError } from "@/lib/api";
-import { buildConversationSummary } from "@/lib/memory";
+import { buildConversationSummary } from "@/lib/conversation-summary";
 import { selectPersistedConversationBranch } from "@/lib/message-actions";
 import { prisma } from "@/lib/prisma";
 

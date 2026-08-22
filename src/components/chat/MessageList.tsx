@@ -29,9 +29,10 @@ type MessageListProps = {
   activeAssistantMessageId?: string | null;
   onActiveVariantChange?: (messageId: string) => void;
   hasSoundtrack?: boolean;
+  readingMode?: boolean;
 };
 
-export function MessageList({ messages, characterName, characterAvatarUrl, personaName, personaAvatarUrl, summary, error, notice, onEdit, onDelete, onRegenerate, onRetry, onContinue, onRewind, onBranch, onPin, activeAssistantMessageId, onActiveVariantChange, hasSoundtrack = false }: MessageListProps) {
+export function MessageList({ messages, characterName, characterAvatarUrl, personaName, personaAvatarUrl, summary, error, notice, onEdit, onDelete, onRegenerate, onRetry, onContinue, onRewind, onBranch, onPin, activeAssistantMessageId, onActiveVariantChange, hasSoundtrack = false, readingMode = false }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const nearBottomRef = useRef(true);
   const previousRowCountRef = useRef(0);
@@ -138,7 +139,7 @@ export function MessageList({ messages, characterName, characterAvatarUrl, perso
     <div
       ref={scrollRef}
       onScroll={handleScroll}
-      className={hasSoundtrack
+      className={hasSoundtrack || readingMode
         ? "chat-scroll relative z-10 flex-1 overflow-y-auto px-4 pb-10 pt-4 sm:px-7 sm:pb-12 lg:px-10"
         : "chat-scroll relative z-10 flex-1 overflow-y-auto px-4 pb-10 pt-[calc(84px+env(safe-area-inset-top))] sm:px-7 sm:pb-12 sm:pt-[calc(92px+env(safe-area-inset-top))] lg:px-10"}
       aria-live="polite"
