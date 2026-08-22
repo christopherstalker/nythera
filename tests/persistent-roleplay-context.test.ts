@@ -4,6 +4,7 @@ import test from "node:test";
 import { historyTokenBudget, selectNewestHistoryWithinBudget } from "../src/lib/prompt-budget";
 import { modelContextWindow, UNKNOWN_MODEL_CONTEXT_WINDOW } from "../src/lib/provider-model-options";
 import { buildConversationSummary } from "../src/lib/conversation-summary";
+import { buildPhysicalContinuityLayer } from "../src/lib/physical-continuity";
 
 const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
@@ -112,6 +113,27 @@ test("rolling summary output retains user-authored mass and handling facts verba
   assert.match(rolled ?? "", /- Height: 205 cm\./);
   assert.match(rolled ?? "", /- Weight: 132 kg\./);
   assert.match(rolled ?? "", /- Handling constraint: the player cannot be lifted or carried/);
+});
+
+test("a tall player persona prevents unspecified-height NPCs from being narrated above the player", () => {
+  const layer = buildPhysicalContinuityLayer(
+    {
+      name: "Pick-me rookie | Toto Wolff",
+      description: "A new driver joins the team.",
+      personality: "Toto and the other paddock characters act naturally.",
+      scenario: "The player and Toto leave the paddock together."
+    },
+    "User persona summary: Christopher. 213 cm tall, around 180 kg.",
+    {
+      recentMessages: [],
+      currentMessage: "I walk beside Toto toward the exit."
+    }
+  );
+
+  assert.match(layer ?? "", /Canonical player height: 213 cm\./);
+  assert.match(layer ?? "", /Canonical player weight: 180 kg\./);
+  assert.match(layer ?? "", /every character whose height or explicit height relation to the player is not established/);
+  assert.match(layer ?? "", /Forbidden for an unspecified-height character at the same elevation: .*looks down at you/);
 });
 
 test("chat header links to the character and context exposes memory plus appearance", async () => {
