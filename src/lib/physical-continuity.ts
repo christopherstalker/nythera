@@ -19,6 +19,11 @@ type SceneContext = {
   factsOnly?: boolean;
 };
 
+type PhysicalContinuityOutputGuard = {
+  push: (text: string) => string;
+  flush: () => string;
+};
+
 type PlayerPosture = "upright" | "seated" | "lowered" | "lying";
 
 type HeightFact = {
@@ -171,6 +176,103 @@ export function formatPlayerPhysicalCanon(canon: PlayerPhysicalCanon) {
   ].filter((line): line is string => Boolean(line));
 
   return lines.length ? ["[CANONICAL PLAYER PHYSICAL FACTS]", ...lines].join("\n") : null;
+}
+
+export function createPhysicalContinuityOutputGuard(
+  character: PhysicalCharacterContext,
+  userPersona: string | null | undefined,
+  sceneContext: SceneContext,
+  options: { enabled?: boolean } = {}
+): PhysicalContinuityOutputGuard {
+  const characterText = [character.description, character.personality, character.scenario ?? ""].join("\n");
+  const characterHeight = findCanonicalHeight(characterText, character.name)?.centimeters;
+  const playerCanon = resolvePlayerPhysicalCanon({
+    persona: userPersona ?? "",
+    playerMessages: playerAuthoredMessages(sceneContext),
+    persistentContext: persistentPlayerFacts(sceneContext.persistentPlayerContext ?? "")
+  });
+  const posture = resolvePlayerPosture(sceneContext);
+  const playerIsLowered = posture === "seated" || posture === "lowered" || posture === "lying"
+    || hasPlayerAuthoredElevationOffset(sceneContext);
+  const characterIsTaller = Boolean(
+    characterHeight
+      && playerCanon.heightCentimeters
+      && characterHeight - playerCanon.heightCentimeters > SAME_HEIGHT_TOLERANCE_CM
+      && !playerCanon.taller
+  );
+  const rewriteEyeLine = options.enabled !== false
+    && !playerIsLowered
+    && !characterIsTaller
+    && Boolean(playerCanon.heightCentimeters || playerCanon.taller);
+  const rewriteHandling = options.enabled !== false && playerCanon.cannotBeLifted === true;
+  if (!rewriteEyeLine && !rewriteHandling) {
+    return { push: (text) => text, flush: () => "" };
+  }
+  const rewrite = (text: string) => rewritePhysicalContinuityViolations(text, { rewriteEyeLine, rewriteHandling });
+  const retainedTailLength = 192;
+  let pending = "";
+
+  return {
+    push(text) {
+      pending = rewrite(pending + text);
+      if (pending.length <= retainedTailLength) return "";
+      const emitted = pending.slice(0, -retainedTailLength);
+      pending = pending.slice(-retainedTailLength);
+      return emitted;
+    },
+    flush() {
+      const emitted = rewrite(pending);
+      pending = "";
+      return emitted;
+    }
+  };
+}
+
+function rewritePhysicalContinuityViolations(
+  text: string,
+  policy: { rewriteEyeLine: boolean; rewriteHandling: boolean }
+) {
+  let rewritten = text;
+  if (policy.rewriteEyeLine) {
+    rewritten = rewritten
+      .replace(
+        /\b(look(?:s|ed|ing)?|gaz(?:e|es|ed|ing)|peer(?:s|ed|ing)|glanc(?:e|es|ed|ing)|stare(?:s|d|ing)?|watch(?:es|ed|ing)?)\s+down\s+(at|towards?)\s+you\b/gi,
+        (_match, verb: string, direction: string) => `${verb} ${direction} you`
+      )
+      .replace(
+        /\b(look(?:s|ed|ing)?|gaz(?:e|es|ed|ing)|peer(?:s|ed|ing)|glanc(?:e|es|ed|ing)|stare(?:s|d|ing)?)\s+down\s+to\s+meet\s+your\s+(eyes|gaze)\b/gi,
+        (_match, verb: string, target: string) => `${verb} to meet your ${target}`
+      )
+      .replace(
+        /\b(his|her|their)\s+(?:eyes|gaze)\s+(?:drops?|lowers?|angles?)\s+(?:down\s+)?(?:to|towards?|onto)\s+(?:you|your\s+(?:eyes|face))\b/gi,
+        (_match, owner: string) => `${owner} gaze settles on you`
+      )
+      .replace(/\b(towering|looming)\s+over\s+you\b/gi, "standing beside you")
+      .replace(/\b(he|she)\s+(?:towers|looms)\s+over\s+you\b/gi, (_match, subject: string) => `${subject} stands beside you`)
+      .replace(/\bthey\s+(?:tower|loom)\s+over\s+you\b/gi, (_match, subject: string) => `${subject} stand beside you`);
+  }
+
+  if (policy.rewriteHandling) {
+    const subject = "([A-Z][A-Za-z'’-]{1,48}|[Hh]e|[Ss]he|[Tt]hey)";
+    rewritten = rewritten
+      .replace(
+        new RegExp(`\\b${subject}\\s+(?:effortlessly\\s+|easily\\s+|simply\\s+)?(lifted|hoisted|carried|dragged)\\s+you\\b`, "g"),
+        (_match, actor: string) => `${actor} tried to move you, but could not shift your full weight`
+      )
+      .replace(
+        new RegExp(`\\b${subject}\\s+(?:effortlessly\\s+|easily\\s+|simply\\s+)?(lifts|hoists|carries|drags)\\s+you\\b`, "g"),
+        (_match, actor: string) => `${actor} tries to move you, but cannot shift your full weight`
+      )
+      .replace(
+        new RegExp(`\\b${subject}\\s+(?:effortlessly\\s+|easily\\s+|simply\\s+)?(?:picked|scooped)\\s+you\\s+up\\b`, "g"),
+        (_match, actor: string) => `${actor} tried to lift you, but could not shift your full weight`
+      )
+      .replace(
+        new RegExp(`\\b${subject}\\s+(?:effortlessly\\s+|easily\\s+|simply\\s+)?(?:picks|scoops)\\s+you\\s+up\\b`, "g"),
+        (_match, actor: string) => `${actor} tries to lift you, but cannot shift your full weight`
+      );
+  }
+  return rewritten;
 }
 
 function resolvePlayerPhysicalCanon(input: {
@@ -477,4 +579,10 @@ function detectLatestPosture(value: string): PlayerPosture | null {
     }
   }
   return candidates.sort((left, right) => right.index - left.index)[0]?.posture ?? null;
+}
+
+function hasPlayerAuthoredElevationOffset(sceneContext: SceneContext) {
+  return playerAuthoredMessages(sceneContext)
+    .slice(-4)
+    .some((message) => /\b(?:i(?:'m| am| stand| wait| remain)?\s+(?:below|beneath|downhill from)|at the (?:bottom|foot) of|above me|overhead)\b|(?:я\s+(?:стою\s+)?ниже|надо мной|у подножия|внизу)/i.test(message));
 }

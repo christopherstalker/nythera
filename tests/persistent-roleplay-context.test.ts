@@ -92,7 +92,9 @@ test("physical player canon is carried across summary compaction and every infer
   assert.match(summaryBuilder, /\[CANONICAL PLAYER PHYSICAL FACTS\]/);
   assert.match(assembly, /persistentPlayerContext: input\.physicalContext/);
   for (const inferencePath of [webRoute, mobileRoute, rooms]) {
-    assert.match(inferencePath, /physicalContext: buildPhysicalMemoryContext/);
+    assert.match(inferencePath, /const physicalContext = buildPhysicalMemoryContext/);
+    assert.match(inferencePath, /physicalContext,/);
+    assert.match(inferencePath, /createPhysicalContinuityOutputGuard/);
   }
 });
 
