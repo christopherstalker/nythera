@@ -98,6 +98,9 @@ export function buildPhysicalContinuityLayer(
     : playerCanon.taller
       ? buildQualitativeHeightRule(character.name)
       : null;
+  const unknownHeightRule = playerCanon.heightCentimeters
+    ? buildUnknownCounterpartHeightRule(playerCanon.heightCentimeters)
+    : null;
   const weightRule = characterWeight && playerCanon.weightKilograms
     ? buildWeightRule(character.name, characterWeight.kilograms, playerCanon.weightKilograms)
     : playerCanon.heavier
@@ -122,6 +125,7 @@ export function buildPhysicalContinuityLayer(
     characterWeight ? `Canonical character weight (${characterName}): ${formatWeight(characterWeight.kilograms)}.` : null,
     playerCanon.weightKilograms ? `Canonical player weight: ${formatWeight(playerCanon.weightKilograms)}.` : null,
     heightRule,
+    unknownHeightRule,
     hasHeightRelation ? buildCurrentPostureRule(character.name, playerPosture) : null,
     weightRule,
     needsHandlingRule ? buildHandlingRule(character.name, playerCanon.cannotBeLifted === true) : null
@@ -291,16 +295,18 @@ function parseWeightFacts(excerpt: string, assumePlayer: boolean): Omit<WeightFa
   const sanitizedExcerpt = sanitizePromptContext(excerpt, 280);
   const weightLanguage = /\b(?:weight|weighs?|body mass)\b|(?:вес|весом|вешу|весит|масса)/i.test(excerpt);
   const playerLanguage = /\b(?:user persona|player|i(?:'m| am)?|my)\b|(?:персона|игрок|я|мой|моя|меня)/i.test(excerpt);
-  if (!weightLanguage && !(assumePlayer && playerLanguage)) return [];
+  const physicalProfileLanguage = /\b(?:height|tall|standing|stature|build|physique)\b|(?:рост|ростом|высок|телослож)/i.test(excerpt);
+  if (!weightLanguage && !assumePlayer) return [];
+  const confidence = weightLanguage ? 4 : playerLanguage || physicalProfileLanguage ? 3 : 1;
 
   const facts: Omit<WeightFact, "order">[] = [];
   for (const match of excerpt.matchAll(/\b(\d{2,3}(?:[.,]\d+)?)\s*(?:kg|kilograms?|килограмм(?:а|ов|ы)?|кг)(?=$|[\s.,;:!?()])/gi)) {
     const kilograms = Number(match[1].replace(",", "."));
-    if (isPlausibleWeight(kilograms)) facts.push({ kilograms, excerpt: sanitizedExcerpt, confidence: weightLanguage ? 4 : 2 });
+    if (isPlausibleWeight(kilograms)) facts.push({ kilograms, excerpt: sanitizedExcerpt, confidence });
   }
   for (const match of excerpt.matchAll(/\b(\d{2,3}(?:[.,]\d+)?)\s*(?:lb|lbs|pounds?|фунт(?:а|ов|ы)?)(?=$|[\s.,;:!?()])/gi)) {
     const kilograms = Number(match[1].replace(",", ".")) * 0.45359237;
-    if (isPlausibleWeight(kilograms)) facts.push({ kilograms, excerpt: sanitizedExcerpt, confidence: weightLanguage ? 4 : 2 });
+    if (isPlausibleWeight(kilograms)) facts.push({ kilograms, excerpt: sanitizedExcerpt, confidence });
   }
   return facts;
 }
@@ -365,6 +371,15 @@ function buildQualitativeHeightRule(characterName: string) {
     `CANONICAL STANDING RELATION: the player is taller than ${character}.`,
     `- While both stand at the same elevation, ${character} must look up to meet the player's eyes.`,
     "- Do not reverse this relation unless the player explicitly establishes a posture or elevation change."
+  ].join("\n");
+}
+
+function buildUnknownCounterpartHeightRule(playerHeight: number) {
+  return [
+    `KNOWN PLAYER HEIGHT: ${formatHeight(playerHeight)}.`,
+    "- For every character whose height or explicit height relation to the player is not established, keep the eye line neutral instead of inventing that character as taller or shorter.",
+    "- Forbidden for an unspecified-height character at the same elevation: ‘looks down at you’, ‘gazes down at you’, ‘towers over you’, ‘looms over you’, or equivalent narration.",
+    "- Use neutral geometry such as ‘looks at you’ or ‘meets your gaze’ until canon or the player establishes a relative height, posture, or elevation."
   ].join("\n");
 }
 
