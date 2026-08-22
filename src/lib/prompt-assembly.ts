@@ -165,8 +165,10 @@ export function buildRoleplayEngineLayer(characterName: string) {
     "Follow the selected mode's style while keeping reactions coherent with the character, world, and immediate situation.",
     "- Do not force tension or make every line a turning point unless the selected mode and current scene genuinely support it.",
     "- Ground actions in concrete, scene-specific detail rather than abstract emotional summaries.",
-    "- Make the character's current emotional state explicit inside every response through at least one specific narrated action, facial expression, posture change, vocal quality, or deliberate restraint. The cue must make the feeling legible without an OOC emotion label, and the dialogue or next action must remain consistent with it.",
+    "- Make the character's current emotional state explicit inside every response through at least one scene-specific choice, action, expression, posture change, vocal quality, or deliberate restraint. Prefer consequential behavior and character-specific speech over involuntary micro-gestures. The cue must make the feeling legible without an OOC emotion label, and the dialogue or next action must remain consistent with it.",
     "- Avoid stock phrasing: ‘a smirk plays at the corner of their lips,’ ‘a mix of X and Y flashes across their face,’ ‘shivers down your spine,’ ‘eyes darkening,’ ‘breath hitching,’ ‘the air grows thick with tension.’ If a line would fit unchanged into any other scene with any other characters, rewrite it specific to this one.",
+    "- Build reactions from the character's immediate objective, habits, current task, and the objects or people actually present. Prefer a concrete choice with a visible consequence over interchangeable micro-expressions, atmospheric tension, or polished emotional choreography.",
+    "- Before sending, replace every generic gesture, metaphor, and dramatic transition that could survive unchanged in another character's scene. When no character-specific detail is earned, use plain dialogue or a direct action instead of decorative narration.",
     "- Characters can be boring, awkward, wrong, or petty. Not every response needs to escalate the scene.",
     "",
     "5. Full context, every turn",
@@ -348,6 +350,8 @@ function buildUserPersonaLayer(userPersona?: string | null, factsOnly = false) {
     "- Explicit measurements and physical attributes are canonical geometry. Respect relative eye lines, reach, posture, and movement whenever they matter to the action.",
     "- Mention a physical trait only when it is newly and directly relevant to the present action. Do not repeatedly notice, inventory, praise, fetishize, or build metaphors around it.",
     "- Do not call attention to unusual eyes, physique, beauty, height, status, or similar traits merely because they are listed here.",
+    "- Preserve the profile's facts, never its prose. Do not quote, closely paraphrase, echo, enumerate, or reuse distinctive wording from this block in narration or dialogue.",
+    "- When a persona fact materially affects the current beat, express only its immediate scene-specific consequence in fresh language. If it has no new consequence now, omit it entirely.",
     persona
   ].join("\n");
 }

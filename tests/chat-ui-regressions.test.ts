@@ -30,6 +30,22 @@ test("chat content stacks above the customizable media background", async () => 
   assert.match(source, /<ChatBackdrop/);
 });
 
+test("double click reading mode hides chat chrome without swallowing interactive controls", async () => {
+  const [clientSource, listSource] = await Promise.all([
+    readFile(new URL("../src/components/chat/chat-client.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/chat/MessageList.tsx", import.meta.url), "utf8")
+  ]);
+
+  assert.match(clientSource, /onDoubleClick=\{handleDoubleClick\}/);
+  assert.match(clientSource, /onPointerUp=\{handlePointerUp\}/);
+  assert.match(clientSource, /className=\{readingMode \? "hidden" : "contents"\}[\s\S]*?<ChatHeader/);
+  assert.match(clientSource, /className=\{readingMode \? "hidden" : "contents"\}[\s\S]*?<ChatInput/);
+  assert.match(clientSource, /touch-manipulation/);
+  assert.match(clientSource, /a, button, input, textarea, select, option/);
+  assert.match(clientSource, /event\.key === "Escape"/);
+  assert.match(listSource, /hasSoundtrack \|\| readingMode/);
+});
+
 test("chat preview text strips markdown and truncates cleanly", async () => {
   const preview = await import("../src/lib/chat-preview").catch(() => null);
   assert.equal(typeof preview?.toChatPreview, "function");
