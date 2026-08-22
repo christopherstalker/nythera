@@ -30,6 +30,7 @@ import { normalizeChatMode } from "@/lib/chat-mode";
 import { requireAdultConsent } from "@/lib/adult-consent";
 import { schedulePostResponseTasks } from "@/lib/post-response";
 import { containsRussianLanguage, RUSSIAN_LANGUAGE_ERROR } from "@/lib/language-policy";
+import { createPhysicalContinuityOutputGuard } from "@/lib/physical-continuity";
 
 type Context = {
   params: Promise<{ id: string }>;
@@ -158,13 +159,16 @@ export async function POST(request: Request, context: Context) {
       userMemories
     });
     const customPromptActive = Boolean(selectCustomPrompt(responsePrompt, effectiveSettings.systemPromptOverride));
+    const recentMessages = history.messages.slice(-20);
+    const userPersonaPrompt = formatUserPersonaForPrompt(userPersona);
+    const physicalContext = buildPhysicalMemoryContext(chat.summary, [...memories, ...userGlobalMemories]);
 
     const prompt = assembleNytheraPrompt({
       character: chat.character,
       memories,
-      userPersona: formatUserPersonaForPrompt(userPersona),
+      userPersona: userPersonaPrompt,
       summary: history.overflowed ? chat.summary : null,
-      recentMessages: history.messages.slice(-20),
+      recentMessages,
       currentMessage: message,
       responsePrompt,
       storyContext: storyContext.text,
@@ -172,9 +176,15 @@ export async function POST(request: Request, context: Context) {
       injectionAssessment,
       modeContext: promptAddon.modeStyle,
       sessionMemoryContext: promptAddon.sessionMemory,
-      physicalContext: buildPhysicalMemoryContext(chat.summary, [...memories, ...userGlobalMemories]),
+      physicalContext,
       translationLanguage: chat.translationLanguage
     });
+    const physicalOutputGuard = createPhysicalContinuityOutputGuard(
+      chat.character,
+      userPersonaPrompt,
+      { recentMessages, currentMessage: message, persistentPlayerContext: physicalContext },
+      { enabled: !customPromptActive }
+    );
     temperature = customPromptActive ? effectiveSettings.temperature : modeTemperature(chatMode, effectiveSettings.temperature);
 
     const encoder = new TextEncoder();
@@ -214,6 +224,27 @@ export async function POST(request: Request, context: Context) {
             clientConnected = false;
           }
         };
+        const appendAssistantDelta = (text: string) => {
+          if (!text) return true;
+          const nextText = assistantText + text;
+          const check = moderateText({
+            text: nextText,
+            userIsMinor: isMinor(user.birthDate),
+            context: "assistant"
+          });
+
+          if (!check.allowed) {
+            outputBlocked = true;
+            const replacement = check.reason ?? "The response was stopped because it did not pass the platform safety policy.";
+            assistantText = replacement;
+            send({ type: "delta", text: replacement });
+            return false;
+          }
+
+          assistantText = nextText;
+          send({ type: "delta", text });
+          return true;
+        };
 
         try {
           if (userMessage) {
@@ -234,24 +265,8 @@ export async function POST(request: Request, context: Context) {
             signal: request.signal
           })) {
             if (chunk.type === "delta") {
-              const nextText = assistantText + chunk.text;
-              const check = moderateText({
-                text: nextText,
-                userIsMinor: isMinor(user.birthDate),
-                context: "assistant"
-              });
-
-              if (!check.allowed) {
-                outputBlocked = true;
-                const replacement =
-                  check.reason ?? "The response was stopped because it did not pass the platform safety policy.";
-                assistantText = replacement;
-                send({ type: "delta", text: replacement });
-                break;
-              }
-
-              assistantText = nextText;
-              send(chunk);
+              const guardedDelta = physicalOutputGuard.push(chunk.text);
+              if (guardedDelta && !appendAssistantDelta(guardedDelta)) break;
             }
 
             if (chunk.type === "usage") {
@@ -265,6 +280,7 @@ export async function POST(request: Request, context: Context) {
               throw new Error(chunk.message);
             }
           }
+          if (!outputBlocked) appendAssistantDelta(physicalOutputGuard.flush());
 
           if (!assistantText.trim()) {
             throw new Error("The model returned an empty response.");
@@ -357,6 +373,7 @@ export async function POST(request: Request, context: Context) {
           send({ type: "message", message: assistantMessage });
           send({ type: "done" });
         } catch (error) {
+          if (!outputBlocked) appendAssistantDelta(physicalOutputGuard.flush());
           logSafeError("Mobile chat stream failed.", error);
           const errorMessage = error instanceof Error ? error.message : "The model stream failed.";
           const estimatedCost = estimateModelCost({

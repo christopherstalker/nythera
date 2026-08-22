@@ -22,6 +22,8 @@ import { markStoryProactiveEventsFired } from "@/lib/stories/narrative-store";
 import { logSafeError } from "@/lib/secret-redaction";
 import { renderCharacterPrologue } from "@/lib/prologue-pov";
 import { buildPhysicalMemoryContext } from "@/lib/memory/promptBuilder";
+import { createPhysicalContinuityOutputGuard } from "@/lib/physical-continuity";
+import { selectCustomPrompt } from "@/lib/response-prompt";
 
 type RoomUser = {
   id: string;
@@ -290,6 +292,8 @@ export async function sendRoomMessage(input: {
     getRoomStoryPromptContext({ roomId: room.id, userId: room.userId, actorCharacterId: speaker.id })
   ]);
   const userPersona = room.userId === input.user.id ? room.persona ?? defaultPersona : defaultPersona;
+  const userPersonaPrompt = formatUserPersonaForPrompt(userPersona as UserPersona | null);
+  const physicalContext = buildPhysicalMemoryContext(room.summary, memories);
   const recentMessages = history.messages
     .map((roomMessage) => ({
       role: roomMessage.role === RoomMessageRole.CHARACTER ? MessageRole.ASSISTANT : roomMessage.role === RoomMessageRole.SYSTEM ? MessageRole.SYSTEM : MessageRole.USER,
@@ -298,7 +302,7 @@ export async function sendRoomMessage(input: {
   const prompt = assembleNytheraPrompt({
     character: speaker,
     memories,
-    userPersona: formatUserPersonaForPrompt(userPersona as UserPersona | null),
+    userPersona: userPersonaPrompt,
     summary: history.overflowed ? room.summary : null,
     recentMessages,
     currentMessage: message,
@@ -309,9 +313,15 @@ export async function sendRoomMessage(input: {
     }),
     storyContext: storyContext.text,
     factualStoryContext: storyContext.factualText,
-    physicalContext: buildPhysicalMemoryContext(room.summary, memories),
+    physicalContext,
     injectionAssessment
   });
+  const physicalOutputGuard = createPhysicalContinuityOutputGuard(
+    speaker,
+    userPersonaPrompt,
+    { recentMessages, currentMessage: message, persistentPlayerContext: physicalContext },
+    { enabled: !selectCustomPrompt(room.responsePrompt, speaker.systemPromptOverride) }
+  );
 
   let assistantText = "";
   let outputBlocked = false;
@@ -371,6 +381,7 @@ export async function sendRoomMessage(input: {
       throw new Error(chunk.message);
     }
   }
+  assistantText = physicalOutputGuard.push(assistantText) + physicalOutputGuard.flush();
 
   if (!assistantText.trim()) {
     throw new Error("The model returned an empty response.");

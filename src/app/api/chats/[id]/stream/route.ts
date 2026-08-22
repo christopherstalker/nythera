@@ -32,6 +32,7 @@ import { resolveCharacterPersona } from "@/lib/persona";
 import { maxOutputTokensForVerbosity } from "@/lib/response-length";
 import { loadPromptImages, resolveOwnedChatAssets, serializeAsset } from "@/lib/chat-media";
 import { containsRussianLanguage, RUSSIAN_LANGUAGE_ERROR } from "@/lib/language-policy";
+import { createPhysicalContinuityOutputGuard } from "@/lib/physical-continuity";
 
 type Context = {
   params: Promise<{ id: string }>;
@@ -235,6 +236,8 @@ export async function POST(request: Request, context: Context) {
     const { characterMemories, userMemories } = formatTieredMemoryBlocks(tieredMemories);
     const responsePrompt = input.responsePrompt ?? chat.responsePrompt;
     const customPromptActive = Boolean(selectCustomPrompt(responsePrompt, effectiveSettings.systemPromptOverride));
+    const userPersonaPrompt = formatUserPersonaForPrompt(userPersona);
+    const physicalContext = buildPhysicalMemoryContext(chat.summary, [...memories, ...userGlobalMemories]);
     const promptAddon = buildPromptAddonLayers({
       mode: chatMode,
       characterMemories,
@@ -245,7 +248,7 @@ export async function POST(request: Request, context: Context) {
     const prompt = assembleNytheraPrompt({
       character: chat.character,
       memories,
-      userPersona: formatUserPersonaForPrompt(userPersona),
+      userPersona: userPersonaPrompt,
       summary: history.overflowed && !branchInstruction ? chat.summary : null,
       recentMessages,
       currentMessage: message,
@@ -257,9 +260,15 @@ export async function POST(request: Request, context: Context) {
       branchInstruction,
       modeContext: promptAddon.modeStyle,
       sessionMemoryContext: promptAddon.sessionMemory,
-      physicalContext: buildPhysicalMemoryContext(chat.summary, [...memories, ...userGlobalMemories]),
+      physicalContext,
       translationLanguage: chat.translationLanguage
     });
+    const physicalOutputGuard = createPhysicalContinuityOutputGuard(
+      chat.character,
+      userPersonaPrompt,
+      { recentMessages, currentMessage: message, persistentPlayerContext: physicalContext },
+      { enabled: !customPromptActive }
+    );
 
     temperature = customPromptActive ? effectiveSettings.temperature : modeTemperature(chatMode, effectiveSettings.temperature);
 
@@ -301,6 +310,35 @@ export async function POST(request: Request, context: Context) {
             clientConnected = false;
           }
         };
+        const appendAssistantDelta = (text: string) => {
+          if (!text) return true;
+          const nextText = assistantText + text;
+          const check = moderateText({
+            text: nextText,
+            userIsMinor: isMinor(user.birthDate),
+            context: "assistant"
+          });
+
+          if (!check.allowed) {
+            outputBlocked = true;
+            const replacement = check.reason ?? "The response was stopped because it did not pass the platform safety policy.";
+            assistantText = replacement;
+            send({ type: "delta", text: replacement });
+            return false;
+          }
+
+          assistantText = nextText;
+          if (!firstClientTokenLogged) {
+            firstClientTokenLogged = true;
+            logPerformanceMetric("chat_stream_first_token", {
+              route: "chat:stream",
+              configuredModel: model,
+              durationMs: elapsedMs(streamStartedAt)
+            });
+          }
+          send({ type: "delta", text });
+          return true;
+        };
 
         try {
           if (userMessage) {
@@ -327,32 +365,8 @@ export async function POST(request: Request, context: Context) {
             signal: request.signal
           })) {
             if (chunk.type === "delta") {
-              const nextText = assistantText + chunk.text;
-              const check = moderateText({
-                text: nextText,
-                userIsMinor: isMinor(user.birthDate),
-                context: "assistant"
-              });
-
-              if (!check.allowed) {
-                outputBlocked = true;
-                const replacement =
-                  check.reason ?? "The response was stopped because it did not pass the platform safety policy.";
-                assistantText = replacement;
-                send({ type: "delta", text: replacement });
-                break;
-              }
-
-              assistantText = nextText;
-              if (!firstClientTokenLogged) {
-                firstClientTokenLogged = true;
-                logPerformanceMetric("chat_stream_first_token", {
-                  route: "chat:stream",
-                  configuredModel: model,
-                  durationMs: elapsedMs(streamStartedAt)
-                });
-              }
-              send(chunk);
+              const guardedDelta = physicalOutputGuard.push(chunk.text);
+              if (guardedDelta && !appendAssistantDelta(guardedDelta)) break;
             }
 
             if (chunk.type === "usage") {
@@ -366,6 +380,7 @@ export async function POST(request: Request, context: Context) {
               throw new Error(chunk.message);
             }
           }
+          if (!outputBlocked) appendAssistantDelta(physicalOutputGuard.flush());
 
           if (!assistantText.trim()) {
             throw new Error("The model returned an empty response.");
@@ -465,6 +480,7 @@ export async function POST(request: Request, context: Context) {
           send({ type: "message", message: assistant });
           send({ type: "done" });
         } catch (error) {
+          if (!outputBlocked) appendAssistantDelta(physicalOutputGuard.flush());
           logSafeError("Chat stream failed.", error);
           const errorMessage = error instanceof Error ? error.message : "The model stream failed.";
           if (assistantText.trim() && !assistantPersisted) {

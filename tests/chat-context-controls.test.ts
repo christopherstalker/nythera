@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   buildPhysicalContinuityLayer,
+  createPhysicalContinuityOutputGuard,
   extractPlayerPhysicalCanon,
   formatPlayerPhysicalCanon
 } from "../src/lib/physical-continuity";
@@ -245,6 +246,57 @@ test("physical canon formatting is deterministic for long-chat summaries", () =>
       "- Handling constraint: the player cannot be lifted or carried by another character."
     ].join("\n")
   );
+});
+
+test("stream guard rewrites provider violations before they reach the client or storage", () => {
+  const guard = createPhysicalContinuityOutputGuard(
+    {
+      name: "Pick-me rookie | Toto Wolff",
+      description: "Toto walks beside the player.",
+      personality: "Direct.",
+      scenario: "They leave the paddock on the same level."
+    },
+    "User persona summary: Christopher. 213 cm tall, around 180 kg.",
+    { recentMessages: [], currentMessage: "I walk beside Toto." }
+  );
+  const prefix = "Toto waits by the turnstile. ".repeat(9);
+  const output = [
+    guard.push(`${prefix}He looks do`),
+    guard.push("wn at you, waiting for your answer."),
+    guard.flush()
+  ].join("");
+
+  assert.match(output, /He looks at you, waiting for your answer\./);
+  assert.doesNotMatch(output, /looks down at you/i);
+});
+
+test("stream guard preserves external-prompt output and explicit lower posture", () => {
+  const character = { name: "Marek", description: "Marek walks nearby.", personality: "Direct.", scenario: null };
+  const external = createPhysicalContinuityOutputGuard(
+    character,
+    "I am 205 cm tall.",
+    { recentMessages: [], currentMessage: "Continue." },
+    { enabled: false }
+  );
+  const seated = createPhysicalContinuityOutputGuard(
+    character,
+    "I am 205 cm tall.",
+    { recentMessages: [], currentMessage: "I sit in the chair." }
+  );
+
+  assert.equal(external.push("He looks down at you.") + external.flush(), "He looks down at you.");
+  assert.equal(seated.push("He looks down at you.") + seated.flush(), "He looks down at you.");
+});
+
+test("stream guard rejects impossible handling when the player canon forbids lifting", () => {
+  const guard = createPhysicalContinuityOutputGuard(
+    { name: "Adrian", description: "Adrian is strong.", personality: "Direct.", scenario: null },
+    "I weigh 180 kg and cannot be lifted or carried.",
+    { recentMessages: [], currentMessage: "I stay where I am." }
+  );
+  const output = guard.push("Adrian effortlessly picks you up and smiles.") + guard.flush();
+
+  assert.equal(output, "Adrian tries to lift you, but cannot shift your full weight and smiles.");
 });
 
 test("maximum romance is an actionable direction while zero remains non-romantic", () => {
