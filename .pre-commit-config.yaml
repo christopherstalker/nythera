@@ -26,7 +26,7 @@ repos:
         pass_filenames: false
       - id: regression-tests
         name: Fast regression tests
-        entry: node --import tsx --test tests/walkthrough-regressions.test.ts tests/chat-model-picker.test.ts tests/guardian-service.test.ts
+        entry: node --import tsx --test tests/walkthrough-regressions.test.ts tests/chat-model-picker.test.ts tests/guardian-service.test.ts tests/ai-shield.test.ts
         language: system
         files: \.[cm]?[jt]sx?$
         pass_filenames: false

@@ -23,6 +23,7 @@ const envSchema = z.object({
   EMAIL_SERVER: z.string().optional(),
   EMAIL_FROM: z.string().optional(),
   INTERNAL_API_TOKEN: z.string().optional(),
+  AI_SHIELD_SIGNING_SECRET: z.string().min(32).optional(),
   LLM_PROXY_URL: z.string().url().optional(),
   OPENAI_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
