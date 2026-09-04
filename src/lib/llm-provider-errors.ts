@@ -51,7 +51,11 @@ export function classifyProviderError(error: unknown): ProviderErrorClassificati
     };
   }
 
-  if (status === 402) {
+  const exhaustedCredit = error !== null && typeof error === "object" && (
+    ("code" in error && error.code === "credit_balance_exhausted") ||
+    ("type" in error && error.type === "insufficient_quota")
+  );
+  if (status === 402 || status === 429 && exhaustedCredit) {
     return {
       code: "insufficient_balance",
       message: "The provider account cannot cover this request. Add credits, reduce the response length, or choose another provider.",
@@ -109,6 +113,7 @@ export function classifyProviderError(error: unknown): ProviderErrorClassificati
     rawMessage.includes("fetch failed") ||
     rawMessage.includes("network") ||
     rawMessage.includes("timeout") ||
+    rawMessage.includes("timed out") ||
     rawMessage.includes("econn")
   ) {
     return {
