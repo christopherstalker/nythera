@@ -14,6 +14,8 @@ test("account settings are split into dedicated routes behind one shared shell",
 
   assert.match(layout, /<SettingsShell>\{children\}<\/SettingsShell>/);
   assert.match(shell, /aria-label="Settings sections"/);
+  assert.match(shell, /aria-label="Jump to settings section"/);
+  assert.match(shell, /settings-section-nav hidden[^\n]*lg:grid/);
   assert.match(shell, /aria-current=\{active \? "page" : undefined\}/);
   assert.match(shell, /router\.replace\(legacySection\.href\)/);
   assert.doesNotMatch(shell, /PageHeader/);
@@ -73,6 +75,15 @@ test("the mobile account hub exposes every desktop settings section", async () =
   assert.match(accountHub, /<MobileSettingsIndex \/>/);
   assert.match(accountHub, /SETTINGS_SECTIONS\.map/);
   assert.match(accountHub, /Every desktop setting is available here/);
+  assert.match(accountHub, /parseAccountTab\(searchParams\.get\("tab"\)\)/);
+  assert.match(accountHub, /router\.replace\(params\.size > 0 \? `\/account\?\$\{params\}` : "\/account"/);
   assert.match(mobileDock, /pathname\.startsWith\("\/settings"\)/);
   assert.equal((sections.match(/href: "\/(?:account|settings\/[^\"]+)"/g) ?? []).length, 7);
+});
+
+test("provider recovery controls appear before provider forms and connected providers sort first", async () => {
+  const providers = await read("../src/components/settings/key-settings-client.tsx");
+
+  assert.ok(providers.indexOf(">Fallback chain<") < providers.indexOf("orderedProviders.map"));
+  assert.match(providers, /Number\(savedByProvider\.has\(right\.provider\)\) - Number\(savedByProvider\.has\(left\.provider\)\)/);
 });

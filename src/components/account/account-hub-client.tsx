@@ -3,6 +3,7 @@
 import { type ChangeEvent, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { upload } from "@vercel/blob/client";
 import { ArrowUpRight, Camera, Check, Copy, ImagePlus, MessageCircle, Plus, Settings2, Share2, Sparkles, Type, UserRound, Wand2, X } from "lucide-react";
@@ -57,11 +58,14 @@ const PROFILE_SURFACES = [
 const PROFILE_AVATAR_SHAPES = ["circle", "soft", "square"] as const;
 const PROFILE_BANNER_HEIGHTS = ["compact", "cinematic", "immersive"] as const;
 const fieldLabelClass = "grid gap-2 text-[10px] font-medium uppercase tracking-[.14em] text-[var(--text-muted)]";
+type AccountTabId = "profile" | "studio" | "settings";
 
 export function AccountHubClient() {
   const { status: sessionStatus } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const fontInputRef = useRef<HTMLInputElement>(null);
-  const [tab, setTab] = useState<"profile" | "studio" | "settings">("profile");
+  const tab = parseAccountTab(searchParams.get("tab"));
   const [profileEditing, setProfileEditing] = useState(false);
   const [previewMode, setPreviewMode] = useState<"visitor" | "owner">("owner");
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -95,6 +99,14 @@ export function AccountHubClient() {
   }, [sessionStatus]);
 
   const publicCharacters = useMemo(() => characters.filter((character) => character.visibility === "PUBLIC"), [characters]);
+
+  function selectTab(nextTab: AccountTabId, editProfile = false) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (nextTab === "profile") params.delete("tab");
+    else params.set("tab", nextTab);
+    router.replace(params.size > 0 ? `/account?${params}` : "/account", { scroll: false });
+    setProfileEditing(editProfile);
+  }
 
   function updateMusic(patch: Partial<NonNullable<ProfileSettings["music"]>>) {
     setSettings((current) => ({
@@ -199,8 +211,8 @@ export function AccountHubClient() {
   return (
     <div className="pb-8">
       <header className="border-b border-[var(--codex-rule)] px-5 pb-6 pt-4 sm:px-0 sm:pt-0">
-        <p className="max-w-full break-all text-2xl font-medium text-[var(--text-primary)] sm:text-3xl">{username || "Your account"}</p>
-        <div className="mt-5 flex items-start gap-5 sm:items-end">
+        <p className="codex-kicker">Your account</p>
+        <div className="mt-3 flex items-start gap-5 sm:items-end">
           <Avatar name={username || "N"} src={avatarValue} size="xl" className="h-28 w-28 sm:h-32 sm:w-32" />
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-3xl font-semibold text-[var(--text-primary)] sm:text-4xl">{username || "Complete your profile"}</h1>
@@ -214,16 +226,16 @@ export function AccountHubClient() {
         </dl>
 
         <div className="mt-5 flex flex-wrap gap-2">
-          <Button type="button" variant="secondary" onClick={() => { setTab("profile"); setProfileEditing(true); }}><UserRound className="h-4 w-4" />Edit profile</Button>
+          <Button type="button" variant="secondary" onClick={() => selectTab("profile", true)}><UserRound className="h-4 w-4" />Edit profile</Button>
           <Button type="button" variant="secondary" onClick={() => void shareProfile()} disabled={!username}>{copied ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}{copied ? "Copied" : "Share profile"}</Button>
           {username ? <Button asChild variant="ghost"><Link href={publicProfileUrl(username)} target="_blank">View public page</Link></Button> : null}
         </div>
       </header>
 
       <div className="sticky top-0 z-30 grid grid-cols-3 border-b border-[var(--codex-rule)] bg-[color:var(--codex-paper)]/95 px-5 backdrop-blur-sm sm:px-0" role="tablist" aria-label="Account sections">
-        <AccountTab active={tab === "profile"} onClick={() => { setTab("profile"); setProfileEditing(false); }}><UserRound className="h-4 w-4" />Profile</AccountTab>
-        <AccountTab active={tab === "studio"} onClick={() => { setTab("studio"); setProfileEditing(false); }}><Wand2 className="h-4 w-4" />Characters</AccountTab>
-        <AccountTab active={tab === "settings"} onClick={() => { setTab("settings"); setProfileEditing(false); }}><Settings2 className="h-4 w-4" />Settings</AccountTab>
+        <AccountTab active={tab === "profile"} onClick={() => selectTab("profile")}><UserRound className="h-4 w-4" />Profile</AccountTab>
+        <AccountTab active={tab === "studio"} onClick={() => selectTab("studio")}><Wand2 className="h-4 w-4" />Characters</AccountTab>
+        <AccountTab active={tab === "settings"} onClick={() => selectTab("settings")}><Settings2 className="h-4 w-4" />Settings</AccountTab>
       </div>
 
       {tab === "profile" ? (
@@ -319,6 +331,10 @@ export function AccountHubClient() {
       ) : tab === "studio" ? <div className="px-5 pt-7 sm:px-0"><CharacterStudio characters={characters} /></div> : <MobileSettingsIndex />}
     </div>
   );
+}
+
+function parseAccountTab(value: string | null): AccountTabId {
+  return value === "studio" || value === "settings" ? value : "profile";
 }
 
 function AccountTab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
