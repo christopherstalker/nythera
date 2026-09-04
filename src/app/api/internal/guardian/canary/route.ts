@@ -5,6 +5,7 @@ import { logSafeError } from "@/lib/secret-redaction";
 import { prisma } from "@/lib/prisma";
 import { providerModelValue, splitProviderModelValue } from "@/lib/provider-model-options";
 import { getEffectiveProviderKeys, getServerProviderKeys } from "@/lib/user-keys";
+import { checkShieldTransport } from "@/lib/proxy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ export async function GET(request: Request) {
   console.log(JSON.stringify({ level: "info", event: "guardian_canary_start", requestId }));
 
   try {
-    const canary = await resolveCanaryConfiguration();
+    const [canary, shield] = await Promise.all([resolveCanaryConfiguration(), checkShieldTransport()]);
     if (canary.providerKeys.length === 0) {
       throw new Error("No provider keys are configured for the Guardian canary.");
     }
@@ -86,7 +87,8 @@ export async function GET(request: Request) {
 
     const response = {
       ok: true,
-      status: usage.fallbackTriggered ? "degraded" : "healthy",
+      status: usage.fallbackTriggered || shield === "unavailable" ? "degraded" : "healthy",
+      shield,
       provider: usage.provider,
       model: usage.model,
       fallbackTriggered: usage.fallbackTriggered,

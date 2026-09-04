@@ -227,7 +227,7 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
         if (!classified.retryable && !canTryAnotherRoute) {
           yield {
             type: "error",
-            message: exhaustedProviderMessage(attempt, attemptLabels.filter((label) => label.startsWith(`${attempt.providerName}:`)).length, classified.message)
+            message: exhaustedProviderMessage(attempt, classified.message)
           };
           return;
         }
@@ -240,7 +240,7 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
   }
 
   const classified = classifyProviderError(lastError);
-  yield { type: "error", message: exhaustedProviderMessage(lastAttempt, attemptLabels.filter((label) => label.startsWith(`${lastAttempt.providerName}:`)).length, classified.message) };
+  yield { type: "error", message: exhaustedProviderMessage(lastAttempt, classified.message) };
 }
 
 export async function createGatewayEmbedding(text: string, providerKeys?: ProviderKeys) {
@@ -431,13 +431,9 @@ function shouldSkipRemainingProviderKeys(code: ReturnType<typeof classifyProvide
     code === "network_error";
 }
 
-function exhaustedProviderMessage(route: GatewayRoute, keyCount: number, fallbackMessage: string) {
-  if (keyCount <= 1) {
-    return fallbackMessage;
-  }
-
+function exhaustedProviderMessage(route: GatewayRoute, fallbackMessage: string) {
   const provider = route.key?.displayName || route.providerName;
-  return `All ${keyCount} saved keys for ${provider} failed. ${fallbackMessage}`;
+  return `${provider}: ${fallbackMessage}`;
 }
 
 function parseExplicitProviderModel(requested: string, keys: ProviderKeys) {

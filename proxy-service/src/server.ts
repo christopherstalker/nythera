@@ -161,6 +161,10 @@ app.use(async (request, response, next) => {
   next();
 });
 
+app.post("/v1/health", (_request, response) => {
+  response.json({ ok: true, service: "nythera-ai-shield" });
+});
+
 app.post("/v1/embeddings", async (request, response) => {
   const parsed = embeddingSchema.safeParse(request.body);
   if (!parsed.success) {

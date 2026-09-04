@@ -45,7 +45,7 @@ test("same-provider retries precede cross-provider fallbacks", async () => {
   assert.match(gateway, /MAX_SAME_PROVIDER_ATTEMPTS = 4/);
   assert.match(gateway, /rotatePrimaryKey/);
   assert.match(gateway, /setKeyCooldown/);
-  assert.match(gateway, /All \$\{keyCount\} saved keys/);
+  assert.match(gateway, /exhaustedProviderMessage\(lastAttempt, classified.message\)/);
   assert.match(gateway, /LLM provider attempt failed/);
   assert.match(gateway, /providerOutputTokenBudget\(\{/);
   assert.match(gateway, /Provider returned an empty response/);

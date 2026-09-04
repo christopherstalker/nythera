@@ -101,3 +101,19 @@ function proxyHeaders(path: string, body: string) {
       : { authorization: `Bearer ${env.INTERNAL_API_TOKEN}` })
   };
 }
+
+export async function checkShieldTransport(): Promise<"disabled" | "healthy" | "unavailable"> {
+  if (!env.LLM_PROXY_URL || !env.AI_SHIELD_SIGNING_SECRET) return "disabled";
+  const path = "/v1/health";
+  const body = "{}";
+  try {
+    const response = await fetch(`${env.LLM_PROXY_URL}${path}`, {
+      method: "POST", headers: proxyHeaders(path, body), body, signal: AbortSignal.timeout(5000)
+    });
+    if (!response.ok) return "unavailable";
+    const health = await response.json() as { ok?: boolean; service?: string };
+    return health.ok === true && health.service === "nythera-ai-shield" ? "healthy" : "unavailable";
+  } catch {
+    return "unavailable";
+  }
+}
