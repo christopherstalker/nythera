@@ -141,6 +141,10 @@ export function KeySettingsClient({ onboarding = false, callbackUrl = "/explore"
     }
     return grouped;
   }, [keys]);
+  const orderedProviders = useMemo(
+    () => [...providers].sort((left, right) => Number(savedByProvider.has(right.provider)) - Number(savedByProvider.has(left.provider))),
+    [savedByProvider]
+  );
   const catalogByKey = useMemo(
     () => new Map(modelCatalog.filter((entry) => entry.keyId).map((entry) => [entry.keyId!, entry])),
     [modelCatalog]
@@ -311,7 +315,50 @@ export function KeySettingsClient({ onboarding = false, callbackUrl = "/explore"
           Refresh models
         </Button>
       </div>
-      {providers.map((provider) => {
+      {keys.length > 0 ? (
+        <section className="glass-card p-4">
+          <div className="flex items-start gap-3">
+            <ListOrdered className="mt-0.5 h-5 w-5 text-[var(--accent-purple)]" />
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--text-primary)]">Fallback chain</h3>
+              <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
+                Rate limits, timeouts, network failures, and provider outages try enabled providers in this order. Invalid keys and rejected requests stop immediately.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-2">
+            {fallbackKeys.map((key, index) => (
+              <div key={key.provider} className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] p-3">
+                <input
+                  type="checkbox"
+                  checked={key.isDefault || key.fallbackEnabled}
+                  disabled={key.isDefault || rejectedProviders.has(key.provider)}
+                  onChange={() => toggleFallback(key.provider)}
+                  aria-label={`Include ${key.displayName} in fallback chain`}
+                  className="accent-[var(--accent-purple)]"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-[var(--text-primary)]">
+                    {index + 1}. {key.displayName} {key.isDefault ? "(primary)" : ""}{rejectedProviders.has(key.provider) ? " · invalid key" : ""}
+                  </p>
+                  <p className="truncate text-xs text-[var(--text-muted)]">{key.defaultModel || "Provider default model"}</p>
+                </div>
+                <Button type="button" variant="outline" size="icon" aria-label={`Move ${key.displayName} up`} onClick={() => moveFallback(index, -1)} disabled={index === 0 || key.isDefault || fallbackKeys[index - 1]?.isDefault}>
+                  <ArrowUp className="h-4 w-4" />
+                </Button>
+                <Button type="button" variant="outline" size="icon" aria-label={`Move ${key.displayName} down`} onClick={() => moveFallback(index, 1)} disabled={index === fallbackKeys.length - 1 || key.isDefault}>
+                  <ArrowDown className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+          <Button type="button" className="mt-3" onClick={() => void saveFallbackChain()}>
+            <Save className="h-4 w-4" />
+            Save fallback chain
+          </Button>
+        </section>
+      ) : null}
+      {orderedProviders.map((provider) => {
         const savedKeys = savedByProvider.get(provider.provider) ?? [];
         const liveCatalog = savedKeys.map((key) => catalogByKey.get(key.id)).find((entry) => entry?.source === "live");
         const value = values[provider.provider] ?? "";
@@ -446,50 +493,6 @@ export function KeySettingsClient({ onboarding = false, callbackUrl = "/explore"
               ))}
           </div>
         </div>
-      ) : null}
-
-      {keys.length > 0 ? (
-        <section className="glass-card p-4">
-          <div className="flex items-start gap-3">
-            <ListOrdered className="mt-0.5 h-5 w-5 text-[var(--accent-purple)]" />
-            <div>
-              <h3 className="text-sm font-semibold text-[var(--text-primary)]">Fallback chain</h3>
-              <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
-                Rate limits, timeouts, network failures, and provider outages try enabled providers in this order. Invalid keys and rejected requests stop immediately.
-              </p>
-            </div>
-          </div>
-          <div className="mt-4 grid gap-2">
-            {fallbackKeys.map((key, index) => (
-              <div key={key.provider} className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] p-3">
-                <input
-                  type="checkbox"
-                  checked={key.isDefault || key.fallbackEnabled}
-                  disabled={key.isDefault || rejectedProviders.has(key.provider)}
-                  onChange={() => toggleFallback(key.provider)}
-                  aria-label={`Include ${key.displayName} in fallback chain`}
-                  className="accent-[var(--accent-purple)]"
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-[var(--text-primary)]">
-                    {index + 1}. {key.displayName} {key.isDefault ? "(primary)" : ""}{rejectedProviders.has(key.provider) ? " · invalid key" : ""}
-                  </p>
-                  <p className="truncate text-xs text-[var(--text-muted)]">{key.defaultModel || "Provider default model"}</p>
-                </div>
-                <Button type="button" variant="outline" size="icon" aria-label={`Move ${key.displayName} up`} onClick={() => moveFallback(index, -1)} disabled={index === 0 || key.isDefault || fallbackKeys[index - 1]?.isDefault}>
-                  <ArrowUp className="h-4 w-4" />
-                </Button>
-                <Button type="button" variant="outline" size="icon" aria-label={`Move ${key.displayName} down`} onClick={() => moveFallback(index, 1)} disabled={index === fallbackKeys.length - 1 || key.isDefault}>
-                  <ArrowDown className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
-          <Button type="button" className="mt-3" onClick={() => void saveFallbackChain()}>
-            <Save className="h-4 w-4" />
-            Save fallback chain
-          </Button>
-        </section>
       ) : null}
 
       <form onSubmit={saveCustom} className="glass-card p-4">
