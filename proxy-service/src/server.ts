@@ -7,6 +7,8 @@ import OpenAI from "openai";
 import pino from "pino";
 import { z } from "zod";
 import { classifyProviderError } from "./provider-errors.js";
+import { ReplayGuard, verifyShieldRequest } from "./request-auth.js";
+import { CircuitStore, circuitIdentity } from "./circuit-store.js";
 
 type ChatMessage = {
   role: "system" | "user" | "assistant";
@@ -40,10 +42,21 @@ const logger = pino({
 });
 
 const app = express();
-app.use(express.json({ limit: "256kb" }));
+const rawBodies = new WeakMap<object, string>();
+app.disable("x-powered-by");
+app.use(express.json({ limit: "1mb", verify(request, _response, buffer) { rawBodies.set(request, buffer.toString("utf8")); } }));
 
 const port = Number(process.env.PORT ?? 4000);
 const internalToken = process.env.INTERNAL_API_TOKEN;
+const signingSecret = process.env.AI_SHIELD_SIGNING_SECRET;
+if (signingSecret && signingSecret.length < 32) throw new Error("AI Shield signing secret must contain at least 32 characters.");
+if (process.env.RENDER && !signingSecret) throw new Error("AI Shield signing is required on Render.");
+const replayGuard = new ReplayGuard();
+const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+if (Boolean(redisUrl) !== Boolean(redisToken)) throw new Error("Both Shield Redis settings are required.");
+const circuits = new CircuitStore(redisUrl && redisToken ? { url: redisUrl, token: redisToken } : undefined);
+const bypassUserIds = new Set((process.env.RATE_LIMIT_BYPASS_USER_IDS ?? "").split(",").map((id) => id.trim()).filter(Boolean));
 const serverOpenAIKey = process.env.OPENAI_API_KEY;
 const serverAnthropicKey = process.env.ANTHROPIC_API_KEY;
 const serverGeminiKey = process.env.GEMINI_API_KEY;
@@ -68,9 +81,9 @@ const legacyProviderKeysSchema = z
 const providerKeysSchema = z
   .array(
     z.object({
-      provider: z.string().min(1),
+      provider: z.string().min(1).max(160),
       id: z.string().optional(),
-      displayName: z.string().min(1),
+      displayName: z.string().min(1).max(160),
       apiFormat: z.enum(["OPENAI", "ANTHROPIC", "GEMINI", "OPENAI_COMPATIBLE"]),
       apiKey: z.string().min(1),
       baseUrl: providerBaseUrlSchema.nullable().optional(),
@@ -80,23 +93,24 @@ const providerKeysSchema = z
       providerPriority: z.number().int().min(0).optional()
     })
   )
+  .max(64)
   .or(legacyProviderKeysSchema);
 
 const chatSchema = z.object({
   messages: z.array(
     z.object({
       role: z.enum(["system", "user", "assistant"]),
-      content: z.string().min(1).max(8000)
+      content: z.string().min(1).max(240_000)
     })
   ),
-  model: z.string().default("gpt-4o-mini"),
+  model: z.string().max(160).default("gpt-4o-mini"),
   temperature: z.number().min(0).max(2).default(0.7),
   topP: z.number().min(0).max(1).nullable().optional(),
   frequencyPenalty: z.number().min(-2).max(2).nullable().optional(),
   presencePenalty: z.number().min(-2).max(2).nullable().optional(),
   maxTokens: z.number().int().min(1).max(4096).nullable().optional(),
-  userId: z.string().optional(),
-  chatId: z.string().optional(),
+  userId: z.string().max(120).optional(),
+  chatId: z.string().max(120).optional(),
   providerKeys: providerKeysSchema.optional()
 });
 
@@ -110,11 +124,34 @@ const counters = new Map<string, { count: number; expiresAt: number }>();
 app.get("/health", (_request, response) => {
   response.json({
     ok: true,
-    providers: "universal-byok"
+    service: "nythera-ai-shield",
+    signedRequests: Boolean(signingSecret),
+    distributedStore: circuits.distributed()
   });
 });
 
-app.use((request, response, next) => {
+app.use(async (request, response, next) => {
+  if (signingSecret) {
+    const nonce = request.get("x-shield-nonce");
+    const valid = request.method === "POST" && verifyShieldRequest(signingSecret, request.originalUrl, rawBodies.get(request) ?? "", {
+      timestamp: request.get("x-shield-timestamp"), nonce, signature: request.get("x-shield-signature")
+    });
+    if (!valid || !nonce || !replayGuard.consume(nonce)) {
+      response.status(401).json({ error: "Valid signed request required." });
+      return;
+    }
+    try {
+      if (!await circuits.consumeNonce(nonce)) {
+        response.status(401).json({ error: "Request already used." });
+        return;
+      }
+    } catch {
+      response.status(503).json({ error: "Request verification unavailable." });
+      return;
+    }
+    next();
+    return;
+  }
   const token = request.headers.authorization?.replace(/^Bearer\s+/i, "");
   if (!internalToken || token !== internalToken) {
     response.status(401).json({ error: "Internal token required." });
@@ -122,6 +159,10 @@ app.use((request, response, next) => {
   }
 
   next();
+});
+
+app.post("/v1/health", (_request, response) => {
+  response.json({ ok: true, service: "nythera-ai-shield" });
 });
 
 app.post("/v1/embeddings", async (request, response) => {
@@ -159,7 +200,7 @@ app.post("/v1/embeddings", async (request, response) => {
       model: "text-embedding-3-small"
     });
   } catch (error) {
-    logger.warn({ route: "embeddings", error: error instanceof Error ? error.message : String(error) });
+    logger.warn({ route: "embeddings", errorCode: classifyProviderError(error).code });
     response.json({ embedding: deterministicEmbedding(parsed.data.text), provider: "local" });
   } finally {
     timeout.dispose();
@@ -176,7 +217,7 @@ app.post("/v1/chat/stream", async (request, response) => {
 
   const ip = request.ip ?? request.socket.remoteAddress ?? "unknown";
   const userId = parsed.data.userId ?? "anonymous";
-  if (!rateLimit(`ip:${ip}`, 120, 60) || !rateLimit(`user:${userId}`, 120, 60)) {
+  if (!bypassUserIds.has(userId) && ((!signingSecret && !rateLimit(`ip:${ip}`, 120, 60)) || !rateLimit(`user:${userId}`, 120, 60))) {
     response.status(429).json({ error: "Proxy rate limit exceeded." });
     return;
   }
@@ -220,6 +261,11 @@ app.post("/v1/chat/stream", async (request, response) => {
   const skippedProviders = new Set<string>();
 
   for (const [attemptIndex, attempt] of attempts.entries()) {
+    const identity = circuitIdentity(attempt.providerName, attempt.model, attempt.key?.apiKey ?? "server");
+    if (await circuits.isOpen(identity)) {
+      lastError = new Error("Provider temporarily unavailable during cooldown.");
+      continue;
+    }
     if (skippedProviders.has(attempt.providerName)) {
       continue;
     }
@@ -287,6 +333,8 @@ app.post("/v1/chat/stream", async (request, response) => {
         throw new Error("Provider returned an empty response.");
       }
 
+      await circuits.success(identity);
+
       writeEvent({
           type: "usage",
           inputTokens: usage.inputTokens,
@@ -321,6 +369,7 @@ app.post("/v1/chat/stream", async (request, response) => {
 
       lastError = attemptSignal.timedOut() ? new Error("Provider request timed out.") : error;
       const classified = classifyProviderError(lastError);
+      await circuits.failure(identity, classified.code);
       if (shouldSkipRemainingProviderKeys(classified.code)) {
         skippedProviders.add(attempt.providerName);
       }
@@ -367,6 +416,11 @@ app.post("/v1/chat/stream", async (request, response) => {
   if (!clientClosed) {
     response.end();
   }
+});
+
+app.use((error: unknown, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
+  const tooLarge = typeof error === "object" && error !== null && "type" in error && error.type === "entity.too.large";
+  response.status(tooLarge ? 413 : 400).json({ error: tooLarge ? "Request body is too large." : "Invalid request body." });
 });
 
 app.listen(port, () => {
@@ -836,12 +890,12 @@ async function streamGemini(input: {
 }
 
 function moderatePrompt(messages: ChatMessage[]) {
-  const text = messages.map((message) => message.content).join("\n");
-  if (text.length > 60_000) {
+  const contextLength = messages.reduce((length, message) => length + message.content.length, 0);
+  if (contextLength > 240_000) {
     return { allowed: false, reason: "Context window limit exceeded." };
   }
 
-  return moderateText(text);
+  return moderateText(messages.filter((message) => message.role !== "system").map((message) => message.content).join("\n"));
 }
 
 function moderateText(text: string) {

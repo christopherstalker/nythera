@@ -1,0 +1,8 @@
+**
+!proxy-service/
+!proxy-service/package.json
+!proxy-service/pnpm-lock.yaml
+!proxy-service/pnpm-workspace.yaml
+!proxy-service/tsconfig.json
+!proxy-service/src/
+!proxy-service/src/**

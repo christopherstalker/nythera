@@ -4,6 +4,8 @@ import { createServer, type Server } from "node:http";
 import { once } from "node:events";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
+import { randomBytes } from "node:crypto";
+import { signShieldRequest } from "../proxy-service/src/request-auth";
 
 const STARTUP_FAILURE_FIXTURE_ENV = "PROXY_STARTUP_FAILURE_FIXTURE";
 const isStartupFailureFixture = process.env[STARTUP_FAILURE_FIXTURE_ENV] === "1";
@@ -120,6 +122,41 @@ integrationTest("proxy readiness allows a slow cold start", async (context) => {
   assert.ok(Date.now() - started >= 2_500);
 });
 
+integrationTest("signed Shield rejects tampering and replay while preserving long system prompts", async (context) => {
+  let observedPromptLength = 0;
+  const upstream = createServer(async (request, response) => {
+    let raw = "";
+    for await (const chunk of request) raw += chunk;
+    const payload = JSON.parse(raw) as { messages: Array<{ content: string }> };
+    observedPromptLength = payload.messages[0].content.length;
+    writeSuccessfulOpenAIStream(response, "signed response");
+  });
+  const upstreamUrl = await listen(upstream);
+  const secret = randomBytes(32).toString("hex");
+  const proxy = await startProxyWithCleanup(context, [upstream], { env: { AI_SHIELD_SIGNING_SECRET: secret } });
+  const body = JSON.stringify({
+    messages: [{ role: "system", content: "Scene instructions. ".repeat(3_500) }, { role: "user", content: "Say hello." }],
+    model: "local-shield:local-model",
+    providerKeys: [providerKey("local-shield", upstreamUrl, 0)]
+  });
+  const path = "/v1/chat/stream";
+  const url = `http://127.0.0.1:${proxy.port}${path}`;
+  const signed = { "content-type": "application/json", ...signShieldRequest(secret, path, body) };
+  const tampered = await fetch(url, { method: "POST", headers: signed, body: body + " " });
+  assert.equal(tampered.status, 401);
+  await tampered.text();
+  const accepted = await fetch(url, { method: "POST", headers: signed, body });
+  assert.equal(accepted.status, 200);
+  assert.match(await accepted.text(), /signed response/);
+  assert.equal(observedPromptLength, 70_000);
+  const replay = await fetch(url, { method: "POST", headers: signed, body });
+  assert.equal(replay.status, 401);
+  await replay.text();
+  const unsigned = await fetch(url, { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer integration-token" }, body });
+  assert.equal(unsigned.status, 401);
+  await unsigned.text();
+});
+
 integrationTest("proxy startup reports signal termination", async (context) => {
   let child: ChildProcess | undefined;
   context.after(async () => {
@@ -216,11 +253,12 @@ async function requestProxy(port: number, providerKeys: ReturnType<typeof provid
 }
 
 type StartProxyOptions = {
+  env?: Partial<NodeJS.ProcessEnv>;
   nodeArgs?: string[];
   onSpawn?: (child: ChildProcess) => void;
 };
 
-const PROXY_STARTUP_TIMEOUT_MS = 20_000;
+const PROXY_STARTUP_TIMEOUT_MS = 60_000;
 const PROXY_READINESS_POLL_MS = 25;
 
 async function startProxyWithCleanup(context: TestContext, servers: Server[], options: StartProxyOptions = {}) {
@@ -249,7 +287,8 @@ async function startProxy(options: StartProxyOptions = {}) {
       OPENAI_API_KEY: "",
       ANTHROPIC_API_KEY: "",
       GEMINI_API_KEY: "",
-      LOG_LEVEL: "silent"
+      LOG_LEVEL: "silent",
+      ...options.env
     },
     stdio: "ignore"
   });

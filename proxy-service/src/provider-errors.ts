@@ -14,6 +14,7 @@ export function classifyProviderError(error: unknown): ProviderErrorClassificati
     message.includes("provider unavailable") ||
     message.includes("provider is unavailable") ||
     message.includes("overloaded") ||
+    message.includes("empty response") ||
     message.includes("try again later");
   const reportsPromptLimit = message.includes("prompt tokens limit exceeded") || message.includes("maximum context length") || message.includes("context length exceeded");
 
