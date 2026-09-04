@@ -25,6 +25,12 @@ for (const [name, classify] of [
     assert.equal(classify({ status: 503, message: "Unavailable" }).retryable, true);
   });
 
+  test(`${name} classifies the gateway deadline message as a retryable network failure`, () => {
+    const classified = classify(new Error("Provider request timed out."));
+    assert.equal(classified.code, "network_error");
+    assert.equal(classified.retryable, true);
+  });
+
   test(`${name} retries outage messages when an upstream omits the status code`, () => {
     const classified = classify(new Error("The upstream provider is temporarily unavailable. Try again later."));
 

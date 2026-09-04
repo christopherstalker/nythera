@@ -109,6 +109,7 @@ export function classifyProviderError(error: unknown): ProviderErrorClassificati
     rawMessage.includes("fetch failed") ||
     rawMessage.includes("network") ||
     rawMessage.includes("timeout") ||
+    rawMessage.includes("timed out") ||
     rawMessage.includes("econn")
   ) {
     return {

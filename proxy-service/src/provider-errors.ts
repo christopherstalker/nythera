@@ -42,7 +42,7 @@ export function classifyProviderError(error: unknown): ProviderErrorClassificati
   if (message.includes("not configured") || message.includes("base url is required")) {
     return { code: "provider_not_configured", message: "No usable model provider is configured. Add or update a model key in Settings.", status, retryable: false };
   }
-  if (message.includes("fetch failed") || message.includes("network") || message.includes("timeout") || message.includes("econn")) {
+  if (message.includes("fetch failed") || message.includes("network") || message.includes("timeout") || message.includes("timed out") || message.includes("econn")) {
     return { code: "network_error", message: "Nythera could not reach the selected model provider. Check the connection and try again.", status, retryable: true };
   }
   return { code: "provider_error", message: "The selected model provider rejected the request. Check the provider and model settings.", status, retryable: false };
