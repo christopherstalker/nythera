@@ -21,6 +21,11 @@ import {
 } from "@/lib/llm-timeouts";
 import { assertSafeOutboundUrl } from "@/lib/safe-outbound-url";
 import { CANONICAL_SITE_ORIGIN } from "@/lib/site-origin";
+import {
+  readProviderCircuitStates,
+  recordProviderFailure,
+  recordProviderSuccess
+} from "@/lib/provider-circuit";
 
 type StreamInput = {
   messages: PromptMessage[];
@@ -52,11 +57,26 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
   const initialRoute = routeModel(input.model, keys);
   const turnNumber = input.messages.filter((message) => message.role === "user").length;
   const route = rotatePrimaryKey(initialRoute, keys, `${input.userId}:${input.chatId}:${turnNumber}`);
-  const attempts = attemptRoutes(route, keys);
+  const candidateAttempts = attemptRoutes(route, keys);
+  const circuitStates = await readProviderCircuitStates(candidateAttempts.map(circuitIdentity));
+  const attempts = candidateAttempts.filter((_, index) => !circuitStates[index]);
+  if (attempts.length === 0) {
+    logPerformanceMetric("llm_guardian_circuit_blocked", {
+      route: "chat:gateway",
+      providerCount: new Set(candidateAttempts.map((attempt) => attempt.providerName)).size,
+      attemptCount: candidateAttempts.length
+    });
+    yield {
+      type: "error",
+      message: "AI providers are temporarily unavailable. Nythera Guardian is waiting for a safe retry window."
+    };
+    return;
+  }
   const primaryKeyCount = keys.filter((key) => key.provider === route.providerName).length;
   let lastError: unknown = null;
   const started = Date.now();
   const attemptLabels: string[] = [];
+  const skippedProviders = new Set<string>();
   const gatewayDeadline = createTimeoutSignal(input.signal, LLM_PROVIDER_TIMEOUT_MS, "Provider request timed out.");
 
   try {
@@ -64,9 +84,13 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
       if (gatewayDeadline.signal.aborted) {
         break;
       }
+      if (skippedProviders.has(attempt.providerName)) {
+        continue;
+      }
 
       let emittedText = false;
       let firstTokenLogged = false;
+      const fallbackTriggered = candidateAttempts.indexOf(attempt) > 0;
       const attemptStarted = Date.now();
       const attemptSignal = createActivityTimeoutSignal(
         gatewayDeadline.signal,
@@ -109,7 +133,7 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
               model: attempt.model,
               attempt: index + 1,
               keySlot: (attempt.key?.providerPriority ?? 0) + 1,
-              fallbackTriggered: index > 0,
+              fallbackTriggered,
               durationMs: Date.now() - started,
               providerLatencyMs: Date.now() - attemptStarted
             });
@@ -123,6 +147,7 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
 
         const providerUsage = usage.getUsage();
         clearKeyCooldown(attempt.key);
+        await recordProviderSuccess(circuitIdentity(attempt));
 
         logPerformanceMetric("llm_provider_attempt", {
           route: "chat:gateway",
@@ -142,7 +167,7 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
           model: attempt.model,
           usageEstimated: providerUsage === null,
           latencyMs: Date.now() - started,
-          fallbackTriggered: index > 0,
+          fallbackTriggered,
           attempts: attemptLabels
         };
         yield { type: "done" };
@@ -155,6 +180,10 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
         lastError = attemptSignal.timedOut() || gatewayDeadline.timedOut() ? new Error("Provider request timed out.") : error;
         const classified = classifyProviderError(lastError);
         setKeyCooldown(attempt.key, classified.code);
+        await recordProviderFailure(circuitIdentity(attempt), classified.code);
+        if (shouldSkipRemainingProviderKeys(classified.code)) {
+          skippedProviders.add(attempt.providerName);
+        }
         logSafeError(
           `LLM provider attempt failed (${attempt.providerName}:${attempt.model}, key slot ${(attempt.key?.providerPriority ?? 0) + 1}, ${classified.code}).`,
           lastError
@@ -173,7 +202,7 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
           yield { type: "error", message: "The model stream was interrupted." };
           return;
         }
-        const nextAttempt = attempts[index + 1];
+        const nextAttempt = attempts.slice(index + 1).find((candidate) => !skippedProviders.has(candidate.providerName));
         const canTryAnotherRoute = Boolean(nextAttempt) && isKeyScopedFailure(classified.code);
         if (!classified.retryable && !canTryAnotherRoute) {
           yield {
@@ -326,6 +355,14 @@ function keyIdentity(key?: ProviderKey) {
   return key.id ?? `${key.provider}:${key.providerPriority ?? 0}:${key.apiKey.slice(-8)}`;
 }
 
+function circuitIdentity(route: GatewayRoute) {
+  return {
+    provider: route.providerName,
+    keyId: route.key?.id,
+    keySlot: route.key?.providerPriority ?? 0
+  };
+}
+
 function isKeyCoolingDown(key: ProviderKey) {
   const identity = keyIdentity(key);
   if (!identity) return false;
@@ -359,10 +396,18 @@ function clearKeyCooldown(key?: ProviderKey) {
 function isKeyScopedFailure(code: ReturnType<typeof classifyProviderError>["code"]) {
   return code === "invalid_api_key" ||
     code === "insufficient_balance" ||
+    code === "prompt_too_large" ||
     code === "rate_limit" ||
+    code === "model_unavailable" ||
     code === "provider_unavailable" ||
     code === "network_error" ||
     code === "provider_error";
+}
+
+function shouldSkipRemainingProviderKeys(code: ReturnType<typeof classifyProviderError>["code"]) {
+  return code === "model_unavailable" ||
+    code === "provider_unavailable" ||
+    code === "network_error";
 }
 
 function exhaustedProviderMessage(route: GatewayRoute, keyCount: number, fallbackMessage: string) {

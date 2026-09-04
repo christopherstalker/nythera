@@ -34,6 +34,9 @@ const envSchema = z.object({
   RATE_LIMIT_REQUIRE_DISTRIBUTED: z.enum(["true", "false", ""]).optional(),
   BYOK_ALLOW_PRIVATE_TEST_ENDPOINTS: z.enum(["true", "false", ""]).optional(),
   SENTRY_DSN: z.string().optional(),
+  GUARDIAN_SHARED_SECRET: z.string().optional(),
+  GUARDIAN_CANARY_USER_ID: z.string().optional(),
+  GUARDIAN_CANARY_MODEL: z.string().optional(),
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().optional(),
   TURNSTILE_SECRET_KEY: z.string().optional(),
   TURNSTILE_ALLOWED_HOSTNAMES: z.string().optional()
