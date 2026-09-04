@@ -8,7 +8,7 @@ import type { ProviderKeys } from "@/lib/user-keys";
 const generatedSchema = z.object({
   personality: z.string().min(20).max(5000),
   scenario: z.string().min(20).max(5000),
-  greeting: z.string().min(80).max(2000),
+  greeting: z.string().min(80),
   tags: z.array(z.string().min(1).max(32)).min(1).max(12),
   archetype: z.string().min(2).max(120),
   personaTraits: z.array(z.string().min(1).max(160)).min(1).max(16),
@@ -33,7 +33,7 @@ export async function generateCharacterFromDescription(input: {
   try {
     const keys = input.providerKeys ?? [];
     if (keys.length === 0) {
-      return toPayload(fallback);
+      return toPayload(fallback, input.name);
     }
 
     let raw = "";
@@ -42,7 +42,7 @@ export async function generateCharacterFromDescription(input: {
         {
           role: "system",
           content:
-            "You generate immersive AI roleplay characters for Nythera. Return ONLY valid JSON with keys: personality, scenario, greeting, tags, archetype, personaTraits, speakingStyle, emotionalTone, relationshipStyle, tone, motivation, behavioralRules, boundaries. The greeting must be 4-8 cinematic sentences, in-world, with tension. No markdown."
+            "You generate immersive AI roleplay characters for Nythera. The supplied character name is the canonical actor in every field: never silently replace that actor with another person. Return ONLY valid JSON with keys: personality, scenario, greeting, tags, archetype, personaTraits, speakingStyle, emotionalTone, relationshipStyle, tone, motivation, behavioralRules, boundaries. The greeting must be 4-8 cinematic sentences, in-world, with tension, must not write dialogue or decisions for the user, and must leave the user room to respond. No markdown."
         },
         {
           role: "user",
@@ -104,11 +104,11 @@ export async function generateCharacterFromDescription(input: {
     };
   } catch (error) {
     console.warn("LLM character generation failed; using heuristic fallback.", error instanceof Error ? error.message : error);
-    return { ...toPayload(fallback), source: "heuristic" as const };
+    return { ...toPayload(fallback, input.name), source: "heuristic" as const };
   }
 }
 
-function toPayload(draft: ReturnType<typeof generateSimpleCharacterDraft>) {
+function toPayload(draft: ReturnType<typeof generateSimpleCharacterDraft>, characterName: string) {
   const traits = draft.personaTraits.split("\n").filter(Boolean);
   return {
     personality: draft.personality,
@@ -116,7 +116,7 @@ function toPayload(draft: ReturnType<typeof generateSimpleCharacterDraft>) {
     greeting: draft.greeting,
     tags: draft.tags.split(/[,\s]+/).map((tag) => tag.trim().toLowerCase()).filter(Boolean).slice(0, 12),
     persona: {
-      name: draft.personaRole,
+      name: characterName.trim(),
       role: draft.personaRole,
       archetype: draft.archetype,
       personalityTraits: traits,

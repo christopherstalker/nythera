@@ -5,7 +5,14 @@ import { createGatewayEmbedding, streamGatewayResponse } from "@/lib/llm-gateway
 import type { ProviderKeys } from "@/lib/user-keys";
 import type { PromptMessage, StreamChunk } from "@/types";
 import { logSafeError } from "@/lib/secret-redaction";
-import { createTimeoutSignal, LLM_EMBEDDING_TIMEOUT_MS, LLM_PROVIDER_TIMEOUT_MS } from "@/lib/llm-timeouts";
+import {
+  createActivityTimeoutSignal,
+  createTimeoutSignal,
+  LLM_EMBEDDING_TIMEOUT_MS,
+  LLM_FIRST_TOKEN_TIMEOUT_MS,
+  LLM_PROVIDER_TIMEOUT_MS,
+  LLM_STREAM_IDLE_TIMEOUT_MS
+} from "@/lib/llm-timeouts";
 
 type StreamInput = {
   messages: PromptMessage[];
@@ -22,13 +29,19 @@ type StreamInput = {
 };
 
 export async function* streamLlmResponse(input: StreamInput): AsyncGenerator<StreamChunk> {
-  if (!env.LLM_PROXY_URL || !env.INTERNAL_API_TOKEN) {
+  const usesPersonalKeys = input.providerKeys?.some((key) => key.source === "user") ?? false;
+  if (!env.LLM_PROXY_URL || !env.INTERNAL_API_TOKEN || usesPersonalKeys || input.messages.some((message) => message.images?.length)) {
     yield* streamGatewayResponse(input);
     return;
   }
 
   let receivedDelta = false;
-  const proxySignal = createTimeoutSignal(input.signal, LLM_PROVIDER_TIMEOUT_MS, "LLM proxy request timed out.");
+  const proxyDeadline = createTimeoutSignal(input.signal, LLM_PROVIDER_TIMEOUT_MS, "LLM proxy request timed out.");
+  const proxySignal = createActivityTimeoutSignal(
+    proxyDeadline.signal,
+    LLM_FIRST_TOKEN_TIMEOUT_MS,
+    "LLM proxy did not start responding in time."
+  );
   try {
     const { signal, ...payload } = input;
     const response = await fetch(`${env.LLM_PROXY_URL}/v1/chat/stream`, {
@@ -58,6 +71,8 @@ export async function* streamLlmResponse(input: StreamInput): AsyncGenerator<Str
       if (done) {
         break;
       }
+
+      proxySignal.reset(LLM_STREAM_IDLE_TIMEOUT_MS, "LLM proxy stream stalled.");
 
       buffer += decoder.decode(value, { stream: true });
       const events = buffer.split("\n\n");
@@ -142,6 +157,7 @@ export async function* streamLlmResponse(input: StreamInput): AsyncGenerator<Str
     yield* streamGatewayResponse(input);
   } finally {
     proxySignal.dispose();
+    proxyDeadline.dispose();
   }
 }
 

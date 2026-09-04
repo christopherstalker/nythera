@@ -5,7 +5,7 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 import { getDecryptedProviderKeys } from "@/lib/user-keys";
 
 const promptSchema = z.object({
-  prompt: z.string().trim().min(12).max(4000),
+  prompt: z.string().trim().min(12),
   provider: z.string().trim().min(1).max(48).optional(),
   model: z.string().trim().min(1).max(120).optional()
 });

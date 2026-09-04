@@ -1,99 +1,49 @@
 import { cn } from "@/lib/utils";
+import { parseRichText, type RichTextInlineNode } from "@/lib/rich-text-formatting";
 
-type TokenPattern = {
-  start: string;
-  end: string;
-  className: string;
-  keepDelimiters?: boolean;
-};
-
-const patterns: TokenPattern[] = [
-  { start: "***", end: "***", className: "font-semibold italic text-foreground" },
-  { start: "**", end: "**", className: "font-semibold text-foreground" },
-  { start: "==", end: "==", className: "rounded-md bg-primary/[0.14] px-1 font-medium text-foreground" },
-  { start: "__", end: "__", className: "underline decoration-primary/50 underline-offset-4 text-foreground" },
-  { start: "~~", end: "~~", className: "text-muted-foreground/75" },
-  { start: "*", end: "*", className: "italic text-foreground/95" },
-  { start: "\"", end: "\"", className: "rounded-md bg-white/[0.04] px-1 font-medium text-foreground", keepDelimiters: true },
-  { start: "(", end: ")", className: "italic text-muted-foreground/80", keepDelimiters: true }
-];
+const FORMAT_CLASSES = {
+  bold: "font-semibold text-foreground",
+  italic: "italic text-foreground/95",
+  boldItalic: "font-semibold italic text-foreground",
+  underline: "underline decoration-primary/50 underline-offset-4 text-foreground",
+  strike: "line-through decoration-current/55 text-muted-foreground",
+  highlight: "rounded-md bg-primary/[0.14] px-1 font-medium text-foreground",
+  subtext: "italic text-muted-foreground/80"
+} as const;
 
 export function RichMessageText({ text, className }: { text: string; className?: string }) {
   // Render-only parser: raw formatted text stays unchanged in storage, memory, and prompt assembly.
-  // React text nodes keep this safe from HTML/script injection while preserving Character.AI-style prose.
-  return <span className={cn("whitespace-pre-wrap", className)}>{renderTokens(text)}</span>;
+  // React text nodes keep this safe from HTML/script injection while preserving nested roleplay prose.
+  const blocks = parseRichText(text);
+
+  return (
+    <span className={cn("whitespace-pre-wrap", className)}>
+      {blocks.map((block, blockIndex) => (
+        <span key={`block-${blockIndex}`}>
+          <span
+            className={cn(
+              block.type === "quote" &&
+                "my-1 block border-l-2 border-[var(--accent-purple)] bg-white/[0.025] py-1 pl-3 italic text-[var(--text-secondary)]"
+            )}
+          >
+            {renderInlineNodes(block.children, `block-${blockIndex}`)}
+          </span>
+          {blockIndex < blocks.length - 1 ? "\n" : null}
+        </span>
+      ))}
+    </span>
+  );
 }
 
-function renderTokens(text: string, depth = 0, prefix = "t"): React.ReactNode[] {
-  if (depth > 8 || !text) {
-    return [text];
-  }
+function renderInlineNodes(nodes: RichTextInlineNode[], prefix: string): React.ReactNode[] {
+  return nodes.map((node, index) => {
+    if (node.type === "text") return node.value;
 
-  const nodes: React.ReactNode[] = [];
-  let cursor = 0;
-  let tokenIndex = 0;
-
-  while (cursor < text.length) {
-    const match = findNextToken(text, cursor);
-
-    if (!match) {
-      nodes.push(text.slice(cursor));
-      break;
-    }
-
-    if (match.startIndex > cursor) {
-      nodes.push(text.slice(cursor, match.startIndex));
-    }
-
-    const innerStart = match.startIndex + match.pattern.start.length;
-    const inner = text.slice(innerStart, match.endIndex);
-    const key = `${prefix}-${depth}-${tokenIndex}`;
-
-    nodes.push(
-      <span key={key} className={match.pattern.className}>
-        {match.pattern.keepDelimiters ? match.pattern.start : null}
-        {renderTokens(inner, depth + 1, key)}
-        {match.pattern.keepDelimiters ? match.pattern.end : null}
+    const key = `${prefix}-${node.format}-${index}`;
+    return (
+      <span key={key} className={FORMAT_CLASSES[node.format]}>
+        {renderInlineNodes(node.children, key)}
       </span>
     );
-
-    cursor = match.endIndex + match.pattern.end.length;
-    tokenIndex += 1;
-  }
-
-  return nodes;
-}
-
-function findNextToken(text: string, fromIndex: number) {
-  let best:
-    | {
-        pattern: TokenPattern;
-        startIndex: number;
-        endIndex: number;
-      }
-    | null = null;
-
-  for (const pattern of patterns) {
-    const startIndex = text.indexOf(pattern.start, fromIndex);
-
-    if (startIndex < 0) {
-      continue;
-    }
-
-    const endIndex = text.indexOf(pattern.end, startIndex + pattern.start.length);
-
-    if (endIndex < 0) {
-      continue;
-    }
-
-    if (
-      !best ||
-      startIndex < best.startIndex ||
-      (startIndex === best.startIndex && pattern.start.length > best.pattern.start.length)
-    ) {
-      best = { pattern, startIndex, endIndex };
-    }
-  }
-
-  return best;
+  });
 }

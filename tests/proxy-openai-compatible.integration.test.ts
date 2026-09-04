@@ -57,6 +57,98 @@ integrationTest("a retryable 429 advances to the next enabled provider", async (
   assert.match(body, /"provider":"fallback-local"/);
 });
 
+integrationTest("a retryable 429 advances to the next key for the same provider", async (context) => {
+  const attemptedKeys: string[] = [];
+  const upstream = createServer((request, response) => {
+    const authorization = request.headers.authorization ?? "";
+    attemptedKeys.push(authorization.replace(/^Bearer\s+/i, ""));
+    if (authorization === "Bearer rate-limited-key") {
+      response.writeHead(429, { "content-type": "application/json" });
+      response.end(JSON.stringify({ error: { message: "Rate limit reached", type: "rate_limit_error" } }));
+      return;
+    }
+    writeSuccessfulOpenAIStream(response, "same-provider failover response");
+  });
+  const upstreamUrl = await listen(upstream);
+  const proxy = await startProxyWithCleanup(context, [upstream]);
+  const body = await requestProxy(proxy.port, [
+    providerKey("same-provider", upstreamUrl, 0, { id: "key-1", apiKey: "rate-limited-key", providerPriority: 0 }),
+    providerKey("same-provider", upstreamUrl, 0, { id: "key-2", apiKey: "working-key", providerPriority: 1 })
+  ]);
+
+  assert.deepEqual(attemptedKeys, ["rate-limited-key", "working-key"]);
+  assert.match(body, /same-provider failover response/);
+  assert.match(body, /"fallbackTriggered":true/);
+  assert.match(body, /"attempts":\["same-provider:local-model","same-provider:local-model"\]/);
+});
+
+integrationTest("an invalid credential advances to the next key for the same provider", async (context) => {
+  const attemptedKeys: string[] = [];
+  const upstream = createServer((request, response) => {
+    const authorization = request.headers.authorization ?? "";
+    attemptedKeys.push(authorization.replace(/^Bearer\s+/i, ""));
+    if (authorization === "Bearer invalid-key") {
+      response.writeHead(401, { "content-type": "application/json" });
+      response.end(JSON.stringify({ error: { message: "Invalid API key" } }));
+      return;
+    }
+    writeSuccessfulOpenAIStream(response, "credential recovery response");
+  });
+  const upstreamUrl = await listen(upstream);
+  const proxy = await startProxyWithCleanup(context, [upstream]);
+  const body = await requestProxy(proxy.port, [
+    providerKey("same-provider", upstreamUrl, 0, { id: "key-1", apiKey: "invalid-key", providerPriority: 0 }),
+    providerKey("same-provider", upstreamUrl, 0, { id: "key-2", apiKey: "working-key", providerPriority: 1 })
+  ]);
+
+  assert.deepEqual(attemptedKeys, ["invalid-key", "working-key"]);
+  assert.match(body, /credential recovery response/);
+});
+
+integrationTest("a provider outage skips redundant keys and reaches the next provider", async (context) => {
+  let primaryAttempts = 0;
+  let fallbackAttempts = 0;
+  const primary = createServer((_request, response) => {
+    primaryAttempts += 1;
+    response.writeHead(503, { "content-type": "application/json" });
+    response.end(JSON.stringify({ error: { message: "Provider temporarily unavailable" } }));
+  });
+  const fallback = createServer((_request, response) => {
+    fallbackAttempts += 1;
+    writeSuccessfulOpenAIStream(response, "outage fallback response");
+  });
+  const [primaryUrl, fallbackUrl] = await Promise.all([listen(primary), listen(fallback)]);
+  const proxy = await startProxyWithCleanup(context, [primary, fallback]);
+  const body = await requestProxy(proxy.port, [
+    providerKey("primary-local", primaryUrl, 0, { id: "key-1", apiKey: "first-key", providerPriority: 0 }),
+    providerKey("primary-local", primaryUrl, 0, { id: "key-2", apiKey: "second-key", providerPriority: 1 }),
+    providerKey("fallback-local", fallbackUrl, 1)
+  ]);
+
+  assert.equal(primaryAttempts, 1);
+  assert.equal(fallbackAttempts, 1);
+  assert.match(body, /outage fallback response/);
+  assert.match(body, /"provider":"fallback-local"/);
+});
+
+integrationTest("exhausting every key for a provider returns a specific error", async (context) => {
+  let attempts = 0;
+  const upstream = createServer((_request, response) => {
+    attempts += 1;
+    response.writeHead(429, { "content-type": "application/json" });
+    response.end(JSON.stringify({ error: { message: "Rate limit reached", type: "rate_limit_error" } }));
+  });
+  const upstreamUrl = await listen(upstream);
+  const proxy = await startProxyWithCleanup(context, [upstream]);
+  const body = await requestProxy(proxy.port, [
+    providerKey("same-provider", upstreamUrl, 0, { id: "key-1", apiKey: "limited-one", providerPriority: 0 }),
+    providerKey("same-provider", upstreamUrl, 0, { id: "key-2", apiKey: "limited-two", providerPriority: 1 })
+  ]);
+
+  assert.equal(attempts, 2);
+  assert.match(body, /All 2 saved keys for same-provider failed for this request/);
+});
+
 integrationTest("proxy readiness allows a slow cold start", async (context) => {
   let child: ChildProcess | undefined;
   context.after(async () => {
@@ -130,16 +222,27 @@ if (isStartupFailureFixture) {
   });
 }
 
-function providerKey(provider: string, baseUrl: string, fallbackPriority: number) {
+function providerKey(
+  provider: string,
+  baseUrl: string,
+  fallbackPriority: number,
+  overrides: Partial<{
+    id: string;
+    apiKey: string;
+    providerPriority: number;
+  }> = {}
+) {
   return {
+    id: overrides.id,
     provider,
     displayName: provider,
     apiFormat: "OPENAI_COMPATIBLE",
-    apiKey: "local-test-key",
+    apiKey: overrides.apiKey ?? "local-test-key",
     baseUrl,
     defaultModel: "local-model",
     fallbackEnabled: true,
-    fallbackPriority
+    fallbackPriority,
+    providerPriority: overrides.providerPriority ?? 0
   };
 }
 

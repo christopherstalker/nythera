@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ResponsiveActions } from "@/components/ui/responsive-actions";
 
 export function PageShell({
   children,
@@ -47,7 +48,7 @@ export function PageHeader({
         <h1 className="font-editorial max-w-4xl text-[clamp(3.1rem,7vw,6.6rem)] font-medium leading-[.78] tracking-[-.045em] text-[var(--codex-ivory)]">{title}</h1>
         {description ? <p className="mt-5 max-w-2xl font-editorial text-lg italic leading-7 text-content-secondary sm:text-xl">{description}</p> : null}
       </div>
-      {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2 md:justify-end">{actions}</div> : null}
+      {actions ? <ResponsiveActions align="end">{actions}</ResponsiveActions> : null}
     </header>
   );
 }

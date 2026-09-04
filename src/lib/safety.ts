@@ -2,8 +2,8 @@ import { detectPromptInjection } from "@/lib/prompt-security";
 
 const BLOCK_PATTERNS = [
   {
-    flag: "sexual_content",
-    pattern: /\b(explicit sex|porn|nude|nudes|sexual roleplay|erotic|incest|minor sex|underage)\b/i
+    flag: "sexual_harm",
+    pattern: /\b(minor sex|underage sex|child porn|sexual assault|rape(?: roleplay)?|non[- ]consensual(?: sex)?|incest)\b/i
   },
   {
     flag: "self_harm",
@@ -33,7 +33,7 @@ export function moderateText(input: {
 }): ModerationResult {
   const flags = BLOCK_PATTERNS.filter(({ pattern }) => pattern.test(input.text)).map(({ flag }) => flag);
 
-  if (input.userIsMinor && /\b(romance|dating|kiss|sexual|seduce|flirt)\b/i.test(input.text)) {
+  if (input.userIsMinor && /\b(romance|dating|kiss|kissing|sexual|sex|seduce|flirt|erotic|nude|nudes)\b/i.test(input.text)) {
     flags.push("minor_romantic_content");
   }
 

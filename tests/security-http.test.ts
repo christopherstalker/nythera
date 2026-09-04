@@ -21,6 +21,8 @@ test("global HTTP security headers are configured", async () => {
     "object-src 'none'",
     "default-src 'self'",
     "connect-src 'self'",
+    "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
+    "frame-src 'self' https://challenges.cloudflare.com",
     "https://api.openai.com",
     "https://api.anthropic.com",
     "https://generativelanguage.googleapis.com",

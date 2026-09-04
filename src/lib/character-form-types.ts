@@ -1,6 +1,16 @@
+import type { MessageLength } from "@/lib/response-length";
+import type { ChatMode } from "@/lib/chat-mode";
+
 export type CharacterVisibility = "PRIVATE" | "PUBLIC" | "UNLISTED";
 export type CharacterCreationMode = "simple" | "custom";
 export type CharacterFormMode = CharacterCreationMode | "prompt";
+export type { MessageLength } from "@/lib/response-length";
+
+export type AdditionalCharacterDraft = {
+  id: string;
+  name: string;
+  personality: string;
+};
 
 export type CharacterFormValue = {
   id?: string;
@@ -9,6 +19,7 @@ export type CharacterFormValue = {
   avatarUrl: string;
   description: string;
   personality: string;
+  background: string;
   scenario: string;
   greeting: string;
   tags: string[];
@@ -26,12 +37,13 @@ export type CharacterFormValue = {
   boundaries: string;
   behavioralRules: string;
   forbiddenBehaviors: string;
+  additionalCharacters: AdditionalCharacterDraft[];
   tone: string;
   humor: number;
   romanceLevel: number;
   seriousness: number;
   initiative: number;
-  messageLength: string;
+  messageLength: MessageLength;
   roleplayIntensity: number;
   preferredProvider: string;
   preferredModel: string;
@@ -41,11 +53,13 @@ export type CharacterFormValue = {
   presencePenalty: number | null;
   maxTokens: number | null;
   systemPromptOverride: string;
+  defaultChatMode: ChatMode;
   lorebookText: string;
   visualAccentColor: string;
   visualGradientFrom: string;
   visualGradientTo: string;
   visualChatBackground: string;
+  visualAvatarPrompt: string;
   characterCardJson: string;
 };
 
@@ -80,6 +94,7 @@ export type CharacterCreatePayload = {
   presencePenalty: number | null;
   maxTokens: number | null;
   systemPromptOverride: string | null;
+  defaultChatMode: ChatMode;
 };
 
 export type GeneratedCharacterPreview = {
@@ -140,6 +155,7 @@ export const emptyCharacterDraft: CharacterFormValue = {
   avatarUrl: "",
   description: "",
   personality: "",
+  background: "",
   scenario: "",
   greeting: "",
   tags: ["roleplay"],
@@ -157,12 +173,13 @@ export const emptyCharacterDraft: CharacterFormValue = {
   boundaries: "",
   behavioralRules: "",
   forbiddenBehaviors: "",
+  additionalCharacters: [],
   tone: "",
   humor: 5,
   romanceLevel: 0,
   seriousness: 5,
   initiative: 5,
-  messageLength: "",
+  messageLength: "medium",
   roleplayIntensity: 5,
   preferredProvider: "",
   preferredModel: "",
@@ -172,10 +189,12 @@ export const emptyCharacterDraft: CharacterFormValue = {
   presencePenalty: null,
   maxTokens: null,
   systemPromptOverride: "",
+  defaultChatMode: "realism",
   lorebookText: "",
-  visualAccentColor: "#8F81F7",
-  visualGradientFrom: "#8F81F7",
-  visualGradientTo: "#6FE7D2",
+  visualAccentColor: "#A9795A",
+  visualGradientFrom: "#A9795A",
+  visualGradientTo: "#C2A078",
   visualChatBackground: "",
+  visualAvatarPrompt: "",
   characterCardJson: ""
 };

@@ -11,45 +11,71 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  username      String?   @unique
-  avatarUrl     String?
-  bio           String?   @db.Text
-  role          Role      @default(USER)
-  ageVerified   Boolean   @default(false)
-  birthDate     DateTime?
-  memoryEnabled Boolean   @default(true)
-  compactMode   Boolean   @default(false)
-  notificationsEnabled Boolean   @default(false)
-  preferredTheme String    @default("dark")
-  accentColor    String    @default("#8F81F7")
-  preferredProvider String?
-  preferredModel String    @default("gpt-4o-mini")
-  bannedAt      DateTime?
-  banReason     String?   @db.Text
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                    String    @id @default(cuid())
+  name                  String?
+  email                 String    @unique
+  emailVerified         DateTime?
+  image                 String?
+  username              String?   @unique
+  avatarUrl             String?
+  bio                   String?   @db.Text
+  role                  Role      @default(USER)
+  ageVerified           Boolean   @default(false)
+  birthDate             DateTime?
+  adultTermsAcceptedAt  DateTime?
+  adultTermsVersion     String?
+  memoryEnabled         Boolean   @default(true)
+  compactMode           Boolean   @default(false)
+  notificationsEnabled  Boolean   @default(false)
+  unlimitedCharacterFields Boolean @default(false)
+  tutorialStatus        String    @default("NOT_STARTED")
+  tutorialStep          Int       @default(0)
+  tutorialState         Json?
+  tutorialCompletedAt   DateTime?
+  preferredTheme        String    @default("dark")
+  accentColor           String    @default("#8F81F7")
+  profileSettings       Json?
+  preferredProvider     String?
+  preferredModel        String    @default("gpt-4o-mini")
+  defaultTemperature    Float     @default(0.7)
+  maxOutputTokens       Int?
+  lastPersonaId         String?
+  defaultResponsePrompt String?   @db.Text
+  preferredChatMode     String    @default("realism")
+  bannedAt              DateTime?
+  banReason             String?   @db.Text
+  authVersion           Int       @default(0)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
-  accounts           Account[]
-  sessions           Session[]
-  authenticators     Authenticator[]
-  passwordCredential PasswordCredential?
-  personas           UserPersona[]
-  characters         Character[]
-  chats              Chat[]
-  rooms              Room[]
-  chatShares         ChatShare[]
-  memories           Memory[]
-  reports            Report[]            @relation("ReporterReports")
-  characterLikes     CharacterLike[]
-  characterRatings   CharacterRating[]
-  llmRequestLogs     LlmRequestLog[]
-  apiKeys            UserApiKey[]
-  voiceApiKeys       VoiceApiKey[]
+  accounts            Account[]
+  sessions            Session[]
+  authenticators      Authenticator[]
+  passwordCredential  PasswordCredential?
+  passwordResetTokens PasswordResetToken[]
+  personas            UserPersona[]
+  characters          Character[]
+  chats               Chat[]
+  rooms               Room[]
+  ownedStories        Story[]                      @relation("StoryOwner")
+  storyParticipations StoryParticipant[]
+  storyTurns          StoryTurn[]                  @relation("StoryTurnUser")
+  chatShares          ChatShare[]
+  memories            Memory[]
+  reports             Report[]                     @relation("ReporterReports")
+  characterLikes      CharacterLike[]
+  characterRatings    CharacterRating[]
+  chatSidebarPins     ChatSidebarPin[]
+  llmRequestLogs      LlmRequestLog[]
+  apiKeys             UserApiKey[]
+  voiceApiKeys        VoiceApiKey[]
+  mediaAssets         MediaAsset[]
+  lookbookItems       LookbookItem[]
+  personaPreferences  CharacterPersonaPreference[]
+  chatMacros          ChatMacro[]
+  roomMemberships     RoomMember[]
+  roomMessages        RoomMessage[]
+  savedTags           UserTag[]
 }
 
 model Account {
@@ -113,58 +139,143 @@ model PasswordCredential {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model Character {
-  id                 String           @id @default(cuid())
-  creatorId          String
-  name               String
-  avatarUrl          String?
-  description        String           @db.Text
-  personality        String           @db.Text
-  scenario           String?          @db.Text
-  greeting           String           @db.Text
-  communicationStyle Json?
-  persona            Json?
-  lorebook           Json?
-  visualIdentity     Json?
-  creationMode       CharacterCreationMode @default(custom)
-  preferredProvider  String?
-  preferredModel     String?
-  temperature        Float?
-  topP               Float?
-  frequencyPenalty   Float?
-  presencePenalty    Float?
-  maxTokens          Int?
-  systemPromptOverride String?        @db.Text
-  discoveryPlacement DiscoveryPlacement @default(STANDARD)
-  visibility         Visibility       @default(PRIVATE)
-  moderationStatus   ModerationStatus @default(PENDING)
-  tags               String[]         @default([])
-  isNSFW             Boolean          @default(false)
-  likes              Int              @default(0)
-  ratingAverage      Float            @default(0)
-  ratingCount        Int              @default(0)
-  cloneSourceId      String?
-  blockedAt          DateTime?
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 
-  creator     User              @relation(fields: [creatorId], references: [id], onDelete: Cascade)
-  cloneSource Character?        @relation("CharacterForks", fields: [cloneSourceId], references: [id])
-  forks       Character[]       @relation("CharacterForks")
-  chats       Chat[]
-  roomLinks   RoomCharacter[]
-  roomMessages RoomMessage[]
-  memories    Memory[]
-  reports     Report[]
-  likedBy     CharacterLike[]
-  ratings     CharacterRating[]
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Character {
+  id                   String                @id @default(cuid())
+  creatorId            String
+  name                 String
+  avatarUrl            String?
+  description          String                @db.Text
+  personality          String                @db.Text
+  scenario             String?               @db.Text
+  greeting             String                @db.Text
+  communicationStyle   Json?
+  persona              Json?
+  lorebook             Json?
+  visualIdentity       Json?
+  originType           CharacterOriginType   @default(ORIGINAL)
+  sourceLabel          String?               @db.VarChar(240)
+  sourceUrl            String?               @db.VarChar(1000)
+  isRealPerson         Boolean               @default(false)
+  aiDisclosure         Boolean               @default(true)
+  contentBatchId       String?               @db.VarChar(80)
+  qualityReport        Json?
+  creationMode         CharacterCreationMode @default(custom)
+  preferredProvider    String?
+  preferredModel       String?
+  temperature          Float?
+  topP                 Float?
+  frequencyPenalty     Float?
+  presencePenalty      Float?
+  maxTokens            Int?
+  systemPromptOverride String?               @db.Text
+  defaultChatMode      String                @default("realism")
+  discoveryPlacement   DiscoveryPlacement    @default(STANDARD)
+  visibility           Visibility            @default(PRIVATE)
+  moderationStatus     ModerationStatus      @default(PENDING)
+  tags                 String[]              @default([])
+  isNSFW               Boolean               @default(false)
+  likes                Int                   @default(0)
+  ratingAverage        Float                 @default(0)
+  ratingCount          Int                   @default(0)
+  cloneSourceId        String?
+  blockedAt            DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+
+  creator             User                         @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  cloneSource         Character?                   @relation("CharacterForks", fields: [cloneSourceId], references: [id])
+  forks               Character[]                  @relation("CharacterForks")
+  chats               Chat[]
+  roomLinks           RoomCharacter[]
+  roomMessages        RoomMessage[]
+  memories            Memory[]
+  storyParticipations StoryParticipant[]
+  storyTurns          StoryTurn[]                  @relation("StoryTurnCharacter")
+  storyEntities       StoryEntity[]
+  reports             Report[]
+  likedBy             CharacterLike[]
+  ratings             CharacterRating[]
+  sidebarPins         ChatSidebarPin[]
+  personaPreferences  CharacterPersonaPreference[]
 
   @@index([creatorId, updatedAt(sort: Desc)], map: "character_creator_updated_idx")
+  @@index([contentBatchId, createdAt(sort: Desc)], map: "character_content_batch_created_idx")
   @@index([creatorId, cloneSourceId, updatedAt(sort: Desc)], map: "character_creator_clone_updated_idx")
   @@index([visibility, moderationStatus, isNSFW, blockedAt, likes(sort: Desc), ratingAverage(sort: Desc), createdAt(sort: Desc)], map: "character_discovery_trending_idx")
   @@index([visibility, moderationStatus, isNSFW, blockedAt, createdAt(sort: Desc)], map: "character_discovery_new_idx")
   @@index([visibility, moderationStatus, isNSFW, blockedAt, ratingAverage(sort: Desc), ratingCount(sort: Desc), likes(sort: Desc)], map: "character_discovery_rating_idx")
   @@index([tags], type: Gin)
+}
+
+model UserTag {
+  id         String   @id @default(cuid())
+  userId     String
+  slug       String   @db.VarChar(32)
+  label      String   @db.VarChar(32)
+  useCount   Int      @default(1)
+  lastUsedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, slug])
+  @@index([userId, lastUsedAt(sort: Desc)])
+}
+
+model UserPersonaRevision {
+  id        String   @id @default(cuid())
+  personaId String
+  version   Int
+  snapshot  Json
+  createdAt DateTime @default(now())
+
+  persona UserPersona @relation(fields: [personaId], references: [id], onDelete: Cascade)
+
+  @@unique([personaId, version])
+  @@index([personaId, createdAt(sort: Desc)])
+}
+
+model CharacterPersonaPreference {
+  userId      String
+  characterId String
+  personaId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  character Character   @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  persona   UserPersona @relation(fields: [personaId], references: [id], onDelete: Cascade)
+
+  @@id([userId, characterId])
+  @@index([personaId])
+}
+
+model ChatMacro {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@index([userId, updatedAt(sort: Desc)])
 }
 
 model CharacterLike {
@@ -178,6 +289,19 @@ model CharacterLike {
   @@id([userId, characterId])
   @@index([characterId])
   @@index([userId, createdAt(sort: Desc)], map: "character_like_user_created_idx")
+}
+
+model ChatSidebarPin {
+  userId      String
+  characterId String
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@id([userId, characterId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([characterId])
 }
 
 model CharacterRating {
@@ -196,62 +320,96 @@ model CharacterRating {
 }
 
 model Chat {
-  id           String    @id @default(cuid())
-  userId       String
-  characterId  String
-  personaId    String?
-  title        String?
-  temperature  Float     @default(0.7)
-  model        String    @default("gpt-4o-mini")
-  responsePrompt String?  @db.Text
-  messageCount Int       @default(0)
-  summary      String?   @db.Text
-  archivedAt   DateTime?
-  lastActiveAt DateTime  @default(now())
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                       String    @id @default(cuid())
+  userId                   String
+  characterId              String
+  personaId                String?
+  temporaryPersonaId       String?
+  storyId                  String?
+  timelineId               String?   @unique
+  title                    String?
+  temperature              Float     @default(0.7)
+  model                    String    @default("gpt-4o-mini")
+  responsePrompt           String?   @db.Text
+  chatMode                 String    @default("realism")
+  translationLanguage      String?
+  appearance               Json?
+  messageCount             Int       @default(0)
+  summary                  String?   @db.Text
+  summaryThroughSequence   Int       @default(0)
+  activeAssistantMessageId String?
+  archivedAt               DateTime?
+  lastActiveAt             DateTime  @default(now())
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
 
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
-  persona   UserPersona? @relation(fields: [personaId], references: [id], onDelete: SetNull)
-  messages  Message[]
-  memories  Memory[]
-  shares    ChatShare[]
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  character        Character      @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  persona          UserPersona?   @relation("ChatPersona", fields: [personaId], references: [id], onDelete: SetNull)
+  temporaryPersona UserPersona?   @relation("ChatTemporaryPersona", fields: [temporaryPersonaId], references: [id], onDelete: SetNull)
+  story            Story?         @relation(fields: [storyId], references: [id], onDelete: SetNull)
+  timeline         StoryTimeline? @relation(fields: [timelineId], references: [id], onDelete: SetNull)
+  messages         Message[]
+  memories         Memory[]
+  shares           ChatShare[]
+  mediaAssets      MediaAsset[]
 
   @@index([userId, archivedAt, lastActiveAt(sort: Desc), updatedAt(sort: Desc)], map: "chat_user_archive_activity_idx")
   @@index([characterId])
   @@index([personaId])
+  @@index([temporaryPersonaId])
+  @@index([storyId])
 }
 
 model Room {
-  id           String    @id @default(cuid())
-  userId       String
-  personaId    String?
-  title        String
-  model        String    @default("gpt-4o-mini")
-  temperature  Float     @default(0.7)
-  responsePrompt String? @db.Text
-  summary      String?   @db.Text
-  messageCount Int       @default(0)
-  archivedAt   DateTime?
-  lastActiveAt DateTime  @default(now())
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  userId         String
+  personaId      String?
+  storyId        String?
+  timelineId     String?   @unique
+  title          String
+  model          String    @default("gpt-4o-mini")
+  temperature    Float     @default(0.7)
+  responsePrompt String?   @db.Text
+  summary        String?   @db.Text
+  messageCount   Int       @default(0)
+  archivedAt     DateTime?
+  lastActiveAt   DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  inviteCode     String?   @unique
 
-  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  persona    UserPersona?  @relation(fields: [personaId], references: [id], onDelete: SetNull)
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  persona    UserPersona?    @relation(fields: [personaId], references: [id], onDelete: SetNull)
+  story      Story?          @relation(fields: [storyId], references: [id], onDelete: SetNull)
+  timeline   StoryTimeline?  @relation(fields: [timelineId], references: [id], onDelete: SetNull)
   characters RoomCharacter[]
   messages   RoomMessage[]
+  members    RoomMember[]
 
   @@index([userId, lastActiveAt])
   @@index([personaId])
+  @@index([storyId])
+}
+
+model RoomMember {
+  roomId   String
+  userId   String
+  role     RoomMemberRole @default(PLAYER)
+  joinedAt DateTime       @default(now())
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, userId])
+  @@index([userId, joinedAt(sort: Desc)])
 }
 
 model RoomCharacter {
   roomId      String
   characterId String
-  position    Int       @default(0)
-  createdAt   DateTime  @default(now())
+  position    Int      @default(0)
+  createdAt   DateTime @default(now())
 
   room      Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
   character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
@@ -262,13 +420,14 @@ model RoomCharacter {
 }
 
 model ChatShare {
-  id                String   @id @default(cuid())
+  id                String    @id @default(cuid())
   chatId            String
   userId            String
   title             String?
   characterSnapshot Json
   messagesSnapshot  Json
-  createdAt         DateTime @default(now())
+  storySnapshot     Json?
+  createdAt         DateTime  @default(now())
   expiresAt         DateTime?
 
   chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
@@ -279,53 +438,118 @@ model ChatShare {
 }
 
 model UserPersona {
-  id           String   @id @default(cuid())
-  userId       String
-  label        String?
-  displayName  String
-  avatarUrl    String?
-  summary      String   @db.Text
-  background   String?  @db.Text
-  traits       String[] @default([])
-  likes        String[] @default([])
-  dislikes     String[] @default([])
-  boundaries   String[] @default([])
-  isDefault    Boolean  @default(false)
-  visibility   Visibility @default(PRIVATE)
-  metadata     Json?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String     @id @default(cuid())
+  userId      String
+  label       String?
+  displayName String
+  surname     String?
+  avatarUrl   String?
+  summary     String     @db.Text
+  background  String?    @db.Text
+  traits      String[]   @default([])
+  likes       String[]   @default([])
+  dislikes    String[]   @default([])
+  boundaries  String[]   @default([])
+  isDefault   Boolean    @default(false)
+  visibility  Visibility @default(PRIVATE)
+  metadata    Json?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  chats Chat[]
-  rooms Room[]
+  user                User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chats               Chat[]                       @relation("ChatPersona")
+  temporaryChats      Chat[]                       @relation("ChatTemporaryPersona")
+  rooms               Room[]
+  stories             Story[]
+  storyParticipations StoryParticipant[]
+  storyEntities       StoryEntity[]
+  revisions           UserPersonaRevision[]
+  characterDefaults   CharacterPersonaPreference[]
 
   @@index([userId])
   @@index([userId, isDefault])
 }
 
 model Message {
-  id              String      @id @default(cuid())
-  chatId          String
-  sequence        Int?
-  role            MessageRole
-  content         String      @db.Text
-  tokens          Int?
-  model           String?
-  provider        String?
-  inputTokens     Int?
-  outputTokens    Int?
-  estimatedCost   Decimal?    @db.Decimal(12, 8)
-  usageEstimated  Boolean?
-  clientRequestId String?     @unique
-  flagged         Boolean     @default(false)
-  createdAt       DateTime    @default(now())
+  id                    String      @id @default(cuid())
+  chatId                String
+  sequence              Int?
+  role                  MessageRole
+  content               String      @db.Text
+  tokens                Int?
+  model                 String?
+  provider              String?
+  inputTokens           Int?
+  outputTokens          Int?
+  estimatedCost         Decimal?    @db.Decimal(12, 8)
+  usageEstimated        Boolean?
+  clientRequestId       String?     @unique
+  branchSourceMessageId String?
+  flagged               Boolean     @default(false)
+  createdAt             DateTime    @default(now())
 
-  chat    Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  reports Report[]
+  chat        Chat                @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  reports     Report[]
+  storyTurn   StoryTurn?          @relation("StoryTurnSourceMessage")
+  storyFacts  StoryFact[]         @relation("StoryFactSourceMessage")
+  memories    Memory[]            @relation("MemorySourceMessage")
+  attachments MessageAttachment[]
 
   @@unique([chatId, sequence])
   @@index([chatId, createdAt, sequence, id], map: "message_chat_created_sequence_id_idx")
+  @@index([chatId, branchSourceMessageId])
+}
+
+model MediaAsset {
+  id           String   @id @default(cuid())
+  userId       String
+  chatId       String?
+  pathname     String   @unique
+  contentType  String
+  size         Int
+  width        Int?
+  height       Int?
+  originalName String?
+  createdAt    DateTime @default(now())
+
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chat          Chat?               @relation(fields: [chatId], references: [id], onDelete: SetNull)
+  attachments   MessageAttachment[]
+  lookbookItems LookbookItem[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, chatId])
+}
+
+model MessageAttachment {
+  id        String   @id @default(cuid())
+  messageId String
+  assetId   String
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  message Message    @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  asset   MediaAsset @relation(fields: [assetId], references: [id], onDelete: Restrict)
+
+  @@unique([messageId, assetId])
+  @@index([messageId, position])
+  @@index([assetId])
+}
+
+model LookbookItem {
+  id        String   @id @default(cuid())
+  userId    String
+  assetId   String
+  title     String
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset MediaAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, assetId])
+  @@index([userId, updatedAt(sort: Desc)])
 }
 
 model RoomMessage {
@@ -334,6 +558,7 @@ model RoomMessage {
   sequence        Int?
   role            RoomMessageRole
   characterId     String?
+  actorUserId     String?
   content         String          @db.Text
   tokens          Int?
   model           String?
@@ -348,32 +573,594 @@ model RoomMessage {
 
   room      Room       @relation(fields: [roomId], references: [id], onDelete: Cascade)
   character Character? @relation(fields: [characterId], references: [id], onDelete: SetNull)
+  actorUser User?      @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  storyTurn StoryTurn? @relation("StoryTurnSourceRoomMessage")
 
   @@unique([roomId, sequence])
   @@index([roomId, createdAt, sequence])
   @@index([characterId])
+  @@index([actorUserId])
+}
+
+model Story {
+  id           String    @id @default(cuid())
+  ownerId      String
+  personaId    String?
+  title        String
+  mode         StoryMode @default(SOLO)
+  stateVersion Int       @default(0)
+  archivedAt   DateTime?
+  lastActiveAt DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  owner             User                     @relation("StoryOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  persona           UserPersona?             @relation(fields: [personaId], references: [id], onDelete: SetNull)
+  chats             Chat[]
+  rooms             Room[]
+  participants      StoryParticipant[]
+  timelines         StoryTimeline[]
+  turns             StoryTurn[]
+  entities          StoryEntity[]
+  facts             StoryFact[]
+  snapshots         StoryStateSnapshot[]
+  scenes            StoryScene[]
+  director          StoryDirectorProfile?
+  arcs              StoryArc[]
+  beats             StoryBeat[]
+  hooks             StoryHook[]
+  relationships     StoryRelationshipState[]
+  proactiveEvents   StoryProactiveEvent[]
+  participantStates StoryParticipantState[]
+  voiceBindings     StoryVoiceBinding[]
+  visualReferences  StoryVisualReference[]
+  checkpoints       StoryCheckpoint[]
+  safetyProfile     StorySafetyProfile?
+
+  @@index([ownerId, archivedAt, lastActiveAt(sort: Desc)])
+  @@index([personaId])
+}
+
+model StorySafetyProfile {
+  id              String             @id @default(cuid())
+  storyId         String             @unique
+  contentRating   StoryContentRating @default(MATURE)
+  hardLimits      String[]           @default([])
+  softLimits      String[]           @default([])
+  fadeToBlack     String[]           @default([])
+  checkInInterval Int                @default(0)
+  paused          Boolean            @default(false)
+  notes           String?            @db.Text
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@index([storyId, paused])
+}
+
+model StoryParticipant {
+  id          String               @id @default(cuid())
+  storyId     String
+  userId      String?
+  characterId String?
+  personaId   String?
+  role        StoryParticipantRole
+  displayName String
+  metadata    Json?
+  joinedAt    DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  story             Story                    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user              User?                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  character         Character?               @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  persona           UserPersona?             @relation(fields: [personaId], references: [id], onDelete: SetNull)
+  knowledge         StoryKnowledge[]
+  relationshipsFrom StoryRelationshipState[] @relation("StoryRelationshipFrom")
+  relationshipsTo   StoryRelationshipState[] @relation("StoryRelationshipTo")
+  proactiveEvents   StoryProactiveEvent[]
+  states            StoryParticipantState[]
+  voiceBindings     StoryVoiceBinding[]
+  visualReferences  StoryVisualReference[]
+
+  @@index([storyId, role])
+  @@index([userId])
+  @@index([characterId])
+  @@index([personaId])
+}
+
+model StoryTimeline {
+  id               String   @id @default(cuid())
+  storyId          String
+  parentTimelineId String?
+  forkedFromTurnId String?
+  label            String
+  isActive         Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  story             Story                    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  parentTimeline    StoryTimeline?           @relation("StoryTimelineBranches", fields: [parentTimelineId], references: [id], onDelete: SetNull)
+  childTimelines    StoryTimeline[]          @relation("StoryTimelineBranches")
+  forkedFromTurn    StoryTurn?               @relation("StoryTimelineFork", fields: [forkedFromTurnId], references: [id], onDelete: SetNull)
+  turns             StoryTurn[]
+  facts             StoryFact[]
+  snapshots         StoryStateSnapshot[]
+  scenes            StoryScene[]
+  arcs              StoryArc[]
+  beats             StoryBeat[]
+  hooks             StoryHook[]
+  relationships     StoryRelationshipState[]
+  proactiveEvents   StoryProactiveEvent[]
+  participantStates StoryParticipantState[]
+  visualReferences  StoryVisualReference[]
+  checkpoints       StoryCheckpoint[]
+  chat              Chat?
+  room              Room?
+
+  @@index([storyId, isActive])
+  @@index([parentTimelineId])
+  @@index([forkedFromTurnId])
+}
+
+model StoryTurn {
+  id                  String           @id @default(cuid())
+  storyId             String
+  timelineId          String
+  sequence            Int
+  channel             StoryTurnChannel @default(DIALOGUE)
+  actorUserId         String?
+  actorCharacterId    String?
+  sourceMessageId     String?          @unique
+  sourceRoomMessageId String?          @unique
+  content             String           @db.Text
+  metadata            Json?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  story             Story                 @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  timeline          StoryTimeline         @relation(fields: [timelineId], references: [id], onDelete: Cascade)
+  actorUser         User?                 @relation("StoryTurnUser", fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorCharacter    Character?            @relation("StoryTurnCharacter", fields: [actorCharacterId], references: [id], onDelete: SetNull)
+  sourceMessage     Message?              @relation("StoryTurnSourceMessage", fields: [sourceMessageId], references: [id], onDelete: SetNull)
+  sourceRoomMessage RoomMessage?          @relation("StoryTurnSourceRoomMessage", fields: [sourceRoomMessageId], references: [id], onDelete: SetNull)
+  facts             StoryFact[]
+  snapshots         StoryStateSnapshot[]
+  forkedTimelines   StoryTimeline[]       @relation("StoryTimelineFork")
+  resolvedBeats     StoryBeat[]           @relation("StoryBeatResolvedByTurn")
+  openedHooks       StoryHook[]           @relation("StoryHookOpenedByTurn")
+  resolvedHooks     StoryHook[]           @relation("StoryHookResolvedByTurn")
+  createdEvents     StoryProactiveEvent[] @relation("StoryProactiveCreatedByTurn")
+  firedEvents       StoryProactiveEvent[] @relation("StoryProactiveFiredByTurn")
+  checkpoints       StoryCheckpoint[]
+
+  @@unique([timelineId, sequence])
+  @@index([storyId, createdAt])
+  @@index([actorUserId])
+  @@index([actorCharacterId])
+}
+
+model StoryEntity {
+  id                String          @id @default(cuid())
+  storyId           String
+  sourceCharacterId String?
+  sourcePersonaId   String?
+  type              StoryEntityType
+  canonicalKey      String
+  name              String
+  description       String?         @db.Text
+  locked            Boolean         @default(false)
+  metadata          Json?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  story            Story                  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  sourceCharacter  Character?             @relation(fields: [sourceCharacterId], references: [id], onDelete: SetNull)
+  sourcePersona    UserPersona?           @relation(fields: [sourcePersonaId], references: [id], onDelete: SetNull)
+  subjectFacts     StoryFact[]            @relation("StoryFactSubject")
+  objectFacts      StoryFact[]            @relation("StoryFactObject")
+  visualReferences StoryVisualReference[]
+
+  @@unique([storyId, canonicalKey])
+  @@index([storyId, type])
+  @@index([sourceCharacterId])
+  @@index([sourcePersonaId])
+}
+
+model StoryFact {
+  id                 String                       @id @default(cuid())
+  storyId            String
+  timelineId         String?
+  subjectEntityId    String?
+  objectEntityId     String?
+  sourceTurnId       String?
+  sourceMessageId    String?
+  predicate          String
+  objectText         String                       @db.Text
+  objectData         Json?
+  kind               StoryFactKind                @default(PERMANENT)
+  worldTime          String?
+  validFromSequence  Int?
+  validUntilSequence Int?
+  scope              StoryFactScope               @default(STORY)
+  status             StoryFactStatus              @default(ACTIVE)
+  confidence         Float                        @default(1)
+  importance         Float                        @default(1)
+  locked             Boolean                      @default(false)
+  embedding          Unsupported("vector(1536)")?
+  metadata           Json?
+  createdAt          DateTime                     @default(now())
+  updatedAt          DateTime                     @updatedAt
+
+  story         Story            @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  timeline      StoryTimeline?   @relation(fields: [timelineId], references: [id], onDelete: Cascade)
+  subjectEntity StoryEntity?     @relation("StoryFactSubject", fields: [subjectEntityId], references: [id], onDelete: SetNull)
+  objectEntity  StoryEntity?     @relation("StoryFactObject", fields: [objectEntityId], references: [id], onDelete: SetNull)
+  sourceTurn    StoryTurn?       @relation(fields: [sourceTurnId], references: [id], onDelete: SetNull)
+  sourceMessage Message?         @relation("StoryFactSourceMessage", fields: [sourceMessageId], references: [id], onDelete: SetNull)
+  knowledge     StoryKnowledge[]
+
+  @@index([storyId, status, locked, importance(sort: Desc)])
+  @@index([storyId, kind, status, validUntilSequence])
+  @@index([timelineId])
+  @@index([subjectEntityId, predicate])
+  @@index([objectEntityId])
+  @@index([sourceTurnId])
+  @@index([sourceMessageId])
+}
+
+model StoryKnowledge {
+  factId          String
+  participantId   String
+  state           StoryKnowledgeState @default(KNOWN)
+  learnedAtTurnId String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  fact        StoryFact        @relation(fields: [factId], references: [id], onDelete: Cascade)
+  participant StoryParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@id([factId, participantId])
+  @@index([participantId, state])
+}
+
+model StoryStateSnapshot {
+  id           String   @id @default(cuid())
+  storyId      String
+  timelineId   String
+  sourceTurnId String?
+  sceneId      String?
+  version      Int
+  state        Json
+  createdAt    DateTime @default(now())
+
+  story      Story         @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  timeline   StoryTimeline @relation(fields: [timelineId], references: [id], onDelete: Cascade)
+  sourceTurn StoryTurn?    @relation(fields: [sourceTurnId], references: [id], onDelete: SetNull)
+  scene      StoryScene?   @relation(fields: [sceneId], references: [id], onDelete: SetNull)
+
+  @@unique([timelineId, version])
+  @@index([storyId, createdAt(sort: Desc)])
+  @@index([sourceTurnId])
+  @@index([sceneId])
+}
+
+model StoryScene {
+  id                String           @id @default(cuid())
+  storyId           String
+  timelineId        String
+  status            StorySceneStatus @default(ACTIVE)
+  title             String?
+  worldTime         String?
+  location          String?
+  startedAtSequence Int              @default(0)
+  endedAtSequence   Int?
+  summary           String?          @db.Text
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  story     Story                @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  timeline  StoryTimeline        @relation(fields: [timelineId], references: [id], onDelete: Cascade)
+  snapshots StoryStateSnapshot[]
+
+  @@index([storyId, status, updatedAt(sort: Desc)])
+  @@index([timelineId, status, startedAtSequence(sort: Desc)])
+}
+
+model StoryDirectorProfile {
+  storyId              String          @id
+  tone                 String?
+  pacing               StoryPacing     @default(BALANCED)
+  initiative           StoryInitiative @default(BALANCED)
+  conflictLevel        Int             @default(5)
+  romanceLevel         Int             @default(3)
+  mysteryLevel         Int             @default(5)
+  humorLevel           Int             @default(3)
+  allowOffscreenEvents Boolean         @default(true)
+  notes                String?         @db.Text
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+}
+
+model StoryArc {
+  id              String         @id @default(cuid())
+  storyId         String
+  timelineId      String?
+  title           String
+  premise         String         @db.Text
+  status          StoryArcStatus @default(ACTIVE)
+  priority        Int            @default(0)
+  progress        Int            @default(0)
+  targetBeatCount Int?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  story    Story          @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  timeline StoryTimeline? @relation(fields: [timelineId], references: [id], onDelete: Cascade)
+  beats    StoryBeat[]
+  hooks    StoryHook[]
+
+  @@index([storyId, status, priority(sort: Desc)])
+  @@index([timelineId])
+}
+
+model StoryBeat {
+  id               String          @id @default(cuid())
+  storyId          String
+  timelineId       String
+  arcId            String?
+  resolvedByTurnId String?
+  title            String
+  description      String          @db.Text
+  status           StoryBeatStatus @default(PLANNED)
+  position         Int             @default(0)
+  priority         Int             @default(0)
+  trigger          Json?
+  resolvedAt       DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  story          Story         @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  timeline       StoryTimeline @relation(fields: [timelineId], references: [id], onDelete: Cascade)
+  arc            StoryArc?     @relation(fields: [arcId], references: [id], onDelete: SetNull)
+  resolvedByTurn StoryTurn?    @relation("StoryBeatResolvedByTurn", fields: [resolvedByTurnId], references: [id], onDelete: SetNull)
+
+  @@index([storyId, status, priority(sort: Desc)])
+  @@index([timelineId, status, position])
+  @@index([arcId])
+  @@index([resolvedByTurnId])
+}
+
+model StoryHook {
+  id               String          @id @default(cuid())
+  storyId          String
+  timelineId       String
+  arcId            String?
+  openedByTurnId   String?
+  resolvedByTurnId String?
+  title            String
+  description      String          @db.Text
+  payoff           String?         @db.Text
+  status           StoryHookStatus @default(OPEN)
+  urgency          Int             @default(0)
+  directorOnly     Boolean         @default(false)
+  dueSequence      Int?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  resolvedAt       DateTime?
+
+  story          Story         @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  timeline       StoryTimeline @relation(fields: [timelineId], references: [id], onDelete: Cascade)
+  arc            StoryArc?     @relation(fields: [arcId], references: [id], onDelete: SetNull)
+  openedByTurn   StoryTurn?    @relation("StoryHookOpenedByTurn", fields: [openedByTurnId], references: [id], onDelete: SetNull)
+  resolvedByTurn StoryTurn?    @relation("StoryHookResolvedByTurn", fields: [resolvedByTurnId], references: [id], onDelete: SetNull)
+
+  @@index([storyId, status, urgency(sort: Desc)])
+  @@index([timelineId, status, dueSequence])
+  @@index([arcId])
+  @@index([openedByTurnId])
+  @@index([resolvedByTurnId])
+}
+
+model StoryRelationshipState {
+  id                String   @id @default(cuid())
+  storyId           String
+  timelineId        String
+  fromParticipantId String
+  toParticipantId   String
+  label             String?
+  trust             Int      @default(0)
+  affection         Int      @default(0)
+  tension           Int      @default(0)
+  respect           Int      @default(0)
+  notes             String?  @db.Text
+  version           Int      @default(1)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  story           Story                       @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  timeline        StoryTimeline               @relation(fields: [timelineId], references: [id], onDelete: Cascade)
+  fromParticipant StoryParticipant            @relation("StoryRelationshipFrom", fields: [fromParticipantId], references: [id], onDelete: Cascade)
+  toParticipant   StoryParticipant            @relation("StoryRelationshipTo", fields: [toParticipantId], references: [id], onDelete: Cascade)
+  revisions       StoryRelationshipRevision[]
+
+  @@unique([timelineId, fromParticipantId, toParticipantId])
+  @@index([storyId, updatedAt(sort: Desc)])
+  @@index([fromParticipantId])
+  @@index([toParticipantId])
+}
+
+model StoryRelationshipRevision {
+  id             String   @id @default(cuid())
+  relationshipId String
+  trust          Int
+  affection      Int
+  tension        Int
+  respect        Int
+  label          String?
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now())
+
+  relationship StoryRelationshipState @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+
+  @@index([relationshipId, createdAt(sort: Desc)])
+}
+
+model StoryProactiveEvent {
+  id                 String               @id @default(cuid())
+  storyId            String
+  timelineId         String
+  actorParticipantId String?
+  createdByTurnId    String?
+  firedAtTurnId      String?
+  title              String
+  instruction        String               @db.Text
+  status             StoryProactiveStatus @default(SCHEDULED)
+  channel            StoryTurnChannel     @default(ACTION)
+  priority           Int                  @default(0)
+  dueSequence        Int?
+  triggerAt          DateTime?
+  metadata           Json?
+  firedAt            DateTime?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  story            Story             @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  timeline         StoryTimeline     @relation(fields: [timelineId], references: [id], onDelete: Cascade)
+  actorParticipant StoryParticipant? @relation(fields: [actorParticipantId], references: [id], onDelete: SetNull)
+  createdByTurn    StoryTurn?        @relation("StoryProactiveCreatedByTurn", fields: [createdByTurnId], references: [id], onDelete: SetNull)
+  firedAtTurn      StoryTurn?        @relation("StoryProactiveFiredByTurn", fields: [firedAtTurnId], references: [id], onDelete: SetNull)
+
+  @@index([storyId, status, priority(sort: Desc)])
+  @@index([timelineId, status, dueSequence])
+  @@index([actorParticipantId])
+  @@index([createdByTurnId])
+  @@index([firedAtTurnId])
+}
+
+model StoryParticipantState {
+  id                  String   @id @default(cuid())
+  storyId             String
+  timelineId          String
+  participantId       String
+  displayNameOverride String?
+  pronouns            String?
+  currentMood         String?
+  appearance          String?  @db.Text
+  currentGoal         String?  @db.Text
+  innerConflict       String?  @db.Text
+  voiceStyle          String?
+  speakingStyle       String?  @db.Text
+  metadata            Json?
+  version             Int      @default(1)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  story       Story            @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  timeline    StoryTimeline    @relation(fields: [timelineId], references: [id], onDelete: Cascade)
+  participant StoryParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@unique([timelineId, participantId])
+  @@index([storyId, updatedAt(sort: Desc)])
+  @@index([participantId])
+}
+
+model StoryVoiceBinding {
+  id            String   @id @default(cuid())
+  storyId       String
+  participantId String
+  provider      String
+  voiceId       String
+  style         String?
+  speed         Float    @default(1)
+  pitch         Float    @default(0)
+  autoPlay      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  story       Story            @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  participant StoryParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, participantId])
+  @@index([participantId])
+  @@index([storyId, provider])
+}
+
+model StoryVisualReference {
+  id            String          @id @default(cuid())
+  storyId       String
+  timelineId    String?
+  participantId String?
+  entityId      String?
+  kind          StoryVisualKind
+  title         String
+  imageUrl      String?         @db.Text
+  prompt        String?         @db.Text
+  notes         String?         @db.Text
+  locked        Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  story       Story             @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  timeline    StoryTimeline?    @relation(fields: [timelineId], references: [id], onDelete: Cascade)
+  participant StoryParticipant? @relation(fields: [participantId], references: [id], onDelete: SetNull)
+  entity      StoryEntity?      @relation(fields: [entityId], references: [id], onDelete: SetNull)
+
+  @@index([storyId, kind, locked])
+  @@index([timelineId])
+  @@index([participantId])
+  @@index([entityId])
+}
+
+model StoryCheckpoint {
+  id                   String              @id @default(cuid())
+  storyId              String
+  timelineId           String
+  sourceTurnId         String?
+  kind                 StoryCheckpointKind @default(MANUAL)
+  title                String
+  summary              String              @db.Text
+  openThreads          String[]            @default([])
+  importantFactIds     String[]            @default([])
+  stateVersion         Int                 @default(0)
+  relationshipSnapshot Json?
+  createdAt            DateTime            @default(now())
+
+  story      Story         @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  timeline   StoryTimeline @relation(fields: [timelineId], references: [id], onDelete: Cascade)
+  sourceTurn StoryTurn?    @relation(fields: [sourceTurnId], references: [id], onDelete: SetNull)
+
+  @@index([storyId, createdAt(sort: Desc)])
+  @@index([timelineId, createdAt(sort: Desc)])
+  @@index([sourceTurnId])
 }
 
 model Memory {
-  id           String                       @id @default(cuid())
-  userId       String
-  characterId  String?
-  content      String                       @db.Text
-  embedding    Unsupported("vector(1536)")?
-  importance   Float                        @default(1.0)
-  category     MemoryCategory               @default(OTHER)
-  metadata     Json?
-  confidence   Float                        @default(0.75)
-  sourceChatId String?
-  pinned       Boolean                      @default(false)
-  createdAt    DateTime                     @default(now())
-  updatedAt    DateTime                     @updatedAt
+  id              String                       @id @default(cuid())
+  userId          String
+  characterId     String?
+  content         String                       @db.Text
+  embedding       Unsupported("vector(1536)")?
+  importance      Float                        @default(1.0)
+  category        MemoryCategory               @default(OTHER)
+  metadata        Json?
+  confidence      Float                        @default(0.75)
+  sourceChatId    String?
+  sourceMessageId String?
+  pinned          Boolean                      @default(false)
+  status          MemoryStatus                 @default(ACTIVE)
+  createdAt       DateTime                     @default(now())
+  updatedAt       DateTime                     @updatedAt
 
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  character  Character? @relation(fields: [characterId], references: [id], onDelete: Cascade)
-  sourceChat Chat?      @relation(fields: [sourceChatId], references: [id], onDelete: SetNull)
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  character     Character? @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  sourceChat    Chat?      @relation(fields: [sourceChatId], references: [id], onDelete: SetNull)
+  sourceMessage Message?   @relation("MemorySourceMessage", fields: [sourceMessageId], references: [id], onDelete: Cascade)
 
-  @@index([userId, characterId, importance])
+  @@index([userId, status, characterId, importance])
+  @@index([sourceMessageId])
 }
 
 model Report {
@@ -418,26 +1205,30 @@ model LlmRequestLog {
 }
 
 model UserApiKey {
-  id           String   @id @default(cuid())
-  userId       String
-  provider     String
-  displayName  String
-  apiFormat    String   @default("OPENAI_COMPATIBLE")
-  baseUrl      String?
-  defaultModel String?
-  label        String?
-  encryptedKey String   @db.Text
-  last4        String
-  isDefault    Boolean  @default(true)
-  fallbackEnabled Boolean @default(true)
+  id               String    @id @default(cuid())
+  userId           String
+  provider         String
+  displayName      String
+  apiFormat        String    @default("OPENAI_COMPATIBLE")
+  baseUrl          String?
+  defaultModel     String?
+  label            String?
+  encryptedKey     String    @db.Text
+  last4            String
+  isDefault        Boolean   @default(true)
+  fallbackEnabled  Boolean   @default(false)
   fallbackPriority Int?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  providerPriority Int       @default(0)
+  credentialStatus String    @default("UNVERIFIED")
+  validatedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, provider])
   @@index([userId])
+  @@index([userId, provider, providerPriority])
+  @@index([userId, credentialStatus])
   @@index([userId, fallbackEnabled, fallbackPriority])
   @@index([apiFormat])
 }
@@ -476,6 +1267,15 @@ enum Visibility {
 enum CharacterCreationMode {
   simple
   custom
+}
+
+enum CharacterOriginType {
+  ORIGINAL
+  PUBLIC_DOMAIN
+  LICENSED
+  FAN_INTERPRETATION
+  REAL_PERSON
+  HISTORICAL_FIGURE
 }
 
 enum DiscoveryPlacement {
@@ -520,4 +1320,140 @@ enum MemoryCategory {
   EVENT
   WORLD_STATE
   OTHER
+}
+
+enum MemoryStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+}
+
+enum RoomMemberRole {
+  PLAYER
+  OBSERVER
+}
+
+enum StoryMode {
+  SOLO
+  ENSEMBLE
+  SHARED
+}
+
+enum StoryParticipantRole {
+  OWNER
+  PLAYER
+  CHARACTER
+  NPC
+  OBSERVER
+}
+
+enum StoryContentRating {
+  GENERAL
+  TEEN
+  MATURE
+}
+
+enum StoryTurnChannel {
+  DIALOGUE
+  ACTION
+  THOUGHT
+  WHISPER
+  OOC
+  SYSTEM
+}
+
+enum StoryEntityType {
+  CHARACTER
+  PERSONA
+  LOCATION
+  ITEM
+  ORGANIZATION
+  EVENT
+  CONCEPT
+}
+
+enum StoryFactScope {
+  STORY
+  PARTICIPANT
+  CHARACTER
+  OWNER
+}
+
+enum StoryFactStatus {
+  ACTIVE
+  SUPERSEDED
+  RETRACTED
+}
+
+enum StoryFactKind {
+  PERMANENT
+  STATE
+  EVENT
+}
+
+enum StorySceneStatus {
+  ACTIVE
+  CLOSED
+  ARCHIVED
+}
+
+enum StoryKnowledgeState {
+  KNOWN
+  SUSPECTED
+  FORGOTTEN
+}
+
+enum StoryPacing {
+  SLOW
+  BALANCED
+  FAST
+}
+
+enum StoryInitiative {
+  REACTIVE
+  BALANCED
+  PROACTIVE
+}
+
+enum StoryArcStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ABANDONED
+}
+
+enum StoryBeatStatus {
+  PLANNED
+  READY
+  COMPLETED
+  SKIPPED
+}
+
+enum StoryHookStatus {
+  OPEN
+  ESCALATED
+  RESOLVED
+  DROPPED
+}
+
+enum StoryProactiveStatus {
+  SCHEDULED
+  READY
+  FIRED
+  CANCELLED
+}
+
+enum StoryVisualKind {
+  PORTRAIT
+  OUTFIT
+  LOCATION
+  ITEM
+  MOODBOARD
+  OTHER
+}
+
+enum StoryCheckpointKind {
+  MANUAL
+  AUTO
+  BOOKMARK
 }

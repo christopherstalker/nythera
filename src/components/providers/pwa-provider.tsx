@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { MobileInstallPrompt } from "@/components/pwa/mobile-install-prompt";
 import { PwaUpdatePrompt } from "@/components/pwa/pwa-update-prompt";
@@ -42,6 +42,8 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
   const [ios, setIos] = useState(false);
   const [iosGuideOpen, setIosGuideOpen] = useState(false);
   const [updateReady, setUpdateReady] = useState(false);
+  const reloadOnControllerChangeRef = useRef(false);
+  const controllerReloadedRef = useRef(false);
 
   useEffect(() => {
     setDismissed(localStorage.getItem(PWA_MOBILE_DISMISS_KEY) === "true");
@@ -73,15 +75,32 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    reloadOnControllerChangeRef.current = Boolean(navigator.serviceWorker.controller);
+    let registration: ServiceWorkerRegistration | null = null;
+
+    const checkForUpdate = () => {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+
+      void registration?.update().catch((error) => {
+        console.warn("Nythera service worker update check failed.", error);
+      });
+    };
+
     async function registerServiceWorker() {
       try {
-        const registration = await navigator.serviceWorker.register(PWA_SW_URL);
-        if (registration.waiting && navigator.serviceWorker.controller) {
+        const activeRegistration = await navigator.serviceWorker.register(PWA_SW_URL, {
+          updateViaCache: "none"
+        });
+        registration = activeRegistration;
+
+        if (activeRegistration.waiting && navigator.serviceWorker.controller) {
           setUpdateReady(true);
         }
 
-        registration.addEventListener("updatefound", () => {
-          const installing = registration.installing;
+        activeRegistration.addEventListener("updatefound", () => {
+          const installing = activeRegistration.installing;
           if (!installing) {
             return;
           }
@@ -92,6 +111,7 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
             }
           });
         });
+        checkForUpdate();
       } catch (error) {
         console.warn("Nythera service worker registration failed.", error);
       }
@@ -99,9 +119,27 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
 
     void registerServiceWorker();
 
-    const onControllerChange = () => setUpdateReady(false);
+    const onControllerChange = () => {
+      setUpdateReady(false);
+
+      if (reloadOnControllerChangeRef.current && !controllerReloadedRef.current) {
+        controllerReloadedRef.current = true;
+        window.location.reload();
+        return;
+      }
+
+      reloadOnControllerChangeRef.current = true;
+    };
+
     navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
-    return () => navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+    document.addEventListener("visibilitychange", checkForUpdate);
+    window.addEventListener("pageshow", checkForUpdate);
+
+    return () => {
+      navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+      document.removeEventListener("visibilitychange", checkForUpdate);
+      window.removeEventListener("pageshow", checkForUpdate);
+    };
   }, []);
 
   const installApp = useCallback(async () => {
@@ -140,8 +178,8 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
 
   const applyUpdate = useCallback(async () => {
     const registration = await navigator.serviceWorker.getRegistration();
+    reloadOnControllerChangeRef.current = true;
     registration?.waiting?.postMessage({ type: "SKIP_WAITING" });
-    window.location.reload();
   }, []);
 
   const hasNativeInstallPrompt = Boolean(installPrompt);

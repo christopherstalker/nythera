@@ -1,5 +1,8 @@
 export type ProviderErrorCode =
   | "invalid_api_key"
+  | "insufficient_balance"
+  | "prompt_too_large"
+  | "invalid_parameters"
   | "rate_limit"
   | "model_unavailable"
   | "provider_unavailable"
@@ -17,12 +20,50 @@ export type ProviderErrorClassification = {
 export function classifyProviderError(error: unknown): ProviderErrorClassification {
   const status = readStatus(error);
   const rawMessage = readMessage(error).toLowerCase();
+  const reportsTemporaryOutage =
+    rawMessage.includes("temporarily unavailable") ||
+    rawMessage.includes("service unavailable") ||
+    rawMessage.includes("provider unavailable") ||
+    rawMessage.includes("provider is unavailable") ||
+    rawMessage.includes("overloaded") ||
+    rawMessage.includes("try again later");
+  const reportsPromptLimit =
+    rawMessage.includes("prompt tokens limit exceeded") ||
+    rawMessage.includes("maximum context length") ||
+    rawMessage.includes("context length exceeded");
 
   if (status === 401 || status === 403 || rawMessage.includes("api key not valid")) {
     return {
       code: "invalid_api_key",
       message: "The selected provider rejected the API key. Check the key in Settings.",
       status: status ?? 401,
+      retryable: false
+    };
+  }
+
+  if (reportsPromptLimit) {
+    return {
+      code: "prompt_too_large",
+      message: "The request exceeded this provider's context limit. Nythera will shorten older history before retrying.",
+      status,
+      retryable: false
+    };
+  }
+
+  if (status === 402) {
+    return {
+      code: "insufficient_balance",
+      message: "The provider account cannot cover this request. Add credits, reduce the response length, or choose another provider.",
+      status,
+      retryable: false
+    };
+  }
+
+  if (status === 400 || status === 422) {
+    return {
+      code: "invalid_parameters",
+      message: "The selected provider rejected the request parameters. Refresh its model list and try again.",
+      status,
       retryable: false
     };
   }
@@ -45,7 +86,7 @@ export function classifyProviderError(error: unknown): ProviderErrorClassificati
     };
   }
 
-  if (status !== null && status >= 500) {
+  if ((status !== null && status >= 500) || reportsTemporaryOutage) {
     return {
       code: "provider_unavailable",
       message: "The selected model provider is temporarily unavailable. Try again shortly.",

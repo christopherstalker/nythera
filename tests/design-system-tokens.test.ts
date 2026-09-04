@@ -119,7 +119,7 @@ function resolveChannels(name: string, ...scopes: Map<string, string>[]) {
   }
 }
 
-test("Aurora Ink tokens define the complete OKLCH design-system contract", async () => {
+test("Coffee Ink tokens define the complete OKLCH design-system contract", async () => {
   const css = await readFile(tokenFile, "utf8");
   const rules = parseTokenContract(css);
   const root = rules.get(":root")!;
@@ -128,10 +128,9 @@ test("Aurora Ink tokens define the complete OKLCH design-system contract", async
   assert.doesNotMatch(css, /#[\da-f]{3,8}\b|\b(?:rgb|rgba|hsl|hsla)\s*\(/i);
 
   const primitives = {
-    "primitive-violet-500": "0.74 0.13 250",
-    "primitive-violet-600": "0.68 0.14 250",
-    "primitive-mint-400": "0.82 0.12 170",
-    "primitive-mint-500": "0.76 0.13 170",
+    "primitive-coffee-400": "0.78 0.065 65",
+    "primitive-coffee-500": "0.68 0.085 55",
+    "primitive-coffee-600": "0.60 0.085 50",
     "primitive-warning-500": "0.78 0.15 80",
     "primitive-danger-500": "0.65 0.2 25"
   };
@@ -153,10 +152,10 @@ test("Aurora Ink tokens define the complete OKLCH design-system contract", async
     "color-border-default": "0.48 0 0",
     "color-border-strong": "0.72 0 0",
     "color-border-disabled": "0.28 0 0",
-    "color-accent-primary": "var(--primitive-violet-500)",
-    "color-accent-strong": "var(--primitive-violet-600)",
-    "color-accent-secondary": "var(--primitive-mint-400)",
-    "color-focus-ring": "var(--primitive-mint-400)",
+    "color-accent-primary": "var(--primitive-coffee-500)",
+    "color-accent-strong": "var(--primitive-coffee-600)",
+    "color-accent-secondary": "var(--primitive-coffee-400)",
+    "color-focus-ring": "var(--primitive-coffee-400)",
     "color-warning": "var(--primitive-warning-500)",
     "color-danger": "var(--primitive-danger-500)"
   };
@@ -207,7 +206,7 @@ test("Aurora Ink tokens define the complete OKLCH design-system contract", async
     "card-min-width": "clamp(9.75rem, 42vw, 12.5rem)",
     "card-height": "clamp(16.5rem, 38vw, 18.75rem)",
     "grid-gap": "clamp(0.75rem, 1.8vw, 1.25rem)",
-    "bottom-nav-offset": "calc(92px + env(safe-area-inset-bottom))",
+    "bottom-nav-offset": "calc(var(--codex-mobile-dock-height) + env(safe-area-inset-bottom))",
     "touch-target": "44px",
     "sidebar-width": "220px",
     "sidebar-collapsed": "64px",
@@ -242,7 +241,7 @@ test("Aurora Ink tokens define the complete OKLCH design-system contract", async
     "brand-primary": "oklch(var(--color-accent-primary))",
     "brand-primary-hover": "oklch(var(--color-accent-strong))",
     "brand-secondary": "oklch(var(--color-accent-secondary))",
-    "brand-secondary-deep": "oklch(var(--primitive-violet-600))",
+    "brand-secondary-deep": "oklch(var(--primitive-coffee-600))",
     "border-strong": "oklch(var(--color-border-strong))",
     "brand-glow": "transparent",
     "brand-glow-strong": "transparent",
@@ -250,8 +249,8 @@ test("Aurora Ink tokens define the complete OKLCH design-system contract", async
     "accent-purple-hover": "oklch(var(--color-accent-strong))",
     "accent-purple-soft": "oklch(var(--color-accent-primary) / .28)",
     "accent-secondary": "oklch(var(--color-accent-secondary))",
-    "accent-teal": "oklch(var(--primitive-mint-500))",
-    "accent-rgb": "143 129 247",
+    "accent-teal": "oklch(var(--primitive-coffee-500))",
+    "accent-rgb": "169 121 90",
     "bubble-user": "oklch(var(--color-accent-primary))",
     "bubble-char": "oklch(var(--color-surface))",
     "radius-sm": "var(--radius-compact)",
@@ -520,7 +519,7 @@ test("the design-system reference documents every foundation contract", async ()
   const docs = await readFile(new URL("../docs/design-system.md", import.meta.url), "utf8");
 
   for (const heading of [
-    "Aurora Ink colors",
+    "Coffee Ink colors",
     "Spacing and Cloud Soft radii",
     "Space Grotesk typography",
     "Glass composition",

@@ -1,21 +1,21 @@
 import { auth } from "@/lib/auth";
-import { HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
+import { getRequestIp, HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { ratingSchema } from "@/lib/validation";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { revalidateTag } from "next/cache";
 
 export const dynamic = "force-dynamic";
 
 type Context = {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 };
 
 export async function GET(_request: Request, context: Context) {
   try {
     const session = await auth();
     const character = await prisma.character.findUnique({
-      where: { id: context.params.id },
+      where: { id: (await context.params).id },
       select: { id: true, ratingAverage: true, ratingCount: true }
     });
 
@@ -44,9 +44,7 @@ export async function GET(_request: Request, context: Context) {
         include: {
           user: {
             select: {
-              username: true,
-              image: true,
-              avatarUrl: true
+              username: true
             }
           }
         }
@@ -62,11 +60,12 @@ export async function GET(_request: Request, context: Context) {
 export async function PUT(request: Request, context: Context) {
   try {
     const user = await requireUser();
+    await enforceRateLimit({ userId: user.id, ip: getRequestIp(request), route: "characters:rating" });
     const input = await parseJson(request, ratingSchema);
 
     const result = await prisma.$transaction(async (tx) => {
       const character = await tx.character.findUnique({
-        where: { id: context.params.id },
+        where: { id: (await context.params).id },
         select: { id: true, blockedAt: true }
       });
 
@@ -113,6 +112,8 @@ export async function PUT(request: Request, context: Context) {
 
       return updated;
     });
+
+    revalidateTag("public-character-feed");
 
     return json({ rating: { average: result.ratingAverage, count: result.ratingCount } });
   } catch (error) {

@@ -33,6 +33,7 @@ export function resolveCharacterModelSettings(input: {
   const requestedProvider = input.character.preferredProvider?.trim().toLowerCase() || null;
   const requestedModel = input.character.preferredModel?.trim() || null;
   const explicitGlobalProvider = explicitProviderFromModel(input.globalModel, input.providerKeys);
+  const inferredGlobalProvider = inferredProviderFromModel(input.globalModel, input.providerKeys);
   const matchingKey = requestedProvider
     ? input.providerKeys.find((key) => key.provider === requestedProvider)
     : null;
@@ -47,8 +48,8 @@ export function resolveCharacterModelSettings(input: {
 
   return {
     model,
-    provider: explicitGlobalProvider ?? (useCharacterProvider ? matchingKey!.provider : defaultKey?.provider ?? null),
-    temperature: input.character.temperature ?? input.chatTemperature,
+    provider: explicitGlobalProvider ?? (useCharacterProvider ? matchingKey!.provider : inferredGlobalProvider ?? defaultKey?.provider ?? null),
+    temperature: input.chatTemperature,
     topP: input.character.topP ?? null,
     frequencyPenalty: input.character.frequencyPenalty ?? null,
     presencePenalty: input.character.presencePenalty ?? null,
@@ -61,17 +62,32 @@ export function resolveCharacterModelSettings(input: {
 
 function explicitProviderFromModel(value: string, providerKeys: ProviderKeys) {
   const separatorIndex = value.indexOf(":");
-  if (separatorIndex <= 0) {
-    return null;
+  if (separatorIndex > 0) {
+    const provider = value.slice(0, separatorIndex).trim().toLowerCase();
+    const model = value.slice(separatorIndex + 1).trim();
+    if (provider && model && providerKeys.some((key) => key.provider === provider)) {
+      return provider;
+    }
   }
 
-  const provider = value.slice(0, separatorIndex).trim().toLowerCase();
-  const model = value.slice(separatorIndex + 1).trim();
-  if (!provider || !model) {
-    return null;
-  }
+  return null;
+}
 
-  return providerKeys.some((key) => key.provider === provider) ? provider : null;
+function inferredProviderFromModel(value: string, providerKeys: ProviderKeys) {
+  const normalized = value.trim().toLowerCase();
+  const exactDefault = providerKeys.find((key) => key.defaultModel?.toLowerCase() === normalized);
+  if (exactDefault) return exactDefault.provider;
+
+  const inferredProvider = normalized.includes("gemini")
+    ? "gemini"
+    : normalized.includes("deepseek")
+      ? "deepseek"
+      : normalized.includes("claude")
+        ? "anthropic"
+        : normalized.includes("gpt") || normalized.includes("4o")
+          ? "openai"
+          : null;
+  return inferredProvider && providerKeys.some((key) => key.provider === inferredProvider) ? inferredProvider : null;
 }
 
 export function redactCharacterModelSettings<

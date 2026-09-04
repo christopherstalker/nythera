@@ -5,6 +5,13 @@ export type DiscoveryTag = {
   aliases?: string[];
 };
 
+export type CharacterTagOption = {
+  slug: string;
+  label: string;
+  source: "saved" | "system" | "popular";
+  usageCount?: number;
+};
+
 export const MAX_CHARACTER_TAGS = 12;
 
 export const DISCOVERY_TAGS: DiscoveryTag[] = [
@@ -39,6 +46,12 @@ export const DISCOVERY_TAGS: DiscoveryTag[] = [
   { label: "Monster", slug: "monster", group: "role" },
   { label: "Detective", slug: "detective", group: "role" }
 ];
+
+export const SYSTEM_TAG_OPTIONS: CharacterTagOption[] = DISCOVERY_TAGS.map((tag) => ({
+  slug: tag.slug,
+  label: tag.label,
+  source: "system"
+}));
 
 export function slugifyTag(value: string) {
   return value
@@ -103,4 +116,20 @@ export function displayTagLabel(value: string) {
     .filter(Boolean)
     .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+export function mergeCharacterTagOptions(...groups: CharacterTagOption[][]) {
+  const merged = new Map<string, CharacterTagOption>();
+
+  for (const group of groups) {
+    for (const option of group) {
+      const slug = normalizeCharacterTag(option.slug);
+      if (!slug || merged.has(slug)) {
+        continue;
+      }
+      merged.set(slug, { ...option, slug });
+    }
+  }
+
+  return Array.from(merged.values());
 }

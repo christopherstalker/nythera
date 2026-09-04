@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader, PageShell } from "@/components/ui/page";
 import { cn } from "@/lib/utils";
+import { toChatPreview } from "@/lib/chat-preview";
 
 type CharacterOption = {
   id: string;
@@ -181,7 +182,7 @@ export default function RoomsPage() {
                     <Avatar name={character.name} src={character.avatarUrl} size="sm" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium text-[var(--text-primary)]">{character.name}</span>
-                      <span className="mt-0.5 block truncate text-xs text-[var(--text-muted)]">{character.description || "Character"}</span>
+                      <span className="mt-0.5 block truncate text-xs text-[var(--text-muted)]">{toChatPreview(character.description || "Character")}</span>
                     </span>
                     {active ? <Check className="h-4 w-4 text-[var(--accent-purple)]" /> : null}
                   </button>

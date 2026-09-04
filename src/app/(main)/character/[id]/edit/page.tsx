@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { Edit3 } from "lucide-react";
 import { CharacterFormLoader, CharacterFormSkeleton } from "@/components/characters/character-form-loader";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page";
 import type { CharacterFormInitialValue } from "@/lib/character-form-types";
 
-export default function EditCharacterPage({ params }: { params: { id: string } }) {
+export default function EditCharacterPage() {
+  const params = useParams<{ id: string }>();
   const [character, setCharacter] = useState<CharacterFormInitialValue | null>(null);
+  const [unlimitedCharacterFields, setUnlimitedCharacterFields] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -27,6 +30,7 @@ export default function EditCharacterPage({ params }: { params: { id: string } }
         }
 
         setCharacter(body.character);
+        setUnlimitedCharacterFields(body.viewer?.unlimitedCharacterFields === true);
       } catch {
         setError("Character not found or unavailable.");
       }
@@ -45,7 +49,7 @@ export default function EditCharacterPage({ params }: { params: { id: string } }
 
   return (
     <PageShell className="codex-create-character !max-w-none !p-0">
-      {character ? <CharacterFormLoader mode="edit" initialValue={character} /> : <CharacterFormSkeleton />}
+      {character ? <CharacterFormLoader mode="edit" initialValue={character} unlimitedCharacterFields={unlimitedCharacterFields} /> : <CharacterFormSkeleton />}
     </PageShell>
   );
 }

@@ -1,6 +1,7 @@
 import { HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
 import { deleteVoiceApiKey, listVoiceApiKeys, saveVoiceApiKey, voiceProviderMetadata } from "@/lib/voice-keys";
 import { voiceKeySchema } from "@/lib/validation";
+import { assertSafeOutboundUrl } from "@/lib/safe-outbound-url";
 
 export async function GET() {
   try {
@@ -19,13 +20,14 @@ export async function POST(request: Request) {
     if (input.provider === "playht" && !input.authId?.trim()) {
       throw new HttpError(400, "PlayHT requires a User ID / auth id.");
     }
+    const baseUrl = input.baseUrl ? await assertSafeOutboundUrl(input.baseUrl) : "";
 
     const key = await saveVoiceApiKey({
       userId: user.id,
       provider: input.provider,
       apiKey: input.apiKey,
       authId: input.authId,
-      baseUrl: input.baseUrl,
+      baseUrl,
       defaultVoiceId: input.defaultVoiceId
     });
 

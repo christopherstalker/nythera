@@ -273,17 +273,12 @@ async function main() {
     "utf8"
   );
 
-  // eslint-disable-next-line no-console
   console.log(`Generated ${final.length} characters.`);
-  // eslint-disable-next-line no-console
   console.log(`Wrote ${args.out}`);
-  // eslint-disable-next-line no-console
   console.log(`Wrote ${args.out.replace(/\\.json$/i, ".report.json")}`);
 }
 
 main().catch((err) => {
-  // eslint-disable-next-line no-console
   console.error(err);
   process.exit(1);
 });
-

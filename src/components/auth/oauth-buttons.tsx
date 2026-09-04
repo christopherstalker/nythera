@@ -1,13 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { signIn } from "next-auth/react";
-import type { OAuthProviderId } from "@/lib/oauth-providers";
+import { Apple } from "lucide-react";
+import {
+  OAUTH_PROVIDER_IDS,
+  type OAuthProviderId
+} from "@/lib/oauth-provider-ids";
 import { cn } from "@/lib/utils";
+import { normalizeCallbackPath } from "@/lib/auth-routes";
+import {
+  clearStoredPwaAuthTransaction,
+  hasAuthenticatedSession,
+  readStoredPwaAuthTransaction,
+  storePwaAuthTransaction,
+  type StoredPwaAuthTransaction
+} from "@/lib/auth-client";
+import { usePwa } from "@/components/providers/pwa-provider";
 
 type OAuthButtonsProps = {
   intent: "login" | "register";
   callbackUrl?: string;
+  disabled?: boolean;
 };
 
 type ProviderConfig = {
@@ -17,6 +31,23 @@ type ProviderConfig = {
   registerLabel: string;
   className: string;
 };
+
+const AUTH_START_TIMEOUT_MS = 15_000;
+
+async function withTimeout<T>(operation: Promise<T>, message: string): Promise<T> {
+  let timeoutId: number | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new Error(message)), AUTH_START_TIMEOUT_MS);
+  });
+
+  try {
+    return await Promise.race([operation, timeout]);
+  } finally {
+    if (timeoutId !== undefined) {
+      window.clearTimeout(timeoutId);
+    }
+  }
+}
 
 function ProviderIcon({ id }: { id: OAuthProviderId }) {
   if (id === "google") {
@@ -35,6 +66,10 @@ function ProviderIcon({ id }: { id: OAuthProviderId }) {
     return <span className="grid h-5 w-5 place-items-center text-sm font-bold text-white">𝕏</span>;
   }
 
+  if (id === "apple") {
+    return <Apple aria-hidden="true" className="h-5 w-5 text-white" />;
+  }
+
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5">
       <rect x="1" y="1" width="10" height="10" fill="#F25022" />
@@ -45,9 +80,13 @@ function ProviderIcon({ id }: { id: OAuthProviderId }) {
   );
 }
 
-export function OAuthButtons({ intent, callbackUrl = "/explore" }: OAuthButtonsProps) {
+export function OAuthButtons({ intent, callbackUrl = "/explore", disabled = false }: OAuthButtonsProps) {
+  const { standalone } = usePwa();
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
   const [loadingProvider, setLoadingProvider] = useState<OAuthProviderId | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [manualStartUrl, setManualStartUrl] = useState<string | null>(null);
+  const pollAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -70,10 +109,247 @@ export function OAuthButtons({ intent, callbackUrl = "/explore" }: OAuthButtonsP
     };
   }, []);
 
+  const finishPwaSignIn = useCallback(async (transaction: StoredPwaAuthTransaction) => {
+    const result = await withTimeout(
+      signIn("pwa-handoff", {
+        transactionId: transaction.transactionId,
+        nonce: transaction.nonce,
+        callbackUrl: transaction.callbackPath,
+        redirect: false
+      }),
+      "Session handoff timed out."
+    );
+    const authenticated = await withTimeout(
+      hasAuthenticatedSession(),
+      "Session verification timed out."
+    );
+
+    if (!result || result.error || !authenticated) {
+      throw new Error("Session cookie was not created.");
+    }
+
+    clearStoredPwaAuthTransaction();
+    window.location.assign(transaction.callbackPath);
+  }, []);
+
+  const pollPwaTransaction = useCallback(
+    async (transaction: StoredPwaAuthTransaction) => {
+      pollAbortRef.current?.abort();
+      const controller = new AbortController();
+      pollAbortRef.current = controller;
+
+      while (!controller.signal.aborted && Date.now() < transaction.expiresAt) {
+        let response: Response;
+        const requestController = new AbortController();
+        const abortRequest = () => requestController.abort();
+        const timeoutId = window.setTimeout(abortRequest, AUTH_START_TIMEOUT_MS);
+        controller.signal.addEventListener("abort", abortRequest, { once: true });
+        try {
+          response = await fetch(
+            `/api/auth/pwa/transactions/${encodeURIComponent(transaction.transactionId)}/status`,
+            {
+              method: "POST",
+              headers: {
+                "content-type": "application/json"
+              },
+              body: JSON.stringify({ nonce: transaction.nonce }),
+              signal: requestController.signal
+            }
+          );
+        } catch {
+          if (controller.signal.aborted) {
+            return;
+          }
+          throw new Error("Could not reach the sign-in service.");
+        } finally {
+          window.clearTimeout(timeoutId);
+          controller.signal.removeEventListener("abort", abortRequest);
+        }
+
+        if (response.status === 410) {
+          break;
+        }
+        if (!response.ok) {
+          throw new Error("Secure sign-in status could not be verified.");
+        }
+
+        const body = await response.json().catch(() => null);
+        if (body?.status === "ready") {
+          await finishPwaSignIn(transaction);
+          return;
+        }
+        if (body?.status === "expired") {
+          break;
+        }
+
+        await new Promise((resolve) => window.setTimeout(resolve, 2000));
+      }
+
+      if (!controller.signal.aborted) {
+        clearStoredPwaAuthTransaction();
+        setManualStartUrl(null);
+        setLoadingProvider(null);
+        setError("The secure sign-in request expired. Start again.");
+      }
+    },
+    [finishPwaSignIn]
+  );
+
+  useEffect(() => {
+    if (!standalone) {
+      return;
+    }
+
+    const stored = readStoredPwaAuthTransaction();
+    if (
+      !stored ||
+      !OAUTH_PROVIDER_IDS.includes(stored.provider as OAuthProviderId)
+    ) {
+      return;
+    }
+
+    setLoadingProvider(stored.provider as OAuthProviderId);
+    setManualStartUrl(
+      `/auth/pwa/start?transactionId=${encodeURIComponent(stored.transactionId)}`
+    );
+    void pollPwaTransaction(stored).catch(() => {
+      clearStoredPwaAuthTransaction();
+      setLoadingProvider(null);
+      setError("Secure sign-in could not be completed. Try again.");
+    });
+
+    return () => pollAbortRef.current?.abort();
+  }, [pollPwaTransaction, standalone]);
+
   async function handleSignIn(provider: OAuthProviderId) {
+    if (disabled) {
+      return;
+    }
     setLoadingProvider(provider);
-    await signIn(provider, { callbackUrl: callbackUrl.startsWith("/") ? callbackUrl : "/explore" });
-    setLoadingProvider(null);
+    setError(null);
+    setManualStartUrl(null);
+    const normalizedCallback = normalizeCallbackPath(callbackUrl);
+    const destination = intent === "register"
+      ? `/register/password?callbackUrl=${encodeURIComponent(normalizedCallback)}`
+      : normalizedCallback;
+
+    if (!standalone) {
+      try {
+        const result = await withTimeout(
+          signIn(provider, {
+            callbackUrl: destination,
+            redirect: false
+          }),
+          "Provider sign-in timed out."
+        );
+        if (!result || result.error || !result.url) {
+          throw new Error("Provider sign-in could not start.");
+        }
+        window.location.assign(result.url);
+      } catch {
+        setError("The provider sign-in page could not be opened.");
+        setLoadingProvider(null);
+      }
+      return;
+    }
+
+    let popup: Window | null = null;
+    try {
+      popup = window.open(
+        "/auth/pwa/preparing",
+        "nythera-pwa-auth",
+        "popup,width=520,height=760"
+      );
+    } catch {
+      popup = null;
+    }
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(
+        () => controller.abort(),
+        AUTH_START_TIMEOUT_MS
+      );
+      let response: Response;
+      try {
+        response = await fetch("/api/auth/pwa/transactions", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json"
+          },
+          body: JSON.stringify({
+            provider,
+            callbackUrl: destination
+          }),
+          signal: controller.signal
+        });
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
+      const body = await response.json().catch(() => null);
+      const expiresIn = Number(body?.expiresIn);
+      const expiresAt = Number(body?.expiresAt);
+      if (
+        !response.ok ||
+        !body?.transactionId ||
+        !body?.nonce ||
+        !body?.startUrl ||
+        !Number.isFinite(expiresIn) ||
+        expiresIn <= 0 ||
+        expiresIn > 300 ||
+        !Number.isFinite(expiresAt) ||
+        expiresAt <= 0
+      ) {
+        throw new Error("Transaction creation failed.");
+      }
+
+      const transaction: StoredPwaAuthTransaction = {
+        transactionId: body.transactionId,
+        nonce: body.nonce,
+        callbackPath: normalizeCallbackPath(body.callbackPath),
+        provider,
+        expiresAt
+      };
+      storePwaAuthTransaction(transaction);
+      setManualStartUrl(body.startUrl);
+
+      let providerWindowOpened = false;
+      if (popup && !popup.closed) {
+        try {
+          popup.location.replace(body.startUrl);
+          try {
+            popup.opener = null;
+          } catch {
+            // The provider navigation may isolate the window immediately.
+          }
+          providerWindowOpened = true;
+        } catch {
+          try {
+            popup.close();
+          } catch {
+            // The browser may revoke access before navigation completes.
+          }
+          popup = null;
+        }
+      }
+
+      if (!providerWindowOpened) {
+        window.location.assign(body.startUrl);
+        return;
+      }
+
+      await pollPwaTransaction(transaction);
+    } catch {
+      try {
+        popup?.close();
+      } catch {
+        // The provider window may already be outside this page's origin.
+      }
+      clearStoredPwaAuthTransaction();
+      setManualStartUrl(null);
+      setLoadingProvider(null);
+      setError("Secure PWA sign-in could not start. Try again.");
+    }
   }
 
   if (providers.length === 0) {
@@ -94,7 +370,7 @@ export function OAuthButtons({ intent, callbackUrl = "/explore" }: OAuthButtonsP
               aria-label={isLoading ? `Opening ${provider.shortLabel}` : label}
               title={label}
               onClick={() => handleSignIn(provider.id)}
-              disabled={loadingProvider !== null}
+              disabled={disabled || loadingProvider !== null}
               className={cn(
                 "focus-ring flex h-12 min-w-0 flex-1 items-center justify-center rounded-2xl border text-foreground transition-all duration-150 active:scale-[0.98] disabled:opacity-50",
                 provider.className,
@@ -110,6 +386,21 @@ export function OAuthButtons({ intent, callbackUrl = "/explore" }: OAuthButtonsP
           );
         })}
       </div>
+      {manualStartUrl ? (
+        <a
+          href={manualStartUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="focus-ring block border border-[var(--accent-mint)]/35 px-4 py-3 text-center text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-mint)] no-underline"
+        >
+          Open secure provider window
+        </a>
+      ) : null}
+      {error ? (
+        <p className="border-l border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+        </p>
+      ) : null}
       <p className="text-center text-[11px] text-[var(--text-muted)]">{providers.map((p) => p.shortLabel).join(" · ")}</p>
       <div className="flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
         <span className="h-px flex-1 bg-[var(--border-default)]" />

@@ -9,7 +9,22 @@ import type { PromptMessage, StreamChunk } from "@/types";
 import { eligibleFallbackKeys } from "@/lib/provider-fallback";
 import { logPerformanceMetric } from "@/lib/performance-logger";
 import { logSafeError } from "@/lib/secret-redaction";
-import { abortableAsyncIterable, createTimeoutSignal, LLM_EMBEDDING_TIMEOUT_MS, LLM_PROVIDER_TIMEOUT_MS } from "@/lib/llm-timeouts";
+import {
+  abortableAsyncIterable,
+  createActivityTimeoutSignal,
+  createTimeoutSignal,
+  LLM_EMBEDDING_TIMEOUT_MS,
+  LLM_FIRST_TOKEN_TIMEOUT_MS,
+  LLM_PROVIDER_TIMEOUT_MS,
+  LLM_STREAM_IDLE_TIMEOUT_MS
+} from "@/lib/llm-timeouts";
+import { assertSafeOutboundUrl } from "@/lib/safe-outbound-url";
+import { CANONICAL_SITE_ORIGIN } from "@/lib/site-origin";
+import {
+  readProviderCircuitStates,
+  recordProviderFailure,
+  recordProviderSuccess
+} from "@/lib/provider-circuit";
 
 type StreamInput = {
   messages: PromptMessage[];
@@ -26,6 +41,8 @@ type StreamInput = {
 };
 
 const APP_DEFAULT_MODELS = new Set(["gpt-4o-mini", "gpt-3.5-turbo"]);
+const MAX_SAME_PROVIDER_ATTEMPTS = 4;
+const keyCooldowns = new Map<string, number>();
 
 type GatewayRoute = {
   provider: "openai" | "anthropic" | "gemini" | "openai-compatible";
@@ -36,113 +53,153 @@ type GatewayRoute = {
 
 export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator<StreamChunk> {
   const keys = input.providerKeys ?? [];
-  const route = routeModel(input.model, keys);
-  const attempts = [route, ...fallbackRoutes(route, keys)];
+  const initialRoute = routeModel(input.model, keys);
+  const turnNumber = input.messages.filter((message) => message.role === "user").length;
+  const route = rotatePrimaryKey(initialRoute, keys, `${input.userId}:${input.chatId}:${turnNumber}`);
+  const candidateAttempts = attemptRoutes(route, keys);
+  const circuitStates = await readProviderCircuitStates(candidateAttempts.map(circuitIdentity));
+  const attempts = candidateAttempts.filter((_, index) => !circuitStates[index]);
+  if (attempts.length === 0) {
+    logPerformanceMetric("llm_guardian_circuit_blocked", {
+      route: "chat:gateway",
+      providerCount: new Set(candidateAttempts.map((attempt) => attempt.providerName)).size,
+      attemptCount: candidateAttempts.length
+    });
+    yield { type: "error", message: "AI providers are temporarily unavailable. Nythera Guardian is waiting for a safe retry window." };
+    return;
+  }
+  const primaryKeyCount = keys.filter((key) => key.provider === route.providerName).length;
   let lastError: unknown = null;
   const started = Date.now();
   const attemptLabels: string[] = [];
+  const skippedProviders = new Set<string>();
 
   for (const [index, attempt] of attempts.entries()) {
-    if (input.signal?.aborted) {
-      return;
+    if (skippedProviders.has(attempt.providerName)) {
+      continue;
     }
 
     let emittedAny = false;
     let firstTokenLogged = false;
     const attemptStarted = Date.now();
-    const attemptSignal = createTimeoutSignal(input.signal, LLM_PROVIDER_TIMEOUT_MS, "Provider request timed out.");
+    const attemptSignal = createActivityTimeoutSignal(
+      input.signal,
+      LLM_FIRST_TOKEN_TIMEOUT_MS,
+      "Provider did not start responding in time."
+    );
     attemptLabels.push(`${attempt.providerName}:${attempt.model}`);
     try {
-      let outputText = "";
-      const usage = await streamProvider({
-        provider: attempt.provider,
-        model: attempt.model,
-        messages: input.messages,
-        temperature: input.temperature,
-        topP: input.topP,
-        frequencyPenalty: input.frequencyPenalty,
-        presencePenalty: input.presencePenalty,
-        maxTokens: input.maxTokens,
-        key: attempt.key,
-        signal: attemptSignal.signal,
-        writeDelta(delta) {
-          outputText += delta;
-          return delta;
+        let outputText = "";
+        const usage = await streamProvider({
+          provider: attempt.provider,
+          model: attempt.model,
+          messages: input.messages,
+          temperature: input.temperature,
+          topP: input.topP,
+          frequencyPenalty: input.frequencyPenalty,
+          presencePenalty: input.presencePenalty,
+          maxTokens: input.maxTokens,
+          maxRetries: primaryKeyCount > 1 ? 0 : undefined,
+          key: attempt.key,
+          signal: attemptSignal.signal,
+          writeDelta(delta) {
+            outputText += delta;
+            return delta;
+          }
+        });
+
+        for await (const delta of abortableAsyncIterable(usage.deltas, attemptSignal.signal)) {
+          emittedAny = true;
+          attemptSignal.reset(LLM_STREAM_IDLE_TIMEOUT_MS, "Provider stream stalled.");
+          if (!firstTokenLogged) {
+            firstTokenLogged = true;
+            logPerformanceMetric("llm_time_to_first_token", {
+              route: "chat:gateway",
+              provider: attempt.providerName,
+              model: attempt.model,
+              attempt: index + 1,
+              keySlot: (attempt.key?.providerPriority ?? 0) + 1,
+              fallbackTriggered: index > 0,
+              durationMs: Date.now() - started,
+              providerLatencyMs: Date.now() - attemptStarted
+            });
+          }
+          yield { type: "delta", text: delta };
         }
-      });
 
-      for await (const delta of abortableAsyncIterable(usage.deltas, attemptSignal.signal)) {
-        emittedAny = true;
-        if (!firstTokenLogged) {
-          firstTokenLogged = true;
-          logPerformanceMetric("llm_time_to_first_token", {
-            route: "chat:gateway",
-            provider: attempt.providerName,
-            model: attempt.model,
-            attempt: index + 1,
-            fallbackTriggered: index > 0,
-            durationMs: Date.now() - started,
-            providerLatencyMs: Date.now() - attemptStarted
-          });
-        }
-        yield { type: "delta", text: delta };
-      }
+        const providerUsage = usage.getUsage();
+        clearKeyCooldown(attempt.key);
+        await recordProviderSuccess(circuitIdentity(attempt));
 
-      const providerUsage = usage.getUsage();
+        logPerformanceMetric("llm_provider_attempt", {
+          route: "chat:gateway",
+          provider: attempt.providerName,
+          model: attempt.model,
+          keySlot: (attempt.key?.providerPriority ?? 0) + 1,
+          success: true,
+          statusCode: 200,
+          latencyMs: Date.now() - attemptStarted
+        });
 
-      logPerformanceMetric("llm_provider_attempt", {
-        route: "chat:gateway",
-        provider: attempt.providerName,
-        model: attempt.model,
-        success: true,
-        statusCode: 200,
-        latencyMs: Date.now() - attemptStarted
-      });
-
-      yield {
-        type: "usage",
-        inputTokens: providerUsage?.inputTokens ?? estimateTokens(input.messages.map((message) => message.content).join("\n")),
-        outputTokens: providerUsage?.outputTokens ?? estimateTokens(outputText),
-        provider: attempt.providerName,
-        model: attempt.model,
-        usageEstimated: providerUsage === null,
-        latencyMs: Date.now() - started,
-        fallbackTriggered: index > 0,
-        attempts: attemptLabels
-      };
-      yield { type: "done" };
-      return;
+        yield {
+          type: "usage",
+          inputTokens: providerUsage?.inputTokens ?? estimateTokens(input.messages.map((message) => message.content).join("\n")),
+          outputTokens: providerUsage?.outputTokens ?? estimateTokens(outputText),
+          provider: attempt.providerName,
+          model: attempt.model,
+          usageEstimated: providerUsage === null,
+          latencyMs: Date.now() - started,
+          fallbackTriggered: index > 0,
+          attempts: attemptLabels
+        };
+        yield { type: "done" };
+        return;
     } catch (error) {
-      if (input.signal?.aborted) {
-        return;
-      }
+        if (input.signal?.aborted) {
+          return;
+        }
 
-      lastError = attemptSignal.timedOut() ? new Error("Provider request timed out.") : error;
-      const classified = classifyProviderError(lastError);
-      logPerformanceMetric("llm_provider_attempt", {
-        route: "chat:gateway",
-        provider: attempt.providerName,
-        model: attempt.model,
-        success: false,
-        statusCode: classified.status,
-        errorCode: classified.code,
-        latencyMs: Date.now() - attemptStarted
-      });
-      if (emittedAny) {
-        yield { type: "error", message: "The model stream was interrupted." };
-        return;
-      }
-      if (!classified.retryable) {
-        yield { type: "error", message: classified.message };
-        return;
-      }
+        lastError = attemptSignal.timedOut() ? new Error("Provider request timed out.") : error;
+        const classified = classifyProviderError(lastError);
+        setKeyCooldown(attempt.key, classified.code);
+        await recordProviderFailure(circuitIdentity(attempt), classified.code);
+        if (shouldSkipRemainingProviderKeys(classified.code)) {
+          skippedProviders.add(attempt.providerName);
+        }
+        logSafeError(
+          `LLM provider attempt failed (${attempt.providerName}:${attempt.model}, key slot ${(attempt.key?.providerPriority ?? 0) + 1}, ${classified.code}).`,
+          lastError
+        );
+        logPerformanceMetric("llm_provider_attempt", {
+          route: "chat:gateway",
+          provider: attempt.providerName,
+          model: attempt.model,
+          keySlot: (attempt.key?.providerPriority ?? 0) + 1,
+          success: false,
+          statusCode: classified.status,
+          errorCode: classified.code,
+          latencyMs: Date.now() - attemptStarted
+        });
+        if (emittedAny) {
+          yield { type: "error", message: "The model stream was interrupted." };
+          return;
+        }
+        const nextAttempt = attempts.slice(index + 1).find((candidate) => !skippedProviders.has(candidate.providerName));
+        const canTryAnotherRoute = Boolean(nextAttempt) && isKeyScopedFailure(classified.code);
+        if (!classified.retryable && !canTryAnotherRoute) {
+          yield {
+            type: "error",
+            message: exhaustedProviderMessage(route, primaryKeyCount, classified.message)
+          };
+          return;
+        }
     } finally {
       attemptSignal.dispose();
     }
   }
 
   const classified = classifyProviderError(lastError);
-  yield { type: "error", message: classified.message };
+  yield { type: "error", message: exhaustedProviderMessage(route, primaryKeyCount, classified.message) };
 }
 
 export async function createGatewayEmbedding(text: string, providerKeys?: ProviderKeys) {
@@ -150,9 +207,12 @@ export async function createGatewayEmbedding(text: string, providerKeys?: Provid
   if (openaiKey) {
     const timeout = createTimeoutSignal(undefined, LLM_EMBEDDING_TIMEOUT_MS, "Embedding provider request timed out.");
     try {
+      const baseURL = openaiKey.baseUrl
+        ? await assertSafeOutboundUrl(openaiKey.baseUrl)
+        : "https://api.openai.com/v1";
       const openai = new OpenAI({
         apiKey: openaiKey.apiKey,
-        baseURL: openaiKey.baseUrl || "https://api.openai.com/v1"
+        baseURL
       });
       const result = await openai.embeddings.create(
         {
@@ -235,6 +295,109 @@ function fallbackRoutes(primary: GatewayRoute, keys: ProviderKeys) {
   return routes.filter((route) => route.providerName !== primary.providerName || route.model !== primary.model);
 }
 
+function attemptRoutes(primary: GatewayRoute, keys: ProviderKeys) {
+  const sameProvider = keys
+    .filter((key) => key.provider === primary.providerName && key.id !== primary.key?.id && !isKeyCoolingDown(key))
+    .sort((left, right) =>
+      (left.providerPriority ?? Number.MAX_SAFE_INTEGER) - (right.providerPriority ?? Number.MAX_SAFE_INTEGER)
+    )
+    .slice(0, MAX_SAME_PROVIDER_ATTEMPTS - 1)
+    .map((key) => routeFromKey(key, primary.model));
+  return [primary, ...sameProvider, ...fallbackRoutes(primary, keys)];
+}
+
+function rotatePrimaryKey(primary: GatewayRoute, keys: ProviderKeys, seed: string) {
+  if (!primary.key) return primary;
+
+  const providerKeys = keys
+    .filter((key) => key.provider === primary.providerName)
+    .sort((left, right) =>
+      (left.providerPriority ?? Number.MAX_SAFE_INTEGER) - (right.providerPriority ?? Number.MAX_SAFE_INTEGER)
+    );
+  const availableKeys = providerKeys.filter((key) => !isKeyCoolingDown(key));
+  const candidates = availableKeys.length > 0 ? availableKeys : providerKeys;
+  if (candidates.length < 2) return candidates[0] ? routeFromKey(candidates[0], primary.model) : primary;
+
+  return routeFromKey(candidates[stableIndex(seed, candidates.length)], primary.model);
+}
+
+function stableIndex(seed: string, length: number) {
+  let hash = 0;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = Math.imul(hash ^ seed.charCodeAt(index), 16_777_619);
+  }
+  return Math.abs(hash) % length;
+}
+
+function keyIdentity(key?: ProviderKey) {
+  if (!key) return null;
+  return key.id ?? `${key.provider}:${key.providerPriority ?? 0}:${key.apiKey.slice(-8)}`;
+}
+
+function circuitIdentity(route: GatewayRoute) {
+  return {
+    provider: route.providerName,
+    keyId: route.key?.id,
+    keySlot: route.key?.providerPriority ?? 0
+  };
+}
+
+function isKeyCoolingDown(key: ProviderKey) {
+  const identity = keyIdentity(key);
+  if (!identity) return false;
+  const cooldownUntil = keyCooldowns.get(identity) ?? 0;
+  if (cooldownUntil <= Date.now()) {
+    keyCooldowns.delete(identity);
+    return false;
+  }
+  return true;
+}
+
+function setKeyCooldown(key: ProviderKey | undefined, code: ReturnType<typeof classifyProviderError>["code"]) {
+  const identity = keyIdentity(key);
+  if (!identity) return;
+
+  const duration = code === "rate_limit"
+    ? 5 * 60_000
+    : code === "invalid_api_key" || code === "insufficient_balance"
+      ? 15 * 60_000
+      : code === "provider_unavailable" || code === "network_error" || code === "provider_error"
+        ? 30_000
+        : 0;
+  if (duration > 0) keyCooldowns.set(identity, Date.now() + duration);
+}
+
+function clearKeyCooldown(key?: ProviderKey) {
+  const identity = keyIdentity(key);
+  if (identity) keyCooldowns.delete(identity);
+}
+
+function isKeyScopedFailure(code: ReturnType<typeof classifyProviderError>["code"]) {
+  return code === "invalid_api_key" ||
+    code === "insufficient_balance" ||
+    code === "prompt_too_large" ||
+    code === "rate_limit" ||
+    code === "model_unavailable" ||
+    code === "provider_unavailable" ||
+    code === "network_error" ||
+    code === "provider_error";
+}
+
+function shouldSkipRemainingProviderKeys(code: ReturnType<typeof classifyProviderError>["code"]) {
+  return code === "model_unavailable" ||
+    code === "provider_unavailable" ||
+    code === "network_error";
+}
+
+function exhaustedProviderMessage(route: GatewayRoute, keyCount: number, fallbackMessage: string) {
+  if (keyCount <= 1) {
+    return fallbackMessage;
+  }
+
+  const provider = route.key?.displayName || route.providerName;
+  return `All ${keyCount} saved keys for ${provider} failed. ${fallbackMessage}`;
+}
+
 function parseExplicitProviderModel(requested: string, keys: ProviderKeys) {
   const separator = requested.indexOf(":");
   if (separator <= 0) {
@@ -276,6 +439,7 @@ async function streamProvider(input: {
   frequencyPenalty?: number | null;
   presencePenalty?: number | null;
   maxTokens?: number | null;
+  maxRetries?: number;
   key?: ProviderKey;
   signal: AbortSignal;
   writeDelta: (delta: string) => string;
@@ -285,17 +449,28 @@ async function streamProvider(input: {
       throw new Error(`${input.provider} is not configured.`);
     }
 
+    const baseURL = input.key.baseUrl
+      ? await assertSafeOutboundUrl(input.key.baseUrl)
+      : input.provider === "openai"
+        ? "https://api.openai.com/v1"
+        : requireBaseUrl(input.key);
     const usage = createUsageTracker();
     return {
       deltas: streamOpenAI({
         client: new OpenAI({
           apiKey: input.key.apiKey,
-          baseURL:
-            input.provider === "openai"
-              ? input.key.baseUrl || "https://api.openai.com/v1"
-              : requireBaseUrl(input.key)
+          baseURL,
+          maxRetries: input.maxRetries,
+          defaultHeaders:
+            input.key.provider === "openrouter"
+              ? {
+                  "HTTP-Referer": CANONICAL_SITE_ORIGIN,
+                  "X-OpenRouter-Title": "Nythera"
+                }
+              : undefined
         }),
         model: input.model,
+        providerName: input.key.provider,
         messages: input.messages,
         temperature: input.temperature,
         topP: input.topP,
@@ -318,7 +493,7 @@ async function streamProvider(input: {
     const usage = createUsageTracker();
     return {
       deltas: streamAnthropic({
-        client: new Anthropic({ apiKey: input.key.apiKey }),
+        client: new Anthropic({ apiKey: input.key.apiKey, maxRetries: input.maxRetries }),
         model: input.model,
         messages: input.messages,
         temperature: input.temperature,
@@ -368,6 +543,7 @@ function requireBaseUrl(key: ProviderKey) {
 async function* streamOpenAI(input: {
   client: OpenAI;
   model: string;
+  providerName: string;
   messages: PromptMessage[];
   temperature: number;
   topP?: number | null;
@@ -381,11 +557,25 @@ async function* streamOpenAI(input: {
   const stream = await input.client.chat.completions.create(
     {
       model: input.model,
-      messages: input.messages,
+      messages: input.messages.map<OpenAI.Chat.Completions.ChatCompletionMessageParam>((message) => {
+        if (message.role !== "user" || !message.images?.length) {
+          return { role: message.role, content: message.content } as OpenAI.Chat.Completions.ChatCompletionMessageParam;
+        }
+        return {
+          role: "user",
+          content: [
+            { type: "text", text: message.content || "Describe and use the attached image as scene context." },
+            ...message.images.map((image) => ({
+              type: "image_url" as const,
+              image_url: { url: `data:${image.mediaType};base64,${image.data}` }
+            }))
+          ]
+        };
+      }),
       temperature: input.temperature,
       top_p: input.topP ?? undefined,
-      frequency_penalty: input.frequencyPenalty ?? undefined,
-      presence_penalty: input.presencePenalty ?? undefined,
+      frequency_penalty: input.providerName === "deepseek" ? undefined : input.frequencyPenalty ?? undefined,
+      presence_penalty: input.providerName === "deepseek" ? undefined : input.presencePenalty ?? undefined,
       max_tokens: input.maxTokens ?? undefined,
       stream: true,
       stream_options: { include_usage: true }
@@ -426,9 +616,17 @@ async function* streamAnthropic(input: {
     .join("\n\n");
   const messages = input.messages
     .filter((message) => message.role !== "system")
-    .map((message) => ({
+    .map<Anthropic.MessageParam>((message) => ({
       role: message.role === "assistant" ? ("assistant" as const) : ("user" as const),
-      content: message.content
+      content: message.role === "user" && message.images?.length
+        ? [
+            { type: "text" as const, text: message.content || "Describe and use the attached image as scene context." },
+            ...message.images.map((image) => ({
+              type: "image" as const,
+              source: { type: "base64" as const, media_type: image.mediaType, data: image.data }
+            }))
+          ]
+        : message.content
     }));
 
   const stream = input.client.messages.stream(
@@ -471,14 +669,28 @@ async function* streamGemini(input: {
 }) {
   const model = input.client.getGenerativeModel({
     model: input.model,
+    systemInstruction: input.messages
+      .filter((message) => message.role === "system")
+      .map((message) => message.content)
+      .join("\n\n"),
     generationConfig: {
       temperature: input.temperature,
       topP: input.topP ?? undefined,
       maxOutputTokens: input.maxTokens ?? undefined
     }
   });
-  const prompt = input.messages.map((message) => `${message.role.toUpperCase()}: ${message.content}`).join("\n\n");
-  const result = await model.generateContentStream(prompt, {
+  const contents = input.messages
+    .filter((message) => message.role !== "system")
+    .map((message) => ({
+      role: message.role === "assistant" ? "model" : "user",
+      parts: [
+        { text: message.content || "Describe and use the attached image as scene context." },
+        ...(message.images ?? []).map((image) => ({
+          inlineData: { mimeType: image.mediaType, data: image.data }
+        }))
+      ]
+    }));
+  const result = await model.generateContentStream({ contents }, {
     signal: input.signal,
     timeout: LLM_PROVIDER_TIMEOUT_MS
   });

@@ -5,11 +5,12 @@ import { streamGatewayResponse } from "@/lib/llm-gateway";
 import { generateSimpleCharacterDraft } from "@/lib/simple-character-generation";
 import type { ProviderKeys } from "@/lib/user-keys";
 import type { CustomSectionId } from "@/lib/character-form-types";
+import { CHARACTER_DYNAMIC_GENERATION_RULE } from "@/lib/adult-roleplay-policy";
 
 const assistSchema = z.object({
   personality: z.string().min(20).max(5000).optional(),
   scenario: z.string().min(20).max(5000).optional(),
-  greeting: z.string().min(20).max(2000).optional(),
+  greeting: z.string().min(20).optional(),
   personaRole: z.string().min(2).max(120).optional(),
   archetype: z.string().min(2).max(120).optional(),
   personaTraits: z.string().min(2).max(1200).optional(),
@@ -61,7 +62,7 @@ export async function assistCharacterSection(input: {
       messages: [
         {
           role: "system",
-          content: `You help users write AI roleplay characters for Nythera. ${sectionPrompts[input.section]} Return ONLY valid JSON. No markdown.`
+          content: `You help users write AI roleplay characters for Nythera. ${sectionPrompts[input.section]} ${CHARACTER_DYNAMIC_GENERATION_RULE} Return ONLY valid JSON. No markdown.`
         },
         {
           role: "user",

@@ -7,12 +7,17 @@ import { userPreferredModelValue } from "@/lib/provider-model-options";
 import { getEffectiveProviderKeys } from "@/lib/user-keys";
 import { chatCreateSchema } from "@/lib/validation";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { requireAdultConsent } from "@/lib/adult-consent";
+import { getPreferredPersona } from "@/lib/user-persona-store";
+import { formatUserPersonaForPrompt } from "@/lib/user-persona";
+import { renderCharacterGreeting, renderInitialChatGreeting } from "@/lib/character-prompt-contract";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
     const user = await requireMobileUser(request);
+    requireAdultConsent(user);
     const chats = await prisma.chat.findMany({
       where: {
         userId: user.id,
@@ -27,6 +32,7 @@ export async function GET(request: Request) {
             avatarUrl: true
           }
         },
+        persona: { select: { displayName: true, surname: true } },
         messages: {
           orderBy: [{ createdAt: "desc" }, { sequence: "desc" }, { id: "desc" }],
           take: 1,
@@ -34,13 +40,31 @@ export async function GET(request: Request) {
             id: true,
             content: true,
             role: true,
+            sequence: true,
             createdAt: true
           }
         }
       }
     });
 
-    return json({ chats });
+    const defaultPersona = chats.some((chat) => !chat.persona)
+      ? await prisma.userPersona.findFirst({
+          where: { userId: user.id, isDefault: true },
+          select: { displayName: true, surname: true }
+        })
+      : null;
+    const renderedChats = chats.map((chat) => {
+      const persona = chat.persona ?? defaultPersona;
+      const messages = chat.messages.map((message) => renderInitialChatGreeting(
+        message,
+        chat.character.name,
+        persona
+      ));
+      const { persona: _persona, ...serializedChat } = chat;
+      return { ...serializedChat, messages };
+    });
+
+    return json({ chats: renderedChats });
   } catch (error) {
     return routeError(error);
   }
@@ -49,6 +73,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const user = await requireMobileUser(request);
+    requireAdultConsent(user);
     await enforceRateLimit({
       userId: user.id,
       ip: getRequestIp(request),
@@ -75,15 +100,14 @@ export async function POST(request: Request) {
     }
 
     const providerKeys = await getEffectiveProviderKeys(user.id);
-    const defaultPersona = await prisma.userPersona.findFirst({
-      where: { userId: user.id, isDefault: true },
-      select: { id: true }
-    });
+    const preferredPersona = await getPreferredPersona(user.id, character.id);
+    const greeting = renderCharacterGreeting(character, formatUserPersonaForPrompt(preferredPersona));
+    const initialTemperature = input.temperature ?? character.temperature ?? user.defaultTemperature;
     const effectiveSettings = resolveCharacterModelSettings({
       character,
       providerKeys,
       globalModel: input.model ?? userPreferredModelValue(user),
-      chatTemperature: input.temperature
+      chatTemperature: initialTemperature
     });
     const model = input.model ?? effectiveSettings.model;
 
@@ -92,10 +116,12 @@ export async function POST(request: Request) {
         data: {
           userId: user.id,
           characterId: character.id,
-          personaId: defaultPersona?.id ?? null,
+          personaId: preferredPersona?.id ?? null,
           title: input.title ?? null,
-          temperature: input.temperature,
+          temperature: initialTemperature,
           model,
+          responsePrompt: user.defaultResponsePrompt,
+          chatMode: input.chatMode ?? character.defaultChatMode ?? user.preferredChatMode,
           messageCount: 1
         }
       });
@@ -105,7 +131,7 @@ export async function POST(request: Request) {
           chatId: created.id,
           sequence: 1,
           role: MessageRole.ASSISTANT,
-          content: character.greeting,
+          content: greeting,
           model
         }
       });

@@ -1,6 +1,11 @@
 import { env } from "@/lib/env";
+import {
+  OAUTH_PROVIDER_IDS,
+  type OAuthProviderId
+} from "@/lib/oauth-provider-ids";
 
-export type OAuthProviderId = "google" | "discord" | "twitter" | "microsoft-entra-id";
+export { OAUTH_PROVIDER_IDS };
+export type { OAuthProviderId };
 
 export type OAuthProviderMeta = {
   id: OAuthProviderId;
@@ -38,6 +43,13 @@ export const OAUTH_PROVIDER_META: Record<OAuthProviderId, OAuthProviderMeta> = {
     shortLabel: "Microsoft",
     registerLabel: "Sign in with Microsoft",
     className: "border-[#0078D4]/25 bg-[#0078D4]/10 hover:border-[#0078D4]/40 hover:bg-[#0078D4]/16"
+  },
+  apple: {
+    id: "apple",
+    label: "Continue with Apple",
+    shortLabel: "Apple",
+    registerLabel: "Sign up with Apple",
+    className: "border-white/[0.1] bg-white/[0.04] hover:border-white/[0.2] hover:bg-white/[0.08]"
   }
 };
 
@@ -55,6 +67,9 @@ export function getEnabledOAuthProviders(): OAuthProviderId[] {
   }
   if (env.MICROSOFT_CLIENT_ID && env.MICROSOFT_CLIENT_SECRET) {
     providers.push("microsoft-entra-id");
+  }
+  if (env.APPLE_CLIENT_ID && env.APPLE_CLIENT_SECRET) {
+    providers.push("apple");
   }
 
   return providers;

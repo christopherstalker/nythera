@@ -106,11 +106,18 @@ export async function requireMobileUser(request: Request) {
       role: true,
       ageVerified: true,
       birthDate: true,
+      adultTermsAcceptedAt: true,
+      adultTermsVersion: true,
       memoryEnabled: true,
       compactMode: true,
       notificationsEnabled: true,
+      unlimitedCharacterFields: true,
       preferredProvider: true,
       preferredModel: true,
+      defaultTemperature: true,
+      maxOutputTokens: true,
+      defaultResponsePrompt: true,
+      preferredChatMode: true,
       bannedAt: true
     }
   });

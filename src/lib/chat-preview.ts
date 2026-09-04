@@ -1,9 +1,12 @@
+import { richTextToPlainText } from "@/lib/rich-text-formatting";
+
 export function toChatPreview(value: string, maxLength = 96) {
-  const plain = value
+  const normalized = value
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
-    .replace(/```[\s\S]*?```/g, (block) => block.replace(/```[^\n]*\n?|```/g, ""))
-    .replace(/[`*_~>#|]/g, "")
+    .replace(/```[\s\S]*?```/g, (block) => block.replace(/```[^\n]*\n?|```/g, ""));
+  const plain = richTextToPlainText(normalized)
+    .replace(/[`#|]/g, "")
     .replace(/\s+/g, " ")
     .trim();
 

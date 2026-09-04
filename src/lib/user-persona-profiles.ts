@@ -4,6 +4,7 @@ export type UserPersonaProfile = {
   id: string;
   label: string;
   displayName: string;
+  surname?: string | null;
   avatarUrl: string | null;
   summary: string;
   background: string | null;
@@ -18,7 +19,7 @@ export type UserPersonaProfile = {
 type PersonaLike = Pick<
   UserPersona,
   "displayName" | "avatarUrl" | "summary" | "background" | "traits" | "likes" | "dislikes" | "boundaries" | "visibility" | "metadata"
->;
+> & { surname?: string | null };
 
 type PersonaRowLike = Omit<PersonaLike, "metadata"> & {
   id: string;
@@ -38,6 +39,8 @@ export function normalizePersonaProfiles(persona?: PersonaLike | null) {
   if (!persona) {
     return {
       profiles: [] as UserPersonaProfile[],
+      defaultProfileId: null as string | null,
+      defaultProfile: null as UserPersonaProfile | null,
       activeProfileId: null as string | null,
       activeProfile: null as UserPersonaProfile | null
     };
@@ -51,8 +54,15 @@ export function normalizePersonaProfiles(persona?: PersonaLike | null) {
     ? metadata.activeProfileId ?? profiles[0]?.id ?? null
     : profiles[0]?.id ?? null;
   const activeProfile = profiles.find((profile) => profile.id === activeProfileId) ?? profiles[0] ?? null;
+  const defaultProfile = profiles.find((profile) => profile.isDefault) ?? null;
 
-  return { profiles, activeProfileId, activeProfile };
+  return {
+    profiles,
+    defaultProfileId: defaultProfile?.id ?? null,
+    defaultProfile,
+    activeProfileId,
+    activeProfile
+  };
 }
 
 export function personaToProfile(persona: Omit<PersonaLike, "metadata">): UserPersonaProfile {
@@ -60,6 +70,7 @@ export function personaToProfile(persona: Omit<PersonaLike, "metadata">): UserPe
     id: "id" in persona && typeof persona.id === "string" ? persona.id : "default",
     label: "label" in persona && typeof persona.label === "string" && persona.label.trim() ? persona.label.trim() : persona.displayName || "Default",
     displayName: persona.displayName,
+    surname: persona.surname?.trim() || null,
     avatarUrl: persona.avatarUrl ?? null,
     summary: persona.summary,
     background: persona.background ?? null,
@@ -74,12 +85,14 @@ export function personaToProfile(persona: Omit<PersonaLike, "metadata">): UserPe
 
 export function normalizePersonaRows(personas: PersonaRowLike[], activePersonaId?: string | null) {
   const profiles = personas.map(personaToProfile);
-  const defaultProfile = profiles.find((profile) => profile.isDefault) ?? profiles[0] ?? null;
+  const defaultProfile = profiles.find((profile) => profile.isDefault) ?? null;
   const activeProfile =
-    (activePersonaId ? profiles.find((profile) => profile.id === activePersonaId) : null) ?? defaultProfile;
+    (activePersonaId ? profiles.find((profile) => profile.id === activePersonaId) : null) ?? defaultProfile ?? profiles[0] ?? null;
 
   return {
     profiles,
+    defaultProfileId: defaultProfile?.id ?? null,
+    defaultProfile,
     activeProfileId: activeProfile?.id ?? null,
     activeProfile: activeProfile ?? null
   };
@@ -131,6 +144,7 @@ function parseProfile(value: unknown): UserPersonaProfile | null {
     id,
     label: typeof record.label === "string" && record.label.trim() ? record.label.trim() : displayName,
     displayName,
+    surname: typeof record.surname === "string" && record.surname.trim() ? record.surname.trim() : null,
     avatarUrl: typeof record.avatarUrl === "string" && record.avatarUrl.trim() ? record.avatarUrl.trim() : null,
     summary,
     background: typeof record.background === "string" && record.background.trim() ? record.background.trim() : null,

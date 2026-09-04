@@ -28,15 +28,23 @@ export async function requireUser() {
     select: {
       id: true,
       email: true,
+      name: true,
       username: true,
       role: true,
       ageVerified: true,
       birthDate: true,
+      adultTermsAcceptedAt: true,
+      adultTermsVersion: true,
       memoryEnabled: true,
       compactMode: true,
       notificationsEnabled: true,
+      unlimitedCharacterFields: true,
       preferredProvider: true,
       preferredModel: true,
+      defaultTemperature: true,
+      maxOutputTokens: true,
+      defaultResponsePrompt: true,
+      preferredChatMode: true,
       bannedAt: true
     }
   });
@@ -86,14 +94,35 @@ export function routeError(error: unknown) {
   }
 
   if (error instanceof ZodError) {
-    return json({ error: "Invalid request body.", issues: error.flatten() }, { status: 400 });
+    return json({ error: error.issues[0]?.message ?? "Invalid request body.", issues: error.flatten() }, { status: 400 });
   }
 
   logSafeError("Unexpected route error.", error);
   return json({ error: "Unexpected server error." }, { status: 500 });
 }
 
-export async function parseJson<T>(request: Request, schema: { parse: (value: unknown) => T }) {
-  const body = await request.json().catch(() => null);
+export async function parseJson<T>(
+  request: Request,
+  schema: { parse: (value: unknown) => T },
+  options: { maxBytes?: number | null } = {}
+) {
+  const maxBytes = options.maxBytes === undefined ? 256 * 1024 : options.maxBytes;
+  const contentLength = Number(request.headers.get("content-length") ?? 0);
+  if (maxBytes !== null && Number.isFinite(contentLength) && contentLength > maxBytes) {
+    throw new HttpError(413, "Request body is too large.");
+  }
+
+  const raw = await request.text();
+  if (maxBytes !== null && new TextEncoder().encode(raw).byteLength > maxBytes) {
+    throw new HttpError(413, "Request body is too large.");
+  }
+
+  let body: unknown = null;
+  try {
+    body = raw ? JSON.parse(raw) : null;
+  } catch {
+    throw new HttpError(400, "Invalid JSON body.");
+  }
+
   return schema.parse(body);
 }

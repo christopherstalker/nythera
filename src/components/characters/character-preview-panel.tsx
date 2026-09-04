@@ -1,6 +1,7 @@
 "use client";
 
 import { BookmarkSimple, CaretLeft, Check, Sparkle } from "@phosphor-icons/react";
+import { RichMessageText } from "@/components/chat/rich-message-text";
 import { Avatar } from "@/components/ui/avatar";
 import { displayTagLabel } from "@/lib/character-tags";
 import { cn } from "@/lib/utils";
@@ -50,7 +51,7 @@ export function CharacterPreviewPanel({
   const previewDescription = description.trim() || "Their story has not been written yet.";
   const previewGreeting = greeting.trim() || "The first line will be pinned here when the scene is written.";
   const previewTags = tags.length > 0 ? tags : ["roleplay"];
-  const accentColor = visualIdentity?.accentColor || visualIdentity?.gradientFrom || "#7bd8c8";
+  const accentColor = visualIdentity?.accentColor || visualIdentity?.gradientFrom || "#A9795A";
 
   return (
     <aside className={cn("codex-dossier-sheet", className)} style={{ "--character-accent": accentColor } as React.CSSProperties}>
@@ -80,7 +81,7 @@ export function CharacterPreviewPanel({
             {generated ? <Sparkle size={13} weight="thin" className="text-[var(--codex-violet)]" /> : null}
           </div>
           <h2>{previewName}</h2>
-          <p>{previewDescription}</p>
+          <p><RichMessageText text={previewDescription} /></p>
         </div>
       </div>
 
@@ -117,7 +118,7 @@ export function CharacterPreviewPanel({
 
         <blockquote className="codex-pinned-note">
           <span>Opening leaf</span>
-          {previewGreeting}
+          <RichMessageText text={previewGreeting} />
         </blockquote>
       </div>
     </aside>

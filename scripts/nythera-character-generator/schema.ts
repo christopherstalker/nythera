@@ -117,4 +117,3 @@ export function toPrismaCharacterFields(seed: NytheraCharacterSeed) {
     communicationStyle
   };
 }
-

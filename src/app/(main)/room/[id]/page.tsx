@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Send, Trash2, UsersRound, Volume2 } from "lucide-react";
+import { ArrowLeft, Copy, Loader2, Send, Trash2, UsersRound, Volume2 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { PageShell } from "@/components/ui/page";
@@ -30,14 +30,19 @@ type RoomMessage = {
     name: string;
     avatarUrl?: string | null;
   } | null;
+  actorUser?: { id: string; name?: string | null; image?: string | null } | null;
 };
 
 type Room = {
   id: string;
+  storyId?: string | null;
   title: string;
   messageCount: number;
   characters: RoomCharacter[];
   messages: RoomMessage[];
+  inviteCode?: string | null;
+  canManage?: boolean;
+  members?: Array<{ user: { id: string; name?: string | null; image?: string | null } }>;
 };
 
 export default function RoomPage() {
@@ -122,13 +127,32 @@ export default function RoomPage() {
     router.push("/rooms");
   }
 
+  async function copyInvite() {
+    if (!room) return;
+    let code = room.inviteCode;
+    if (!code) {
+      const response = await fetch(`/api/rooms/${room.id}/invite`, { method: "POST" });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) return setError(body?.error ?? "Could not create invite.");
+      code = body.inviteCode;
+      setRoom((current) => current ? { ...current, inviteCode: code } : current);
+    }
+    await navigator.clipboard.writeText(`${window.location.origin}/room/join/${code}`);
+    setError("Invite link copied.");
+  }
+
   async function speak(messageToSpeak: RoomMessage) {
     setSpeakingId(messageToSpeak.id);
     setError(null);
     const response = await fetch("/api/voice/synthesize", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ provider: "elevenlabs", text: messageToSpeak.content })
+      body: JSON.stringify({
+        provider: "elevenlabs",
+        text: messageToSpeak.content,
+        storyId: room?.storyId || undefined,
+        characterId: messageToSpeak.character?.id || undefined
+      })
     });
     setSpeakingId(null);
     if (!response.ok) {
@@ -189,9 +213,11 @@ export default function RoomPage() {
               </button>
             ))}
           </div>
-          <Button type="button" variant="ghost" className="mt-auto justify-start text-[var(--text-muted)]" onClick={() => void removeRoom()}>
+          {room.canManage ? <Button type="button" variant="outline" className="mt-6 justify-start" onClick={() => void copyInvite()}><Copy className="h-4 w-4" />Invite players</Button> : null}
+          {room.members?.length ? <p className="mt-3 text-xs text-[var(--text-muted)]">Joined: {room.members.map((member) => member.user.name || "Player").join(", ")}</p> : null}
+          {room.canManage ? <Button type="button" variant="ghost" className="mt-auto justify-start text-[var(--text-muted)]" onClick={() => void removeRoom()}>
             <Trash2 className="h-4 w-4" /> Delete room
-          </Button>
+          </Button> : null}
         </aside>
 
         <section className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto]">
@@ -219,10 +245,10 @@ export default function RoomPage() {
                 const isUser = item.role === "USER";
                 return (
                   <article key={item.id} className="grid grid-cols-[34px_minmax(0,1fr)] gap-4 border-b border-[var(--border-default)] py-6 sm:grid-cols-[42px_minmax(0,1fr)] sm:gap-5 sm:py-8">
-                    <Avatar name={isUser ? "You" : item.character?.name} src={isUser ? undefined : item.character?.avatarUrl} size="sm" />
+                    <Avatar name={isUser ? item.actorUser?.name || "Player" : item.character?.name} src={isUser ? item.actorUser?.image : item.character?.avatarUrl} size="sm" />
                     <div className="min-w-0">
                       <div className="mb-2 flex items-center gap-2">
-                        <span className={cn("codex-kicker truncate", isUser && "text-[var(--accent-mint)]")}>{isUser ? "You" : item.character?.name ?? "Room"}</span>
+                        <span className={cn("codex-kicker truncate", isUser && "text-[var(--accent-mint)]")}>{isUser ? item.actorUser?.name || "Player" : item.character?.name ?? "Room"}</span>
                         {!isUser && item.role === "CHARACTER" ? (
                           <button type="button" onClick={() => void speak(item)} className="focus-ring ml-auto grid h-7 w-7 place-items-center text-[var(--text-muted)] hover:text-[var(--text-primary)]" aria-label={`Play ${item.character?.name ?? "character"} voice`}>
                             {speakingId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Volume2 className="h-3.5 w-3.5" />}

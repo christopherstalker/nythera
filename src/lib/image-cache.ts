@@ -3,6 +3,8 @@ export function shouldBypassNextImageOptimization(src: string) {
   return (
     normalized.startsWith("data:") ||
     normalized.startsWith("blob:") ||
+    normalized.startsWith("http://") ||
+    normalized.startsWith("https://") ||
     normalized.endsWith(".svg")
   );
 }

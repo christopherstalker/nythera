@@ -1,4 +1,5 @@
-import { characterCreateSchema } from "@/lib/validation";
+import { characterCreateSchemaFor } from "@/lib/validation";
+import { parseCharacterCardV2Json } from "@/lib/character-card-v2";
 import { normalizeCharacterTags } from "@/lib/character-tags";
 import { generateSimpleCharacterDraft } from "@/lib/simple-character-generation";
 import {
@@ -11,17 +12,17 @@ import {
   type CharacterFormMode
 } from "@/lib/character-form-types";
 import type { PromptGeneratedCharacter } from "@/lib/character-prompt-generation";
+import { normalizeMessageLength } from "@/lib/response-length";
 
 const RELATIONSHIP_OPTIONS = ["friend", "romantic", "mentor", "rival", "antagonist"] as const;
 const INITIATIVE_OPTIONS = ["low", "medium", "high"] as const;
 const VERBOSITY_OPTIONS = ["concise", "balanced", "expressive", "immersive"] as const;
-const MESSAGE_LENGTH_OPTIONS = ["short", "medium", "long"] as const;
-
 type BuildPayloadOptions = {
   draft: CharacterFormValue;
   generated?: GeneratedCharacterPreview | null;
   isSimpleMode?: boolean;
   creationMode?: CharacterCreationMode;
+  unlimitedCharacterFields?: boolean;
 };
 
 export function creationModeForNewCharacter(formMode: CharacterFormMode): CharacterCreationMode {
@@ -51,6 +52,7 @@ export function normalizeInitialCharacterValue(value?: CharacterFormInitialValue
     archetype: textValue(persona.archetype ?? value.archetype),
     personaTraits: listToText(persona.personalityTraits, value.personaTraits),
     speakingStyle: textValue(persona.speakingStyle ?? value.speakingStyle),
+    background: textValue(persona.background ?? value.background),
     emotionalTone: textValue(persona.emotionalTone ?? value.emotionalTone),
     relationshipStyle: textValue(persona.relationshipStyle ?? value.relationshipStyle),
     initiativeLevel: textValue(persona.initiativeLevel ?? value.initiativeLevel),
@@ -59,12 +61,13 @@ export function normalizeInitialCharacterValue(value?: CharacterFormInitialValue
     boundaries: listToText(persona.boundaries, value.boundaries),
     behavioralRules: listToText(persona.behavioralRules, value.behavioralRules),
     forbiddenBehaviors: listToText(persona.forbiddenBehaviors, value.forbiddenBehaviors),
+    additionalCharacters: normalizeAdditionalCharacters(persona.additionalCharacters),
     tone: textValue(style.tone ?? value.tone),
     humor: numberValue(style.humor, emptyCharacterDraft.humor),
     romanceLevel: numberValue(style.romanceLevel, emptyCharacterDraft.romanceLevel),
     seriousness: numberValue(style.seriousness, emptyCharacterDraft.seriousness),
     initiative: numberValue(style.initiative, emptyCharacterDraft.initiative),
-    messageLength: textValue(style.messageLength ?? value.messageLength),
+    messageLength: normalizeMessageLength(style.messageLength ?? value.messageLength),
     roleplayIntensity: numberValue(style.roleplayIntensity, emptyCharacterDraft.roleplayIntensity),
     preferredProvider: textValue(value.preferredProvider),
     preferredModel: textValue(value.preferredModel),
@@ -79,6 +82,7 @@ export function normalizeInitialCharacterValue(value?: CharacterFormInitialValue
     visualGradientFrom: hexColorValue(visualIdentity.gradientFrom, emptyCharacterDraft.visualGradientFrom),
     visualGradientTo: hexColorValue(visualIdentity.gradientTo, emptyCharacterDraft.visualGradientTo),
     visualChatBackground: textValue(visualIdentity.chatBackground ?? value.visualChatBackground),
+    visualAvatarPrompt: textValue(visualIdentity.avatarPrompt ?? value.visualAvatarPrompt),
     characterCardJson: ""
   };
 }
@@ -142,43 +146,51 @@ export function buildCharacterCreatePayload({
   draft,
   generated,
   isSimpleMode = false,
-  creationMode = draft.creationMode
+  creationMode = draft.creationMode,
+  unlimitedCharacterFields = false
 }: BuildPayloadOptions): CharacterCreatePayload {
   const merged = applyGeneratedPreview(draft, generated);
   const tags = normalizeCharacterTags(merged.tags.length > 0 ? merged.tags : ["roleplay"]);
 
   const persona = compactRecord({
-    name: limitText(merged.name, 80),
-    role: limitText(merged.personaRole || merged.description, 120),
-    archetype: limitText(merged.archetype || merged.personaRole || merged.description, 120),
-    personalityTraits: normalizeList(merged.personaTraits || merged.personality || merged.description, 16, 160),
-    speakingStyle: limitText(merged.speakingStyle || "Natural, consistent, and in character.", 500),
-    emotionalTone: limitText(merged.emotionalTone || "attentive", 240),
+    name: limitText(merged.name, 80, unlimitedCharacterFields),
+    role: limitText(merged.personaRole || merged.description, 120, unlimitedCharacterFields),
+    archetype: limitText(merged.archetype || merged.personaRole || merged.description, 120, unlimitedCharacterFields),
+    personalityTraits: normalizeList(merged.personaTraits || merged.personality || merged.description, 16, 160, unlimitedCharacterFields),
+    speakingStyle: limitText(merged.speakingStyle || "Natural, consistent, and in character.", 500, unlimitedCharacterFields),
+    background: limitText(merged.background, 5000, unlimitedCharacterFields),
+    emotionalTone: limitText(merged.emotionalTone || "attentive", 240, unlimitedCharacterFields),
     relationshipStyle: normalizeEnum(merged.relationshipStyle, RELATIONSHIP_OPTIONS),
     relationshipDynamics: normalizeEnum(merged.relationshipStyle, RELATIONSHIP_OPTIONS),
     initiativeLevel: normalizeEnum(merged.initiativeLevel, INITIATIVE_OPTIONS),
     verbosityLevel: normalizeEnum(merged.verbosityLevel, VERBOSITY_OPTIONS),
-    motivation: limitText(merged.motivation || "Create a memorable character chat with strong continuity.", 800),
-    boundaries: normalizeList(merged.boundaries, 16, 160),
-    behavioralRules: normalizeList(merged.behavioralRules, 16, 160),
-    forbiddenBehaviors: normalizeList(merged.forbiddenBehaviors, 16, 160)
+    motivation: limitText(merged.motivation || "Create a memorable character chat with strong continuity.", 800, unlimitedCharacterFields),
+    boundaries: normalizeList(merged.boundaries, 16, 160, unlimitedCharacterFields),
+    behavioralRules: normalizeList(merged.behavioralRules, 16, 160, unlimitedCharacterFields),
+    forbiddenBehaviors: normalizeList(merged.forbiddenBehaviors, 16, 160, unlimitedCharacterFields),
+    additionalCharacters: merged.additionalCharacters.slice(0, 7).map((character) => compactRecord({
+      id: limitText(character.id, 80, false),
+      name: limitText(character.name, 80, unlimitedCharacterFields),
+      personality: limitText(character.personality, 5000, unlimitedCharacterFields)
+    }))
   });
 
   const communicationStyle = compactRecord({
-    tone: limitText(merged.tone || "natural", 80),
+    tone: limitText(merged.tone || "natural", 80, unlimitedCharacterFields),
     humor: clampNumber(merged.humor, 0, 10),
     romanceLevel: clampNumber(merged.romanceLevel, 0, 10),
     seriousness: clampNumber(merged.seriousness, 0, 10),
     initiative: clampNumber(merged.initiative, 0, 10),
-    messageLength: normalizeEnum(merged.messageLength, MESSAGE_LENGTH_OPTIONS),
+    messageLength: merged.messageLength,
     roleplayIntensity: clampNumber(merged.roleplayIntensity, 0, 10)
   });
-  const lorebook = parseLorebookText(merged.lorebookText);
+  const lorebook = parseLorebookText(merged.lorebookText, unlimitedCharacterFields);
   const visualIdentity = compactRecord({
     accentColor: hexColorValue(merged.visualAccentColor, emptyCharacterDraft.visualAccentColor),
     gradientFrom: hexColorValue(merged.visualGradientFrom, emptyCharacterDraft.visualGradientFrom),
     gradientTo: hexColorValue(merged.visualGradientTo, emptyCharacterDraft.visualGradientTo),
-    chatBackground: limitText(merged.visualChatBackground, 500)
+    chatBackground: limitText(merged.visualChatBackground, 500, unlimitedCharacterFields),
+    avatarPrompt: limitText(merged.visualAvatarPrompt, 800, unlimitedCharacterFields)
   });
 
   const payload: CharacterCreatePayload = {
@@ -200,6 +212,7 @@ export function buildCharacterCreatePayload({
     presencePenalty: merged.presencePenalty,
     maxTokens: merged.maxTokens,
     systemPromptOverride: merged.systemPromptOverride.trim() || null,
+    defaultChatMode: merged.defaultChatMode,
     ...(Object.keys(persona).length > 0 ? { persona } : {}),
     ...(Object.keys(communicationStyle).length > 0 ? { communicationStyle } : {}),
     ...(lorebook.entries.length > 0 ? { lorebook } : {}),
@@ -209,8 +222,8 @@ export function buildCharacterCreatePayload({
   return payload;
 }
 
-export function validateCharacterCreatePayload(payload: CharacterCreatePayload) {
-  return characterCreateSchema.safeParse(payload);
+export function validateCharacterCreatePayload(payload: CharacterCreatePayload, unlimitedCharacterFields = false) {
+  return characterCreateSchemaFor(unlimitedCharacterFields).safeParse(payload);
 }
 
 export function applyPromptGenerationToDraft(draft: CharacterFormValue, generated: PromptGeneratedCharacter): CharacterFormValue {
@@ -243,7 +256,7 @@ export function applyPromptGenerationToDraft(draft: CharacterFormValue, generate
     romanceLevel: numberValue(style.romanceLevel, draft.romanceLevel),
     seriousness: numberValue(style.seriousness, draft.seriousness),
     initiative: numberValue(style.initiative, draft.initiative),
-    messageLength: textValue(style.messageLength),
+    messageLength: normalizeMessageLength(style.messageLength, draft.messageLength),
     roleplayIntensity: numberValue(style.roleplayIntensity, draft.roleplayIntensity)
   };
 }
@@ -259,6 +272,52 @@ export function promptPreviewFromGeneration(generated: PromptGeneratedCharacter)
     isNSFW: generated.isNSFW,
     persona: generated.persona,
     communicationStyle: generated.communicationStyle
+  };
+}
+
+export function applyCharacterCardJsonToDraft(draft: CharacterFormValue, value: string): CharacterFormValue {
+  const { data, notes } = parseCharacterCardV2Json(value);
+  const persona = notes.persona ?? {};
+  const style = notes.communicationStyle ?? {};
+  const visual = notes.visualIdentity ?? {};
+
+  return {
+    ...draft,
+    characterCardJson: value,
+    name: preferredText(data.name, draft.name),
+    description: preferredText(data.description, draft.description),
+    personality: preferredText(data.personality, draft.personality),
+    scenario: preferredText(data.scenario, draft.scenario),
+    greeting: preferredText(data.first_mes ?? data.mes_example, draft.greeting),
+    avatarUrl: preferredText(data.avatar, draft.avatarUrl),
+    tags: Array.isArray(data.tags) ? normalizeTagsInput(data.tags.map(String)) : draft.tags,
+    personaRole: preferredText(persona.role, draft.personaRole),
+    archetype: preferredText(persona.archetype, draft.archetype),
+    personaTraits: preferredList(persona.personalityTraits, draft.personaTraits),
+    speakingStyle: preferredText(persona.speakingStyle, draft.speakingStyle),
+    emotionalTone: preferredText(persona.emotionalTone, draft.emotionalTone),
+    relationshipStyle: preferredText(persona.relationshipStyle, draft.relationshipStyle),
+    initiativeLevel: preferredText(persona.initiativeLevel, draft.initiativeLevel),
+    verbosityLevel: preferredText(persona.verbosityLevel, draft.verbosityLevel),
+    motivation: preferredText(persona.motivation, draft.motivation),
+    boundaries: preferredList(persona.boundaries, draft.boundaries),
+    behavioralRules: preferredList(persona.behavioralRules, draft.behavioralRules),
+    forbiddenBehaviors: preferredList(persona.forbiddenBehaviors, draft.forbiddenBehaviors),
+    additionalCharacters: Array.isArray(persona.additionalCharacters)
+      ? normalizeAdditionalCharacters(persona.additionalCharacters)
+      : draft.additionalCharacters,
+    tone: preferredText(style.tone, draft.tone),
+    humor: numberValue(style.humor, draft.humor),
+    romanceLevel: numberValue(style.romanceLevel, draft.romanceLevel),
+    seriousness: numberValue(style.seriousness, draft.seriousness),
+    initiative: numberValue(style.initiative, draft.initiative),
+    messageLength: normalizeMessageLength(style.messageLength, draft.messageLength),
+    roleplayIntensity: numberValue(style.roleplayIntensity, draft.roleplayIntensity),
+    lorebookText: notes.lorebook ? lorebookToText(notes.lorebook) : draft.lorebookText,
+    visualAccentColor: hexColorValue(visual.accentColor, draft.visualAccentColor),
+    visualGradientFrom: hexColorValue(visual.gradientFrom, draft.visualGradientFrom),
+    visualGradientTo: hexColorValue(visual.gradientTo, draft.visualGradientTo),
+    visualChatBackground: preferredText(visual.chatBackground, draft.visualChatBackground)
   };
 }
 
@@ -312,16 +371,17 @@ function compactRecord(record: Record<string, unknown>) {
   return next;
 }
 
-function normalizeList(value: string, maxItems: number, maxLength: number) {
+function normalizeList(value: string, maxItems: number, maxLength: number, unlimitedCharacterFields = false) {
   return value
     .split(/[\n,;]+/)
-    .map((item) => limitText(item, maxLength))
+    .map((item) => limitText(item, maxLength, unlimitedCharacterFields))
     .filter(Boolean)
     .slice(0, maxItems);
 }
 
-function limitText(value: string, maxLength: number) {
-  return value.trim().slice(0, maxLength);
+function limitText(value: string, maxLength: number, unlimitedCharacterFields = false) {
+  const trimmed = value.trim();
+  return unlimitedCharacterFields ? trimmed : trimmed.slice(0, maxLength);
 }
 
 function clampNumber(value: number, min: number, max: number) {
@@ -332,12 +392,46 @@ function textValue(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function preferredText(value: unknown, fallback: string) {
+  const text = textValue(value);
+  return text || fallback;
+}
+
+function preferredList(value: unknown, fallback: string) {
+  const text = listToText(value);
+  return text || fallback;
+}
+
 function listToText(value: unknown, fallback?: string) {
   if (Array.isArray(value)) {
     return value.map((item) => String(item).trim()).filter(Boolean).join("\n");
   }
 
   return typeof fallback === "string" ? fallback : "";
+}
+
+function normalizeAdditionalCharacters(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item))
+    .slice(0, 7)
+    .map((item, index) => ({
+      id: textValue(item.id) || `cast-${index + 1}`,
+      name: textValue(item.name),
+      personality: textValue(item.personality) || legacyAdditionalPersonality(item)
+    }));
+}
+
+function legacyAdditionalPersonality(character: Record<string, unknown>) {
+  return [
+    textValue(character.role ?? character.archetype) ? `Role: ${textValue(character.role ?? character.archetype)}` : "",
+    listToText(character.personalityTraits),
+    textValue(character.speakingStyle) ? `Speaking style: ${textValue(character.speakingStyle)}` : "",
+    textValue(character.emotionalTone) ? `Emotional tone: ${textValue(character.emotionalTone)}` : ""
+  ].filter(Boolean).join("\n\n");
 }
 
 function numberValue(value: unknown, fallback: number) {
@@ -348,7 +442,7 @@ function nullableNumberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-export function parseLorebookText(value: string) {
+export function parseLorebookText(value: string, unlimitedCharacterFields = false) {
   const entries = value
     .split(/\n{2,}/)
     .map((block, index) => {
@@ -356,7 +450,7 @@ export function parseLorebookText(value: string) {
       const text = textParts.join("=>").trim();
       const keywords = rawKeywords
         .split(/[,;\n]+/)
-        .map((keyword) => limitText(keyword, 80))
+        .map((keyword) => limitText(keyword, 80, unlimitedCharacterFields))
         .filter(Boolean)
         .slice(0, 12);
 
@@ -367,7 +461,7 @@ export function parseLorebookText(value: string) {
       return {
         id: `entry-${index + 1}`,
         keywords,
-        text: limitText(text, 2000)
+        text: limitText(text, 2000, unlimitedCharacterFields)
       };
     })
     .filter((entry): entry is { id: string; keywords: string[]; text: string } => Boolean(entry))

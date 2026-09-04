@@ -2,8 +2,10 @@ import { HttpError, getRequestIp, requireUser, routeError } from "@/lib/api";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { moderateText, sanitizeUserText, isMinorBirthDate } from "@/lib/safety";
 import { parseJson } from "@/lib/api";
-import { getDecryptedVoiceApiKey } from "@/lib/voice-keys";
+import { prisma } from "@/lib/prisma";
+import { getDecryptedVoiceApiKey, type VoiceProvider } from "@/lib/voice-keys";
 import { voiceSynthesisSchema } from "@/lib/validation";
+import { assertSafeOutboundUrl } from "@/lib/safe-outbound-url";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -32,29 +34,51 @@ export async function POST(request: Request) {
       throw new HttpError(400, moderation.reason ?? "Text is blocked by the platform safety policy.");
     }
 
-    const key = await getDecryptedVoiceApiKey(user.id, input.provider);
-    const response = input.provider === "elevenlabs"
+    let provider: VoiceProvider = input.provider;
+    let voiceId = input.voiceId;
+    let speed = 1;
+    if (input.storyId && input.characterId) {
+      const binding = await prisma.storyVoiceBinding.findFirst({
+        where: {
+          storyId: input.storyId,
+          story: { ownerId: user.id },
+          participant: { characterId: input.characterId }
+        },
+        select: { provider: true, voiceId: true, speed: true }
+      });
+      if (binding) {
+        provider = binding.provider === "playht" ? "playht" : "elevenlabs";
+        voiceId = input.voiceId || binding.voiceId;
+        speed = binding.speed;
+      }
+    }
+
+    const key = await getDecryptedVoiceApiKey(user.id, provider);
+    const response = provider === "elevenlabs"
       ? await synthesizeElevenLabs({
           apiKey: key.apiKey,
           baseUrl: key.baseUrl,
-          voiceId: input.voiceId || key.defaultVoiceId || DEFAULT_ELEVENLABS_VOICE,
-          text
+          voiceId: voiceId || key.defaultVoiceId || DEFAULT_ELEVENLABS_VOICE,
+          text,
+          speed
         })
       : await synthesizePlayHt({
           apiKey: key.apiKey,
           userId: key.authId,
           baseUrl: key.baseUrl,
-          voiceId: input.voiceId || key.defaultVoiceId || DEFAULT_PLAYHT_VOICE,
+          voiceId: voiceId || key.defaultVoiceId || DEFAULT_PLAYHT_VOICE,
           text,
-          format: input.format
+          format: input.format,
+          speed
         });
 
     if (!response.ok || !response.body) {
       const detail = await response.text().catch(() => "");
       throw new HttpError(response.status || 502, detail.slice(0, 300) || "Voice provider request failed.");
     }
+    const audio = await readBoundedBody(response, 8 * 1024 * 1024);
 
-    return new Response(response.body, {
+    return new Response(audio, {
       status: 200,
       headers: {
         "content-type": response.headers.get("content-type") || (input.format === "wav" ? "audio/wav" : "audio/mpeg"),
@@ -71,8 +95,10 @@ async function synthesizeElevenLabs(input: {
   baseUrl: string;
   voiceId: string;
   text: string;
+  speed: number;
 }) {
-  const url = `${input.baseUrl.replace(/\/+$/, "")}/text-to-speech/${encodeURIComponent(input.voiceId)}`;
+  const baseUrl = await assertSafeOutboundUrl(input.baseUrl);
+  const url = `${baseUrl}/text-to-speech/${encodeURIComponent(input.voiceId)}`;
   return fetch(url, {
     method: "POST",
     headers: {
@@ -82,8 +108,11 @@ async function synthesizeElevenLabs(input: {
     },
     body: JSON.stringify({
       text: input.text,
-      model_id: "eleven_multilingual_v2"
-    })
+      model_id: "eleven_multilingual_v2",
+      voice_settings: { speed: Math.max(0.7, Math.min(1.2, input.speed)) }
+    }),
+    redirect: "error",
+    signal: AbortSignal.timeout(20_000)
   });
 }
 
@@ -94,12 +123,14 @@ async function synthesizePlayHt(input: {
   voiceId: string;
   text: string;
   format: "mp3" | "wav";
+  speed: number;
 }) {
   if (!input.userId) {
     throw new HttpError(400, "PlayHT requires a User ID / auth id.");
   }
 
-  const url = `${input.baseUrl.replace(/\/+$/, "")}/tts/stream`;
+  const baseUrl = await assertSafeOutboundUrl(input.baseUrl);
+  const url = `${baseUrl}/tts/stream`;
   return fetch(url, {
     method: "POST",
     headers: {
@@ -111,7 +142,39 @@ async function synthesizePlayHt(input: {
     body: JSON.stringify({
       text: input.text,
       voice: input.voiceId,
-      output_format: input.format
-    })
+      output_format: input.format,
+      speed: input.speed
+    }),
+    redirect: "error",
+    signal: AbortSignal.timeout(20_000)
   });
+}
+
+async function readBoundedBody(response: Response, maxBytes: number) {
+  const declaredLength = Number(response.headers.get("content-length") ?? 0);
+  if (declaredLength > maxBytes) {
+    throw new HttpError(502, "Voice provider response is too large.");
+  }
+
+  const reader = response.body!.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new HttpError(502, "Voice provider response is too large.");
+    }
+    chunks.push(value);
+  }
+
+  const output = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    output.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return output;
 }

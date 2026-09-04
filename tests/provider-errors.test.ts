@@ -24,4 +24,11 @@ for (const [name, classify] of [
   test(`${name} retries provider outages`, () => {
     assert.equal(classify({ status: 503, message: "Unavailable" }).retryable, true);
   });
+
+  test(`${name} retries outage messages when an upstream omits the status code`, () => {
+    const classified = classify(new Error("The upstream provider is temporarily unavailable. Try again later."));
+
+    assert.equal(classified.code, "provider_unavailable");
+    assert.equal(classified.retryable, true);
+  });
 }

@@ -1,19 +1,34 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
-import { Copy, Edit3, RefreshCcw, Pin, Trash2, History } from "lucide-react";
+import { Clock3, Copy, Edit3, GitFork, History, Pin, Play, RefreshCcw, ShieldAlert, Trash2, X } from "lucide-react";
+import type { SkipTimeDuration, SkipTimeUnit } from "@/lib/chat-actions";
+
+const SKIP_TIME_PRESETS: Array<{ label: string; duration: SkipTimeDuration }> = [
+  { label: "1 min", duration: { value: 1, unit: "minute" } },
+  { label: "5 min", duration: { value: 5, unit: "minute" } },
+  { label: "30 min", duration: { value: 30, unit: "minute" } },
+  { label: "1 hour", duration: { value: 1, unit: "hour" } },
+  { label: "6 hours", duration: { value: 6, unit: "hour" } },
+  { label: "1 day", duration: { value: 1, unit: "day" } },
+  { label: "1 week", duration: { value: 1, unit: "week" } }
+];
 
 type MessageContextMenuProps = {
   isOpen: boolean;
-  position: { x: number; y: number };
+  initialPanel?: "actions" | "skip-time";
   onClose: () => void;
   onCopy: () => void;
   onEdit?: () => void;
   onRegenerate?: () => void;
+  onContinue?: () => void;
+  onSkipTime?: (duration: SkipTimeDuration) => void;
   onRewind?: () => void;
   onPin?: () => void;
+  onBranch?: () => void;
+  onReport?: () => void;
   onDelete: () => void;
   isUserMessage?: boolean;
   isPinned?: boolean;
@@ -21,18 +36,30 @@ type MessageContextMenuProps = {
 
 export function MessageContextMenu({
   isOpen,
-  position,
+  initialPanel = "actions",
   onClose,
   onCopy,
   onEdit,
   onRegenerate,
+  onContinue,
+  onSkipTime,
   onRewind,
   onPin,
+  onBranch,
+  onReport,
   onDelete,
   isUserMessage,
   isPinned,
 }: MessageContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
+  const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
+  const [skipTimeOpen, setSkipTimeOpen] = useState(initialPanel === "skip-time" && Boolean(onSkipTime));
+  const [skipTimeValue, setSkipTimeValue] = useState("1");
+  const [skipTimeUnit, setSkipTimeUnit] = useState<SkipTimeUnit>("minute");
+
+  useEffect(() => {
+    setPortalRoot(document.body);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -43,78 +70,189 @@ export function MessageContextMenu({
       }
     };
 
-    const handleScroll = () => onClose();
-    const handleResize = () => onClose();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
 
     window.addEventListener("pointerdown", handlePointerDown);
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("resize", handleResize);
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
       window.removeEventListener("pointerdown", handlePointerDown);
-      window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (!isOpen) setSkipTimeOpen(false);
+  }, [isOpen]);
 
-  const coords = getMenuCoords(position);
-  const useSheet = typeof window !== "undefined" && window.matchMedia("(max-width: 767px), (pointer: coarse)").matches;
+  function submitSkipTime() {
+    const value = Number(skipTimeValue);
+    if (!Number.isInteger(value) || value < 1 || value > 1_000_000_000 || !onSkipTime) return;
+    onSkipTime({ value, unit: skipTimeUnit });
+    onClose();
+  }
+
+  if (!isOpen || !portalRoot) return null;
 
   return createPortal(
-    <div className={cn(useSheet && "fixed inset-0 z-[9999] flex items-end bg-black/72 p-3", !useSheet && "contents")}>
-      {useSheet ? <button type="button" aria-label="Close message actions" className="absolute inset-0" onClick={onClose} /> : null}
+    <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/20 px-3 pt-3 backdrop-blur-[2px] md:items-center md:p-6">
+      <button type="button" aria-label="Close message actions" className="absolute inset-0" onClick={onClose} />
       <div
         ref={menuRef}
-        style={
-          useSheet
-            ? undefined
-            : {
-                position: "fixed",
-                top: coords.top,
-                left: coords.left,
-              }
-        }
-        className={cn(
-          "z-[9999] flex flex-col gap-0.5 border border-[var(--border-default)] bg-[var(--bg-elevated)] p-1.5 animate-in fade-in duration-150",
-          useSheet
-            ? "relative w-full rounded-t-[var(--radius-xl)] pb-[calc(0.75rem+env(safe-area-inset-bottom))] slide-in-from-bottom-4"
-            : "w-[200px] rounded-xl slide-in-from-bottom-1"
-        )}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="message-actions-title"
+        className="relative z-[9999] flex max-h-[min(82dvh,42rem)] w-full max-w-[720px] flex-col overflow-hidden rounded-t-3xl border border-white/10 bg-[rgba(12,12,14,0.72)] px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-18px_70px_rgba(0,0,0,.38)] backdrop-blur-2xl animate-in fade-in slide-in-from-bottom-4 duration-200 supports-[backdrop-filter]:bg-[rgba(12,12,14,0.58)] md:rounded-2xl md:p-4 md:shadow-[0_24px_90px_rgba(0,0,0,.48)] md:slide-in-from-bottom-2"
       >
-      <MenuItem onClick={onCopy} icon={<Copy className="h-4 w-4" />}>
-        Copy
-      </MenuItem>
+        <div className="flex items-center justify-between border-b border-white/10 px-1 pb-3">
+          <div>
+            <span className="mx-auto mb-3 block h-1 w-10 rounded-full bg-white/20 md:hidden" />
+            <p id="message-actions-title" className="text-xs font-semibold uppercase tracking-[.16em] text-[var(--text-muted)]">
+              Message actions
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close actions"
+            className="focus-ring grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-white/[0.035] text-[var(--text-secondary)] transition-colors hover:bg-white/[0.08] hover:text-[var(--text-primary)]"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        {skipTimeOpen ? (
+          <div className="side-panel-scroll min-h-0 overflow-y-auto py-4">
+            <div className="flex items-center gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[var(--accent-purple)]/40 text-[var(--accent-purple)]">
+                <Clock3 className="h-4 w-4" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-[var(--text-primary)]">How much time should pass?</p>
+                <p className="mt-0.5 text-xs text-[var(--text-muted)]">Choose from one minute to any custom interval.</p>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-4 gap-2">
+              {SKIP_TIME_PRESETS.map((preset) => {
+                const selected = skipTimeValue === String(preset.duration.value) && skipTimeUnit === preset.duration.unit;
+                return (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => {
+                      setSkipTimeValue(String(preset.duration.value));
+                      setSkipTimeUnit(preset.duration.unit);
+                    }}
+                    className={cn(
+                      "focus-ring min-h-10 rounded-lg border px-2 text-xs transition-colors",
+                      selected
+                        ? "border-[var(--accent-purple)] bg-[var(--accent-purple)]/10 text-[var(--text-primary)]"
+                        : "border-white/10 bg-white/[.025] text-[var(--text-secondary)] hover:bg-white/[.07]"
+                    )}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-4 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
+              <label className="grid gap-1.5 text-[10px] font-semibold uppercase tracking-[.12em] text-[var(--text-muted)]">
+                Amount
+                <input
+                  type="number"
+                  min={1}
+                  max={1_000_000_000}
+                  step={1}
+                  inputMode="numeric"
+                  value={skipTimeValue}
+                  onChange={(event) => setSkipTimeValue(event.target.value.replace(/[^0-9]/g, "").slice(0, 10))}
+                  className="focus-ring h-11 min-w-0 rounded-lg border border-white/15 bg-black/30 px-3 text-sm text-[var(--text-primary)]"
+                />
+              </label>
+              <label className="grid gap-1.5 text-[10px] font-semibold uppercase tracking-[.12em] text-[var(--text-muted)]">
+                Unit
+                <select
+                  value={skipTimeUnit}
+                  onChange={(event) => setSkipTimeUnit(event.target.value as SkipTimeUnit)}
+                  className="focus-ring h-11 min-w-0 rounded-lg border border-white/15 bg-[#111] px-3 text-sm text-[var(--text-primary)]"
+                >
+                  <option value="minute">Minutes</option>
+                  <option value="hour">Hours</option>
+                  <option value="day">Days</option>
+                  <option value="week">Weeks</option>
+                  <option value="month">Months</option>
+                  <option value="year">Years</option>
+                </select>
+              </label>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setSkipTimeOpen(false)} className="focus-ring h-10 rounded-full border border-white/15 px-4 text-xs text-[var(--text-secondary)]">Back</button>
+              <button type="button" onClick={submitSkipTime} disabled={!/^\d+$/.test(skipTimeValue) || Number(skipTimeValue) < 1} className="focus-ring h-10 rounded-full border border-[var(--accent-purple)] bg-[var(--accent-purple)]/10 px-5 text-xs font-semibold text-[var(--text-primary)] disabled:opacity-40">Advance time</button>
+            </div>
+          </div>
+        ) : (
+        <div className="side-panel-scroll grid min-h-0 grid-cols-4 gap-2 overflow-y-auto py-3">
+          <MenuItem onClick={onCopy} icon={<Copy className="h-4 w-4" />}>
+            Copy
+          </MenuItem>
 
-      {onEdit ? (
-        <MenuItem onClick={onEdit} icon={<Edit3 className="h-4 w-4" />}>
-          Edit
+          {onEdit ? (
+            <MenuItem onClick={onEdit} icon={<Edit3 className="h-4 w-4" />}>
+              Edit
+            </MenuItem>
+          ) : null}
+
+          {!isUserMessage && onRegenerate ? (
+            <MenuItem onClick={onRegenerate} icon={<RefreshCcw className="h-4 w-4" />}>
+              Regenerate
+            </MenuItem>
+          ) : null}
+
+          {onContinue ? (
+            <MenuItem onClick={onContinue} icon={<Play className="h-4 w-4" />}>
+              Continue
+            </MenuItem>
+          ) : null}
+
+          {onSkipTime ? (
+            <MenuItem onClick={() => setSkipTimeOpen(true)} icon={<Clock3 className="h-4 w-4" />}>
+              Skip time
+            </MenuItem>
+          ) : null}
+
+          {onRewind ? (
+            <MenuItem onClick={onRewind} icon={<History className="h-4 w-4" />}>
+              Rewind
+            </MenuItem>
+          ) : null}
+
+          <MenuItem onClick={onPin} icon={<Pin className="h-4 w-4" />}>
+            {isPinned ? "Unpin" : "Pin"}
+          </MenuItem>
+
+          {onBranch ? (
+            <MenuItem onClick={onBranch} icon={<GitFork className="h-4 w-4" />}>
+              Branch
+            </MenuItem>
+          ) : null}
+
+          {onReport ? (
+            <MenuItem onClick={onReport} icon={<ShieldAlert className="h-4 w-4" />}>
+              Report
+            </MenuItem>
+          ) : null}
+        </div>
+        )}
+        <div className="h-px bg-white/10" />
+        <MenuItem onClick={onDelete} destructive wide icon={<Trash2 className="h-4 w-4" />}>
+          Delete
         </MenuItem>
-      ) : null}
-
-      {!isUserMessage && (
-        <MenuItem onClick={onRegenerate} icon={<RefreshCcw className="h-4 w-4" />}>
-          Regenerate
-        </MenuItem>
-      )}
-
-      <MenuItem onClick={onRewind} icon={<History className="h-4 w-4" />}>
-        Rewind
-      </MenuItem>
-
-      <MenuItem onClick={onPin} icon={<Pin className="h-4 w-4" />}>
-        {isPinned ? "Unpin" : "Pin"}
-      </MenuItem>
-
-      <div className="my-0.5 h-px bg-[var(--border-subtle)]" />
-
-      <MenuItem onClick={onDelete} destructive icon={<Trash2 className="h-4 w-4" />}>
-        Delete
-      </MenuItem>
       </div>
     </div>,
-    document.body
+    portalRoot
   );
 }
 
@@ -122,45 +260,32 @@ function MenuItem({
   children,
   onClick,
   icon,
+  disabled = false,
   destructive = false,
+  wide = false,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
   icon: React.ReactNode;
+  disabled?: boolean;
   destructive?: boolean;
+  wide?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={cn(
-        "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-all duration-150",
+        "flex min-h-16 w-full flex-col items-center justify-center gap-2 rounded-xl border border-transparent bg-white/[0.025] px-1.5 py-2 text-center text-[11px] transition-all duration-150 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:translate-y-0 md:min-h-20 md:text-sm",
+        wide && "mt-2 min-h-11 flex-row gap-2 bg-transparent text-sm md:min-h-12",
         destructive
-          ? "text-red-400 hover:bg-red-500/10 hover:text-red-200"
-          : "text-[var(--text-primary)] hover:bg-white/[0.055]"
+          ? "text-red-400 hover:border-red-400/15 hover:bg-red-500/10 hover:text-red-200"
+          : "text-[var(--text-primary)] hover:border-white/10 hover:bg-white/[0.075]"
       )}
     >
       <span className={destructive ? "text-red-400" : "text-[var(--text-secondary)]"}>{icon}</span>
       {children}
     </button>
   );
-}
-
-function getMenuCoords(position: { x: number; y: number }) {
-  const menuWidth = 200;
-  const menuHeight = 280;
-
-  let left = position.x;
-  let top = position.y;
-
-  if (typeof window !== "undefined") {
-    if (left + menuWidth > window.innerWidth) {
-      left = window.innerWidth - menuWidth - 12;
-    }
-    if (top + menuHeight > window.innerHeight) {
-      top = window.innerHeight - menuHeight - 12;
-    }
-  }
-
-  return { top, left };
 }

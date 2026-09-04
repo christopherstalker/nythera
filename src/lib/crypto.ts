@@ -27,7 +27,12 @@ function getPrimarySecret() {
 }
 
 function getDecryptionSecrets() {
-  const secrets = [getPrimarySecret(), env.NEXTAUTH_SECRET, env.AUTH_SECRET].filter((secret): secret is string => Boolean(secret));
+  const secrets = [
+    getPrimarySecret(),
+    env.API_KEY_ENCRYPTION_SECRET_PREVIOUS,
+    env.NEXTAUTH_SECRET,
+    env.AUTH_SECRET
+  ].filter((secret): secret is string => Boolean(secret));
   return Array.from(new Set(secrets));
 }
 

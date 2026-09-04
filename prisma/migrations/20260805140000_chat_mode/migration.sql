@@ -1,0 +1,1 @@
+ALTER TABLE "Chat" ADD COLUMN "chatMode" TEXT NOT NULL DEFAULT 'realism';

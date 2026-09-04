@@ -29,14 +29,15 @@ export function detectPromptInjection(text: string): PromptInjectionAssessment {
   };
 }
 
-export function sanitizePromptContext(value: string, maxLength = 1200) {
-  return value
+export function sanitizePromptContext(value: string, maxLength: number | null = 1200) {
+  const sanitized = value
     .replace(/\u0000/g, "")
     .replace(PROMPT_INJECTION_PATTERNS[9], "[blocked meta tag]")
     .replace(CONTEXT_LABEL_PATTERN, (match) => `[${match.toLowerCase()}]`)
     .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, maxLength);
+    .trim();
+
+  return maxLength === null ? sanitized : sanitized.slice(0, maxLength);
 }
 
 export function shouldStoreMemoryFromText(text: string) {

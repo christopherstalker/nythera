@@ -1,6 +1,6 @@
 import "server-only";
 
-import { MemoryCategory, Prisma } from "@prisma/client";
+import { MemoryCategory, MemoryStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { sanitizePromptContext, shouldStoreMemoryFromText } from "@/lib/prompt-security";
 import { createEmbedding } from "@/lib/proxy";
@@ -14,19 +14,33 @@ export async function searchMemories(input: {
   query: string;
   limit?: number;
   providerKeys?: ProviderKeys;
+  includeGlobal?: boolean;
+  sourceChatId?: string;
 }): Promise<RetrievedMemory[]> {
   const embedding = await createEmbedding(input.query, input.providerKeys);
   const vector = toVectorLiteral(embedding);
   const limit = input.limit ?? 5;
+  const includeGlobal = input.includeGlobal ?? true;
 
   try {
     return await prisma.$queryRaw<RetrievedMemory[]>`
-        SELECT id, content, importance, category, confidence, metadata, 1 - (embedding <=> ${vector}::vector) AS similarity
+        SELECT id, content, importance, category, confidence, metadata, pinned, 1 - (embedding <=> ${vector}::vector) AS similarity
         FROM "Memory"
         WHERE "userId" = ${input.userId}
+          AND status = 'ACTIVE'::"MemoryStatus"
           AND embedding IS NOT NULL
-          AND ("characterId" = ${input.characterId ?? null} OR "characterId" IS NULL)
-          AND (1 - (embedding <=> ${vector}::vector)) >= 0.18
+          AND ("characterId" = ${input.characterId ?? null} OR (${includeGlobal} AND "characterId" IS NULL))
+          AND (
+            ${input.sourceChatId ?? null}::text IS NULL
+            OR "sourceChatId" IS NULL
+            OR "sourceChatId" = ${input.sourceChatId ?? null}
+            OR category IN (
+              'USER_PROFILE'::"MemoryCategory",
+              'PREFERENCE'::"MemoryCategory",
+              'RECURRING_TOPIC'::"MemoryCategory"
+            )
+          )
+          AND (1 - (embedding <=> ${vector}::vector)) >= 0.35
         ORDER BY embedding <=> ${vector}::vector, importance DESC
         LIMIT ${limit}
       `;
@@ -40,11 +54,13 @@ export async function createMemory(input: {
   userId: string;
   characterId?: string | null;
   sourceChatId?: string | null;
+  sourceMessageId?: string | null;
   content: string;
   category?: MemoryCategory;
   metadata?: Prisma.InputJsonValue;
   importance?: number;
   confidence?: number;
+  status?: MemoryStatus;
   providerKeys?: ProviderKeys;
 }) {
   const content = sanitizePromptContext(input.content, 1000);
@@ -65,21 +81,56 @@ export async function createMemory(input: {
     return existing;
   }
 
-  const memory = await prisma.memory.create({
-    data: {
-      userId: input.userId,
-      characterId: input.characterId,
-      sourceChatId: input.sourceChatId,
-      content,
-      category: input.category ?? MemoryCategory.OTHER,
-      metadata: input.metadata ?? Prisma.JsonNull,
-      importance: input.importance ?? 1,
-      confidence: input.confidence ?? 0.75
+  let embedding: number[] | null = null;
+  try {
+    embedding = await createEmbedding(content, input.providerKeys);
+    const vector = toVectorLiteral(embedding);
+    const duplicate = await prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT id
+      FROM "Memory"
+      WHERE "userId" = ${input.userId}
+        AND "characterId" IS NOT DISTINCT FROM ${input.characterId ?? null}
+        AND embedding IS NOT NULL
+        AND 1 - (embedding <=> ${vector}::vector) > 0.92
+      ORDER BY embedding <=> ${vector}::vector
+      LIMIT 1
+    `;
+    if (duplicate[0]) {
+      return prisma.memory.findUnique({ where: { id: duplicate[0].id } });
     }
-  });
+  } catch (error) {
+    logSafeError("Memory semantic deduplication failed.", error);
+  }
+
+  let memory;
+  try {
+    memory = await prisma.memory.create({
+      data: {
+        userId: input.userId,
+        characterId: input.characterId,
+        sourceChatId: input.sourceChatId,
+        sourceMessageId: input.sourceMessageId,
+        content,
+        category: input.category ?? MemoryCategory.OTHER,
+        metadata: input.metadata ?? Prisma.JsonNull,
+        importance: input.importance ?? 1,
+        confidence: input.confidence ?? 0.75,
+        status: input.status ?? MemoryStatus.ACTIVE
+      }
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003" && input.sourceMessageId) {
+      return null;
+    }
+    throw error;
+  }
 
   try {
-    await writeMemoryEmbedding(memory.id, content, input.providerKeys);
+    if (embedding) {
+      await prisma.$executeRaw`UPDATE "Memory" SET embedding = ${toVectorLiteral(embedding)}::vector WHERE id = ${memory.id}`;
+    } else {
+      await writeMemoryEmbedding(memory.id, content, input.providerKeys);
+    }
   } catch (error) {
     logSafeError("Memory embedding write failed.", error);
   }

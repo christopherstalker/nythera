@@ -6,6 +6,7 @@ import type { CharacterFormInitialValue } from "@/lib/character-form-types";
 type CharacterFormLoaderProps = {
   mode: "create" | "edit";
   initialValue?: CharacterFormInitialValue;
+  unlimitedCharacterFields?: boolean;
 };
 
 const CharacterForm = dynamic(
