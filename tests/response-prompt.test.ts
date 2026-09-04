@@ -63,7 +63,8 @@ test("chat persistence and prompt assembly send response instructions through th
   const input = await readFile(new URL("../src/components/chat/ChatInput.tsx", import.meta.url), "utf8");
 
   assert.match(schema, /responsePrompt\s+String\?\s+@db\.Text/);
-  assert.match(validation, /responsePrompt:\s*z\.string\(\)\.trim\(\)\.max\(2000\)/);
+  assert.match(validation, /responsePrompt:\s*z\.string\(\)\.trim\(\)\.max\(ELEVATED_RESPONSE_PROMPT_LENGTH\)/);
+  assert.match(streamRoute, /getChatInputLimits\(user\.id\)/);
   assert.match(assembly, /buildResponsePromptLayer\(customPrompt\)/);
   assert.match(streamRoute, /const responsePrompt = input\.responsePrompt \?\? chat\.responsePrompt/);
   assert.match(streamRoute, /responsePrompt,/);

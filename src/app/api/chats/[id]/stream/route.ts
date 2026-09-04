@@ -33,6 +33,7 @@ import { maxOutputTokensForVerbosity } from "@/lib/response-length";
 import { loadPromptImages, resolveOwnedChatAssets, serializeAsset } from "@/lib/chat-media";
 import { containsRussianLanguage, RUSSIAN_LANGUAGE_ERROR } from "@/lib/language-policy";
 import { createPhysicalContinuityOutputGuard } from "@/lib/physical-continuity";
+import { getChatInputLimits } from "@/lib/chat-limits.server";
 
 type Context = {
   params: Promise<{ id: string }>;
@@ -55,11 +56,18 @@ export async function POST(request: Request, context: Context) {
       route: "chat:stream"
     });
 
+    const inputLimits = getChatInputLimits(user.id);
     const input = await parseJson(request, streamMessageSchema);
+    if (input.message.length > inputLimits.message) {
+      throw new HttpError(400, `Message must be ${inputLimits.message.toLocaleString()} characters or fewer.`);
+    }
+    if ((input.responsePrompt?.length ?? 0) > inputLimits.responsePrompt) {
+      throw new HttpError(400, `Custom system prompt must be ${inputLimits.responsePrompt.toLocaleString()} characters or fewer.`);
+    }
     const continueChat = input.continueChat === true;
     const continuationPrompt =
       "Continue the roleplay naturally from the immediately preceding selected assistant response. Do not speak as the user, do not invent a user reply, and keep the scene moving in the character's voice.";
-    let message = continueChat ? continuationPrompt : sanitizeUserText(input.message);
+    let message = continueChat ? continuationPrompt : sanitizeUserText(input.message, inputLimits.message);
     let branchInstruction: string | null = null;
     let resolvedBranchMessageId: string | null = null;
 
@@ -143,7 +151,7 @@ export async function POST(request: Request, context: Context) {
         throw new HttpError(409, "That message already has a response. Refresh the chat to see it.");
       }
 
-      message = sanitizeUserText(retryTurn.currentMessage ?? "");
+      message = sanitizeUserText(retryTurn.currentMessage ?? "", inputLimits.message);
       recentMessages = retryTurn.recentMessages;
     } else if (input.regenerate) {
       const regenerationTurn = prepareRegenerationTurn(recentMessages, input.regenerateMessageId);
@@ -152,7 +160,7 @@ export async function POST(request: Request, context: Context) {
       }
 
       message = regenerationTurn.trigger === "user"
-        ? sanitizeUserText(regenerationTurn.currentMessage ?? "")
+        ? sanitizeUserText(regenerationTurn.currentMessage ?? "", inputLimits.message)
         : regenerationTurn.trigger === "continuation"
           ? continuationPrompt
           : "Write a fresh alternative opening message for this roleplay. Stay in character, establish the scene, and leave room for the user to respond.";

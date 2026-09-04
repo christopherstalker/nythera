@@ -7,6 +7,7 @@ import { ChatClient } from "@/components/chat/chat-client";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page";
 import type { ChatMessage } from "@/hooks/useChat";
+import type { ChatInputLimits } from "@/lib/chat-limits";
 
 type Chat = {
   id: string;
@@ -19,6 +20,7 @@ type Chat = {
   translationLanguage?: string | null;
   appearance?: unknown;
   activeAssistantMessageId?: string | null;
+  inputLimits?: ChatInputLimits;
   character: {
     id: string;
     name: string;
@@ -113,6 +115,7 @@ export default function ChatPage() {
       characterLorebook={chat.character.lorebook}
       initialMessages={chat.messages}
       initialActiveAssistantMessageId={chat.activeAssistantMessageId}
+      inputLimits={chat.inputLimits}
     />
   );
 }
