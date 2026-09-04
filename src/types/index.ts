@@ -10,6 +10,7 @@ export type CommunicationStyle = {
   initiative?: number;
   messageLength?: "short" | "medium" | "long";
   roleplayIntensity?: number;
+  prologuePov?: "second" | "third";
 };
 
 export type CharacterPersonaMember = {

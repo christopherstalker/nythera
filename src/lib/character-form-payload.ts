@@ -13,6 +13,7 @@ import {
 } from "@/lib/character-form-types";
 import type { PromptGeneratedCharacter } from "@/lib/character-prompt-generation";
 import { normalizeMessageLength } from "@/lib/response-length";
+import { normalizeProloguePov } from "@/lib/prologue-pov";
 
 const RELATIONSHIP_OPTIONS = ["friend", "romantic", "mentor", "rival", "antagonist"] as const;
 const INITIATIVE_OPTIONS = ["low", "medium", "high"] as const;
@@ -69,6 +70,7 @@ export function normalizeInitialCharacterValue(value?: CharacterFormInitialValue
     initiative: numberValue(style.initiative, emptyCharacterDraft.initiative),
     messageLength: normalizeMessageLength(style.messageLength ?? value.messageLength),
     roleplayIntensity: numberValue(style.roleplayIntensity, emptyCharacterDraft.roleplayIntensity),
+    prologuePov: normalizeProloguePov(style.prologuePov ?? value.prologuePov),
     preferredProvider: textValue(value.preferredProvider),
     preferredModel: textValue(value.preferredModel),
     temperature: nullableNumberValue(value.temperature),
@@ -182,7 +184,8 @@ export function buildCharacterCreatePayload({
     seriousness: clampNumber(merged.seriousness, 0, 10),
     initiative: clampNumber(merged.initiative, 0, 10),
     messageLength: merged.messageLength,
-    roleplayIntensity: clampNumber(merged.roleplayIntensity, 0, 10)
+    roleplayIntensity: clampNumber(merged.roleplayIntensity, 0, 10),
+    prologuePov: merged.prologuePov
   });
   const lorebook = parseLorebookText(merged.lorebookText, unlimitedCharacterFields);
   const visualIdentity = compactRecord({
@@ -257,7 +260,8 @@ export function applyPromptGenerationToDraft(draft: CharacterFormValue, generate
     seriousness: numberValue(style.seriousness, draft.seriousness),
     initiative: numberValue(style.initiative, draft.initiative),
     messageLength: normalizeMessageLength(style.messageLength, draft.messageLength),
-    roleplayIntensity: numberValue(style.roleplayIntensity, draft.roleplayIntensity)
+    roleplayIntensity: numberValue(style.roleplayIntensity, draft.roleplayIntensity),
+    prologuePov: normalizeProloguePov(style.prologuePov ?? draft.prologuePov)
   };
 }
 
@@ -313,6 +317,7 @@ export function applyCharacterCardJsonToDraft(draft: CharacterFormValue, value: 
     initiative: numberValue(style.initiative, draft.initiative),
     messageLength: normalizeMessageLength(style.messageLength, draft.messageLength),
     roleplayIntensity: numberValue(style.roleplayIntensity, draft.roleplayIntensity),
+    prologuePov: normalizeProloguePov(style.prologuePov ?? draft.prologuePov),
     lorebookText: notes.lorebook ? lorebookToText(notes.lorebook) : draft.lorebookText,
     visualAccentColor: hexColorValue(visual.accentColor, draft.visualAccentColor),
     visualGradientFrom: hexColorValue(visual.gradientFrom, draft.visualGradientFrom),

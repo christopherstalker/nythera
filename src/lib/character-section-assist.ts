@@ -6,6 +6,7 @@ import { generateSimpleCharacterDraft } from "@/lib/simple-character-generation"
 import type { ProviderKeys } from "@/lib/user-keys";
 import type { CustomSectionId } from "@/lib/character-form-types";
 import { CHARACTER_DYNAMIC_GENERATION_RULE } from "@/lib/adult-roleplay-policy";
+import { normalizeProloguePov, prologuePovInstruction } from "@/lib/prologue-pov";
 
 const assistSchema = z.object({
   personality: z.string().min(20).max(5000).optional(),
@@ -62,7 +63,7 @@ export async function assistCharacterSection(input: {
       messages: [
         {
           role: "system",
-          content: `You help users write AI roleplay characters for Nythera. ${sectionPrompts[input.section]} ${CHARACTER_DYNAMIC_GENERATION_RULE} Return ONLY valid JSON. No markdown.`
+          content: `You help users write AI roleplay characters for Nythera. ${sectionPrompts[input.section]} ${input.section === "greeting" ? prologuePovInstruction(input.context?.prologuePov) : ""} ${CHARACTER_DYNAMIC_GENERATION_RULE} Return ONLY valid JSON. No markdown.`
         },
         {
           role: "user",
@@ -126,7 +127,11 @@ function buildFallback(section: CustomSectionId, name: string, description: stri
       };
     case "greeting":
       return {
-        greeting: context?.greeting?.trim() || generated.greeting
+        greeting: context?.greeting?.trim() || (
+          normalizeProloguePov(context?.prologuePov) === "third"
+            ? `${name} looks up as {{user}} reaches the threshold, concern sharpening their expression. "You came," they say, and set aside what they were holding. The silence they leave afterward gives {{user}} room to answer.`
+            : generated.greeting
+        )
       };
     case "speaking":
       return {

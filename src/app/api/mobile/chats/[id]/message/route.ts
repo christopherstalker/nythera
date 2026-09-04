@@ -6,7 +6,7 @@ import { requireMobileUser } from "@/lib/mobile-auth";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { moderateText, sanitizeUserText } from "@/lib/safety";
 import { detectPromptInjection } from "@/lib/prompt-security";
-import { streamMessageSchema } from "@/lib/validation";
+import { mobileStreamMessageSchema } from "@/lib/validation";
 import { assembleNytheraPrompt } from "@/lib/prompt-assembly";
 import { resolveCharacterPersona } from "@/lib/persona";
 import { providerOutputTokenBudget, resolveChatOutputTokenLimit } from "@/lib/response-length";
@@ -25,8 +25,9 @@ import { estimateModelCost } from "@/lib/model-pricing";
 import { logSafeError } from "@/lib/secret-redaction";
 import { getStoryPromptContext, syncChatTurns } from "@/lib/stories/story-foundation";
 import { markStoryBeatsCompleted, markStoryProactiveEventsFired } from "@/lib/stories/narrative-store";
-import { buildFullPromptAddon } from "@/lib/prompts/buildPrompt";
-import { formatTieredMemoryBlocks, getUserMemories, splitMemoriesForPrompt } from "@/lib/memory/promptBuilder";
+import { buildPromptAddonLayers } from "@/lib/prompts/buildPrompt";
+import { selectCustomPrompt } from "@/lib/response-prompt";
+import { buildPhysicalMemoryContext, formatTieredMemoryBlocks, getUserMemories, splitMemoriesForPrompt } from "@/lib/memory/promptBuilder";
 import { normalizeChatMode } from "@/lib/chat-mode";
 import { requireAdultConsent } from "@/lib/adult-consent";
 import { schedulePostResponseTasks } from "@/lib/post-response";
@@ -34,6 +35,8 @@ import { containsRussianLanguage, RUSSIAN_LANGUAGE_ERROR } from "@/lib/language-
 import { buildSkipTimePrompt, resolveChatActionMessage, type SkipTimeDuration } from "@/lib/chat-actions";
 import { continuationClientRequestId, skipTimeClientRequestId } from "@/lib/message-actions";
 import { fitPromptMessagesWithinContext } from "@/lib/prompt-budget";
+import { createPhysicalContinuityOutputGuard } from "@/lib/physical-continuity";
+import { getChatInputLimits } from "@/lib/chat-limits.server";
 
 type Context = {
   params: Promise<{ id: string }>;
@@ -55,7 +58,14 @@ export async function POST(request: Request, context: Context) {
       route: "mobile:chat:message"
     });
 
-    const input = await parseJson(request, streamMessageSchema);
+    const inputLimits = getChatInputLimits(user.id);
+    const input = await parseJson(request, mobileStreamMessageSchema);
+    if (input.message.length > inputLimits.message) {
+      throw new HttpError(400, `Message must be ${inputLimits.message.toLocaleString()} characters or fewer.`);
+    }
+    if ((input.responsePrompt?.length ?? 0) > inputLimits.responsePrompt) {
+      throw new HttpError(400, `Custom system prompt must be ${inputLimits.responsePrompt.toLocaleString()} characters or fewer.`);
+    }
     const continueChat = input.continueChat === true;
     const skipTime = input.skipTime === true;
     const skipTimeDuration: SkipTimeDuration | null = input.skipTimeValue && input.skipTimeUnit
@@ -65,7 +75,7 @@ export async function POST(request: Request, context: Context) {
     const continuationPrompt =
       "Continue the roleplay naturally from the immediately preceding selected assistant response. Do not speak as the user, do not invent a user reply, and keep the scene moving in the character's voice.";
     const actionMessage = resolveChatActionMessage(
-      skipTime ? buildSkipTimePrompt(skipTimeDuration) : continueChat ? continuationPrompt : sanitizeUserText(input.message)
+      skipTime ? buildSkipTimePrompt(skipTimeDuration) : continueChat ? continuationPrompt : sanitizeUserText(input.message, inputLimits.message)
     );
     const message = actionMessage.promptContent;
     if (containsRussianLanguage(message)) {
@@ -91,6 +101,7 @@ export async function POST(request: Request, context: Context) {
       include: {
         character: true,
         persona: true,
+        temporaryPersona: true
       }
     });
 
@@ -174,10 +185,11 @@ export async function POST(request: Request, context: Context) {
       }),
       getStoryPromptContext({ chatId: chat.id, userId: user.id, actorCharacterId: chat.characterId })
     ]);
-    const userPersona = chat.persona ?? defaultUserPersona;
+    const userPersona = chat.temporaryPersona ?? chat.persona ?? defaultUserPersona;
     const chatMode = normalizeChatMode(chat.chatMode);
     const { characterMemories, userMemories } = formatTieredMemoryBlocks(splitMemoriesForPrompt(memories, userGlobalMemories));
-    const modeContext = buildFullPromptAddon({
+    const responsePrompt = input.responsePrompt ?? chat.responsePrompt;
+    const promptAddon = buildPromptAddonLayers({
       mode: chatMode,
       characterMemories,
       userMemories
@@ -188,6 +200,9 @@ export async function POST(request: Request, context: Context) {
       chat.character.name,
       formattedUserPersona
     ));
+    const customPromptActive = Boolean(selectCustomPrompt(responsePrompt, effectiveSettings.systemPromptOverride));
+    const userPersonaPrompt = formatUserPersonaForPrompt(userPersona);
+    const physicalContext = buildPhysicalMemoryContext(chat.summary, [...memories, ...userGlobalMemories]);
 
     const assembledPrompt = assembleNytheraPrompt({
       character: chat.character,
@@ -197,17 +212,27 @@ export async function POST(request: Request, context: Context) {
       summary: history.overflowed ? conversationSummary : null,
       recentMessages,
       currentMessage: message,
-      responsePrompt: chat.responsePrompt,
+      responsePrompt,
       storyContext: storyContext.text,
+      factualStoryContext: storyContext.factualText,
       injectionAssessment,
-      modeContext,
-      memoryLimit: 10
+      modeContext: promptAddon.modeStyle,
+      sessionMemoryContext: promptAddon.sessionMemory,
+      physicalContext,
+      translationLanguage: chat.translationLanguage
     });
     const promptFit = fitPromptMessagesWithinContext(assembledPrompt, { model, maxOutputTokens: providerMaxOutputTokens });
     if (promptFit.fixedPromptTooLarge) {
       throw new HttpError(400, "System instructions exceed this model's context window. Choose a model with a larger context window or shorten the character system prompt.");
     }
     const prompt = promptFit.messages;
+    const physicalOutputGuard = createPhysicalContinuityOutputGuard(
+      chat.character,
+      formatUserPersonaContinuitySource(userPersona) ?? userPersonaPrompt,
+      { recentMessages, currentMessage: message, persistentPlayerContext: physicalContext },
+      { enabled: !customPromptActive }
+    );
+
     const encoder = new TextEncoder();
     let assistantText = "";
     let outputBlocked = false;
@@ -245,6 +270,27 @@ export async function POST(request: Request, context: Context) {
             clientConnected = false;
           }
         };
+        const appendAssistantDelta = (text: string) => {
+          if (!text) return true;
+          const nextText = assistantText + text;
+          const check = moderateText({
+            text: nextText,
+            userIsMinor: isMinor(user.birthDate),
+            context: "assistant"
+          });
+
+          if (!check.allowed) {
+            outputBlocked = true;
+            const replacement = check.reason ?? "The response was stopped because it did not pass the platform safety policy.";
+            assistantText = replacement;
+            send({ type: "delta", text: replacement });
+            return false;
+          }
+
+          assistantText = nextText;
+          send({ type: "delta", text });
+          return true;
+        };
 
         try {
           if (userMessage) {
@@ -258,31 +304,15 @@ export async function POST(request: Request, context: Context) {
             topP: effectiveSettings.topP,
             frequencyPenalty: effectiveSettings.frequencyPenalty,
             presencePenalty: effectiveSettings.presencePenalty,
-            maxTokens: providerMaxOutputTokens,
+            maxTokens: maxOutputTokens,
             userId: user.id,
             chatId: chat.id,
             providerKeys,
             signal: request.signal
           })) {
             if (chunk.type === "delta") {
-              const nextText = assistantText + chunk.text;
-              const check = moderateText({
-                text: nextText,
-                userIsMinor: isMinor(user.birthDate),
-                context: "assistant"
-              });
-
-              if (!check.allowed) {
-                outputBlocked = true;
-                const replacement =
-                  check.reason ?? "The response was stopped because it did not pass the platform safety policy.";
-                assistantText = replacement;
-                send({ type: "delta", text: replacement });
-                break;
-              }
-
-              assistantText = nextText;
-              send(chunk);
+              const guardedDelta = physicalOutputGuard.push(chunk.text);
+              if (guardedDelta && !appendAssistantDelta(guardedDelta)) break;
             }
 
             if (chunk.type === "usage") {
@@ -296,6 +326,7 @@ export async function POST(request: Request, context: Context) {
               throw new Error(chunk.message);
             }
           }
+          if (!outputBlocked) appendAssistantDelta(physicalOutputGuard.flush());
 
           if (!assistantText.trim()) {
             throw new Error("The model returned an empty response.");
@@ -338,6 +369,8 @@ export async function POST(request: Request, context: Context) {
               messageCount: actualMessageCount,
               model,
               temperature,
+              responsePrompt: input.responsePrompt === undefined ? undefined : input.responsePrompt || null,
+              temporaryPersonaId: chat.temporaryPersonaId ? null : undefined,
               lastActiveAt: new Date(),
               updatedAt: new Date()
             },
@@ -401,6 +434,7 @@ export async function POST(request: Request, context: Context) {
           send({ type: "message", message: assistantMessage });
           send({ type: "done" });
         } catch (error) {
+          if (!outputBlocked) appendAssistantDelta(physicalOutputGuard.flush());
           logSafeError("Mobile chat stream failed.", error);
           const errorMessage = error instanceof Error ? error.message : "The model stream failed.";
           const estimatedCost = estimateModelCost({
@@ -443,6 +477,7 @@ export async function POST(request: Request, context: Context) {
               messageCount: actualMessageCount,
               model,
               temperature,
+              temporaryPersonaId: assistantPersisted && chat.temporaryPersonaId ? null : undefined,
               lastActiveAt: new Date(),
               updatedAt: new Date()
             }

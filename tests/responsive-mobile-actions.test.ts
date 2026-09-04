@@ -81,3 +81,19 @@ test("phones stay portrait while tablets and larger devices keep their natural o
   assert.doesNotMatch(layout, /LivingCodexIntro|living-codex-intro/);
   assert.doesNotMatch(styles, /\.living-codex-intro|@keyframes living-codex-copy/);
 });
+
+test("character creation stays usable above the mobile dock without horizontal overflow", async () => {
+  const [form, editor, styles] = await Promise.all([
+    read("../src/components/characters/character-form.tsx"),
+    read("../src/components/rich-text/formatted-textarea.tsx"),
+    read("../src/app/globals.css")
+  ]);
+
+  assert.match(form, /className="codex-studio-primary-action" type="submit" size="lg" disabled=\{saving\}/);
+  assert.match(form, /className="block min-w-0"/);
+  assert.match(editor, /w-full min-w-0 max-w-full overflow-hidden/);
+  assert.match(styles, /\.codex-dossier-portrait\s*\{\s*display: none;/);
+  assert.match(styles, /\.codex-mode-index button\s*\{[\s\S]*?min-width: 0;/);
+  assert.match(styles, /\.codex-studio-actions\s*\{[\s\S]*?bottom: var\(--bottom-nav-offset\);/);
+  assert.match(styles, /\.codex-studio-primary-wrap\s*\{[\s\S]*?width: 100%;/);
+});

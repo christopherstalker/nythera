@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Globe,
@@ -103,10 +103,12 @@ const guidedChapters: Array<{ id: StudioChapterId; number: string; label: string
 
 export function CharacterForm({ mode, initialValue, unlimitedCharacterFields = false }: CharacterFormProps) {
   const router = useRouter();
+  const formErrorRef = useRef<HTMLParagraphElement>(null);
   const [draft, setDraft] = useState<CharacterFormValue>(() => normalizeInitialCharacterValue(initialValue));
   const [error, setError] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [identityError, setIdentityError] = useState<{ fieldId: IdentityFieldId; message: string } | null>(null);
+  const [errorFieldId, setErrorFieldId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [generatingPreview, setGeneratingPreview] = useState(false);
   const [assistingSection, setAssistingSection] = useState<CustomSectionId | null>(null);
@@ -194,8 +196,8 @@ export function CharacterForm({ mode, initialValue, unlimitedCharacterFields = f
     [lorebookPreviewText, parsedLorebook]
   );
 
-  const canSubmit = !isPromptMode && draft.name.trim().length >= 2 && draft.description.trim().length >= 10;
-  const canGeneratePreview = !isPromptMode && draft.name.trim().length >= 2 && draft.description.trim().length >= 10;
+  const hasCoreIdentity = draft.name.trim().length >= 2 && draft.description.trim().length >= 10;
+  const canGeneratePreview = !isPromptMode && hasCoreIdentity;
 
   function update<K extends keyof CharacterFormValue>(field: K, value: CharacterFormValue[K]) {
     setDraft((current) => ({ ...current, [field]: value }));
@@ -205,6 +207,8 @@ export function CharacterForm({ mode, initialValue, unlimitedCharacterFields = f
     if (field === "name" || field === "description") {
       setIdentityError(null);
     }
+    setError(null);
+    setErrorFieldId(null);
     if (formMode === "simple" && field !== "greeting" && field !== "avatarUrl" && field !== "tags") {
       setGeneratedPreview(null);
     }
@@ -262,6 +266,17 @@ export function CharacterForm({ mode, initialValue, unlimitedCharacterFields = f
     requestAnimationFrame(() => {
       const field = document.getElementById(fieldId);
       field?.scrollIntoView({ behavior: "smooth", block: "center" });
+      field?.focus({ preventScroll: true });
+    });
+  }
+
+  function revealFormError(message: string, chapter: StudioChapterId = activeChapter, fieldId?: string) {
+    setError(message);
+    setErrorFieldId(fieldId ?? null);
+    setActiveChapter(chapter);
+    requestAnimationFrame(() => {
+      const field = fieldId ? document.getElementById(fieldId) : null;
+      (field ?? formErrorRef.current)?.scrollIntoView({ behavior: "smooth", block: "center" });
       field?.focus({ preventScroll: true });
     });
   }
@@ -453,7 +468,8 @@ export function CharacterForm({ mode, initialValue, unlimitedCharacterFields = f
         body: JSON.stringify({
           name: draft.name.trim(),
           description: draft.description.trim(),
-          greeting: draft.greeting.trim() || undefined
+          greeting: draft.greeting.trim() || undefined,
+          prologuePov: draft.prologuePov
         })
       });
 
@@ -494,7 +510,7 @@ export function CharacterForm({ mode, initialValue, unlimitedCharacterFields = f
   }
 
   async function assistSection(section: CustomSectionId) {
-    if (!canSubmit) {
+    if (!hasCoreIdentity) {
       setError("Add a name and short description before using AI Assist.");
       return;
     }
@@ -557,6 +573,7 @@ export function CharacterForm({ mode, initialValue, unlimitedCharacterFields = f
       return;
     }
 
+
     const preview = generatedPreview;
 
     if (!isSimpleMode && draft.visibility === "PUBLIC" && !draft.avatarUrl.trim()) {
@@ -574,7 +591,7 @@ export function CharacterForm({ mode, initialValue, unlimitedCharacterFields = f
 
     const validation = validateCharacterCreatePayload(payload, unlimitedCharacterFields);
     if (!validation.success) {
-      setError(firstValidationIssue(validation) ?? "Invalid request body.");
+      revealFormError(firstValidationIssue(validation) ?? "Review the character fields and try again.");
       return;
     }
 
@@ -595,26 +612,25 @@ export function CharacterForm({ mode, initialValue, unlimitedCharacterFields = f
       const body = await response.json().catch(() => null);
       if (!response.ok) {
         const issueMessage = firstIssueMessage(body?.issues);
-        setError(issueMessage ? `${body?.error ?? "Could not save character."} ${issueMessage}` : body?.error ?? "Could not save character.");
+        revealFormError(issueMessage ? `${body?.error ?? "Could not save character."} ${issueMessage}` : body?.error ?? "Could not save character.");
         return;
       }
 
       if (typeof body?.character?.id !== "string") {
-        setError("The character was saved, but the server returned an invalid response. Refresh your library before trying again.");
+        revealFormError("The character was saved, but the server returned an invalid response. Refresh your library before trying again.");
         return;
       }
 
       window.dispatchEvent(new CustomEvent("nythera:characters-updated", { detail: { characterId: body.character.id } }));
       router.push(`/character/${body.character.id}`);
     } catch {
-      setError("Could not reach the server. Check your connection and try again.");
+      revealFormError("Could not reach the server. Check your connection and try again.");
     } finally {
       setSaving(false);
     }
   }
 
-  const visibleChapters = (isSimpleMode ? guidedChapters : studioChapters)
-    .filter((chapter) => mode === "edit" || chapter.id !== "publishing");
+  const visibleChapters = isSimpleMode ? guidedChapters : studioChapters;
   const currentChapterIndex = Math.max(0, visibleChapters.findIndex((chapter) => chapter.id === activeChapter));
   const completedCoreFields = [draft.name, draft.description, draft.greeting, draft.personality, draft.scenario, draft.avatarUrl].filter((value) => value.trim()).length;
   const completion = Math.round((completedCoreFields / 6) * 100);
@@ -667,6 +683,8 @@ export function CharacterForm({ mode, initialValue, unlimitedCharacterFields = f
           ) : null}
         </header>
 
+        {error && !errorFieldId ? <p ref={formErrorRef} className="codex-error-note" role="alert" aria-live="assertive" tabIndex={-1}>{error}</p> : null}
+
         {mode === "create" ? (
           <CharacterFileImportPanel
             targetMode={importTargetMode}
@@ -708,6 +726,7 @@ export function CharacterForm({ mode, initialValue, unlimitedCharacterFields = f
               <Button type="button" variant="outline" onClick={generatePreview} disabled={!canGeneratePreview || generatingPreview}><Sparkles className="h-4 w-4" />{generatingPreview ? "Drafting..." : "Draft empty fields"}</Button>
             </StudioChapter>
             <StudioChapter id="scene" number="03" title="First scene" description="Write the threshold where the relationship begins." active={activeChapter === "scene"} onSelect={() => selectChapter("scene")} onAssist={() => assistSection("greeting")} assisting={assistingSection === "greeting"}>
+              <ProloguePovControl value={draft.prologuePov} onChange={(value) => update("prologuePov", value)} />
               <Field label="Greeting / first message" hint="This becomes the first page of every new conversation."><FormattedTextarea value={draft.greeting} onChange={(value) => update("greeting", value)} placeholder="Set the scene, place the character in motion, and leave the user room to answer." className="min-h-52" /></Field>
             </StudioChapter>
           </div>
@@ -734,6 +753,7 @@ export function CharacterForm({ mode, initialValue, unlimitedCharacterFields = f
 
             <StudioChapter id="scene" number="03" title="Scene & first message" description="The world state and first beat that begin the story." active={activeChapter === "scene"} onSelect={() => selectChapter("scene")} onAssist={() => assistSection("scenario")} assisting={assistingSection === "scenario"}>
               <Field label="Scenario / world"><Textarea value={draft.scenario} onChange={(event) => update("scenario", event.target.value)} placeholder="Where the scene starts and what must remain true." className="min-h-44" /></Field>
+              <ProloguePovControl value={draft.prologuePov} onChange={(value) => update("prologuePov", value)} />
               <Field label="Greeting / first message" hint="Write it as the opening paragraph of a scene, not an instruction."><FormattedTextarea value={draft.greeting} onChange={(value) => update("greeting", value)} placeholder="The first message your character sends." className="min-h-52" /></Field>
             </StudioChapter>
 
@@ -769,7 +789,7 @@ export function CharacterForm({ mode, initialValue, unlimitedCharacterFields = f
               <div className="codex-color-proof" style={{ borderColor: draft.visualAccentColor }}><span style={{ background: draft.visualGradientFrom }} /><p>{draft.visualChatBackground.trim() || "The environmental cue will guide the chat surface."}</p></div>
             </StudioChapter>
 
-            {mode === "edit" ? <StudioChapter id="publishing" number="06" title="Behavior & publishing" description="Model direction, boundaries, intensity, and who may discover the character." active={activeChapter === "publishing"} onSelect={() => selectChapter("publishing")} onAssist={() => assistSection("advanced")} assisting={assistingSection === "advanced"}>
+            <StudioChapter id="publishing" number="06" title="Behavior & publishing" description="Model direction, boundaries, intensity, and who may discover the character." active={activeChapter === "publishing"} onSelect={() => selectChapter("publishing")} onAssist={() => assistSection("advanced")} assisting={assistingSection === "advanced"}>
               <div className="codex-subleaf"><p className="codex-kicker">Model direction</p><div className="mt-6 grid gap-6 sm:grid-cols-2"><Field label="Default experience"><select value={draft.defaultChatMode} onChange={(event) => update("defaultChatMode", event.target.value === "fantasy" ? "fantasy" : "realism")} className="focus-ring glass-input h-12 w-full px-4 text-sm text-[var(--text-primary)]"><option value="realism">Realism — natural and grounded</option><option value="fantasy">Fantasy — vivid and immersive</option></select></Field><Field label="Provider override"><select value={draft.preferredProvider} onChange={(event) => { const provider = event.target.value; const option = providerOptions.find((item) => item.provider === provider); setDraft((current) => ({ ...current, preferredProvider: provider, preferredModel: provider && !current.preferredModel ? option?.defaultModel ?? "" : current.preferredModel })); }} className="focus-ring glass-input h-12 w-full px-4 text-sm text-[var(--text-primary)]"><option value="">Use global default</option>{providerOptions.map((provider) => <option key={provider.provider} value={provider.provider}>{provider.displayName}</option>)}</select></Field><Field label="Model override"><Input value={draft.preferredModel} onChange={(event) => update("preferredModel", event.target.value)} /></Field><OptionalNumberInput label="Temperature" value={draft.temperature} min={0} max={2} step={0.1} onChange={(value) => update("temperature", value)} /><OptionalNumberInput label="Top P" value={draft.topP} min={0} max={1} step={0.05} onChange={(value) => update("topP", value)} /><OptionalNumberInput label="Frequency penalty" value={draft.frequencyPenalty} min={-2} max={2} step={0.1} onChange={(value) => update("frequencyPenalty", value)} /><OptionalNumberInput label="Presence penalty" value={draft.presencePenalty} min={-2} max={2} step={0.1} onChange={(value) => update("presencePenalty", value)} /><OptionalNumberInput label="Max tokens" value={draft.maxTokens} min={1} max={4096} step={1} onChange={(value) => update("maxTokens", value)} /></div><Field label="System prompt override" hint={`Creator instructions below platform safety and above the persona · ${draft.systemPromptOverride.length.toLocaleString()}${unlimitedCharacterFields ? " characters · no account limit" : ` / ${MAX_CHARACTER_SYSTEM_PROMPT_CHARACTERS.toLocaleString()} characters`} · ~${estimatePromptTokens(draft.systemPromptOverride).toLocaleString()} tokens`}><Textarea value={draft.systemPromptOverride} onChange={(event) => update("systemPromptOverride", event.target.value)} maxLength={unlimitedCharacterFields ? undefined : MAX_CHARACTER_SYSTEM_PROMPT_CHARACTERS} className="min-h-36" /></Field></div>
               <Field label="Boundaries"><Textarea value={draft.boundaries} onChange={(event) => update("boundaries", event.target.value)} /></Field>
               <Field label="Behavioral rules"><Textarea value={draft.behavioralRules} onChange={(event) => update("behavioralRules", event.target.value)} /></Field>
@@ -782,7 +802,7 @@ export function CharacterForm({ mode, initialValue, unlimitedCharacterFields = f
               <div className="codex-visibility-index"><VisibilityButton icon={Lock} label="Private" selected={draft.visibility === "PRIVATE"} onClick={() => update("visibility", "PRIVATE")} /><VisibilityButton icon={Globe} label="Unlisted" selected={draft.visibility === "UNLISTED"} onClick={() => update("visibility", "UNLISTED")} /><VisibilityButton icon={Globe} label="Public" selected={draft.visibility === "PUBLIC"} onClick={() => update("visibility", "PUBLIC")} /></div>
               <label className="codex-check-row"><input type="checkbox" checked={draft.isNSFW} onChange={(event) => update("isNSFW", event.target.checked)} />Mark as age-gated / NSFW</label>
               <div className="codex-subleaf"><p className="codex-kicker">Character Card V2</p><p className="mt-2 text-sm text-[var(--text-muted)]">Import or export this dossier as interoperable JSON.</p><div className="mt-4 flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={exportCharacterCard}><Download className="h-4 w-4" />Export Card V2</Button><Button type="button" variant="outline" onClick={importCharacterCard}><FileJson className="h-4 w-4" />Import JSON</Button></div><Textarea value={draft.characterCardJson} onChange={(event) => update("characterCardJson", event.target.value)} className="mt-4 min-h-36 font-mono text-xs" /></div>
-            </StudioChapter> : null}
+            </StudioChapter>
           </div>
         )}
 
@@ -796,7 +816,14 @@ export function CharacterForm({ mode, initialValue, unlimitedCharacterFields = f
             {!isPromptMode && currentChapterIndex > 0 ? <Button type="button" variant="ghost" onClick={() => selectChapter(visibleChapters[currentChapterIndex - 1].id)}>Previous</Button> : null}
             {!isPromptMode && currentChapterIndex < visibleChapters.length - 1 ? <Button type="button" variant="outline" onClick={() => selectChapter(visibleChapters[currentChapterIndex + 1].id)}>Next chapter</Button> : null}
           </div>
-          <Button className="codex-studio-primary-action" type="submit" size="lg" disabled={saving} aria-describedby={error ? "character-form-error" : undefined}><Save className="h-4 w-4" />{saving ? "Binding..." : mode === "edit" ? "Save revision" : "Create character"}</Button>
+          {isPromptMode ? (
+            <p className="text-xs leading-5 text-[var(--text-muted)]">Generate and apply the draft above before creating the character.</p>
+          ) : (
+            <div className="codex-studio-primary-wrap">
+              {!hasCoreIdentity ? <p className="text-[11px] leading-4 text-[var(--text-muted)]">Add a name and core idea. Clicking create will take you to anything missing.</p> : null}
+              <Button className="codex-studio-primary-action" type="submit" size="lg" disabled={saving}><Save className="h-4 w-4" />{saving ? "Binding..." : mode === "edit" ? "Save revision" : "Create character"}</Button>
+            </div>
+          )}
         </footer>
       </form>
     </div>
@@ -943,7 +970,8 @@ function buildAssistContext(draft: CharacterFormValue) {
     forbiddenBehaviors: draft.forbiddenBehaviors,
     tone: draft.tone,
     lorebookText: draft.lorebookText,
-    visualChatBackground: draft.visualChatBackground
+    visualChatBackground: draft.visualChatBackground,
+    prologuePov: draft.prologuePov
   };
 }
 
@@ -1003,13 +1031,13 @@ function AvatarUpload({
         <div
           className={cn(
             "focus-ring flex cursor-pointer flex-col items-center justify-center rounded-[var(--radius-lg)] border border-dashed border-[var(--border-default)] bg-[var(--bg-input)] p-5 text-center transition hover:border-[var(--accent-purple)] hover:bg-white/[0.045]",
-            large ? "min-h-[156px] sm:min-h-[210px]" : "min-h-28"
+            large ? "min-h-[132px] sm:min-h-[210px]" : "min-h-28"
           )}
         >
           <span
             className={cn(
               "grid place-items-center overflow-hidden rounded-full border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--accent-purple)]",
-              large ? "h-24 w-24 sm:h-32 sm:w-32" : "h-20 w-20"
+              large ? "h-20 w-20 sm:h-32 sm:w-32" : "h-20 w-20"
             )}
           >
             {value ? <img src={value} alt="" className="h-full w-full object-cover" /> : large ? <Upload className="h-8 w-8" /> : <ImagePlus className="h-5 w-5" />}
@@ -1135,6 +1163,27 @@ function BehaviorControls({
         ))}
       </div>
     </div>
+  );
+}
+
+function ProloguePovControl({
+  value,
+  onChange
+}: {
+  value: CharacterFormValue["prologuePov"];
+  onChange: (value: CharacterFormValue["prologuePov"]) => void;
+}) {
+  return (
+    <Field label="Prologue point of view" hint="Controls narration in AI-generated first messages.">
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value === "third" ? "third" : "second")}
+        className="focus-ring glass-input h-12 w-full px-4 text-sm text-[var(--text-primary)]"
+      >
+        <option value="second">Second person — narrates to you</option>
+        <option value="third">Third person — describes your persona</option>
+      </select>
+    </Field>
   );
 }
 

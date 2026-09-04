@@ -1,13 +1,14 @@
 import "server-only";
 
-import { createHash } from "crypto";
+import { providerCircuitKey } from "@/lib/provider-recovery";
 import { redis } from "@/lib/redis";
 import type { ProviderErrorCode } from "@/lib/llm-provider-errors";
 
 type CircuitIdentity = {
   provider: string;
   keyId?: string;
-  keySlot?: number;
+  model: string;
+  credential: string;
 };
 
 type MemoryCircuit = {
@@ -19,10 +20,6 @@ type MemoryCircuit = {
 const FAILURE_WINDOW_SECONDS = 120;
 const FAILURE_THRESHOLD = 3;
 const memoryCircuits = new Map<string, MemoryCircuit>();
-
-export async function isProviderCircuitOpen(identity: CircuitIdentity) {
-  return (await readProviderCircuitStates([identity]))[0] ?? false;
-}
 
 export async function readProviderCircuitStates(identities: CircuitIdentity[]) {
   if (identities.length === 0) return [];
@@ -45,10 +42,7 @@ export async function readProviderCircuitStates(identities: CircuitIdentity[]) {
 
 function isMemoryCircuitOpen(circuitKey: string) {
   const state = memoryCircuits.get(circuitKey);
-  if (!state || state.openUntil <= Date.now()) {
-    return false;
-  }
-  return true;
+  return Boolean(state && state.openUntil > Date.now());
 }
 
 export async function recordProviderSuccess(identity: CircuitIdentity) {
@@ -80,9 +74,7 @@ export async function recordProviderFailure(identity: CircuitIdentity, code: Pro
 
       const counterKey = failuresKey(circuitKey);
       const failures = await redis.incr(counterKey);
-      if (failures === 1) {
-        await redis.expire(counterKey, FAILURE_WINDOW_SECONDS);
-      }
+      if (failures === 1) await redis.expire(counterKey, FAILURE_WINDOW_SECONDS);
       if (failures >= FAILURE_THRESHOLD) {
         await openDistributedCircuit(circuitKey, now + policy.cooldownSeconds * 1000, policy.cooldownSeconds);
       }
@@ -124,16 +116,15 @@ async function openDistributedCircuit(circuitKey: string, openUntil: number, coo
 }
 
 function keyFor(identity: CircuitIdentity) {
-  const raw = `${identity.provider.trim().toLowerCase()}:${identity.keyId ?? `slot-${identity.keySlot ?? 0}`}`;
-  return createHash("sha256").update(raw).digest("hex").slice(0, 24);
+  return providerCircuitKey(identity);
 }
 
 function openKey(circuitKey: string) {
-  return `guardian:circuit:v1:${circuitKey}:open`;
+  return `gateway:circuit:v2:${circuitKey}:open`;
 }
 
 function failuresKey(circuitKey: string) {
-  return `guardian:circuit:v1:${circuitKey}:failures`;
+  return `gateway:circuit:v2:${circuitKey}:failures`;
 }
 
 function logCircuitStoreFailure(operation: string, error: unknown) {

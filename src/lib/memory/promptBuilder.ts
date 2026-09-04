@@ -58,6 +58,17 @@ export function formatTieredMemoryBlocks(view: TieredMemoryView) {
   return { characterMemories, userMemories };
 }
 
+export function buildPhysicalMemoryContext(
+  summary: string | null | undefined,
+  memories: Array<{ content: string; category: string }>
+) {
+  const physicalFactMemories = memories
+    .filter((memory) => USER_GLOBAL_CATEGORIES.includes(memory.category as MemoryCategory))
+    .map((memory) => `Fact: ${memory.content}`);
+  const context = [summary?.trim(), ...physicalFactMemories].filter(Boolean).join("\n");
+  return context || null;
+}
+
 function memoryLabel(memory: TieredMemoryView["user"][number]) {
   const metadata = memory.metadata && typeof memory.metadata === "object" && !Array.isArray(memory.metadata)
     ? memory.metadata as Record<string, unknown>

@@ -9,6 +9,7 @@ import { requireAdultConsent } from "@/lib/adult-consent";
 import { prepareContinuationTurn } from "@/lib/message-actions";
 import { messageAttachmentsSelect, serializeChatAttachment } from "@/lib/chat-media";
 import { renderInitialChatGreeting } from "@/lib/character-prompt-contract";
+import { getChatInputLimits } from "@/lib/chat-limits.server";
 
 type Context = {
   params: Promise<{ id: string }>;
@@ -108,7 +109,7 @@ export async function GET(request: Request, context: Context) {
       attachments: message.attachments.map(serializeChatAttachment)
     }));
     const { persona: _persona, ...serializedChat } = chat;
-    return json({ chat: { ...serializedChat, messages, chapterNumber } }, { headers: { "Cache-Control": "private, no-store" } });
+    return json({ chat: { ...serializedChat, messages, chapterNumber, inputLimits: getChatInputLimits(user.id) } }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return routeError(error);
   }
@@ -118,6 +119,10 @@ export async function PATCH(request: Request, context: Context) {
   try {
     const user = await requireUser();
     const input = await parseJson(request, chatUpdateSchema);
+    const inputLimits = getChatInputLimits(user.id);
+    if ((input.responsePrompt?.length ?? 0) > inputLimits.responsePrompt) {
+      throw new HttpError(400, `Custom system prompt must be ${inputLimits.responsePrompt.toLocaleString()} characters or fewer.`);
+    }
     const chat = await prisma.chat.findFirst({
       where: {
         id: (await context.params).id,

@@ -16,17 +16,19 @@ test("consenting-adult explicit content is allowed while minor and non-consensua
 });
 
 test("prompts support in-character adult romance without weakening hard safety boundaries", async () => {
-  const [externalPrompt, fantasyPrompt, assembly] = await Promise.all([
+  const [externalPrompt, adultPolicy, fantasyPrompt, assembly] = await Promise.all([
     read("../src/lib/prompts/externalSystemPrompt.ts"),
+    read("../src/lib/adult-roleplay-policy.ts"),
     read("../src/lib/prompts/modes/fantasyMode.ts"),
     read("../src/lib/prompt-assembly.ts")
   ]);
 
-  assert.match(externalPrompt, /ADULT INTIMACY/);
-  assert.match(externalPrompt, /consenting adults/i);
-  assert.match(externalPrompt, /explicit sexual content/i);
-  assert.match(externalPrompt, /Do not censor, soften, or fade to black/i);
-  assert.match(externalPrompt, /Never sexualize minors/i);
+  assert.doesNotMatch(externalPrompt, /ADULT INTIMACY|explicit sexual content|Do not censor/i);
+  assert.match(adultPolicy, /ADULT CONTENT AND POWER DYNAMICS/);
+  assert.match(adultPolicy, /Consensual adult sexual content/i);
+  assert.match(adultPolicy, /sexual content may be explicit/i);
+  assert.match(adultPolicy, /Do not refuse, censor, sanitize, moralize, soften, or fade to black/i);
+  assert.match(adultPolicy, /Never sexualize minors/i);
   assert.match(fantasyPrompt, /consensual-adult intimacy/i);
   assert.match(assembly, /romantic, sexual, or explicit/i);
 });

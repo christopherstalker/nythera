@@ -4,6 +4,7 @@ import { z } from "zod";
 import { streamGatewayResponse } from "@/lib/llm-gateway";
 import { generateSimpleCharacterDraft } from "@/lib/simple-character-generation";
 import type { ProviderKeys } from "@/lib/user-keys";
+import { normalizeProloguePov, prologuePovInstruction, type ProloguePov } from "@/lib/prologue-pov";
 
 const generatedSchema = z.object({
   personality: z.string().min(20).max(5000),
@@ -25,6 +26,7 @@ export async function generateCharacterFromDescription(input: {
   name: string;
   description: string;
   greeting?: string;
+  prologuePov?: ProloguePov;
   userId: string;
   providerKeys?: ProviderKeys;
 }) {
@@ -33,7 +35,7 @@ export async function generateCharacterFromDescription(input: {
   try {
     const keys = input.providerKeys ?? [];
     if (keys.length === 0) {
-      return toPayload(fallback, input.name);
+      return toPayload(fallback, input.name, normalizeProloguePov(input.prologuePov));
     }
 
     let raw = "";
@@ -42,7 +44,7 @@ export async function generateCharacterFromDescription(input: {
         {
           role: "system",
           content:
-            "You generate immersive AI roleplay characters for Nythera. The supplied character name is the canonical actor in every field: never silently replace that actor with another person. Return ONLY valid JSON with keys: personality, scenario, greeting, tags, archetype, personaTraits, speakingStyle, emotionalTone, relationshipStyle, tone, motivation, behavioralRules, boundaries. The greeting must be 4-8 cinematic sentences, in-world, with tension, must not write dialogue or decisions for the user, and must leave the user room to respond. No markdown."
+            `You generate immersive AI roleplay characters for Nythera. The supplied character name is the canonical actor in every field: never silently replace that actor with another person. Return ONLY valid JSON with keys: personality, scenario, greeting, tags, archetype, personaTraits, speakingStyle, emotionalTone, relationshipStyle, tone, motivation, behavioralRules, boundaries. relationshipStyle must be exactly one of: friend, romantic, mentor, rival, antagonist. The greeting must be 4-8 cinematic sentences, in-world, with tension, must not write dialogue or decisions for the user, and must leave the user room to respond. ${prologuePovInstruction(input.prologuePov)} No markdown.`
         },
         {
           role: "user",
@@ -98,22 +100,27 @@ export async function generateCharacterFromDescription(input: {
         seriousness: 5,
         initiative: 6,
         messageLength: "medium",
-        roleplayIntensity: 7
+        roleplayIntensity: 7,
+        prologuePov: normalizeProloguePov(input.prologuePov)
       },
       source: "llm" as const
     };
   } catch (error) {
     console.warn("LLM character generation failed; using heuristic fallback.", error instanceof Error ? error.message : error);
-    return { ...toPayload(fallback, input.name), source: "heuristic" as const };
+    return { ...toPayload(fallback, input.name, normalizeProloguePov(input.prologuePov)), source: "heuristic" as const };
   }
 }
 
-function toPayload(draft: ReturnType<typeof generateSimpleCharacterDraft>, characterName: string) {
+function toPayload(
+  draft: ReturnType<typeof generateSimpleCharacterDraft>,
+  characterName: string,
+  prologuePov: ProloguePov
+) {
   const traits = draft.personaTraits.split("\n").filter(Boolean);
   return {
     personality: draft.personality,
     scenario: draft.scenario,
-    greeting: draft.greeting,
+    greeting: prologuePov === "third" ? thirdPersonFallbackGreeting(characterName) : draft.greeting,
     tags: draft.tags.split(/[,\s]+/).map((tag) => tag.trim().toLowerCase()).filter(Boolean).slice(0, 12),
     persona: {
       name: characterName.trim(),
@@ -138,10 +145,15 @@ function toPayload(draft: ReturnType<typeof generateSimpleCharacterDraft>, chara
       seriousness: 5,
       initiative: 6,
       messageLength: "medium",
-      roleplayIntensity: 7
+      roleplayIntensity: 7,
+      prologuePov
     },
     source: "heuristic" as const
   };
+}
+
+function thirdPersonFallbackGreeting(characterName: string) {
+  return `${characterName} pauses when {{user}} enters, one hand still resting on the object that had held their attention. Their expression tightens with wary recognition before they deliberately make room beside them. "I wasn't certain you would come," they say, keeping their voice low. The unfinished business between them remains visible in the careful distance ${characterName} leaves open. "If you want the truth, ask now."`;
 }
 
 function extractJson(value: string) {

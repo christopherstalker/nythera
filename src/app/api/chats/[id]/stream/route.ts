@@ -7,8 +7,9 @@ import { moderateText, sanitizeUserText } from "@/lib/safety";
 import { detectPromptInjection, sanitizePromptContext } from "@/lib/prompt-security";
 import { streamMessageSchema } from "@/lib/validation";
 import { assembleNytheraPrompt } from "@/lib/prompt-assembly";
-import { buildFullPromptAddon } from "@/lib/prompts/buildPrompt";
-import { formatTieredMemoryBlocks, getUserMemories, splitMemoriesForPrompt } from "@/lib/memory/promptBuilder";
+import { buildPromptAddonLayers } from "@/lib/prompts/buildPrompt";
+import { selectCustomPrompt } from "@/lib/response-prompt";
+import { buildPhysicalMemoryContext, formatTieredMemoryBlocks, getUserMemories, splitMemoriesForPrompt } from "@/lib/memory/promptBuilder";
 import { getPromptMemories } from "@/lib/memory-store";
 import { normalizeChatMode } from "@/lib/chat-mode";
 import { loadAdaptiveChatHistory } from "@/lib/chat-history";
@@ -42,6 +43,8 @@ import { loadPromptImages, resolveOwnedChatAssets, serializeAsset } from "@/lib/
 import { containsRussianLanguage, RUSSIAN_LANGUAGE_ERROR } from "@/lib/language-policy";
 import { buildSkipTimePrompt, resolveChatActionMessage, type SkipTimeDuration } from "@/lib/chat-actions";
 import { fitPromptMessagesWithinContext } from "@/lib/prompt-budget";
+import { createPhysicalContinuityOutputGuard } from "@/lib/physical-continuity";
+import { getChatInputLimits } from "@/lib/chat-limits.server";
 
 type Context = {
   params: Promise<{ id: string }>;
@@ -64,7 +67,14 @@ export async function POST(request: Request, context: Context) {
       route: "chat:stream"
     });
 
+    const inputLimits = getChatInputLimits(user.id);
     const input = await parseJson(request, streamMessageSchema);
+    if (input.message.length > inputLimits.message) {
+      throw new HttpError(400, `Message must be ${inputLimits.message.toLocaleString()} characters or fewer.`);
+    }
+    if ((input.responsePrompt?.length ?? 0) > inputLimits.responsePrompt) {
+      throw new HttpError(400, `Custom system prompt must be ${inputLimits.responsePrompt.toLocaleString()} characters or fewer.`);
+    }
     const continueChat = input.continueChat === true;
     const skipTime = input.skipTime === true;
     let skipTimeDuration: SkipTimeDuration | null = input.skipTimeValue && input.skipTimeUnit
@@ -73,7 +83,7 @@ export async function POST(request: Request, context: Context) {
     const assistantOnlyAction = continueChat || skipTime;
     const continuationPrompt =
       "Continue the roleplay naturally from the immediately preceding selected assistant response. Do not speak as the user, do not invent a user reply, and keep the scene moving in the character's voice.";
-    let message = skipTime ? buildSkipTimePrompt(skipTimeDuration) : continueChat ? continuationPrompt : sanitizeUserText(input.message);
+    let message = skipTime ? buildSkipTimePrompt(skipTimeDuration) : continueChat ? continuationPrompt : sanitizeUserText(input.message, inputLimits.message);
     let persistedUserContent = message;
     let branchInstruction: string | null = null;
     let resolvedBranchMessageId: string | null = null;
@@ -171,7 +181,7 @@ export async function POST(request: Request, context: Context) {
         throw new HttpError(409, "That message already has a response. Refresh the chat to see it.");
       }
 
-      message = sanitizeUserText(retryTurn.currentMessage ?? "");
+      message = sanitizeUserText(retryTurn.currentMessage ?? "", inputLimits.message);
       recentMessages = retryTurn.recentMessages;
     } else if (input.regenerate) {
       const regenerationTurn = prepareRegenerationTurn(recentMessages, input.regenerateMessageId);
@@ -186,7 +196,7 @@ export async function POST(request: Request, context: Context) {
         skipTimeDuration = regenerationTurn.skipTimeDuration ?? null;
       }
       message = regenerationTurn.trigger === "user"
-        ? sanitizeUserText(regenerationTurn.currentMessage ?? "")
+        ? sanitizeUserText(regenerationTurn.currentMessage ?? "", inputLimits.message)
         : regenerationTurn.trigger === "skip-time"
           ? buildSkipTimePrompt(skipTimeDuration)
           : regenerationTurn.trigger === "continuation"
@@ -278,7 +288,11 @@ export async function POST(request: Request, context: Context) {
     const chatMode = normalizeChatMode(chat.chatMode);
     const tieredMemories = splitMemoriesForPrompt(memories, userGlobalMemories);
     const { characterMemories, userMemories } = formatTieredMemoryBlocks(tieredMemories);
-    const modeContext = buildFullPromptAddon({
+    const responsePrompt = input.responsePrompt ?? chat.responsePrompt;
+    const customPromptActive = Boolean(selectCustomPrompt(responsePrompt, effectiveSettings.systemPromptOverride));
+    const userPersonaPrompt = formatUserPersonaForPrompt(userPersona);
+    const physicalContext = buildPhysicalMemoryContext(chat.summary, [...memories, ...userGlobalMemories]);
+    const promptAddon = buildPromptAddonLayers({
       mode: chatMode,
       characterMemories,
       userMemories
@@ -301,33 +315,37 @@ export async function POST(request: Request, context: Context) {
       recentMessages,
       currentMessage: message,
       currentImages,
-      responsePrompt: input.responsePrompt ?? chat.responsePrompt,
+      responsePrompt,
       storyContext: storyContext.text,
+      factualStoryContext: storyContext.factualText,
       injectionAssessment,
       branchInstruction,
-      modeContext,
-      translationLanguage: chat.translationLanguage,
-      memoryLimit: 10
+      modeContext: promptAddon.modeStyle,
+      sessionMemoryContext: promptAddon.sessionMemory,
+      physicalContext,
+      translationLanguage: chat.translationLanguage
     });
     const promptFit = fitPromptMessagesWithinContext(assembledPrompt, { model, maxOutputTokens: providerMaxOutputTokens });
     if (promptFit.fixedPromptTooLarge) {
       throw new HttpError(400, "System instructions exceed this model's context window. Choose a model with a larger context window or shorten the character system prompt.");
     }
     const prompt = promptFit.messages;
-
     logPerformanceMetric("chat_prompt_context", {
       route: "chat:stream",
       model,
-      personaSource: chat.temporaryPersona ? "temporary" : chat.persona ? "chat" : defaultUserPersona ? "default" : "none",
       personaCharacters: formattedUserPersona?.length ?? 0,
-      storyContextCharacters: storyContext.text.length,
-      responsePromptCharacters: (input.responsePrompt ?? chat.responsePrompt)?.length ?? 0,
       memoryCount: memories.length,
-      recentMessageCount: recentMessages.length,
       promptEstimatedTokens: promptFit.estimatedTokens,
       promptTokenBudget: promptFit.tokenBudget,
       promptHistoryDropped: promptFit.droppedMessages
     });
+    const physicalOutputGuard = createPhysicalContinuityOutputGuard(
+      chat.character,
+      userPersonaContinuity ?? userPersonaPrompt,
+      { recentMessages, currentMessage: message, persistentPlayerContext: physicalContext },
+      { enabled: !customPromptActive }
+    );
+
 
     const encoder = new TextEncoder();
     let assistantText = "";
@@ -367,6 +385,35 @@ export async function POST(request: Request, context: Context) {
             clientConnected = false;
           }
         };
+        const appendAssistantDelta = (text: string) => {
+          if (!text) return true;
+          const nextText = assistantText + text;
+          const check = moderateText({
+            text: nextText,
+            userIsMinor: isMinor(user.birthDate),
+            context: "assistant"
+          });
+
+          if (!check.allowed) {
+            outputBlocked = true;
+            const replacement = check.reason ?? "The response was stopped because it did not pass the platform safety policy.";
+            assistantText = replacement;
+            send({ type: "delta", text: replacement });
+            return false;
+          }
+
+          assistantText = nextText;
+          if (!firstClientTokenLogged) {
+            firstClientTokenLogged = true;
+            logPerformanceMetric("chat_stream_first_token", {
+              route: "chat:stream",
+              configuredModel: model,
+              durationMs: elapsedMs(streamStartedAt)
+            });
+          }
+          send({ type: "delta", text });
+          return true;
+        };
 
         try {
           if (userMessage) {
@@ -386,39 +433,15 @@ export async function POST(request: Request, context: Context) {
             topP: effectiveSettings.topP,
             frequencyPenalty: effectiveSettings.frequencyPenalty,
             presencePenalty: effectiveSettings.presencePenalty,
-            maxTokens: providerMaxOutputTokens,
+            maxTokens: maxOutputTokens,
             userId: user.id,
             chatId: chat.id,
             providerKeys,
             signal: request.signal
           })) {
             if (chunk.type === "delta") {
-              const nextText = assistantText + chunk.text;
-              const check = moderateText({
-                text: nextText,
-                userIsMinor: isMinor(user.birthDate),
-                context: "assistant"
-              });
-
-              if (!check.allowed) {
-                outputBlocked = true;
-                const replacement =
-                  check.reason ?? "The response was stopped because it did not pass the platform safety policy.";
-                assistantText = replacement;
-                send({ type: "delta", text: replacement });
-                break;
-              }
-
-              assistantText = nextText;
-              if (!firstClientTokenLogged) {
-                firstClientTokenLogged = true;
-                logPerformanceMetric("chat_stream_first_token", {
-                  route: "chat:stream",
-                  configuredModel: model,
-                  durationMs: elapsedMs(streamStartedAt)
-                });
-              }
-              send(chunk);
+              const guardedDelta = physicalOutputGuard.push(chunk.text);
+              if (guardedDelta && !appendAssistantDelta(guardedDelta)) break;
             }
 
             if (chunk.type === "usage") {
@@ -432,6 +455,7 @@ export async function POST(request: Request, context: Context) {
               throw new Error(chunk.message);
             }
           }
+          if (!outputBlocked) appendAssistantDelta(physicalOutputGuard.flush());
 
           if (!assistantText.trim()) {
             throw new Error("The model returned an empty response.");
@@ -541,6 +565,7 @@ export async function POST(request: Request, context: Context) {
           send({ type: "message", message: assistant });
           send({ type: "done" });
         } catch (error) {
+          if (!outputBlocked) appendAssistantDelta(physicalOutputGuard.flush());
           logSafeError("Chat stream failed.", error);
           const errorMessage = error instanceof Error ? error.message : "The model stream failed.";
           if (assistantText.trim() && !assistantPersisted) {

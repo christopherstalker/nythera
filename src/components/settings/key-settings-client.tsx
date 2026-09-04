@@ -145,6 +145,10 @@ export function KeySettingsClient({ onboarding = false, callbackUrl = "/explore"
     }
     return grouped;
   }, [keys]);
+  const orderedProviders = useMemo(
+    () => [...providers].sort((left, right) => Number(savedByProvider.has(right.provider)) - Number(savedByProvider.has(left.provider))),
+    [savedByProvider]
+  );
   const catalogByKey = useMemo(
     () => new Map(modelCatalog.filter((entry) => entry.keyId).map((entry) => [entry.keyId!, entry])),
     [modelCatalog]
@@ -403,7 +407,61 @@ export function KeySettingsClient({ onboarding = false, callbackUrl = "/explore"
           Refresh models
         </Button>
       </div>
-      {providers.map((provider) => {
+      {keys.length > 0 ? (
+        <section className="glass-card p-4">
+          <div className="flex items-start gap-3">
+            <ListOrdered className="mt-0.5 h-5 w-5 text-[var(--accent-purple)]" />
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--text-primary)]">Fallback chain</h3>
+              <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
+                Move any provider to the first position to make it primary, then choose the exact model for every step. Failed keys advance to the next saved key; invalid requests still stop immediately.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-2">
+            {fallbackKeys.map((key, index) => (
+              <div key={key.provider} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] p-3">
+                <input
+                  type="checkbox"
+                  checked={key.isDefault || key.fallbackEnabled}
+                  disabled={key.isDefault || rejectedProviders.has(key.provider)}
+                  onChange={() => toggleFallback(key.provider)}
+                  aria-label={`Include ${key.displayName} in fallback chain`}
+                  className="accent-[var(--accent-purple)]"
+                />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-[var(--text-primary)]">
+                    {index + 1}. {key.displayName} {key.isDefault ? "(primary)" : ""}{rejectedProviders.has(key.provider) ? " · invalid key" : ""}
+                  </p>
+                  <select
+                    value={key.defaultModel?.trim() || defaultModelForProvider(key.provider)}
+                    onChange={(event) => selectFallbackModel(key.provider, event.target.value)}
+                    aria-label={`Model for ${key.displayName}`}
+                    className="mt-2 h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-elevated)] px-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--accent-purple)]"
+                  >
+                    {(fallbackModels.get(key.provider) ?? [key.defaultModel?.trim() || defaultModelForProvider(key.provider)]).map((model) => (
+                      <option key={model} value={model}>{model}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" size="icon" aria-label={`Move ${key.displayName} up`} onClick={() => moveFallback(index, -1)} disabled={index === 0 || (index === 1 && rejectedProviders.has(key.provider))}>
+                    <ArrowUp className="h-4 w-4" />
+                  </Button>
+                  <Button type="button" variant="outline" size="icon" aria-label={`Move ${key.displayName} down`} onClick={() => moveFallback(index, 1)} disabled={index === fallbackKeys.length - 1}>
+                    <ArrowDown className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <Button type="button" className="mt-3" onClick={() => void saveFallbackChain()}>
+            <Save className="h-4 w-4" />
+            Save fallback chain
+          </Button>
+        </section>
+      ) : null}
+      {orderedProviders.map((provider) => {
         const savedKeys = savedByProvider.get(provider.provider) ?? [];
         const liveCatalog = savedKeys.map((key) => catalogByKey.get(key.id)).find((entry) => entry?.source === "live");
         const value = values[provider.provider] ?? "";
@@ -540,60 +598,6 @@ export function KeySettingsClient({ onboarding = false, callbackUrl = "/explore"
         </div>
       ) : null}
 
-      {keys.length > 0 ? (
-        <section className="glass-card p-4">
-          <div className="flex items-start gap-3">
-            <ListOrdered className="mt-0.5 h-5 w-5 text-[var(--accent-purple)]" />
-            <div>
-              <h3 className="text-sm font-semibold text-[var(--text-primary)]">Fallback chain</h3>
-              <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
-                Move any provider to the first position to make it primary, then choose the exact model for every step. Failed keys advance to the next saved key; invalid requests still stop immediately.
-              </p>
-            </div>
-          </div>
-          <div className="mt-4 grid gap-2">
-            {fallbackKeys.map((key, index) => (
-              <div key={key.provider} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] p-3">
-                <input
-                  type="checkbox"
-                  checked={key.isDefault || key.fallbackEnabled}
-                  disabled={key.isDefault || rejectedProviders.has(key.provider)}
-                  onChange={() => toggleFallback(key.provider)}
-                  aria-label={`Include ${key.displayName} in fallback chain`}
-                  className="accent-[var(--accent-purple)]"
-                />
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-[var(--text-primary)]">
-                    {index + 1}. {key.displayName} {key.isDefault ? "(primary)" : ""}{rejectedProviders.has(key.provider) ? " · invalid key" : ""}
-                  </p>
-                  <select
-                    value={key.defaultModel?.trim() || defaultModelForProvider(key.provider)}
-                    onChange={(event) => selectFallbackModel(key.provider, event.target.value)}
-                    aria-label={`Model for ${key.displayName}`}
-                    className="mt-2 h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-elevated)] px-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--accent-purple)]"
-                  >
-                    {(fallbackModels.get(key.provider) ?? [key.defaultModel?.trim() || defaultModelForProvider(key.provider)]).map((model) => (
-                      <option key={model} value={model}>{model}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex gap-2">
-                  <Button type="button" variant="outline" size="icon" aria-label={`Move ${key.displayName} up`} onClick={() => moveFallback(index, -1)} disabled={index === 0 || (index === 1 && rejectedProviders.has(key.provider))}>
-                    <ArrowUp className="h-4 w-4" />
-                  </Button>
-                  <Button type="button" variant="outline" size="icon" aria-label={`Move ${key.displayName} down`} onClick={() => moveFallback(index, 1)} disabled={index === fallbackKeys.length - 1}>
-                    <ArrowDown className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-          <Button type="button" className="mt-3" onClick={() => void saveFallbackChain()}>
-            <Save className="h-4 w-4" />
-            Save fallback chain
-          </Button>
-        </section>
-      ) : null}
 
       <form onSubmit={saveCustom} className="glass-card p-4">
         <h3 className="text-sm font-semibold text-[var(--text-primary)]">Add custom provider endpoint</h3>

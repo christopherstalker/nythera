@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getRequestIp, json, parseJson, routeError } from "@/lib/api";
+import { getRequestIp, HttpError, json, parseJson, routeError } from "@/lib/api";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { registerSchema } from "@/lib/validation";
 import { ADULT_CONSENT_VERSION } from "@/lib/adult-consent";
@@ -48,8 +48,9 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return json({ error: "An account with that email or traveler name already exists." }, { status: 409 });
+      return routeError(new HttpError(409, "Email or username is already taken."));
     }
+
     return routeError(error);
   }
 }

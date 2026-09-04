@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createHmac, timingSafeEqual } from "crypto";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { HttpError } from "@/lib/api";
@@ -24,7 +25,8 @@ const mobileTokenPayloadSchema = z.object({
   sub: z.string(),
   email: z.string().email(),
   iat: z.number(),
-  exp: z.number()
+  exp: z.number(),
+  authVersion: z.number().int().nonnegative().default(0)
 });
 
 export type MobileUser = Awaited<ReturnType<typeof requireMobileUser>>;
@@ -46,12 +48,13 @@ function sign(input: string) {
   return createHmac("sha256", getMobileSecret()).update(input).digest("base64url");
 }
 
-export function createMobileToken(user: { id: string; email: string }) {
+export function createMobileToken(user: { id: string; email: string; authVersion?: number }) {
   const now = Math.floor(Date.now() / 1000);
   const payload = {
     type: "mobile" as const,
     sub: user.id,
     email: user.email,
+    authVersion: user.authVersion ?? 0,
     iat: now,
     exp: now + TOKEN_TTL_SECONDS
   };
@@ -116,6 +119,7 @@ export async function requireMobileUser(request: Request) {
       preferredModel: true,
       defaultTemperature: true,
       maxOutputTokens: true,
+      authVersion: true,
       defaultResponsePrompt: true,
       preferredChatMode: true,
       bannedAt: true
@@ -124,6 +128,10 @@ export async function requireMobileUser(request: Request) {
 
   if (!user || user.bannedAt) {
     throw new HttpError(403, "This account cannot access the platform.");
+  }
+
+  if (token.authVersion !== user.authVersion) {
+    throw new HttpError(401, "Mobile session expired. Sign in again.");
   }
 
   return user;
@@ -179,41 +187,54 @@ export async function findOrCreateGoogleMobileUser(google: Awaited<ReturnType<ty
   }
 
   const email = google.email.toLowerCase();
-  const existing = await prisma.user.findUnique({ where: { email } });
-  const user =
-    existing ??
-    (await prisma.user.create({
-      data: {
-        email,
-        emailVerified: new Date(),
-        name: google.name,
-        image: google.picture
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const existing = await tx.user.findUnique({ where: { email }, select: { id: true } });
+      if (existing) {
+        throw new HttpError(409, "An account already uses this email. Sign in with its existing method before linking Google.");
       }
-    }));
 
-  if (user.bannedAt) {
-    throw new HttpError(403, "This account cannot access the platform.");
-  }
-
-  await prisma.account.upsert({
-    where: {
-      provider_providerAccountId: {
-        provider: "google",
-        providerAccountId: google.sub
-      }
-    },
-    create: {
-      userId: user.id,
-      type: "oauth",
-      provider: "google",
-      providerAccountId: google.sub
-    },
-    update: {
-      userId: user.id
+      const user = await tx.user.create({
+        data: {
+          email,
+          emailVerified: new Date(),
+          name: google.name,
+          image: google.picture
+        }
+      });
+      await tx.account.create({
+        data: {
+          userId: user.id,
+          type: "oauth",
+          provider: "google",
+          providerAccountId: google.sub
+        }
+      });
+      return user;
+    });
+  } catch (error) {
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") {
+      throw error;
     }
-  });
 
-  return user;
+    const concurrentAccount = await prisma.account.findUnique({
+      where: {
+        provider_providerAccountId: {
+          provider: "google",
+          providerAccountId: google.sub
+        }
+      },
+      include: { user: true }
+    });
+    if (concurrentAccount?.user) {
+      if (concurrentAccount.user.bannedAt) {
+        throw new HttpError(403, "This account cannot access the platform.");
+      }
+      return concurrentAccount.user;
+    }
+
+    throw new HttpError(409, "An account already uses this email. Sign in with its existing method before linking Google.");
+  }
 }
 
 export function publicMobileUser(user: {

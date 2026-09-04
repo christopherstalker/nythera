@@ -12,7 +12,7 @@ test("desktop and mobile chat routes resolve and forward character sampler setti
     assert.match(source, /topP:\s*effectiveSettings\.topP/);
     assert.match(source, /frequencyPenalty:\s*effectiveSettings\.frequencyPenalty/);
     assert.match(source, /presencePenalty:\s*effectiveSettings\.presencePenalty/);
-    assert.match(source, /maxTokens:\s*providerMaxOutputTokens/);
+    assert.match(source, /maxTokens:\s*maxOutputTokens/);
   }
 });
 

@@ -130,7 +130,7 @@ test("all chat creation paths render the opening message before persistence", as
 
   assert.match(web, /content: greeting/);
   assert.match(mobile, /content: greeting/);
-  assert.match(rooms, /content: renderCharacterGreeting\(character, userPersona\)/);
+  assert.match(rooms, /content: renderCharacterPrologue\(\{\s*greeting: renderCharacterGreeting\(character, userPersona\)/);
   assert.doesNotMatch(web, /content: character\.greeting/);
   assert.doesNotMatch(mobile, /content: character\.greeting/);
   assert.doesNotMatch(rooms, /content: character\.greeting/);

@@ -490,7 +490,7 @@ test("Tailwind and global CSS consume the semantic token contract", async () => 
   assert.doesNotMatch(tailwindConfig, /hsl\(var\(--/);
 
   assert.ok(
-    globals.startsWith('@import "../styles/design-tokens.css";\n'),
+    /^@import "\.\.\/styles\/design-tokens\.css";\r?\n/.test(globals),
     "globals.css must import design-tokens.css on its first line"
   );
   assert.ok(

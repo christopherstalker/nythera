@@ -2,6 +2,12 @@ import "server-only";
 
 import { normalizeMessageLength, responseLengthTarget, verbosityForMessageLength } from "@/lib/response-length";
 import { romanceLevelInstruction } from "@/lib/romance-level";
+import {
+  humorLevelInstruction,
+  initiativeLevelInstruction,
+  roleplayIntensityInstruction,
+  seriousnessLevelInstruction
+} from "@/lib/character-behavior";
 import type { CharacterPersona, CharacterPersonaMember } from "@/types";
 
 type PersonaCharacter = {
@@ -17,6 +23,10 @@ type PersonaCharacter = {
 export type ResolvedCharacterPersona = Required<CharacterPersona> & {
   romanceLevel: number;
   detailedPersonality: string;
+  humor: number;
+  seriousness: number;
+  initiative: number;
+  roleplayIntensity: number;
 };
 
 export type ResolvedCharacterCast = {
@@ -98,8 +108,12 @@ function resolvePersonaRecord(
     relationshipDynamics: RELATIONSHIP_STYLES.has(parsed.relationshipDynamics ?? parsed.relationshipStyle ?? "")
       ? (parsed.relationshipDynamics ?? parsed.relationshipStyle)!
       : "friend",
-    romanceLevel: normalizeScale(style.romanceLevel, "relationshipStyle" in parsed && parsed.relationshipStyle === "romantic" ? 6 : 2),
-    additionalCharacters: []
+    romanceLevel: normalizeScale(style.romanceLevel, parsed.relationshipStyle === "romantic" ? 6 : 2),
+    additionalCharacters: [],
+    humor: normalizeScale(style.humor, 5),
+    seriousness: normalizeScale(style.seriousness, 5),
+    initiative: normalizeScale(style.initiative, 5),
+    roleplayIntensity: normalizeScale(style.roleplayIntensity, 5)
   };
 }
 
@@ -117,6 +131,10 @@ export function formatPersonaBlock(persona: ResolvedCharacterPersona) {
     "The response length target is a hard output constraint. Do not replace it with a length inferred from the player's message.",
     `Romance level: ${persona.romanceLevel}/10. ${romanceLevelInstruction(persona.romanceLevel)}`,
     `Detailed personality and behavior: ${persona.detailedPersonality}`,
+    `Humor level: ${persona.humor}/10. ${humorLevelInstruction(persona.humor)}`,
+    `Seriousness level: ${persona.seriousness}/10. ${seriousnessLevelInstruction(persona.seriousness)}`,
+    `Initiative intensity: ${persona.initiative}/10. ${initiativeLevelInstruction(persona.initiative)}`,
+    `Roleplay intensity: ${persona.roleplayIntensity}/10. ${roleplayIntensityInstruction(persona.roleplayIntensity)}`,
     `Personality traits: ${persona.personalityTraits.join(", ")}`,
     `Speaking style: ${persona.speakingStyle}`,
     `Emotional tone: ${persona.emotionalTone}`,
@@ -237,9 +255,12 @@ function parseCommunicationStyle(value: unknown) {
   const record = value as Record<string, unknown>;
   return {
     tone: stringValue(record.tone),
+    humor: typeof record.humor === "number" ? record.humor : undefined,
+    seriousness: typeof record.seriousness === "number" ? record.seriousness : undefined,
     initiative: typeof record.initiative === "number" ? record.initiative : undefined,
     romanceLevel: typeof record.romanceLevel === "number" ? record.romanceLevel : undefined,
-    messageLength: stringValue(record.messageLength)
+    messageLength: stringValue(record.messageLength),
+    roleplayIntensity: typeof record.roleplayIntensity === "number" ? record.roleplayIntensity : undefined
   };
 }
 

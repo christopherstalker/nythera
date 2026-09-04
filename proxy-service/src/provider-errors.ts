@@ -14,6 +14,7 @@ export function classifyProviderError(error: unknown): ProviderErrorClassificati
     message.includes("provider unavailable") ||
     message.includes("provider is unavailable") ||
     message.includes("overloaded") ||
+    message.includes("empty response") ||
     message.includes("try again later");
   const reportsPromptLimit = message.includes("prompt tokens limit exceeded") || message.includes("maximum context length") || message.includes("context length exceeded");
 
@@ -21,9 +22,13 @@ export function classifyProviderError(error: unknown): ProviderErrorClassificati
     return { code: "invalid_api_key", message: "The selected provider rejected the API key. Check the key in Settings.", status: status ?? 401, retryable: false };
   }
   if (reportsPromptLimit) {
-    return { code: "prompt_too_large", message: "The request exceeded this provider's context limit. Nythera will shorten older history before retrying.", status, retryable: false };
+    return { code: "prompt_too_large", message: "The request exceeds this model's context limit. Choose a model with a larger context window or shorten the instructions.", status, retryable: false };
   }
-  if (status === 402) {
+  const exhaustedCredit = error !== null && typeof error === "object" && (
+    ("code" in error && error.code === "credit_balance_exhausted") ||
+    ("type" in error && error.type === "insufficient_quota")
+  );
+  if (status === 402 || status === 429 && exhaustedCredit) {
     return { code: "insufficient_balance", message: "The provider account cannot cover this request. Add credits, reduce the response length, or choose another provider.", status, retryable: false };
   }
   if (status === 400 || status === 422) {
@@ -41,7 +46,7 @@ export function classifyProviderError(error: unknown): ProviderErrorClassificati
   if (message.includes("not configured") || message.includes("base url is required")) {
     return { code: "provider_not_configured", message: "No usable model provider is configured. Add or update a model key in Settings.", status, retryable: false };
   }
-  if (message.includes("fetch failed") || message.includes("network") || message.includes("timeout") || message.includes("econn")) {
+  if (message.includes("fetch failed") || message.includes("network") || message.includes("timeout") || message.includes("timed out") || message.includes("econn")) {
     return { code: "network_error", message: "Nythera could not reach the selected model provider. Check the connection and try again.", status, retryable: true };
   }
   return { code: "provider_error", message: "The selected model provider rejected the request. Check the provider and model settings.", status, retryable: false };

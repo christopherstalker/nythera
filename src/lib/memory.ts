@@ -13,6 +13,7 @@ import {
   shouldRefreshConversationSummary,
   shouldRunDeepMemoryExtraction
 } from "@/lib/memory-policy";
+import { buildConversationSummary } from "@/lib/conversation-summary";
 
 export async function schedulePostMessageJobs(input: {
   chatId: string;
@@ -245,47 +246,6 @@ export async function summarizeChat(chatId: string) {
   });
 }
 
-export function buildConversationSummary(messages: Array<{ role: MessageRole; content: string }>, previousSummary?: string | null) {
-  const importantLines = messages
-    .filter((message) => message.role !== MessageRole.SYSTEM)
-    .map((message) => `${message.role}: ${cleanSentence(message.content).slice(0, 260)}`);
-
-  if (importantLines.length === 0 && !previousSummary) {
-    return null;
-  }
-
-  const prior = previousSummary?.replace(/^Conversation summary:\n?/, "").trim();
-  const combined = [prior, ...importantLines].filter(Boolean).join("\n");
-  if (combined.length <= 8_000) {
-    return ["Conversation summary:", combined].join("\n");
-  }
-
-  const anchors = selectSummaryAnchors(combined);
-  return [
-    "Conversation summary:",
-    combined.slice(0, 2_000),
-    anchors.length ? `[Continuity anchors]\n${anchors.join("\n")}` : null,
-    "[Earlier middle turns compacted; long-term Memory and Story canon remain authoritative.]",
-    combined.slice(-3_800)
-  ].filter(Boolean).join("\n").slice(0, 8_000);
-}
-
-function selectSummaryAnchors(value: string) {
-  const anchorPattern = /\b(?:remember|promise|promised|secret|revealed|learned|discovered|agreed|refused|relationship|married|dating|friend|enemy|injur|wound|scar|location|arrived|left|moved|goal|plan|mission|must|never|always|name is|called)\b/i;
-  const seen = new Set<string>();
-  const anchors: string[] = [];
-
-  for (const line of value.split("\n")) {
-    const normalized = cleanSentence(line).slice(0, 200);
-    const key = normalized.toLocaleLowerCase();
-    if (!normalized || !anchorPattern.test(normalized) || seen.has(key)) continue;
-    seen.add(key);
-    anchors.push(normalized);
-    if (anchors.length === 6) break;
-  }
-
-  return anchors;
-}
 
 function addPattern(
   candidates: MemoryCandidate[],

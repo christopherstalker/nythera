@@ -27,18 +27,28 @@ export function SettingsShell({ children }: { children: React.ReactNode }) {
     <PageShell className="codex-settings">
       <div className="settings-layout grid min-w-0 border-y border-[var(--border-default)] lg:grid-cols-[248px_minmax(0,780px)] lg:justify-start">
         <aside className="min-w-0 lg:sticky lg:top-6 lg:self-start">
-          <div className="flex items-center justify-between border-b border-[var(--border-default)] px-1 py-3 lg:hidden">
-            {isOverview ? (
-              <p className="text-xs font-medium uppercase tracking-[.16em] text-[var(--text-secondary)]">Choose a section</p>
-            ) : (
+          {!isOverview ? (
+            <div className="grid gap-2 border-b border-[var(--border-default)] px-1 py-3 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center lg:hidden">
               <Link href="/settings" className="focus-ring inline-flex min-h-11 items-center gap-2 px-2 text-xs font-medium uppercase tracking-[.14em] text-[var(--text-secondary)] no-underline hover:text-[var(--accent-mint)]">
                 <ArrowLeft className="h-4 w-4" />
                 All settings
               </Link>
-            )}
-          </div>
+              <label className="grid gap-1 px-2 text-[10px] font-medium uppercase tracking-[.14em] text-[var(--text-muted)]">
+                Jump to
+                <select
+                  value={SETTINGS_SECTIONS.some((section) => section.href === pathname) ? pathname : "/settings"}
+                  onChange={(event) => router.push(event.target.value)}
+                  className="focus-ring h-11 min-w-0 border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-sm normal-case tracking-normal text-[var(--text-primary)]"
+                  aria-label="Jump to settings section"
+                >
+                  <option value="/settings">All settings</option>
+                  {SETTINGS_SECTIONS.map((section) => <option key={section.href} value={section.href}>{section.label}</option>)}
+                </select>
+              </label>
+            </div>
+          ) : null}
 
-          <nav className="settings-section-nav scrollbar-none flex w-full max-w-full overflow-x-auto border-b border-[var(--border-default)] lg:grid lg:overflow-visible lg:border-b-0 lg:border-r" aria-label="Settings sections">
+          <nav className="settings-section-nav hidden border-r border-[var(--border-default)] lg:grid" aria-label="Settings sections">
             {SETTINGS_SECTIONS.map((section) => {
               const Icon = section.icon;
               const active = pathname === section.href;

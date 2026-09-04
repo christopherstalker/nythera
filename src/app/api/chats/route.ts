@@ -12,6 +12,7 @@ import { requireAdultConsent } from "@/lib/adult-consent";
 import { getPreferredPersona } from "@/lib/user-persona-store";
 import { formatUserPersonaForPrompt } from "@/lib/user-persona";
 import { renderCharacterGreeting } from "@/lib/character-prompt-contract";
+import { renderCharacterPrologue } from "@/lib/prologue-pov";
 
 export async function GET(request: Request) {
   try {
@@ -60,7 +61,12 @@ export async function POST(request: Request) {
 
     const providerKeys = await getEffectiveProviderKeys(user.id);
     const preferredPersona = await getPreferredPersona(user.id, character.id);
-    const greeting = renderCharacterGreeting(character, formatUserPersonaForPrompt(preferredPersona));
+    const greeting = renderCharacterPrologue({
+      greeting: renderCharacterGreeting(character, formatUserPersonaForPrompt(preferredPersona)),
+      characterName: character.name,
+      communicationStyle: character.communicationStyle,
+      userPersonaName: preferredPersona?.displayName
+    });
     const initialTemperature = input.temperature ?? character.temperature ?? user.defaultTemperature;
     const effectiveSettings = resolveCharacterModelSettings({
       character,

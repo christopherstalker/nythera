@@ -24,7 +24,8 @@ export async function POST(request: Request) {
   try {
     const user = await requireUser();
     if (request.headers.get("content-type")?.startsWith("multipart/form-data")) {
-      return uploadImage(request, user.id);
+      const response = await uploadImage(request, user.id);
+      return response;
     }
 
     const input = await parseJson(request, finalizeImageSchema);

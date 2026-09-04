@@ -24,15 +24,15 @@ export function CharacterRosterCard({ character, view, onToggleFavorite, onDelet
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={springSoft}
-        className="neo-glass-card group relative grid min-w-0 max-w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 p-3 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] sm:gap-4 sm:p-4"
+        className="neo-glass-card group relative grid w-full min-w-0 max-w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 p-3 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] sm:gap-4 sm:p-4"
       >
         <span className="relative shrink-0">
           <Avatar name={character.name} src={character.avatarUrl} size="md" />
           <span className={cn("neo-glass-status-dot absolute bottom-0 right-0", character.isRecent ? "is-online" : "is-away")} />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{character.name}</p>
+          <div className="flex min-w-0 items-start gap-2">
+            <p className="line-clamp-2 min-w-0 break-words text-sm font-semibold leading-5 text-[var(--text-primary)]">{character.name}</p>
             {character.isFavorite ? <Star className="h-3.5 w-3.5 shrink-0 fill-amber-300 text-amber-300" /> : null}
           </div>
           <p className="mt-1 line-clamp-2 break-words text-xs leading-5 text-[var(--text-secondary)] [overflow-wrap:anywhere]">{character.preview}</p>

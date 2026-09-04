@@ -23,6 +23,10 @@ import { markStoryBeatsCompleted, markStoryProactiveEventsFired } from "@/lib/st
 import { logSafeError } from "@/lib/secret-redaction";
 import { configuredOutputTokenLimit } from "@/lib/response-length";
 import { renderCharacterGreeting, renderInitialRoomGreeting } from "@/lib/character-prompt-contract";
+import { renderCharacterPrologue } from "@/lib/prologue-pov";
+import { buildPhysicalMemoryContext } from "@/lib/memory/promptBuilder";
+import { createPhysicalContinuityOutputGuard } from "@/lib/physical-continuity";
+import { selectCustomPrompt } from "@/lib/response-prompt";
 
 type RoomUser = {
   id: string;
@@ -158,7 +162,12 @@ export async function createRoomForUser(user: RoomUser, input: RoomInput) {
             sequence: index + 1,
             role: RoomMessageRole.CHARACTER,
             characterId: character.id,
-            content: renderCharacterGreeting(character, userPersona),
+            content: renderCharacterPrologue({
+              greeting: renderCharacterGreeting(character, userPersona),
+              characterName: character.name,
+              communicationStyle: character.communicationStyle,
+              userPersonaName: defaultPersona?.displayName
+            }),
             model: room.model
           }
         })
@@ -298,6 +307,8 @@ export async function sendRoomMessage(input: {
   ]);
   const userPersona = room.userId === input.user.id ? room.persona ?? defaultPersona : defaultPersona;
   const formattedUserPersona = formatUserPersonaForPrompt(userPersona as UserPersona | null);
+  const userPersonaPrompt = formatUserPersonaForPrompt(userPersona as UserPersona | null);
+  const physicalContext = buildPhysicalMemoryContext(room.summary, memories);
   const recentMessages = history.messages
     .map((roomMessage) => {
       const renderedMessage = renderInitialRoomGreeting(
@@ -314,18 +325,19 @@ export async function sendRoomMessage(input: {
   const assembledPrompt = assembleNytheraPrompt({
     character: speaker,
     memories,
-    userPersona: formattedUserPersona,
+    userPersona: userPersonaPrompt,
     userPersonaContinuity: formatUserPersonaContinuitySource(userPersona as UserPersona | null),
     summary: history.overflowed ? room.summary : null,
     recentMessages,
     currentMessage: message,
-    responsePrompt: buildRoomResponsePrompt({
-      roomPrompt: room.responsePrompt,
-      transientPrompt: undefined,
+    responsePrompt: room.responsePrompt?.trim() || null,
+    modeContext: buildGroupRoomRules({
       speaker,
       characters: room.characters.map((link) => link.character)
     }),
     storyContext: storyContext.text,
+    factualStoryContext: storyContext.factualText,
+    physicalContext,
     injectionAssessment
   });
   const promptFit = fitPromptMessagesWithinContext(assembledPrompt, {
@@ -336,6 +348,12 @@ export async function sendRoomMessage(input: {
     throw new HttpError(400, "System instructions exceed this model's context window. Choose a model with a larger context window or shorten the character system prompt.");
   }
   const prompt = promptFit.messages;
+  const physicalOutputGuard = createPhysicalContinuityOutputGuard(
+    speaker,
+    formatUserPersonaContinuitySource(userPersona as UserPersona | null) ?? userPersonaPrompt,
+    { recentMessages, currentMessage: message, persistentPlayerContext: physicalContext },
+    { enabled: !selectCustomPrompt(room.responsePrompt, speaker.systemPromptOverride) }
+  );
 
   let assistantText = "";
   let outputBlocked = false;
@@ -395,6 +413,7 @@ export async function sendRoomMessage(input: {
       throw new Error(chunk.message);
     }
   }
+  assistantText = physicalOutputGuard.push(assistantText) + physicalOutputGuard.flush();
 
   if (!assistantText.trim()) {
     throw new Error("The model returned an empty response.");
@@ -555,9 +574,7 @@ function formatRoomMessageForPrompt(message: {
   return `User: ${message.content}`;
 }
 
-function buildRoomResponsePrompt(input: {
-  roomPrompt?: string | null;
-  transientPrompt?: string;
+function buildGroupRoomRules(input: {
   speaker: Character;
   characters: Character[];
 }) {
@@ -568,10 +585,7 @@ function buildRoomResponsePrompt(input: {
     `Room cast: ${cast}.`,
     "- Lead the turn with the current speaker while keeping other present NPCs believably active when scene logic calls for it.",
     "- Do not write the user's next message.",
-    "- Keep continuity with the other characters' visible turns.",
-    input.roomPrompt?.trim() ? `Room direction: ${input.roomPrompt.trim()}` : null,
-    input.transientPrompt?.trim() ? `Turn direction: ${input.transientPrompt.trim()}` : null
+    "- Keep continuity with the other characters' visible turns."
   ]
-    .filter(Boolean)
     .join("\n");
 }

@@ -5,6 +5,7 @@ import { chatUpdateSchema } from "@/lib/validation";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { renderInitialChatGreeting } from "@/lib/character-prompt-contract";
 import { formatUserPersonaForPrompt } from "@/lib/user-persona";
+import { getChatInputLimits } from "@/lib/chat-limits.server";
 
 type Context = {
   params: Promise<{ id: string }>;
@@ -44,7 +45,7 @@ export async function GET(request: Request, context: Context) {
       chat.character.name,
       userPersona
     ));
-    return json({ chat: { ...chat, messages } });
+    return json({ chat: { ...chat, messages, inputLimits: getChatInputLimits(user.id) } });
   } catch (error) {
     return routeError(error);
   }
@@ -54,6 +55,10 @@ export async function PATCH(request: Request, context: Context) {
   try {
     const user = await requireMobileUser(request);
     const input = await parseJson(request, chatUpdateSchema);
+    const inputLimits = getChatInputLimits(user.id);
+    if ((input.responsePrompt?.length ?? 0) > inputLimits.responsePrompt) {
+      throw new HttpError(400, `Custom system prompt must be ${inputLimits.responsePrompt.toLocaleString()} characters or fewer.`);
+    }
     const chat = await prisma.chat.findFirst({
       where: {
         id: (await context.params).id,

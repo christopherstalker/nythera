@@ -26,6 +26,7 @@ export function classifyProviderError(error: unknown): ProviderErrorClassificati
     rawMessage.includes("provider unavailable") ||
     rawMessage.includes("provider is unavailable") ||
     rawMessage.includes("overloaded") ||
+    rawMessage.includes("empty response") ||
     rawMessage.includes("try again later");
   const reportsPromptLimit =
     rawMessage.includes("prompt tokens limit exceeded") ||
@@ -44,13 +45,17 @@ export function classifyProviderError(error: unknown): ProviderErrorClassificati
   if (reportsPromptLimit) {
     return {
       code: "prompt_too_large",
-      message: "The request exceeded this provider's context limit. Nythera will shorten older history before retrying.",
+      message: "The request exceeds this model's context limit. Choose a model with a larger context window or shorten the instructions.",
       status,
       retryable: false
     };
   }
 
-  if (status === 402) {
+  const exhaustedCredit = error !== null && typeof error === "object" && (
+    ("code" in error && error.code === "credit_balance_exhausted") ||
+    ("type" in error && error.type === "insufficient_quota")
+  );
+  if (status === 402 || status === 429 && exhaustedCredit) {
     return {
       code: "insufficient_balance",
       message: "The provider account cannot cover this request. Add credits, reduce the response length, or choose another provider.",
@@ -108,6 +113,7 @@ export function classifyProviderError(error: unknown): ProviderErrorClassificati
     rawMessage.includes("fetch failed") ||
     rawMessage.includes("network") ||
     rawMessage.includes("timeout") ||
+    rawMessage.includes("timed out") ||
     rawMessage.includes("econn")
   ) {
     return {

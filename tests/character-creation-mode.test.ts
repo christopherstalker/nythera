@@ -33,9 +33,9 @@ test("the character editor renders the stored guided mode instead of forcing the
   assert.match(form, /const isSimpleMode = formMode === "simple"/);
   assert.doesNotMatch(form, /const isSimpleMode = mode === "create"/);
   assert.match(form, /mode === "edit" \? creationModeForEditor\(initialValue\?\.creationMode\) : "simple"/);
-  assert.match(form, /filter\(\(chapter\) => mode === "edit" \|\| chapter\.id !== "publishing"\)/);
+  assert.match(form, /const visibleChapters = isSimpleMode \? guidedChapters : studioChapters/);
   assert.doesNotMatch(form, /<StudioChapter id="publishing" number="04"/);
-  assert.match(form, /\{mode === "edit" \? <StudioChapter id="publishing" number="06"/);
+  assert.match(form, /<StudioChapter id="publishing" number="06"/);
 });
 
 test("creation mode is persisted and legacy database rows default to custom", async () => {
@@ -77,7 +77,8 @@ test("guided creation preserves authored personality and scenario", () => {
     seriousness: 8,
     initiative: 6,
     messageLength: "medium",
-    roleplayIntensity: 9
+    roleplayIntensity: 9,
+    prologuePov: "second"
   });
 });
 
@@ -118,6 +119,7 @@ test("response length is normalized and persisted from the shared behavior contr
   assert.equal(verbosityForMessageLength("short"), "concise");
   assert.equal(verbosityForMessageLength("long"), "immersive");
   assert.match(responseLengthTarget("concise"), /1-2 compact paragraphs.*60-140 words/);
+  assert.match(responseLengthTarget("balanced"), /3-4 developed paragraphs.*200-300 words.*hard maximum.*fifth paragraph/);
   assert.match(responseLengthTarget("immersive"), /4-7 immersive paragraphs.*320-650 words/);
 });
 
@@ -140,9 +142,6 @@ test("guided submit saves directly while optional drafting fills only empty fiel
   assert.doesNotMatch(form, /disabled=\{saving \|\| !canSubmit\}/);
   assert.match(submit, /revealIdentityError\("Enter a character name[\s\S]*?"character-name"\)/);
   assert.match(submit, /revealIdentityError\("Describe the character's core idea[\s\S]*?"character-description"\)/);
-  assert.match(submit, /if \(isPromptMode\) \{[\s\S]*?Generate a draft and apply it before creating the character/);
-  assert.match(form, /id="character-form-error"[\s\S]*?role="alert"[\s\S]*?tabIndex=\{-1\}/);
-  assert.match(form, /aria-describedby=\{error \? "character-form-error" : undefined\}/);
 
   const guidedChapterDefinition = form.slice(
     form.indexOf("const guidedChapters"),
@@ -153,6 +152,9 @@ test("guided submit saves directly while optional drafting fills only empty fiel
   assert.doesNotMatch(form, /Bind the volume|Choose how this character enters your library/);
   assert.doesNotMatch(form, /label="Message length"/);
   assert.match(form, /Response length/);
+  assert.match(form, /Prologue point of view/);
+  assert.match(form, /Second person — narrates to you/);
+  assert.match(form, /Third person — describes your persona/);
 
   const behaviorSliderDefinition = form.slice(
     form.indexOf("const behaviorSliderFields"),

@@ -9,7 +9,7 @@ import type { ProviderModelGroup } from "@/lib/provider-model-options";
 import { RESPONSE_PROMPT_EXAMPLES } from "@/lib/response-prompt";
 import { springSnappy, springSoft } from "@/lib/motion";
 import { applyRichTextFormat, richTextFormatFromShortcut } from "@/lib/rich-text-formatting";
-import { MAX_CHAT_MESSAGE_LENGTH } from "@/lib/chat-limits";
+import { MAX_CHAT_MESSAGE_LENGTH, MAX_RESPONSE_PROMPT_LENGTH, type ChatInputLimits } from "@/lib/chat-limits";
 import { MAX_CHAT_IMAGE_ATTACHMENTS, type ChatImageAttachment, type LookbookImage } from "@/lib/chat-attachments";
 import { prepareChatImage } from "@/lib/chat-image-client";
 import { ChatToolsMenu } from "@/components/chat/ChatToolsMenu";
@@ -44,6 +44,7 @@ type ChatInputProps = {
   onOpenComposer?: () => void;
   lorebook?: unknown;
   recentMessages?: Array<{ role: string; content: string }>;
+  inputLimits?: ChatInputLimits;
 };
 
 export function ChatInput({
@@ -69,7 +70,8 @@ export function ChatInput({
   personaAvatarUrl,
   onOpenComposer,
   lorebook,
-  recentMessages = EMPTY_RECENT_MESSAGES
+  recentMessages = EMPTY_RECENT_MESSAGES,
+  inputLimits
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const composerRef = useRef<HTMLDivElement | null>(null);
@@ -196,8 +198,9 @@ export function ChatInput({
       const contents = await file.text();
       const prefix = value.trimEnd() ? `${value.trimEnd()}\n\n` : "";
       const nextValue = `${prefix}[Attached context: ${file.name}]\n${contents.trim()}`;
-      if (nextValue.length > MAX_CHAT_MESSAGE_LENGTH) {
-        setAttachmentStatus(`That file would exceed the ${MAX_CHAT_MESSAGE_LENGTH.toLocaleString()} character message limit.`);
+      const messageLimit = inputLimits?.message ?? MAX_CHAT_MESSAGE_LENGTH;
+      if (nextValue.length > messageLimit) {
+        setAttachmentStatus(`That file would exceed the ${messageLimit.toLocaleString()} character message limit.`);
         return;
       }
       onChange(nextValue);
@@ -382,7 +385,10 @@ export function ChatInput({
     setAttachmentStatus(response.ok ? `${title} saved to Lookbook.` : body?.error ?? "Could not save this look.");
   }
 
-  const canSend = !disabled && !imageUploading && Boolean(value.trim() || attachments.length) && value.length <= MAX_CHAT_MESSAGE_LENGTH;
+  const messageLimit = inputLimits?.message ?? MAX_CHAT_MESSAGE_LENGTH;
+  const responsePromptLimit = inputLimits?.responsePrompt ?? MAX_RESPONSE_PROMPT_LENGTH;
+  const elevatedLimits = inputLimits?.elevated === true;
+  const canSend = !disabled && !imageUploading && Boolean(value.trim() || attachments.length) && value.length <= messageLimit;
   async function saveMaxOutputTokens() {
     if (!onMaxOutputTokensChange || maxOutputTokensSaving) return;
 
@@ -415,7 +421,7 @@ export function ChatInput({
   const modelLabel = modelLoading ? "Loading" : formatModelLabel(model ?? "Model");
 
   return (
-    <div className="pointer-events-none sticky bottom-0 z-20 shrink-0 border-t border-white/10 bg-gradient-to-t from-black/75 via-black/55 to-transparent px-4 pb-[calc(.75rem+env(safe-area-inset-bottom))] pt-3 sm:px-7 md:px-10 md:pb-4">
+    <div className="pointer-events-none sticky bottom-0 z-40 shrink-0 border-t border-white/10 bg-gradient-to-t from-black/75 via-black/55 to-transparent px-4 pb-[calc(.75rem+env(safe-area-inset-bottom))] pt-3 sm:px-7 md:px-10 md:pb-4">
       {hasApiControls && apiOpen ? (
         <motion.div
           ref={apiPanelRef}
@@ -572,13 +578,16 @@ export function ChatInput({
           {onResponsePromptChange ? (
             <label className="grid min-w-0 gap-1.5 sm:col-span-2">
               <span className="grid min-w-0 gap-1 px-1 text-[11px] font-medium uppercase text-[var(--text-muted)] sm:flex sm:items-center sm:justify-between sm:gap-3">
-                <span>Response instructions</span>
-                <span className="min-w-0 normal-case tracking-normal sm:text-right">Saved for this chat · {(responsePrompt ?? "").length.toLocaleString()} characters · ~{estimatePromptTokens(responsePrompt ?? "").toLocaleString()} tokens</span>
+                <span>Custom system prompt</span>
+                <span className="min-w-0 normal-case tracking-normal sm:text-right">
+                  {elevatedLimits ? `Extended prompt · ${(responsePrompt ?? "").length.toLocaleString()} characters` : `Overrides built-in prompt · ${(responsePrompt ?? "").length}/${responsePromptLimit}`}
+                </span>
               </span>
               <textarea
                 value={responsePrompt ?? ""}
-                onChange={(event) => onResponsePromptChange(event.target.value)}
-                placeholder="Example: Write 2–4 immersive paragraphs, lead with dialogue, and never narrate my actions."
+                maxLength={responsePromptLimit}
+                onChange={(event) => onResponsePromptChange(event.target.value.slice(0, responsePromptLimit))}
+                placeholder="Leave blank to use Nythera's built-in roleplay prompt, or paste a complete system prompt to replace it."
                 rows={3}
                 className="focus-ring min-h-20 resize-y rounded-sm border border-white/15 bg-[#111] px-3 py-2 text-xs leading-5 text-[var(--text-primary)] focus:border-[var(--accent-purple)]"
               />
@@ -638,23 +647,32 @@ export function ChatInput({
 
         {lookbookOpen ? (
           <div ref={lookbookPanelRef} className="absolute inset-x-0 bottom-full z-[60] mb-2 max-h-72 overflow-y-auto rounded-sm border border-white/15 bg-[#090909] p-3 shadow-2xl">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-[.16em] text-[var(--codex-mint)]">Lookbook</p>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[.16em] text-[var(--codex-mint)]">Lookbook · reusable images</p>
+                <p className="mt-1 max-w-2xl text-[11px] leading-4 text-[var(--text-secondary)]">
+                  Choose an image to attach it as visual context for your next message. Lookbook never changes the character automatically; Lorebook is the separate keyword-based facts system.
+                </p>
+              </div>
               <button type="button" onClick={() => setLookbookOpen(false)} className="focus-ring grid h-8 w-8 place-items-center text-[var(--text-secondary)]" aria-label="Close Lookbook"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="my-3 rounded-sm border border-white/10 bg-white/[.035] px-3 py-2 text-[10px] leading-4 text-[var(--text-muted)]">
+              Save: attach or generate an image, then press its bookmark icon. Reuse: open Lookbook and select the saved image before sending.
             </div>
             {lookbookLoading ? (
               <p className="py-8 text-center text-xs text-[var(--text-muted)]">Loading saved looks…</p>
             ) : lookbook.length ? (
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
                 {lookbook.map((image) => (
-                  <button key={image.lookbookId} type="button" onClick={() => attachLookbookImage(image)} className="focus-ring overflow-hidden rounded-sm border border-white/10 bg-white/5 text-left hover:border-[var(--codex-mint)]">
+                  <button key={image.lookbookId} type="button" onClick={() => attachLookbookImage(image)} className="focus-ring group overflow-hidden rounded-sm border border-white/10 bg-white/5 text-left hover:border-[var(--codex-mint)]" aria-label={`Attach ${image.title} to the next message`}>
                     <img src={image.url} alt={image.title} className="aspect-square w-full object-cover" />
                     <span className="block truncate px-2 py-1.5 text-[11px] text-[var(--text-secondary)]">{image.title}</span>
+                    <span className="block px-2 pb-1.5 text-[9px] uppercase tracking-[.12em] text-[var(--text-muted)] group-hover:text-[var(--codex-mint)]">Attach next</span>
                   </button>
                 ))}
               </div>
             ) : (
-              <p className="py-8 text-center text-xs text-[var(--text-muted)]">Save an attached image here to reuse the look later.</p>
+              <p className="py-6 text-center text-xs text-[var(--text-muted)]">No saved images yet. Attach a photo or use Illustrate, then press the bookmark icon on its preview.</p>
             )}
           </div>
         ) : null}
@@ -690,8 +708,8 @@ export function ChatInput({
             ref={textareaRef}
             value={value}
             rows={1}
-            maxLength={MAX_CHAT_MESSAGE_LENGTH}
-            onChange={(event) => onChange(event.target.value.slice(0, MAX_CHAT_MESSAGE_LENGTH))}
+            maxLength={messageLimit}
+            onChange={(event) => onChange(event.target.value.slice(0, messageLimit))}
             onInput={resize}
             onKeyDown={handleKeyDown}
             onFocus={() => setComposerExpanded(true)}
@@ -766,14 +784,12 @@ export function ChatInput({
             </div>
           </div>
         </div>
-        {showExpandedComposer ? (
-          <div className="relative flex items-center justify-between gap-3 px-1 text-xs text-[var(--text-muted)]">
-            <p role="status">{attachmentStatus}</p>
-            <span className={value.length >= MAX_CHAT_MESSAGE_LENGTH ? "text-amber-300" : undefined}>
-              {value.length.toLocaleString()}/{MAX_CHAT_MESSAGE_LENGTH.toLocaleString()}
-            </span>
-          </div>
-        ) : null}
+        <div className="relative flex items-center justify-between gap-3 px-1 text-xs text-[var(--text-muted)]">
+          <p role="status">{attachmentStatus}</p>
+          <span className={value.length >= messageLimit ? "text-amber-300" : undefined}>
+            {elevatedLimits ? `${value.length.toLocaleString()} characters · extended` : `${value.length.toLocaleString()}/${messageLimit.toLocaleString()}`}
+          </span>
+        </div>
       </motion.div>
     </div>
   );

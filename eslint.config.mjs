@@ -15,9 +15,16 @@ export default defineConfig([
     "dist/**",
     "node_modules/**",
     "output/**",
+    "artifacts/**",
     ".codex-artifacts/**",
     ".codex-remote-attachments/**",
     ".codex-tmp/**",
+    ".vercel/**",
+    "test-results/**",
+    "desktop/dist/**",
+    "mobile/.expo/**",
+    "mobile/android/**/build/**",
+    "mobile/android/.gradle/**",
     ".playwright-cli/**",
     "next-env.d.ts"
   ])

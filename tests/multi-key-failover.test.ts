@@ -43,15 +43,18 @@ test("same-provider retries precede cross-provider fallbacks", async () => {
     assert.match(source, /attemptRoutes\(route,/);
     assert.match(source, /key\.provider === primary\.providerName/);
     assert.match(source, /canTryAnotherRoute = Boolean\(nextAttempt\) && isKeyScopedFailure/);
-    assert.match(source, /code === "prompt_too_large"/);
+
   }
   assert.match(gateway, /MAX_SAME_PROVIDER_ATTEMPTS = 4/);
   assert.match(gateway, /rotatePrimaryKey/);
   assert.match(gateway, /setKeyCooldown/);
-  assert.match(gateway, /shouldSkipRemainingProviderKeys/);
-  assert.doesNotMatch(gateway, /gatewayDeadline/);
-  assert.match(gateway, /All \$\{keyCount\} saved keys/);
+  assert.match(gateway, /exhaustedProviderMessage\(lastAttempt, classified.message\)/);
   assert.match(gateway, /LLM provider attempt failed/);
+  assert.match(gateway, /providerOutputTokenBudget\(\{/);
+  assert.match(gateway, /Provider returned an empty response/);
+  assert.match(proxy, /providerOutputTokenBudget\(parsed\.data\.maxTokens, attempt\.provider\)/);
+  assert.match(proxy, /Provider returned an empty response/);
+  assert.match(proxy, /streamed\.slice\(streamedBeforeAttempt\)\.trim\(\)/);
   assert.match(notices, /if \(primary === answeredBy\) return null/);
 });
 

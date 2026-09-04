@@ -17,18 +17,6 @@ export async function GET(_: Request, context: Context) {
   }
 }
 
-export async function PUT(request: Request, context: Context) {
-  try {
-    const user = await requireUser();
-    await enforceRateLimit({ userId: user.id, ip: getRequestIp(request), route: "stories:state" });
-    const state = await parseJson(request, storyStateSchema);
-    const snapshot = await updateStoryState({ storyId: (await context.params).id, userId: user.id, state });
-    return json({ snapshot });
-  } catch (error) {
-    return routeError(error);
-  }
-}
-
 export async function POST(request: Request, context: Context) {
   try {
     const user = await requireUser();
@@ -42,6 +30,18 @@ export async function POST(request: Request, context: Context) {
       previousSceneSummary,
       carryInventory
     }), { status: 201 });
+  } catch (error) {
+    return routeError(error);
+  }
+}
+
+export async function PUT(request: Request, context: Context) {
+  try {
+    const user = await requireUser();
+    await enforceRateLimit({ userId: user.id, ip: getRequestIp(request), route: "stories:state" });
+    const state = await parseJson(request, storyStateSchema);
+    const snapshot = await updateStoryState({ storyId: (await context.params).id, userId: user.id, state });
+    return json({ snapshot });
   } catch (error) {
     return routeError(error);
   }

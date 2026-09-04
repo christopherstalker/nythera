@@ -1553,6 +1553,12 @@
     margin: 0;
   }
 
+  .codex-studio-primary-wrap {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+  }
+
   @media (max-width: 1023px) {
     .codex-character-studio {
       grid-template-columns: minmax(270px, 34vw) minmax(0, 1fr);
@@ -1594,17 +1600,21 @@
     }
 
     .codex-dossier-mobile-bar {
+      position: sticky;
+      z-index: 30;
+      top: 0;
       display: flex;
       min-height: calc(4.75rem + env(safe-area-inset-top));
       align-items: flex-end;
       gap: 1rem;
       padding: calc(.8rem + env(safe-area-inset-top)) 1.15rem .8rem;
       border-bottom: 1px solid var(--codex-rule);
+      background: color-mix(in oklch, var(--codex-paper-raised) 96%, transparent);
+      backdrop-filter: blur(18px);
     }
 
     .codex-dossier-portrait {
-      height: min(38vh, 19rem);
-      min-height: 15rem;
+      display: none;
     }
 
     .codex-dossier-title {
@@ -1653,8 +1663,8 @@
 
     .codex-manuscript {
       height: auto;
-      overflow: visible;
-      padding: 1.65rem 1.15rem calc(7.5rem + env(safe-area-inset-bottom));
+      overflow: visible !important;
+      padding: 1rem 1rem calc(7.5rem + env(safe-area-inset-bottom));
     }
 
     .codex-studio-header {
@@ -1662,20 +1672,28 @@
     }
 
     .codex-studio-header h1 {
-      font-size: clamp(2.45rem, 12vw, 3.45rem);
+      font-size: clamp(2.1rem, 10vw, 2.8rem);
+    }
+
+    .codex-studio-header > div > p:last-child {
+      display: none;
     }
 
     .codex-mode-index {
-      overflow-x: auto;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      overflow: visible;
     }
 
     .codex-mode-index button {
-      min-width: 7rem;
+      min-width: 0;
+      padding-inline: .35rem;
+      font-size: 9px;
+      letter-spacing: .08em;
     }
 
     .codex-manuscript-chapter,
     .codex-prompt-sheet {
-      padding-block: 2.4rem;
+      padding-block: 1.75rem;
     }
 
     .codex-chapter-heading {
@@ -1684,7 +1702,12 @@
     }
 
     .codex-chapter-heading h2 {
-      font-size: clamp(2.45rem, 12vw, 3.5rem);
+      font-size: clamp(1.95rem, 9vw, 2.6rem);
+    }
+
+    .codex-chapter-heading > div > p:last-child {
+      margin-top: .55rem;
+      font-size: .95rem;
     }
 
     .codex-margin-assist {
@@ -1693,8 +1716,17 @@
 
     .codex-chapter-body {
       display: none;
-      margin-top: 2rem;
+      gap: 1.4rem;
+      margin-top: 1.35rem;
       padding-left: 0;
+    }
+
+    .codex-manuscript .glass-input,
+    .codex-manuscript input:not([type="checkbox"]):not([type="range"]),
+    .codex-manuscript textarea,
+    .codex-manuscript select {
+      max-width: 100%;
+      font-size: 1rem;
     }
 
     .codex-manuscript-chapter.is-active .codex-chapter-body {
@@ -1707,12 +1739,14 @@
 
     .codex-studio-actions {
       position: sticky;
-      bottom: 0;
+      z-index: 40;
+      bottom: var(--bottom-nav-offset);
       display: grid;
       grid-template-columns: minmax(0, 1fr);
-      margin: 1.5rem -1.15rem -7.5rem;
-      padding: .7rem 1rem;
+      margin: 1rem -1rem 0;
+      padding: .75rem 1rem;
       background: color-mix(in oklch, var(--codex-paper-raised) 96%, transparent);
+      box-shadow: 0 -12px 32px oklch(0 0 0 / .24);
     }
 
     .codex-studio-secondary-actions {
@@ -1724,6 +1758,12 @@
     .codex-studio-secondary-actions > *,
     .codex-studio-primary-action {
       width: 100%;
+    }
+
+    .codex-studio-primary-wrap {
+      display: grid;
+      width: 100%;
+      gap: .45rem;
     }
 
     .codex-studio-actions .button,

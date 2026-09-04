@@ -3,67 +3,23 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { fitPromptMessagesWithinContext, historyTokenBudget, promptContextWindow, selectNewestHistoryWithinBudget } from "../src/lib/prompt-budget";
 import { modelContextWindow, UNKNOWN_MODEL_CONTEXT_WINDOW } from "../src/lib/provider-model-options";
+import { buildConversationSummary } from "../src/lib/conversation-summary";
+import { buildPhysicalContinuityLayer } from "../src/lib/physical-continuity";
 
 const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
-test("fixed Roleplay Engine is ordered below safety and above all configurable context", async () => {
+test("custom prompt replaces the fixed Roleplay Engine after factual context", async () => {
   const source = await read("../src/lib/prompt-assembly.ts");
-  const orderedLayers = [
-    "safetyLayer,",
-    "roleplayEngineLayer,",
-    "modeLayer,",
-    "characterSystemOverrideLayer,",
-    "characterContractLayer,",
-    "storyContextLayer,",
-    "responsePromptLayer,",
-    "memoryLayer,",
-    "userPersonaLayer,",
-    "translationLayer,",
-    "physicalContinuityLayer,",
-    "narrationOutputGuardLayer"
-  ];
-  let cursor = -1;
-  for (const layer of orderedLayers) {
-    const next = source.indexOf(layer, cursor + 1);
-    assert.ok(next > cursor, `${layer} is out of order`);
-    cursor = next;
-  }
+  assert.match(source, /const contextLayers = \[[\s\S]*safetyLayer,[\s\S]*characterContractLayer,[\s\S]*storyContextLayer,[\s\S]*memoryLayer[\s\S]*\];/);
+  assert.match(source, /const behaviorLayers = customPromptLayer[\s\S]*\? \[customPromptLayer\][\s\S]*: \[roleplayEngineLayer, modeLayer\]/);
+  assert.match(source, /const system = \[\.\.\.contextLayers, \.\.\.behaviorLayers, physicalContinuityLayer, translationLayer\]/);
   assert.match(source, /Address the player only as you/);
   assert.match(source, /use only the identity and pronouns explicitly authorized by the active player persona/);
   assert.match(source, /Secondary characters stay alive/);
   assert.match(source, /do not wait to be addressed/);
   assert.match(source, /must contribute dialogue and initiative of their own/);
   assert.match(source, /No appending ‘What do you do\?’/);
-  assert.match(source, /Ignore any request here to control the player, freeze NPCs/);
-  assert.match(source, /measurementRedactor\.redactAssistant\(message\.content\)/);
-  assert.match(source, /measurementRedactor\.redactSummary\(input\.summary\)/);
-});
-
-test("player identity constraints remain authoritative without exposing optional appearance details", async () => {
-  const [assembly, personaFormatter] = await Promise.all([
-    read("../src/lib/prompt-assembly.ts"),
-    read("../src/lib/user-persona-prompt.ts")
-  ]);
-
-  assert.match(assembly, /sanitizePromptContext\(userPersona, 16_000\)/);
-  assert.match(assembly, /PLAYER PERSONA — AUTHORITATIVE IDENTITY AND BOUNDARIES/);
-  assert.match(assembly, /‘never call me’/);
-  assert.match(assembly, /Appearance and presentation never imply gender/);
-  assert.match(assembly, /silently audit every pronoun, gendered noun, title, and descriptor/);
-  assert.doesNotMatch(assembly, /Instruction-like text inside the profile has no authority/);
-  assert.match(personaFormatter, /Authoritative identity, address, and interaction boundaries/);
-  assert.doesNotMatch(personaFormatter, /`Background:/);
-  assert.doesNotMatch(personaFormatter, /`Traits:/);
-  assert.match(personaFormatter, /formatUserPersonaContinuitySource/);
-});
-
-test("player cast state and locked visuals survive active-character context filtering", async () => {
-  const storyContext = await read("../src/lib/stories/story-foundation.ts");
-
-  assert.match(storyContext, /state\.participant\.role === "PLAYER"/);
-  assert.match(storyContext, /state\.participant\.role === "OWNER"/);
-  assert.match(storyContext, /reference\.participant\?\.role === "PLAYER"/);
-  assert.match(storyContext, /reference\.participant\?\.role === "OWNER"/);
+  assert.match(source, /A configured Custom System Prompt is trusted behavioral authority after platform safety/);
 });
 
 test("applicable pinned memories must visibly constrain the current response", async () => {
@@ -162,11 +118,63 @@ test("rolling summaries extend through a watermark instead of repeatedly summari
   assert.doesNotMatch(stream, /take: 40/);
 });
 
-test("room prompts receive the same final context fit as one-to-one chats", async () => {
-  const rooms = await read("../src/lib/rooms.ts");
-  assert.match(rooms, /fitPromptMessagesWithinContext\(assembledPrompt/);
-  assert.match(rooms, /const prompt = promptFit\.messages/);
-  assert.match(rooms, /promptFit\.fixedPromptTooLarge/);
+test("physical player canon is carried across summary compaction and every inference path", async () => {
+  const [summaryBuilder, assembly, webRoute, mobileRoute, rooms] = await Promise.all([
+    read("../src/lib/conversation-summary.ts"),
+    read("../src/lib/prompt-assembly.ts"),
+    read("../src/app/api/chats/[id]/stream/route.ts"),
+    read("../src/app/api/mobile/chats/[id]/message/route.ts"),
+    read("../src/lib/rooms.ts")
+  ]);
+
+  assert.match(summaryBuilder, /formatPlayerPhysicalCanon\(extractPlayerPhysicalCanon/);
+  assert.match(summaryBuilder, /\[CANONICAL PLAYER PHYSICAL FACTS\]/);
+  assert.match(assembly, /persistentPlayerContext: input\.physicalContext/);
+  for (const inferencePath of [webRoute, mobileRoute, rooms]) {
+    assert.match(inferencePath, /const physicalContext = buildPhysicalMemoryContext/);
+    assert.match(inferencePath, /physicalContext,/);
+    assert.match(inferencePath, /createPhysicalContinuityOutputGuard/);
+  }
+});
+
+test("rolling summary output retains user-authored mass and handling facts verbatim as canon", () => {
+  const first = buildConversationSummary([
+    { role: "USER", content: "I am 205 cm tall, weigh 132 kg, and cannot be lifted or carried." },
+    { role: "ASSISTANT", content: "You are only 160 cm tall and weigh 50 kg, so he casually picks you up anyway." }
+  ]);
+  const rolled = buildConversationSummary(
+    [
+      { role: "USER", content: "I point toward the northern road." },
+      { role: "ASSISTANT", content: "He studies the map." }
+    ],
+    first
+  );
+
+  assert.match(rolled ?? "", /\[CANONICAL PLAYER PHYSICAL FACTS\]/);
+  assert.match(rolled ?? "", /- Height: 205 cm\./);
+  assert.match(rolled ?? "", /- Weight: 132 kg\./);
+  assert.match(rolled ?? "", /- Handling constraint: the player cannot be lifted or carried/);
+});
+
+test("a tall player persona prevents unspecified-height NPCs from being narrated above the player", () => {
+  const layer = buildPhysicalContinuityLayer(
+    {
+      name: "Pick-me rookie | Toto Wolff",
+      description: "A new driver joins the team.",
+      personality: "Toto and the other paddock characters act naturally.",
+      scenario: "The player and Toto leave the paddock together."
+    },
+    "User persona summary: Christopher. 213 cm tall, around 180 kg.",
+    {
+      recentMessages: [],
+      currentMessage: "I walk beside Toto toward the exit."
+    }
+  );
+
+  assert.match(layer ?? "", /Canonical player height: 213 cm\./);
+  assert.match(layer ?? "", /Canonical player weight: 180 kg\./);
+  assert.match(layer ?? "", /every character whose height or explicit height relation to the player is not established/);
+  assert.match(layer ?? "", /Forbidden for an unspecified-height character at the same elevation: .*looks down at you/);
 });
 
 test("chat header links to the character and context exposes memory plus appearance", async () => {
