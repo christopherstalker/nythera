@@ -1,5 +1,5 @@
 export type ProviderErrorClassification = {
-  code: "invalid_api_key" | "insufficient_balance" | "invalid_parameters" | "rate_limit" | "model_unavailable" | "provider_unavailable" | "provider_not_configured" | "network_error" | "provider_error";
+  code: "invalid_api_key" | "insufficient_balance" | "prompt_too_large" | "invalid_parameters" | "rate_limit" | "model_unavailable" | "provider_unavailable" | "provider_not_configured" | "network_error" | "provider_error";
   message: string;
   status: number | null;
   retryable: boolean;
@@ -15,9 +15,13 @@ export function classifyProviderError(error: unknown): ProviderErrorClassificati
     message.includes("provider is unavailable") ||
     message.includes("overloaded") ||
     message.includes("try again later");
+  const reportsPromptLimit = message.includes("prompt tokens limit exceeded") || message.includes("maximum context length") || message.includes("context length exceeded");
 
   if (status === 401 || status === 403 || message.includes("api key not valid")) {
     return { code: "invalid_api_key", message: "The selected provider rejected the API key. Check the key in Settings.", status: status ?? 401, retryable: false };
+  }
+  if (reportsPromptLimit) {
+    return { code: "prompt_too_large", message: "The request exceeded this provider's context limit. Nythera will shorten older history before retrying.", status, retryable: false };
   }
   if (status === 402) {
     return { code: "insufficient_balance", message: "The provider account cannot cover this request. Add credits, reduce the response length, or choose another provider.", status, retryable: false };

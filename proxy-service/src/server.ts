@@ -217,8 +217,12 @@ app.post("/v1/chat/stream", async (request, response) => {
   const primaryKeyCount = providerKeys.filter((key) => key.provider === route.providerName).length;
   let streamed = "";
   let lastError: unknown = null;
+  const skippedProviders = new Set<string>();
 
   for (const [attemptIndex, attempt] of attempts.entries()) {
+    if (skippedProviders.has(attempt.providerName)) {
+      continue;
+    }
     if (clientClosed) {
       logger.info({ route: "chat", status: "client_closed" });
       return;
@@ -317,6 +321,9 @@ app.post("/v1/chat/stream", async (request, response) => {
 
       lastError = attemptSignal.timedOut() ? new Error("Provider request timed out.") : error;
       const classified = classifyProviderError(lastError);
+      if (shouldSkipRemainingProviderKeys(classified.code)) {
+        skippedProviders.add(attempt.providerName);
+      }
       logger.warn({
         event: "llm_provider_attempt",
         route: "proxy:chat",
@@ -337,7 +344,7 @@ app.post("/v1/chat/stream", async (request, response) => {
         return;
       }
       streamed = streamed.slice(0, streamedBeforeAttempt);
-      const nextAttempt = attempts[attemptIndex + 1];
+      const nextAttempt = attempts.slice(attemptIndex + 1).find((candidate) => !skippedProviders.has(candidate.providerName));
       const canTryAnotherRoute = Boolean(nextAttempt) && isKeyScopedFailure(classified.code);
       if (!classified.retryable && !canTryAnotherRoute) {
         writeEvent({
@@ -447,10 +454,18 @@ function attemptRoutes(primary: GatewayRoute, keys: ProviderKeys) {
 function isKeyScopedFailure(code: string) {
   return code === "invalid_api_key" ||
     code === "insufficient_balance" ||
+    code === "prompt_too_large" ||
     code === "rate_limit" ||
+    code === "model_unavailable" ||
     code === "provider_unavailable" ||
     code === "network_error" ||
     code === "provider_error";
+}
+
+function shouldSkipRemainingProviderKeys(code: string) {
+  return code === "model_unavailable" ||
+    code === "provider_unavailable" ||
+    code === "network_error";
 }
 
 function exhaustedProviderMessage(route: GatewayRoute, keyCount: number, fallbackMessage: string) {

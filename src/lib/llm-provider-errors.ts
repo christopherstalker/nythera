@@ -1,6 +1,7 @@
 export type ProviderErrorCode =
   | "invalid_api_key"
   | "insufficient_balance"
+  | "prompt_too_large"
   | "invalid_parameters"
   | "rate_limit"
   | "model_unavailable"
@@ -26,12 +27,25 @@ export function classifyProviderError(error: unknown): ProviderErrorClassificati
     rawMessage.includes("provider is unavailable") ||
     rawMessage.includes("overloaded") ||
     rawMessage.includes("try again later");
+  const reportsPromptLimit =
+    rawMessage.includes("prompt tokens limit exceeded") ||
+    rawMessage.includes("maximum context length") ||
+    rawMessage.includes("context length exceeded");
 
   if (status === 401 || status === 403 || rawMessage.includes("api key not valid")) {
     return {
       code: "invalid_api_key",
       message: "The selected provider rejected the API key. Check the key in Settings.",
       status: status ?? 401,
+      retryable: false
+    };
+  }
+
+  if (reportsPromptLimit) {
+    return {
+      code: "prompt_too_large",
+      message: "The request exceeded this provider's context limit. Nythera will shorten older history before retrying.",
+      status,
       retryable: false
     };
   }
