@@ -47,7 +47,7 @@ test("guardian reports fallback as degraded and clears the incident on recovery"
   assert.equal(recovered.changedAt, "2026-09-04T00:02:00.000Z");
 });
 
-test("application gateway and canary are connected to the distributed circuit breaker", async () => {
+test("Guardian observes provider health without changing user circuit state", async () => {
   const [gateway, circuit, canary] = await Promise.all([
     readFile("src/lib/llm-gateway.ts", "utf8"),
     readFile("src/lib/provider-circuit.ts", "utf8"),
@@ -57,10 +57,13 @@ test("application gateway and canary are connected to the distributed circuit br
   assert.match(gateway, /readProviderCircuitStates/);
   assert.match(gateway, /recordProviderFailure/);
   assert.match(gateway, /recordProviderSuccess/);
-  assert.match(circuit, /guardian:circuit:v1/);
+  assert.match(circuit, /gateway:circuit:v2/);
   assert.match(circuit, /FAILURE_THRESHOLD = 3/);
   assert.match(canary, /GUARDIAN_SHARED_SECRET/);
   assert.match(canary, /streamGatewayResponse/);
+  assert.match(canary, /healthCheck: true/);
+  assert.match(gateway, /if \(!observeOnly\) \{\s+setKeyCooldown/);
+  assert.match(gateway, /if \(!observeOnly\) \{\s+clearKeyCooldown/);
 });
 
 function check(status: CanaryCheck["status"], checkedAt: string): CanaryCheck {

@@ -1,13 +1,14 @@
 import "server-only";
 
-import { createHash } from "crypto";
+import { providerCircuitKey } from "@/lib/provider-recovery";
 import { redis } from "@/lib/redis";
 import type { ProviderErrorCode } from "@/lib/llm-provider-errors";
 
 type CircuitIdentity = {
   provider: string;
   keyId?: string;
-  keySlot?: number;
+  model: string;
+  credential: string;
 };
 
 type MemoryCircuit = {
@@ -115,16 +116,15 @@ async function openDistributedCircuit(circuitKey: string, openUntil: number, coo
 }
 
 function keyFor(identity: CircuitIdentity) {
-  const raw = `${identity.provider.trim().toLowerCase()}:${identity.keyId ?? `slot-${identity.keySlot ?? 0}`}`;
-  return createHash("sha256").update(raw).digest("hex").slice(0, 24);
+  return providerCircuitKey(identity);
 }
 
 function openKey(circuitKey: string) {
-  return `guardian:circuit:v1:${circuitKey}:open`;
+  return `gateway:circuit:v2:${circuitKey}:open`;
 }
 
 function failuresKey(circuitKey: string) {
-  return `guardian:circuit:v1:${circuitKey}:failures`;
+  return `gateway:circuit:v2:${circuitKey}:failures`;
 }
 
 function logCircuitStoreFailure(operation: string, error: unknown) {

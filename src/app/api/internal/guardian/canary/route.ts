@@ -51,6 +51,7 @@ export async function GET(request: Request) {
       maxTokens: 32,
       userId: canary.userId,
       chatId: "guardian-canary",
+      healthCheck: true,
       providerKeys: canary.providerKeys,
       signal: request.signal
     })) {
