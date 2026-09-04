@@ -14,6 +14,9 @@ export function isProtectedPath(pathname: string) {
   if (pathname.startsWith("/chat/")) {
     return true;
   }
+  if (pathname.startsWith("/tutorial")) {
+    return true;
+  }
   if (/^\/character\/[^/]+\/edit/.test(pathname)) {
     return true;
   }
@@ -23,6 +26,18 @@ export function isProtectedPath(pathname: string) {
 
 export function isGuestBrowsePath(pathname: string) {
   return pathname === "/" || pathname.startsWith("/explore") || /^\/character\/[^/]+$/.test(pathname);
+}
+
+export function isAuthExperiencePath(pathname: string) {
+  return (
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/register") ||
+    pathname.startsWith("/forgot-password") ||
+    pathname.startsWith("/reset-password") ||
+    pathname.startsWith("/auth/new-user") ||
+    pathname.startsWith("/auth/pwa") ||
+    pathname.startsWith("/pwa-migrate")
+  );
 }
 
 export function loginUrl(callbackPath?: string) {

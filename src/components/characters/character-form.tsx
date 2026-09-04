@@ -8,9 +8,11 @@ import {
   Download,
   FileJson,
   Lock,
+  Plus,
   Save,
   SlidersHorizontal,
   Sparkles,
+  Trash2,
   Upload,
   Wand2,
   X,
@@ -44,6 +46,7 @@ import {
 } from "@/lib/character-form-payload";
 import {
   VIBE_PRESETS,
+  type AdditionalCharacterDraft,
   type CharacterCreationMode,
   type CharacterFormInitialValue,
   type CharacterFormMode,
@@ -56,10 +59,13 @@ import { cn } from "@/lib/utils";
 import { FIRST_CLASS_PROVIDER_PRESETS } from "@/lib/provider-presets";
 import type { GeneratedCharacterConcept } from "@/lib/generation/character-generator-types";
 import { matchLorebookEntries } from "@/lib/lorebook";
+import { MAX_CHARACTER_SYSTEM_PROMPT_CHARACTERS } from "@/lib/prompt-limits";
+import { estimatePromptTokens } from "@/lib/prompt-budget";
 
 type CharacterFormProps = {
   mode: "create" | "edit";
   initialValue?: CharacterFormInitialValue;
+  unlimitedCharacterFields?: boolean;
 };
 
 type ProviderOption = {
@@ -70,6 +76,7 @@ type ProviderOption = {
 
 type StudioChapterId = "identity" | "voice" | "scene" | "lore" | "appearance" | "publishing";
 type BehaviorSliderField = "humor" | "romanceLevel" | "seriousness" | "initiative" | "roleplayIntensity";
+type IdentityFieldId = "character-name" | "character-description";
 
 const behaviorSliderFields: Array<{ field: BehaviorSliderField; label: string }> = [
   { field: "humor", label: "Humor" },
@@ -91,15 +98,16 @@ const studioChapters: Array<{ id: StudioChapterId; number: string; label: string
 const guidedChapters: Array<{ id: StudioChapterId; number: string; label: string }> = [
   { id: "identity", number: "01", label: "Identity" },
   { id: "voice", number: "02", label: "Personality & scenario" },
-  { id: "scene", number: "03", label: "First scene" },
-  { id: "publishing", number: "04", label: "Bind the volume" }
+  { id: "scene", number: "03", label: "First scene" }
 ];
 
-export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
+export function CharacterForm({ mode, initialValue, unlimitedCharacterFields = false }: CharacterFormProps) {
   const router = useRouter();
   const formErrorRef = useRef<HTMLParagraphElement>(null);
   const [draft, setDraft] = useState<CharacterFormValue>(() => normalizeInitialCharacterValue(initialValue));
   const [error, setError] = useState<string | null>(null);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [identityError, setIdentityError] = useState<{ fieldId: IdentityFieldId; message: string } | null>(null);
   const [errorFieldId, setErrorFieldId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [generatingPreview, setGeneratingPreview] = useState(false);
@@ -119,6 +127,8 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
   const [lorebookPreviewText, setLorebookPreviewText] = useState("");
 
   useEffect(() => {
+    if (mode !== "edit") return;
+
     let cancelled = false;
 
     async function loadKeys() {
@@ -148,7 +158,17 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [mode]);
+
+  useEffect(() => {
+    if (!error) return;
+
+    requestAnimationFrame(() => {
+      const errorMessage = document.getElementById("character-form-error");
+      errorMessage?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      errorMessage?.focus({ preventScroll: true });
+    });
+  }, [error]);
 
   const providerOptions = useMemo(() => {
     const options = new Map<string, ProviderOption>();
@@ -167,7 +187,10 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
     () => (generatedPreview ? mergePreviewIntoDraft(draft, generatedPreview) : draft),
     [draft, generatedPreview]
   );
-  const parsedLorebook = useMemo(() => parseLorebookText(draft.lorebookText), [draft.lorebookText]);
+  const parsedLorebook = useMemo(
+    () => parseLorebookText(draft.lorebookText, unlimitedCharacterFields),
+    [draft.lorebookText, unlimitedCharacterFields]
+  );
   const lorebookMatches = useMemo(
     () => matchLorebookEntries(parsedLorebook, [lorebookPreviewText]),
     [lorebookPreviewText, parsedLorebook]
@@ -178,11 +201,73 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
 
   function update<K extends keyof CharacterFormValue>(field: K, value: CharacterFormValue[K]) {
     setDraft((current) => ({ ...current, [field]: value }));
+    if (field === "avatarUrl") {
+      setAvatarError(null);
+    }
+    if (field === "name" || field === "description") {
+      setIdentityError(null);
+    }
     setError(null);
     setErrorFieldId(null);
     if (formMode === "simple" && field !== "greeting" && field !== "avatarUrl" && field !== "tags") {
       setGeneratedPreview(null);
     }
+  }
+
+  function addAdditionalPersonality() {
+    setDraft((current) => {
+      if (current.additionalCharacters.length >= 7) return current;
+
+      return {
+        ...current,
+        additionalCharacters: [
+          ...current.additionalCharacters,
+          {
+            id: `cast-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+            name: "",
+            personality: ""
+          }
+        ]
+      };
+    });
+  }
+
+  function updateAdditionalPersonality(id: string, field: keyof Omit<AdditionalCharacterDraft, "id">, value: string) {
+    setDraft((current) => ({
+      ...current,
+      additionalCharacters: current.additionalCharacters.map((character) =>
+        character.id === id ? { ...character, [field]: value } : character
+      )
+    }));
+  }
+
+  function removeAdditionalPersonality(id: string) {
+    setDraft((current) => ({
+      ...current,
+      additionalCharacters: current.additionalCharacters.filter((character) => character.id !== id)
+    }));
+  }
+
+  function revealAvatarError(message: string) {
+    setError(null);
+    setAvatarError(message);
+    setActiveChapter("identity");
+    requestAnimationFrame(() => {
+      const avatarField = document.getElementById("character-avatar");
+      avatarField?.scrollIntoView({ behavior: "smooth", block: "center" });
+      avatarField?.focus({ preventScroll: true });
+    });
+  }
+
+  function revealIdentityError(message: string, fieldId: IdentityFieldId) {
+    setError(null);
+    setIdentityError({ fieldId, message });
+    setActiveChapter("identity");
+    requestAnimationFrame(() => {
+      const field = document.getElementById(fieldId);
+      field?.scrollIntoView({ behavior: "smooth", block: "center" });
+      field?.focus({ preventScroll: true });
+    });
   }
 
   function revealFormError(message: string, chapter: StudioChapterId = activeChapter, fieldId?: string) {
@@ -208,6 +293,8 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
     }
     setFormMode(nextMode);
     setError(null);
+    setAvatarError(null);
+    setIdentityError(null);
   }
 
   function selectImportTarget(nextMode: CharacterCreationMode) {
@@ -330,7 +417,8 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
       draft,
       generated: generatedPreview,
       isSimpleMode: false,
-      creationMode: mode === "edit" ? creationModeForEditor(initialValue?.creationMode) : creationModeForNewCharacter(formMode)
+      creationMode: mode === "edit" ? creationModeForEditor(initialValue?.creationMode) : creationModeForNewCharacter(formMode),
+      unlimitedCharacterFields
     });
     const card = {
       spec: "chara_card_v2",
@@ -468,21 +556,28 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
     if (saving) return;
 
     setError(null);
+    setIdentityError(null);
+
+    if (isPromptMode) {
+      setError("Generate a draft and apply it before creating the character.");
+      return;
+    }
 
     if (draft.name.trim().length < 2) {
-      revealFormError("Enter a character name using at least 2 characters.", "identity", "character-name");
+      revealIdentityError("Enter a character name using at least 2 characters.", "character-name");
       return;
     }
 
     if (draft.description.trim().length < 10) {
-      revealFormError("Describe the character's core idea using at least 10 characters.", "identity", "character-description");
+      revealIdentityError("Describe the character's core idea using at least 10 characters.", "character-description");
       return;
     }
+
 
     const preview = generatedPreview;
 
     if (!isSimpleMode && draft.visibility === "PUBLIC" && !draft.avatarUrl.trim()) {
-      revealFormError("Add an avatar before publishing publicly, or save the character as private.", "identity", "character-avatar");
+      revealAvatarError("Add an avatar before publishing publicly, or save the character as private.");
       return;
     }
 
@@ -490,10 +585,11 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
       draft,
       generated: preview,
       isSimpleMode: isSimpleMode || isPromptMode,
-      creationMode: mode === "edit" ? creationModeForEditor(initialValue?.creationMode) : creationModeForNewCharacter(formMode)
+      creationMode: mode === "edit" ? creationModeForEditor(initialValue?.creationMode) : creationModeForNewCharacter(formMode),
+      unlimitedCharacterFields
     });
 
-    const validation = validateCharacterCreatePayload(payload);
+    const validation = validateCharacterCreatePayload(payload, unlimitedCharacterFields);
     if (!validation.success) {
       revealFormError(firstValidationIssue(validation) ?? "Review the character fields and try again.");
       return;
@@ -571,6 +667,11 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
             <p className="mt-4 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
               Move through the manuscript chapter by chapter. The dossier beside it updates as the character takes shape.
             </p>
+            {unlimitedCharacterFields ? (
+              <p className="mt-4 inline-flex border border-[var(--codex-mint)]/45 bg-[var(--codex-mint)]/[.06] px-3 py-2 font-mono text-[10px] uppercase tracking-[.14em] text-[var(--codex-mint)]">
+                Owner access · character text fields have no length limit
+              </p>
+            ) : null}
           </div>
 
           {mode === "create" ? (
@@ -611,13 +712,14 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
         ) : isSimpleMode ? (
           <div className="codex-chapter-stack">
             <StudioChapter id="identity" number="01" title="Identity" description="Name the character and define the promise at the center of every conversation." active={activeChapter === "identity"} onSelect={() => selectChapter("identity")} onAssist={() => assistSection("basics")} assisting={assistingSection === "basics"}>
-              <Field label="Portrait" error={errorFieldId === "character-avatar" ? error : null}><AvatarUpload id="character-avatar" value={draft.avatarUrl} name={draft.name} onChange={(value) => update("avatarUrl", value)} onError={(message) => revealFormError(message, "identity", "character-avatar")} large /></Field>
-              <Field label="Character name" error={errorFieldId === "character-name" ? error : null} required><Input id="character-name" value={draft.name} onChange={(event) => update("name", event.target.value)} placeholder="Ari the Archivist" minLength={2} required /></Field>
-              <Field label="Core idea" hint="Formatting is rendered everywhere this subtitle appears." error={errorFieldId === "character-description" ? error : null} required><FormattedTextarea id="character-description" value={draft.description} onChange={(value) => update("description", value)} placeholder="Who are they, what tension follows them, and why should someone stay?" className="min-h-40" minLength={10} required /></Field>
+              <Field label="Portrait" error={avatarError}><AvatarUpload id="character-avatar" value={draft.avatarUrl} name={draft.name} onChange={(value) => update("avatarUrl", value)} onError={revealAvatarError} large /></Field>
+              <Field label="Character name" error={identityError?.fieldId === "character-name" ? identityError.message : null} required><Input id="character-name" value={draft.name} onChange={(event) => update("name", event.target.value)} placeholder="Ari the Archivist" minLength={2} required /></Field>
+              <Field label="Core idea" hint="Formatting is rendered everywhere this subtitle appears." error={identityError?.fieldId === "character-description" ? identityError.message : null} required><FormattedTextarea id="character-description" value={draft.description} onChange={(value) => update("description", value)} placeholder="Who are they, what tension follows them, and why should someone stay?" className="min-h-40" minLength={10} required /></Field>
               <Field label="Index terms"><TagChipInput value={draft.tags} onChange={(tags) => update("tags", tags)} presets={VIBE_PRESETS} /></Field>
             </StudioChapter>
             <StudioChapter id="voice" number="02" title="Personality & scenario" description="Add the character's inner logic and the world around them, or let Nythera draft only what is missing." active={activeChapter === "voice"} onSelect={() => selectChapter("voice")}>
               <Field label="Personality" hint="Optional. Describe how they think, react, and carry themselves."><Textarea value={draft.personality} onChange={(event) => update("personality", event.target.value)} placeholder="Calm under pressure, fiercely observant, and reluctant to trust easy answers." className="min-h-44" /></Field>
+              <AdditionalPersonalitiesEditor characters={draft.additionalCharacters} onAdd={addAdditionalPersonality} onChange={updateAdditionalPersonality} onRemove={removeAdditionalPersonality} />
               <Field label="Background"><Textarea value={draft.background} onChange={(event) => update("background", event.target.value)} placeholder="What shaped them, and what do they want now?" className="min-h-44" /></Field>
               <Field label="Scenario / world" hint="Optional. Establish where the story starts and what must remain true."><Textarea value={draft.scenario} onChange={(event) => update("scenario", event.target.value)} placeholder="The archive is sealed for the night when a forbidden volume opens by itself." className="min-h-44" /></Field>
               {generatedPreview ? <GeneratedPreviewCard preview={generatedPreview} /> : null}
@@ -627,27 +729,20 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
               <ProloguePovControl value={draft.prologuePov} onChange={(value) => update("prologuePov", value)} />
               <Field label="Greeting / first message" hint="This becomes the first page of every new conversation."><FormattedTextarea value={draft.greeting} onChange={(value) => update("greeting", value)} placeholder="Set the scene, place the character in motion, and leave the user room to answer." className="min-h-52" /></Field>
             </StudioChapter>
-            <StudioChapter id="publishing" number="04" title="Bind the volume" description="Choose how this character enters your library." active={activeChapter === "publishing"} onSelect={() => selectChapter("publishing")}>
-              <Field label="Default experience"><select value={draft.defaultChatMode} onChange={(event) => update("defaultChatMode", event.target.value === "fantasy" ? "fantasy" : "realism")} className="focus-ring glass-input h-12 w-full px-4 text-sm text-[var(--text-primary)]"><option value="realism">Realism — natural and grounded</option><option value="fantasy">Fantasy — vivid and immersive</option></select></Field>
-              <BehaviorControls
-                draft={draft}
-                onSliderChange={update}
-                onMessageLengthChange={(value) => update("messageLength", value)}
-              />
-            </StudioChapter>
           </div>
         ) : (
           <div className="codex-chapter-stack">
             <StudioChapter id="identity" number="01" title="Identity" description="The portrait, name, and core promise readers meet first." active={activeChapter === "identity"} onSelect={() => selectChapter("identity")} onAssist={() => assistSection("basics")} assisting={assistingSection === "basics"}>
-              <Field label="Portrait" error={errorFieldId === "character-avatar" ? error : null}><AvatarUpload id="character-avatar" value={draft.avatarUrl} name={draft.name} onChange={(value) => update("avatarUrl", value)} onError={(message) => revealFormError(message, "identity", "character-avatar")} large /></Field>
-              <Field label="Character name" error={errorFieldId === "character-name" ? error : null} required><Input id="character-name" value={draft.name} onChange={(event) => update("name", event.target.value)} placeholder="Ari the Archivist" minLength={2} required /></Field>
-              <Field label="Essence" hint="Formatting is rendered everywhere this subtitle appears." error={errorFieldId === "character-description" ? error : null} required><FormattedTextarea id="character-description" value={draft.description} onChange={(value) => update("description", value)} placeholder="A soft-spoken fantasy guide with a sharp memory." className="min-h-40" minLength={10} required /></Field>
+              <Field label="Portrait" error={avatarError}><AvatarUpload id="character-avatar" value={draft.avatarUrl} name={draft.name} onChange={(value) => update("avatarUrl", value)} onError={revealAvatarError} large /></Field>
+              <Field label="Character name" error={identityError?.fieldId === "character-name" ? identityError.message : null} required><Input id="character-name" value={draft.name} onChange={(event) => update("name", event.target.value)} placeholder="Ari the Archivist" minLength={2} required /></Field>
+              <Field label="Essence" hint="Formatting is rendered everywhere this subtitle appears." error={identityError?.fieldId === "character-description" ? identityError.message : null} required><FormattedTextarea id="character-description" value={draft.description} onChange={(value) => update("description", value)} placeholder="A soft-spoken fantasy guide with a sharp memory." className="min-h-40" minLength={10} required /></Field>
               <Field label="Index terms"><TagChipInput value={draft.tags} onChange={(tags) => update("tags", tags)} placeholder="Type any tag and press Enter" /></Field>
               <div className="grid gap-6 sm:grid-cols-2"><Field label="Role"><Input value={draft.personaRole} onChange={(event) => update("personaRole", event.target.value)} placeholder="Mentor, rival, companion..." /></Field><Field label="Archetype"><Input value={draft.archetype} onChange={(event) => update("archetype", event.target.value)} placeholder="Archivist, detective, bard..." /></Field></div>
             </StudioChapter>
 
             <StudioChapter id="voice" number="02" title="Voice & personality" description="The private logic beneath every response." active={activeChapter === "voice"} onSelect={() => selectChapter("voice")} onAssist={() => assistSection("personality")} assisting={assistingSection === "personality"}>
               <Field label="Personality"><Textarea value={draft.personality} onChange={(event) => update("personality", event.target.value)} placeholder="How they think, react, and carry themselves." className="min-h-44" /></Field>
+              <AdditionalPersonalitiesEditor characters={draft.additionalCharacters} onAdd={addAdditionalPersonality} onChange={updateAdditionalPersonality} onRemove={removeAdditionalPersonality} />
               <Field label="Background"><Textarea value={draft.background} onChange={(event) => update("background", event.target.value)} placeholder="The history and motivations that shaped them." className="min-h-44" /></Field>
               <Field label="Traits"><Textarea value={draft.personaTraits} onChange={(event) => update("personaTraits", event.target.value)} placeholder="One trait per line." /></Field>
               <Field label="Speaking style"><Textarea value={draft.speakingStyle} onChange={(event) => update("speakingStyle", event.target.value)} placeholder="Cadence, vocabulary, restraint, recurring habits." /></Field>
@@ -695,7 +790,7 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
             </StudioChapter>
 
             <StudioChapter id="publishing" number="06" title="Behavior & publishing" description="Model direction, boundaries, intensity, and who may discover the character." active={activeChapter === "publishing"} onSelect={() => selectChapter("publishing")} onAssist={() => assistSection("advanced")} assisting={assistingSection === "advanced"}>
-              <div className="codex-subleaf"><p className="codex-kicker">Model direction</p><div className="mt-6 grid gap-6 sm:grid-cols-2"><Field label="Default experience"><select value={draft.defaultChatMode} onChange={(event) => update("defaultChatMode", event.target.value === "fantasy" ? "fantasy" : "realism")} className="focus-ring glass-input h-12 w-full px-4 text-sm text-[var(--text-primary)]"><option value="realism">Realism — natural and grounded</option><option value="fantasy">Fantasy — vivid and immersive</option></select></Field><Field label="Provider override"><select value={draft.preferredProvider} onChange={(event) => { const provider = event.target.value; const option = providerOptions.find((item) => item.provider === provider); setDraft((current) => ({ ...current, preferredProvider: provider, preferredModel: provider && !current.preferredModel ? option?.defaultModel ?? "" : current.preferredModel })); }} className="focus-ring glass-input h-12 w-full px-4 text-sm text-[var(--text-primary)]"><option value="">Use global default</option>{providerOptions.map((provider) => <option key={provider.provider} value={provider.provider}>{provider.displayName}</option>)}</select></Field><Field label="Model override"><Input value={draft.preferredModel} onChange={(event) => update("preferredModel", event.target.value)} /></Field><OptionalNumberInput label="Temperature" value={draft.temperature} min={0} max={2} step={0.1} onChange={(value) => update("temperature", value)} /><OptionalNumberInput label="Top P" value={draft.topP} min={0} max={1} step={0.05} onChange={(value) => update("topP", value)} /><OptionalNumberInput label="Frequency penalty" value={draft.frequencyPenalty} min={-2} max={2} step={0.1} onChange={(value) => update("frequencyPenalty", value)} /><OptionalNumberInput label="Presence penalty" value={draft.presencePenalty} min={-2} max={2} step={0.1} onChange={(value) => update("presencePenalty", value)} /><OptionalNumberInput label="Max tokens" value={draft.maxTokens} min={1} max={4096} step={1} onChange={(value) => update("maxTokens", value)} /></div><Field label="System prompt override" hint="Replaces the built-in Roleplay Engine when a chat-level custom prompt is not set. Platform safety and factual context remain."><Textarea value={draft.systemPromptOverride} onChange={(event) => update("systemPromptOverride", event.target.value)} maxLength={8000} className="min-h-36" /></Field></div>
+              <div className="codex-subleaf"><p className="codex-kicker">Model direction</p><div className="mt-6 grid gap-6 sm:grid-cols-2"><Field label="Default experience"><select value={draft.defaultChatMode} onChange={(event) => update("defaultChatMode", event.target.value === "fantasy" ? "fantasy" : "realism")} className="focus-ring glass-input h-12 w-full px-4 text-sm text-[var(--text-primary)]"><option value="realism">Realism — natural and grounded</option><option value="fantasy">Fantasy — vivid and immersive</option></select></Field><Field label="Provider override"><select value={draft.preferredProvider} onChange={(event) => { const provider = event.target.value; const option = providerOptions.find((item) => item.provider === provider); setDraft((current) => ({ ...current, preferredProvider: provider, preferredModel: provider && !current.preferredModel ? option?.defaultModel ?? "" : current.preferredModel })); }} className="focus-ring glass-input h-12 w-full px-4 text-sm text-[var(--text-primary)]"><option value="">Use global default</option>{providerOptions.map((provider) => <option key={provider.provider} value={provider.provider}>{provider.displayName}</option>)}</select></Field><Field label="Model override"><Input value={draft.preferredModel} onChange={(event) => update("preferredModel", event.target.value)} /></Field><OptionalNumberInput label="Temperature" value={draft.temperature} min={0} max={2} step={0.1} onChange={(value) => update("temperature", value)} /><OptionalNumberInput label="Top P" value={draft.topP} min={0} max={1} step={0.05} onChange={(value) => update("topP", value)} /><OptionalNumberInput label="Frequency penalty" value={draft.frequencyPenalty} min={-2} max={2} step={0.1} onChange={(value) => update("frequencyPenalty", value)} /><OptionalNumberInput label="Presence penalty" value={draft.presencePenalty} min={-2} max={2} step={0.1} onChange={(value) => update("presencePenalty", value)} /><OptionalNumberInput label="Max tokens" value={draft.maxTokens} min={1} max={4096} step={1} onChange={(value) => update("maxTokens", value)} /></div><Field label="System prompt override" hint={`Creator instructions below platform safety and above the persona · ${draft.systemPromptOverride.length.toLocaleString()}${unlimitedCharacterFields ? " characters · no account limit" : ` / ${MAX_CHARACTER_SYSTEM_PROMPT_CHARACTERS.toLocaleString()} characters`} · ~${estimatePromptTokens(draft.systemPromptOverride).toLocaleString()} tokens`}><Textarea value={draft.systemPromptOverride} onChange={(event) => update("systemPromptOverride", event.target.value)} maxLength={unlimitedCharacterFields ? undefined : MAX_CHARACTER_SYSTEM_PROMPT_CHARACTERS} className="min-h-36" /></Field></div>
               <Field label="Boundaries"><Textarea value={draft.boundaries} onChange={(event) => update("boundaries", event.target.value)} /></Field>
               <Field label="Behavioral rules"><Textarea value={draft.behavioralRules} onChange={(event) => update("behavioralRules", event.target.value)} /></Field>
               <Field label="Forbidden behaviors"><Textarea value={draft.forbiddenBehaviors} onChange={(event) => update("forbiddenBehaviors", event.target.value)} /></Field>
@@ -712,6 +807,11 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
         )}
 
         <footer className="codex-studio-actions">
+          {error ? (
+            <p id="character-form-error" className="codex-error-note codex-studio-action-error" role="alert" tabIndex={-1}>
+              {error}
+            </p>
+          ) : null}
           <div className="codex-studio-secondary-actions flex min-w-0 items-center gap-2">
             {!isPromptMode && currentChapterIndex > 0 ? <Button type="button" variant="ghost" onClick={() => selectChapter(visibleChapters[currentChapterIndex - 1].id)}>Previous</Button> : null}
             {!isPromptMode && currentChapterIndex < visibleChapters.length - 1 ? <Button type="button" variant="outline" onClick={() => selectChapter(visibleChapters[currentChapterIndex + 1].id)}>Next chapter</Button> : null}
@@ -727,6 +827,64 @@ export function CharacterForm({ mode, initialValue }: CharacterFormProps) {
         </footer>
       </form>
     </div>
+  );
+}
+
+function AdditionalPersonalitiesEditor({
+  characters,
+  onAdd,
+  onChange,
+  onRemove
+}: {
+  characters: AdditionalCharacterDraft[];
+  onAdd: () => void;
+  onChange: (id: string, field: keyof Omit<AdditionalCharacterDraft, "id">, value: string) => void;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <section className="-mt-2 space-y-4" aria-label="Additional character personalities">
+      {characters.map((character, index) => (
+        <article key={character.id} className="rounded-sm border border-[var(--codex-rule)] bg-black/10 p-4 sm:p-5">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="codex-kicker">Personality {index + 2}</p>
+              <p className="mt-1 text-sm text-[var(--text-muted)]">A separate hero with their own identity and behavior.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onRemove(character.id)}
+              aria-label={`Remove ${character.name.trim() || `personality ${index + 2}`}`}
+              className="focus-ring grid h-9 w-9 place-items-center rounded-full border border-[var(--codex-rule)] text-[var(--text-muted)] transition hover:border-red-400/50 hover:text-red-300"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="space-y-4">
+            <Field label="Character name" required>
+              <Input value={character.name} onChange={(event) => onChange(character.id, "name", event.target.value)} placeholder="Mira" minLength={2} required />
+            </Field>
+            <Field label="Personality" hint="Describe how this hero thinks, reacts, speaks, and carries themselves." required>
+              <Textarea
+                value={character.personality}
+                onChange={(event) => onChange(character.id, "personality", event.target.value)}
+                placeholder="Write this hero's complete personality, voice, motivations, and behavioral rules."
+                className="min-h-44"
+                minLength={20}
+                required
+              />
+            </Field>
+          </div>
+        </article>
+      ))}
+
+      <Button type="button" variant="outline" onClick={onAdd} disabled={characters.length >= 7}>
+        <Plus className="h-4 w-4" />
+        {characters.length ? "Add another personality" : "Add personality"}
+      </Button>
+      <p className="text-xs leading-5 text-[var(--text-muted)]">
+        {characters.length >= 7 ? "Maximum of eight heroes per bot." : "Each added personality becomes another independent hero in the same bot."}
+      </p>
+    </section>
   );
 }
 
@@ -885,6 +1043,7 @@ function AvatarUpload({
             {value ? <img src={value} alt="" className="h-full w-full object-cover" /> : large ? <Upload className="h-8 w-8" /> : <ImagePlus className="h-5 w-5" />}
           </span>
           <span className="mt-3 text-sm text-[var(--text-secondary)]">{value ? "Click to replace image" : "Upload an avatar image"}</span>
+          <span className="mt-1 text-xs text-[var(--text-muted)]">JPG, PNG, WebP, GIF, AVIF, or BMP · up to 6 MB</span>
         </div>
       </ImageFilePicker>
       {value ? (

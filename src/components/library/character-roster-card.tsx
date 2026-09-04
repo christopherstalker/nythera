@@ -8,11 +8,11 @@ import { Avatar } from "@/components/ui/avatar";
 import { GlassButton } from "@/components/ui/GlassButton";
 import { cn } from "@/lib/utils";
 import { springSoft } from "@/lib/motion";
-import type { RosterCharacter } from "@/lib/library-roster";
+import type { LibraryRosterLayout, RosterCharacter } from "@/lib/library-roster";
 
 type CharacterRosterCardProps = {
   character: RosterCharacter;
-  view: "grid" | "list";
+  view: LibraryRosterLayout;
   onToggleFavorite: (characterId: string) => Promise<void>;
   onDelete: (characterId: string, characterName: string) => Promise<void>;
 };
@@ -24,7 +24,7 @@ export function CharacterRosterCard({ character, view, onToggleFavorite, onDelet
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={springSoft}
-        className="neo-glass-card group relative grid w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 p-3 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] sm:gap-4 sm:p-4"
+        className="neo-glass-card group relative grid w-full min-w-0 max-w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 p-3 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] sm:gap-4 sm:p-4"
       >
         <span className="relative shrink-0">
           <Avatar name={character.name} src={character.avatarUrl} size="md" />
@@ -35,12 +35,12 @@ export function CharacterRosterCard({ character, view, onToggleFavorite, onDelet
             <p className="line-clamp-2 min-w-0 break-words text-sm font-semibold leading-5 text-[var(--text-primary)]">{character.name}</p>
             {character.isFavorite ? <Star className="h-3.5 w-3.5 shrink-0 fill-amber-300 text-amber-300" /> : null}
           </div>
-          <p className="mt-1 line-clamp-1 text-xs text-[var(--text-secondary)]">{character.preview}</p>
+          <p className="mt-1 line-clamp-2 break-words text-xs leading-5 text-[var(--text-secondary)] [overflow-wrap:anywhere]">{character.preview}</p>
         </div>
         {character.lastActive ? <time className="hidden shrink-0 text-[10px] uppercase tracking-wide text-[var(--text-muted)] sm:block">{character.lastActive}</time> : null}
         <div className="flex shrink-0 items-center gap-2">
-          <GlassButton asChild variant="glass-secondary" size="icon" aria-label={`Chat with ${character.name}`}>
-            <Link href={character.chatId ? `/chat/${character.chatId}` : `/character/${character.id}`}>
+          <GlassButton asChild variant="glass-secondary" size="icon">
+            <Link href={character.chatId ? `/chat/${character.chatId}` : `/character/${character.id}`} aria-label={`Chat with ${character.name}`}>
               <MessageCircle className="h-4 w-4" />
             </Link>
           </GlassButton>

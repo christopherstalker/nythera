@@ -1,0 +1,2 @@
+ALTER TABLE "UserPersona"
+  ADD COLUMN IF NOT EXISTS "surname" TEXT;

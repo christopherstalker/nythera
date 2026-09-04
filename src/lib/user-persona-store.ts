@@ -9,6 +9,7 @@ type PersonaInput = {
   profileId?: string;
   label?: string;
   displayName: string;
+  surname?: string | null;
   avatarUrl?: string | null;
   summary: string;
   background?: string | null;
@@ -59,11 +60,23 @@ export async function getDefaultPersonaId(userId: string) {
 }
 
 export async function getPreferredPersonaId(userId: string, characterId: string) {
+  return (await getPreferredPersona(userId, characterId))?.id ?? null;
+}
+
+export async function getPreferredPersona(userId: string, characterId: string) {
   const preference = await prisma.characterPersonaPreference.findUnique({
     where: { userId_characterId: { userId, characterId } },
     select: { personaId: true }
   });
-  return preference?.personaId ?? getDefaultPersonaId(userId);
+  if (preference) {
+    return prisma.userPersona.findFirst({
+      where: { id: preference.personaId, userId }
+    });
+  }
+
+  return prisma.userPersona.findFirst({
+    where: { userId, isDefault: true }
+  });
 }
 
 export async function saveUserPersona(userId: string, input: PersonaInput, chatId?: string | null) {
@@ -206,6 +219,7 @@ export async function restorePersonaRevision(userId: string, personaId: string, 
       data: {
         label: typeof snapshot.label === "string" ? snapshot.label : persona.label,
         displayName: typeof snapshot.displayName === "string" ? snapshot.displayName : persona.displayName,
+        surname: typeof snapshot.surname === "string" ? snapshot.surname : persona.surname,
         avatarUrl: typeof snapshot.avatarUrl === "string" ? snapshot.avatarUrl : null,
         summary: typeof snapshot.summary === "string" ? snapshot.summary : persona.summary,
         background: typeof snapshot.background === "string" ? snapshot.background : null,
@@ -337,6 +351,7 @@ function personaInputToData(input: PersonaInput) {
   return {
     label: input.label || input.displayName,
     displayName: input.displayName,
+    surname: input.surname?.trim() || null,
     avatarUrl: input.avatarUrl || null,
     summary: input.summary,
     background: input.background || null,
@@ -352,6 +367,7 @@ async function createPersonaRevision(tx: Prisma.TransactionClient, persona: {
   id: string;
   label: string | null;
   displayName: string;
+  surname: string | null;
   avatarUrl: string | null;
   summary: string;
   background: string | null;
@@ -372,6 +388,7 @@ async function createPersonaRevision(tx: Prisma.TransactionClient, persona: {
       snapshot: {
         label: persona.label,
         displayName: persona.displayName,
+        surname: persona.surname,
         avatarUrl: persona.avatarUrl,
         summary: persona.summary,
         background: persona.background,

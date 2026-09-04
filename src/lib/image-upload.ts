@@ -1,11 +1,22 @@
 const MAX_DIMENSION = 384;
 const MAX_DATA_URL_LENGTH = 180_000;
 const MAX_UPLOAD_BYTES = 6_000_000;
-const IMAGE_EXT_PATTERN = /\.(jpe?g|png|webp|gif|heic|heif)$/i;
+const IMAGE_EXT_PATTERN = /\.(jpe?g|png|webp|gif|avif|bmp)$/i;
+const SUPPORTED_IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/avif",
+  "image/bmp",
+  "image/x-ms-bmp"
+]);
 
-function isImageFile(file: File) {
-  if (file.type.startsWith("image/")) {
-    return true;
+export const AVATAR_IMAGE_ACCEPT = "image/jpeg,image/png,image/webp,image/gif,image/avif,image/bmp,.jpg,.jpeg,.png,.webp,.gif,.avif,.bmp";
+
+export function isSupportedAvatarImageFile(file: Pick<File, "name" | "type">) {
+  if (file.type) {
+    return SUPPORTED_IMAGE_TYPES.has(file.type.toLowerCase());
   }
 
   return IMAGE_EXT_PATTERN.test(file.name);
@@ -27,7 +38,7 @@ function loadImage(url: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("Could not read image. Try JPG or PNG."));
+    image.onerror = () => reject(new Error("Could not read this image. Use JPG, PNG, WebP, GIF, AVIF, or BMP."));
     image.src = url;
   });
 }
@@ -81,8 +92,8 @@ export async function compressImageFile(file: File): Promise<string> {
     throw new Error("Image must be smaller than 6MB.");
   }
 
-  if (!isImageFile(file)) {
-    throw new Error("Choose an image file.");
+  if (!isSupportedAvatarImageFile(file)) {
+    throw new Error("Choose a JPG, PNG, WebP, GIF, AVIF, or BMP image.");
   }
 
   const decoded = await decodeImageFile(file);

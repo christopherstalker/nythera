@@ -384,7 +384,7 @@ export default function CharacterProfileClient({
                   <Bot className="h-3.5 w-3.5" /> {disclosure.label}
                 </span>
               ) : null}
-              <h1 className="font-editorial text-[clamp(4rem,10vw,7.5rem)] font-medium leading-[.72] tracking-[-.05em] text-[var(--codex-ivory)]">{character.name}</h1>
+              <h1 className="font-editorial max-w-full break-words text-[clamp(3rem,5vw,5.5rem)] font-medium leading-[.78] tracking-[-.045em] text-[var(--codex-ivory)] [overflow-wrap:anywhere]">{character.name}</h1>
               <p className="mt-5 flex items-center gap-2 text-xs uppercase tracking-[.16em] text-muted-foreground">
                 <User className="h-3.5 w-3.5" /> by @{character.creator?.username ?? "user"}
               </p>

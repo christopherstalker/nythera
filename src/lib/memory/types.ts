@@ -5,7 +5,7 @@ export type MemoryTier = "session" | "character" | "user";
 export type ExtractedMemory = {
   text: string;
   tier: "character" | "user";
-  category: "preference" | "identity" | "style" | "avoid" | "relationship";
+  category: "preference" | "identity" | "style" | "avoid" | "relationship" | "event" | "promise" | "state";
 };
 
 export type TieredMemoryView = {

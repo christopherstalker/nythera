@@ -6,7 +6,7 @@ async function read(path: string) {
   return readFile(new URL(path, import.meta.url), "utf8");
 }
 
-test("mobile navigation has a reserved layout row and a viewport-anchored dock", async () => {
+test("mobile navigation keeps its reserved row off chat surfaces", async () => {
   const [shell, dock] = await Promise.all([
     read("../src/components/layout/AppShell.tsx"),
     read("../src/components/nav/MobileDock.tsx")
@@ -14,6 +14,7 @@ test("mobile navigation has a reserved layout row and a viewport-anchored dock",
 
   assert.match(shell, /grid-rows-\[minmax\(0,1fr\)_auto\]/);
   assert.match(shell, /<MobileDock \/>/);
+  assert.match(shell, /!isChatSurface \? \([\s\S]*<MobileDock \/>[\s\S]*\) : null/);
   assert.match(shell, /min-h-0 min-w-0 overflow-hidden/);
   assert.match(shell, /h-\[calc\(var\(--codex-mobile-dock-height\)\+env\(safe-area-inset-bottom\)\)\]/);
   assert.match(dock, /fixed inset-x-0 bottom-0/);
@@ -35,6 +36,8 @@ test("mobile chat keeps primary actions and attempt navigation visible without t
   ]);
 
   assert.match(bubble, /ActionButton label="More"/);
+  assert.match(bubble, /ActionButton label="Skip time"[\s\S]*?className="sm:hidden"/);
+  assert.match(bubble, /initialPanel=\{actionsPanel\}/);
   assert.match(bubble, /flex w-full flex-wrap items-center/);
   assert.match(bubble, /aria-label=\{`Version \$\{variantIndex! \+ 1\} of \$\{variantCount\}`\}/);
   assert.match(bubble, />Previous<\/button>/);
@@ -43,6 +46,7 @@ test("mobile chat keeps primary actions and attempt navigation visible without t
   assert.match(menu, /Branch/);
   assert.match(menu, /Report/);
   assert.match(menu, /Message actions/);
+  assert.match(menu, /initialPanel = "actions"/);
   assert.match(menu, /grid-cols-4/);
 });
 

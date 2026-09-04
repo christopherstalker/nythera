@@ -3,7 +3,9 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
+        exclude: ^prisma/migrations/[^/]+/migration\.sql$
       - id: end-of-file-fixer
+        exclude: ^prisma/migrations/[^/]+/migration\.sql$
       - id: check-json
       - id: check-yaml
       - id: check-merge-conflict

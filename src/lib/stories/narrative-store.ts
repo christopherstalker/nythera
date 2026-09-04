@@ -380,6 +380,38 @@ export async function markStoryProactiveEventsFired(input: {
   });
 }
 
+export async function markStoryBeatsCompleted(input: {
+  beatIds: string[];
+  storyId: string;
+  sourceMessageId?: string;
+  sourceRoomMessageId?: string;
+}) {
+  if (input.beatIds.length === 0) return;
+
+  const turn = await prisma.storyTurn.findFirst({
+    where: {
+      storyId: input.storyId,
+      OR: [
+        ...(input.sourceMessageId ? [{ sourceMessageId: input.sourceMessageId }] : []),
+        ...(input.sourceRoomMessageId ? [{ sourceRoomMessageId: input.sourceRoomMessageId }] : [])
+      ]
+    },
+    select: { id: true }
+  });
+  await prisma.storyBeat.updateMany({
+    where: {
+      id: { in: input.beatIds },
+      storyId: input.storyId,
+      status: StoryBeatStatus.READY
+    },
+    data: {
+      status: StoryBeatStatus.COMPLETED,
+      resolvedAt: new Date(),
+      resolvedByTurnId: turn?.id
+    }
+  });
+}
+
 async function resolveOwnedNarrativeContext(storyId: string, userId: string, requestedTimelineId?: string | null) {
   const story = await prisma.story.findFirst({
     where: { id: storyId, ownerId: userId },

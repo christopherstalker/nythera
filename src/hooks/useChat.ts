@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { partitionMessagesForRewind, shouldRegenerateAfterMessageEdit } from "@/lib/message-actions";
 import type { ChatImageAttachment } from "@/lib/chat-attachments";
+import type { SkipTimeDuration } from "@/lib/chat-actions";
 
 export type ChatMessage = {
   id: string;
@@ -27,6 +28,8 @@ type SendOptions = {
   responsePrompt?: string;
   regenerate?: boolean;
   continueChat?: boolean;
+  skipTime?: boolean;
+  skipTimeDuration?: SkipTimeDuration;
   regenerateMessageId?: string;
   retryUserMessageId?: string;
   continueMessageId?: string;
@@ -72,10 +75,12 @@ export function useChat(chatId: string, initialMessages: ChatMessage[], initialS
     async (content: string, options?: SendOptions) => {
       const trimmedContent = content.trim();
       const isContinuation = options?.continueChat === true;
+      const isTimeSkip = options?.skipTime === true;
+      const isAssistantAction = isContinuation || isTimeSkip;
       const isUserRetry = Boolean(options?.retryUserMessageId);
       const isRegeneration = options?.regenerate === true || isUserRetry;
       const attachments = options?.attachments ?? [];
-      if ((!trimmedContent && !attachments.length && !isContinuation && !isRegeneration) || inFlightRef.current) {
+      if ((!trimmedContent && !attachments.length && !isAssistantAction && !isRegeneration) || inFlightRef.current) {
         return false;
       }
 
@@ -108,7 +113,11 @@ export function useChat(chatId: string, initialMessages: ChatMessage[], initialS
         id: `local-assistant-${requestId}`,
         role: "ASSISTANT",
         content: "",
-        clientRequestId: isContinuation ? `continue-${requestId}` : undefined
+        clientRequestId: isTimeSkip
+          ? `skip-time-${requestId}`
+          : isContinuation
+            ? `continue-${requestId}`
+            : undefined
       };
       let pendingAssistantText = "";
       let renderTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -140,7 +149,7 @@ export function useChat(chatId: string, initialMessages: ChatMessage[], initialS
       };
 
       setMessages((current) => {
-        if (isRegeneration || isContinuation) {
+        if (isRegeneration || isAssistantAction) {
           return [...current, assistantMessage];
         }
 
@@ -167,6 +176,9 @@ export function useChat(chatId: string, initialMessages: ChatMessage[], initialS
             regenerateMessageId: options?.regenerateMessageId,
             retryUserMessageId: options?.retryUserMessageId,
             continueChat: isContinuation,
+            skipTime: isTimeSkip,
+            skipTimeValue: options?.skipTimeDuration?.value,
+            skipTimeUnit: options?.skipTimeDuration?.unit,
             continueMessageId: options?.continueMessageId,
             branchMessageId: options?.branchMessageId
           })

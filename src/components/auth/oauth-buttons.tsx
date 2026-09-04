@@ -228,12 +228,16 @@ export function OAuthButtons({ intent, callbackUrl = "/explore", disabled = fals
     setLoadingProvider(provider);
     setError(null);
     setManualStartUrl(null);
+    const normalizedCallback = normalizeCallbackPath(callbackUrl);
+    const destination = intent === "register"
+      ? `/register/password?callbackUrl=${encodeURIComponent(normalizedCallback)}`
+      : normalizedCallback;
 
     if (!standalone) {
       try {
         const result = await withTimeout(
           signIn(provider, {
-            callbackUrl: normalizeCallbackPath(callbackUrl),
+            callbackUrl: destination,
             redirect: false
           }),
           "Provider sign-in timed out."
@@ -275,7 +279,7 @@ export function OAuthButtons({ intent, callbackUrl = "/explore", disabled = fals
           },
           body: JSON.stringify({
             provider,
-            callbackUrl: normalizeCallbackPath(callbackUrl)
+            callbackUrl: destination
           }),
           signal: controller.signal
         });

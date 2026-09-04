@@ -1345,19 +1345,29 @@
   .codex-chapter-stack,
   .codex-prompt-sheet {
     display: grid;
+    min-width: 0;
   }
 
   .codex-manuscript-chapter,
   .codex-prompt-sheet {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
     padding-block: clamp(2.4rem, 6vw, 5.6rem);
     border-bottom: 1px solid var(--codex-rule);
   }
 
   .codex-chapter-heading {
     display: grid;
+    min-width: 0;
+    max-width: 100%;
     grid-template-columns: 3.2rem minmax(0, 1fr) auto;
     align-items: start;
     gap: clamp(1rem, 3vw, 2.3rem);
+  }
+
+  .codex-chapter-heading > div {
+    min-width: 0;
   }
 
   .codex-chapter-heading > span,
@@ -1408,10 +1418,17 @@
 
   .codex-chapter-body {
     display: grid;
+    width: 100%;
+    min-width: 0;
     max-width: 56rem;
     gap: 2rem;
     margin-top: clamp(2rem, 5vw, 4rem);
     padding-left: clamp(0rem, 6vw, 5.5rem);
+  }
+
+  .codex-chapter-body > * {
+    min-width: 0;
+    max-width: 100%;
   }
 
   .codex-manuscript .glass-input,
@@ -1423,7 +1440,8 @@
     border-radius: 0 !important;
     background: transparent !important;
     box-shadow: none !important;
-    padding-inline: 0;
+    padding-left: var(--codex-field-padding-left, 0);
+    padding-right: var(--codex-field-padding-right, 0);
     font-family: var(--font-editorial);
     font-size: 1.2rem;
     line-height: 1.55;
@@ -1439,6 +1457,11 @@
   .codex-manuscript textarea:focus,
   .codex-manuscript select:focus {
     border-color: var(--codex-mint);
+  }
+
+  .codex-manuscript .codex-tag-search-input {
+    --codex-field-padding-left: 2.5rem;
+    --codex-field-padding-right: .75rem;
   }
 
   .codex-opening-preview {
@@ -1512,8 +1535,9 @@
   .codex-studio-actions {
     position: sticky;
     z-index: 20;
-    bottom: -7rem;
+    bottom: 0;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
@@ -1522,6 +1546,11 @@
     border-top: 1px solid var(--codex-rule);
     background: color-mix(in oklch, var(--codex-paper) 94%, transparent);
     backdrop-filter: blur(18px);
+  }
+
+  .codex-studio-action-error {
+    flex: 1 0 100%;
+    margin: 0;
   }
 
   .codex-studio-primary-wrap {
@@ -1553,7 +1582,7 @@
     }
   }
 
-  @media (max-width: 767px) {
+  @media (max-width: 899px) {
     .codex-create-character {
       padding-top: 0 !important;
     }
@@ -1745,6 +1774,20 @@
       line-height: 1.25;
     }
   }
+
+  @media (min-width: 768px) and (max-width: 899px) {
+    .codex-dossier-mobile-bar {
+      display: none;
+    }
+
+    .codex-dossier-portrait {
+      height: min(34vh, 18rem);
+    }
+
+    .codex-manuscript {
+      padding-top: 2.4rem;
+    }
+  }
 }
 
 @layer components {
@@ -1809,6 +1852,364 @@
   @media (min-width: 1280px) {
     .codex-character-gallery {
       grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+}
+
+@layer components {
+  .nythera-tutorial {
+    display: grid;
+    grid-template-columns: minmax(360px, 0.78fr) minmax(0, 1.22fr);
+  }
+
+  .nythera-tutorial-portrait {
+    position: sticky;
+    top: 0;
+    height: 100dvh;
+    min-height: 640px;
+    overflow: hidden;
+    border-right: 1px solid var(--codex-rule);
+    background: var(--codex-paper-raised);
+  }
+
+  .nythera-tutorial-portrait-veil {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(to top, var(--codex-paper-raised) 2%, transparent 68%),
+      linear-gradient(to right, transparent 65%, color-mix(in oklch, var(--codex-paper) 62%, transparent));
+  }
+
+  .nythera-tutorial-character-copy {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    display: grid;
+    gap: 0.85rem;
+    padding: clamp(1.5rem, 4vw, 3.5rem);
+  }
+
+  .nythera-tutorial-character-copy h1 {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    font-family: var(--font-editorial);
+    font-size: clamp(3.5rem, 7vw, 6.75rem);
+    font-weight: 500;
+    line-height: 0.76;
+    letter-spacing: -0.05em;
+    color: var(--codex-ivory);
+  }
+
+  .nythera-tutorial-character-copy > p:not(.codex-kicker) {
+    max-width: 32rem;
+    font-family: var(--font-editorial);
+    font-size: 1.25rem;
+    line-height: 1.55;
+    color: var(--text-secondary);
+  }
+
+  .nythera-tutorial-character-copy > span {
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .nythera-tutorial-manuscript {
+    display: flex;
+    min-width: 0;
+    min-height: 100dvh;
+    flex-direction: column;
+    background:
+      radial-gradient(circle at 88% 8%, color-mix(in oklch, var(--codex-violet) 8%, transparent), transparent 30rem),
+      var(--codex-paper);
+  }
+
+  .nythera-tutorial-header {
+    display: flex;
+    min-height: 5rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border-bottom: 1px solid var(--codex-rule);
+    padding: 1rem clamp(1.5rem, 4vw, 3.5rem);
+  }
+
+  .nythera-tutorial-progress {
+    border-bottom: 1px solid var(--codex-rule);
+    padding: 1rem clamp(1.5rem, 4vw, 3.5rem);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .nythera-tutorial-stage {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    padding: clamp(2rem, 6vw, 5.5rem) clamp(1.5rem, 6vw, 5.5rem);
+  }
+
+  .nythera-tutorial-sheet {
+    display: grid;
+    width: 100%;
+    max-width: 48rem;
+    gap: 1.5rem;
+  }
+
+  .nythera-tutorial-sheet h2 {
+    margin-top: 0.75rem;
+    max-width: 46rem;
+    font-family: var(--font-editorial);
+    font-size: clamp(2.65rem, 5vw, 4.75rem);
+    font-weight: 500;
+    line-height: 0.92;
+    letter-spacing: -0.035em;
+    color: var(--codex-ivory);
+  }
+
+  .nythera-tutorial-lead {
+    max-width: 42rem;
+    font-size: 0.95rem;
+    line-height: 1.8;
+    color: var(--text-secondary);
+  }
+
+  .nythera-tutorial-objective,
+  .nythera-tutorial-memory {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.8rem;
+    border-left: 2px solid var(--codex-mint);
+    background: color-mix(in oklch, var(--codex-mint) 5%, transparent);
+    padding: 1rem;
+    color: var(--codex-mint);
+  }
+
+  .nythera-tutorial-objective div,
+  .nythera-tutorial-memory div {
+    display: grid;
+    gap: 0.25rem;
+  }
+
+  .nythera-tutorial-objective strong,
+  .nythera-tutorial-memory strong {
+    font-size: 0.68rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .nythera-tutorial-objective span,
+  .nythera-tutorial-memory span {
+    font-size: 0.8rem;
+    line-height: 1.55;
+    color: var(--text-secondary);
+  }
+
+  .nythera-tutorial-dialogue {
+    border-left: 1px solid var(--codex-violet);
+    padding: 0.2rem 0 0.2rem 1.25rem;
+  }
+
+  .nythera-tutorial-dialogue span {
+    display: block;
+    margin-bottom: 0.55rem;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--codex-violet);
+  }
+
+  .nythera-tutorial-dialogue p {
+    font-family: var(--font-editorial);
+    font-size: clamp(1.35rem, 2.2vw, 1.85rem);
+    font-style: italic;
+    line-height: 1.5;
+    color: var(--codex-ivory);
+  }
+
+  .nythera-tutorial-instruction {
+    font-size: 0.75rem;
+    line-height: 1.6;
+    color: var(--text-muted);
+  }
+
+  .nythera-tutorial-choice {
+    display: flex;
+    min-height: 5rem;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border: 1px solid var(--codex-rule);
+    padding: 1rem 1.1rem;
+    text-align: left;
+    transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+  }
+
+  .nythera-tutorial-choice:hover {
+    border-color: color-mix(in oklch, var(--codex-violet) 70%, var(--codex-rule));
+    background: color-mix(in oklch, var(--codex-violet) 4%, transparent);
+    transform: translateY(-1px);
+  }
+
+  .nythera-tutorial-choice.is-selected {
+    border-color: var(--codex-mint);
+    background: color-mix(in oklch, var(--codex-mint) 6%, transparent);
+  }
+
+  .nythera-tutorial-choice strong,
+  .nythera-tutorial-choice small {
+    display: block;
+  }
+
+  .nythera-tutorial-choice strong {
+    font-size: 0.86rem;
+    color: var(--codex-ivory);
+  }
+
+  .nythera-tutorial-choice small {
+    margin-top: 0.35rem;
+    font-size: 0.72rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+  }
+
+  .nythera-tutorial-choice.is-compact {
+    min-height: 6.5rem;
+    align-items: flex-start;
+  }
+
+  .nythera-tutorial-choice-mark {
+    display: grid;
+    width: 1.6rem;
+    height: 1.6rem;
+    flex: 0 0 auto;
+    place-items: center;
+    border: 1px solid var(--codex-rule);
+    border-radius: 999px;
+    color: var(--codex-mint);
+  }
+
+  .nythera-tutorial-choice.is-selected .nythera-tutorial-choice-mark {
+    border-color: var(--codex-mint);
+  }
+
+  .nythera-tutorial-scene-label {
+    display: inline-flex;
+    width: fit-content;
+    align-items: center;
+    gap: 0.5rem;
+    border-block: 1px solid var(--codex-rule);
+    padding: 0.7rem 0;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .nythera-tutorial-footer {
+    display: flex;
+    min-height: 4.5rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border-top: 1px solid var(--codex-rule);
+    padding: 0.75rem clamp(1.5rem, 4vw, 3.5rem);
+  }
+
+  .nythera-tutorial-recap {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border-block: 1px solid var(--codex-rule);
+  }
+
+  .nythera-tutorial-recap > div {
+    display: grid;
+    min-width: 0;
+    gap: 0.35rem;
+    border-right: 1px solid var(--codex-rule);
+    padding: 1rem;
+    color: var(--codex-mint);
+  }
+
+  .nythera-tutorial-recap > div:last-child {
+    border-right: 0;
+  }
+
+  .nythera-tutorial-recap span {
+    font-size: 0.6rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .nythera-tutorial-recap strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.8rem;
+    color: var(--codex-ivory);
+  }
+
+  @media (max-width: 767px) {
+    .nythera-tutorial {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .nythera-tutorial-portrait {
+      position: relative;
+      height: 36dvh;
+      min-height: 280px;
+      border-right: 0;
+      border-bottom: 1px solid var(--codex-rule);
+    }
+
+    .nythera-tutorial-portrait-veil {
+      background: linear-gradient(to top, var(--codex-paper-raised), transparent 76%);
+    }
+
+    .nythera-tutorial-character-copy {
+      gap: 0.45rem;
+      padding: 1.25rem;
+    }
+
+    .nythera-tutorial-character-copy h1 {
+      font-size: clamp(3rem, 17vw, 5rem);
+    }
+
+    .nythera-tutorial-character-copy > p:not(.codex-kicker),
+    .nythera-tutorial-character-copy > span {
+      display: none;
+    }
+
+    .nythera-tutorial-stage {
+      align-items: flex-start;
+      padding-block: 2.5rem;
+    }
+
+    .nythera-tutorial-footer {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .nythera-tutorial-recap {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .nythera-tutorial-recap > div {
+      border-right: 0;
+      border-bottom: 1px solid var(--codex-rule);
+    }
+
+    .nythera-tutorial-recap > div:last-child {
+      border-bottom: 0;
     }
   }
 }

@@ -4,6 +4,7 @@ export type UserPersonaProfile = {
   id: string;
   label: string;
   displayName: string;
+  surname?: string | null;
   avatarUrl: string | null;
   summary: string;
   background: string | null;
@@ -18,7 +19,7 @@ export type UserPersonaProfile = {
 type PersonaLike = Pick<
   UserPersona,
   "displayName" | "avatarUrl" | "summary" | "background" | "traits" | "likes" | "dislikes" | "boundaries" | "visibility" | "metadata"
->;
+> & { surname?: string | null };
 
 type PersonaRowLike = Omit<PersonaLike, "metadata"> & {
   id: string;
@@ -69,6 +70,7 @@ export function personaToProfile(persona: Omit<PersonaLike, "metadata">): UserPe
     id: "id" in persona && typeof persona.id === "string" ? persona.id : "default",
     label: "label" in persona && typeof persona.label === "string" && persona.label.trim() ? persona.label.trim() : persona.displayName || "Default",
     displayName: persona.displayName,
+    surname: persona.surname?.trim() || null,
     avatarUrl: persona.avatarUrl ?? null,
     summary: persona.summary,
     background: persona.background ?? null,
@@ -142,6 +144,7 @@ function parseProfile(value: unknown): UserPersonaProfile | null {
     id,
     label: typeof record.label === "string" && record.label.trim() ? record.label.trim() : displayName,
     displayName,
+    surname: typeof record.surname === "string" && record.surname.trim() ? record.surname.trim() : null,
     avatarUrl: typeof record.avatarUrl === "string" && record.avatarUrl.trim() ? record.avatarUrl.trim() : null,
     summary,
     background: typeof record.background === "string" && record.background.trim() ? record.background.trim() : null,

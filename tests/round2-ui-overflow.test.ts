@@ -19,3 +19,11 @@ test("Chats-tab rows clip and sanitize last-message previews", async () => {
   assert.match(source, /className="mt-0\.5 block truncate text-xs/);
   assert.match(source, /toChatPreview\(chat\.messages\[0\]\?\.content/);
 });
+
+test("Character Studio chapters can shrink inside a narrow mobile manuscript", async () => {
+  const styles = await readFile(new URL("../src/app/globals.css", import.meta.url), "utf8");
+
+  assert.match(styles, /\.codex-chapter-stack,[\s\S]*?min-width: 0;/);
+  assert.match(styles, /\.codex-manuscript-chapter,[\s\S]*?width: 100%;[\s\S]*?min-width: 0;[\s\S]*?max-width: 100%;/);
+  assert.match(styles, /\.codex-chapter-body \> \*[\s\S]*?min-width: 0;[\s\S]*?max-width: 100%;/);
+});

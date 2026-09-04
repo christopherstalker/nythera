@@ -1,7 +1,7 @@
 import { json, parseJson, routeError, HttpError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireMobileUser } from "@/lib/mobile-auth";
-import { characterUpdateSchema } from "@/lib/validation";
+import { characterUpdateSchemaFor } from "@/lib/validation";
 import { redactCharacterModelSettings } from "@/lib/character-model-settings";
 import { updateCharacterForUser } from "@/lib/character-mutations";
 
@@ -52,7 +52,10 @@ export async function GET(request: Request, context: Context) {
 export async function PATCH(request: Request, context: Context) {
   try {
     const user = await requireMobileUser(request);
-    const input = await parseJson(request, characterUpdateSchema);
+    const unlimitedCharacterFields = user.unlimitedCharacterFields;
+    const input = await parseJson(request, characterUpdateSchemaFor(unlimitedCharacterFields), {
+      maxBytes: unlimitedCharacterFields ? null : undefined
+    });
     const updated = await updateCharacterForUser((await context.params).id, input, user);
 
     return json({ character: updated });

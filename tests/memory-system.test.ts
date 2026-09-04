@@ -54,6 +54,9 @@ test("prompt memory resolver always leads with pinned character facts and surviv
   assert.match(store, /export async function getPromptMemories/);
   assert.match(store, /characterId: input\.characterId,[\s\S]*pinned: true/);
   assert.ok(store.indexOf("...pinned") < store.indexOf("...semantic"));
+  assert.ok(store.indexOf("...semantic") < store.indexOf("...continuity"));
+  assert.match(store, /sourceChatId: input\.chatId/);
+  assert.match(store, /status: MemoryStatus\.ACTIVE/);
   assert.match(store, /Prompt memory semantic retrieval failed/);
   assert.match(store, /if \(input\.semanticEnabled !== false\)/);
   assert.match(prompt, /PINNED MANUAL FACT — AUTHORITATIVE/);
@@ -63,6 +66,19 @@ test("prompt memory resolver always leads with pinned character facts and surviv
     assert.match(consumer, /getPromptMemories/);
     assert.match(consumer, /semanticEnabled:/);
   }
+});
+
+test("automatic memories are active immediately and legacy pending rows are promoted", async () => {
+  const [memory, extraction, migration] = await Promise.all([
+    read("../src/lib/memory.ts"),
+    read("../src/lib/memory/extract.ts"),
+    read("../prisma/migrations/20260826090000_activate_automatic_memories/migration.sql")
+  ]);
+
+  assert.match(memory, /status: MemoryStatus\.ACTIVE/);
+  assert.match(extraction, /status: MemoryStatus\.ACTIVE/);
+  assert.match(migration, /SET status = 'ACTIVE'::"MemoryStatus"/);
+  assert.match(migration, /'contextual-exchange'.*'rule'.*'topic-keyword'.*'llm'/s);
 });
 
 test("right-panel persona and manual memory changes are used by the next chat request", async () => {
@@ -79,4 +95,6 @@ test("right-panel persona and manual memory changes are used by the next chat re
   assert.match(webStream, /const userPersona = chat\.temporaryPersona \?\? chat\.persona \?\? defaultUserPersona/);
   assert.match(webStream, /getPromptMemories\(\{/);
   assert.match(webStream, /formatUserPersonaForPrompt\(userPersona\)/);
+  assert.match(webStream, /chat_prompt_context/);
+  assert.match(webStream, /personaCharacters: formattedUserPersona\?\.length \?\? 0/);
 });

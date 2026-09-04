@@ -102,6 +102,10 @@ const INLINE_RULES = RICH_TEXT_FORMATS
 >;
 
 export function parseRichText(value: string): RichTextBlock[] {
+  if (hasMultilineOuterFormat(value)) {
+    return [{ type: "line", children: parseInlineRichText(value) }];
+  }
+
   return value.split("\n").map((line) => {
     const quoteMatch = line.match(/^(\s*)>\s?/);
     const content = quoteMatch ? line.slice(quoteMatch[0].length) : line;
@@ -111,6 +115,17 @@ export function parseRichText(value: string): RichTextBlock[] {
       children: parseInlineRichText(content)
     };
   });
+}
+
+function hasMultilineOuterFormat(value: string) {
+  if (!value.includes("\n")) return false;
+
+  const trimmed = value.trim();
+  return ["***", "**", "*", "__", "~~", "=="].some((marker) =>
+    trimmed.startsWith(marker) &&
+    trimmed.endsWith(marker) &&
+    trimmed.length > marker.length * 2
+  );
 }
 
 export function parseInlineRichText(value: string): RichTextInlineNode[] {

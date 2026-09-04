@@ -8,6 +8,11 @@ import { createMemory } from "@/lib/vector";
 import type { ProviderKeys } from "@/lib/user-keys";
 import { selectPersistedConversationBranch } from "@/lib/message-actions";
 import { logSafeError } from "@/lib/secret-redaction";
+import {
+  shouldCaptureContext,
+  shouldRefreshConversationSummary,
+  shouldRunDeepMemoryExtraction
+} from "@/lib/memory-policy";
 import { buildConversationSummary } from "@/lib/conversation-summary";
 
 export async function schedulePostMessageJobs(input: {
@@ -22,20 +27,18 @@ export async function schedulePostMessageJobs(input: {
   providerKeys?: ProviderKeys;
 }) {
   const { providerKeys, ...jobInput } = input;
-  const turnNumber = Math.ceil(input.messageCount / 2);
-  const shouldStoreContext = turnNumber % 3 === 0;
-  const shouldRunDeepExtraction = turnNumber % 6 === 0;
-  const shouldSummarize = input.messageCount > 32 && input.messageCount % 12 === 0;
+  const shouldStoreContext = shouldCaptureContext(input.messageCount);
+  const shouldRunDeepExtraction = shouldRunDeepMemoryExtraction(input.messageCount);
+  const shouldSummarize = shouldRefreshConversationSummary(input.messageCount);
   const contextualMemory = shouldStoreContext
     ? await storeContextualExchange({ ...jobInput, providerKeys }).catch((error) => {
         logSafeError("Contextual memory write failed.", error);
         return null;
       })
     : null;
-  const [queuedExtraction, queuedSummary] = await Promise.all([
-    shouldRunDeepExtraction ? enqueueJob("extract-memories", jobInput) : Promise.resolve(false),
-    shouldSummarize ? enqueueJob("summarize-chat", { chatId: input.chatId }) : Promise.resolve(false)
-  ]);
+  const queuedExtraction = shouldRunDeepExtraction
+    ? await enqueueJob("extract-memories", jobInput)
+    : false;
 
   if (!queuedExtraction) {
     await extractMemoriesFromExchange({ ...jobInput, providerKeys });
@@ -53,11 +56,11 @@ export async function schedulePostMessageJobs(input: {
     }
   }
 
-  if (shouldSummarize && !queuedSummary) {
+  if (shouldSummarize) {
     await summarizeChat(input.chatId);
   }
 
-  return { contextualMemory, queuedExtraction, queuedSummary };
+  return { contextualMemory, queuedExtraction, summaryRefreshed: shouldSummarize };
 }
 
 export async function storeContextualExchange(input: {
@@ -107,7 +110,7 @@ export async function storeContextualExchange(input: {
     },
     importance: 0.9,
     confidence: 0.85,
-    status: MemoryStatus.PENDING,
+    status: MemoryStatus.ACTIVE,
     providerKeys: input.providerKeys
   });
 }
@@ -154,7 +157,7 @@ export async function extractMemoriesFromExchange(input: {
         },
         importance: candidate.importance,
         confidence: candidate.confidence,
-        status: MemoryStatus.PENDING,
+        status: MemoryStatus.ACTIVE,
         providerKeys: input.providerKeys
       })
     )
@@ -205,28 +208,44 @@ export async function summarizeChat(chatId: string) {
     return chat;
   }
 
-  const messages = await prisma.message.findMany({
-    where: {
-      chatId,
-      sequence: { gt: chat.summaryThroughSequence, lte: cutoffSequence }
-    },
-    orderBy: [{ sequence: "asc" }, { createdAt: "asc" }, { id: "asc" }],
-    take: 240,
-    select: { id: true, role: true, content: true, sequence: true, clientRequestId: true, branchSourceMessageId: true }
-  });
-  if (messages.length === 0) {
-    return chat;
+  let summary = chat.summary;
+  let summaryThroughSequence = chat.summaryThroughSequence;
+
+  while (summaryThroughSequence < cutoffSequence) {
+    const messages = await prisma.message.findMany({
+      where: {
+        chatId,
+        sequence: { gt: summaryThroughSequence, lte: cutoffSequence }
+      },
+      orderBy: [{ sequence: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+      take: 240,
+      select: {
+        id: true,
+        role: true,
+        content: true,
+        sequence: true,
+        clientRequestId: true,
+        branchSourceMessageId: true
+      }
+    });
+    if (messages.length === 0) break;
+
+    summary = buildConversationSummary(selectPersistedConversationBranch(messages), summary);
+    const nextSequence = messages.at(-1)?.sequence ?? summaryThroughSequence;
+    if (nextSequence <= summaryThroughSequence) break;
+    summaryThroughSequence = nextSequence;
   }
 
-  const branchMessages = selectPersistedConversationBranch(messages);
-  const summary = buildConversationSummary(branchMessages, chat.summary);
-  const summaryThroughSequence = messages.at(-1)?.sequence ?? chat.summaryThroughSequence;
+  if (summaryThroughSequence === chat.summaryThroughSequence) {
+    return chat;
+  }
 
   return prisma.chat.update({
     where: { id: chatId },
     data: { summary, summaryThroughSequence }
   });
 }
+
 
 function addPattern(
   candidates: MemoryCandidate[],

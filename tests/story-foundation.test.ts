@@ -118,7 +118,7 @@ test("active canon is always injected as authoritative context", async () => {
   ]);
 
   assert.match(foundation, /orderBy: \[\{ updatedAt: "desc" \}, \{ locked: "desc" \}, \{ importance: "desc" \}\]/);
-  assert.match(foundation, /Every recorded fact below is binding world truth/);
+  assert.match(foundation, /Permanent canon is binding world truth/);
   assert.match(foundation, /NOT KNOWN BY ACTIVE CHARACTER/);
   assert.match(foundation, /sanitizePromptContext\(fact\.objectText, 2400\)/);
   assert.match(assembly, /sanitizePromptContext\(value, 18000\)/);

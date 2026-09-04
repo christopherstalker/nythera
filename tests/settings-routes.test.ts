@@ -75,6 +75,7 @@ test("the mobile account hub exposes every desktop settings section", async () =
   assert.match(accountHub, /<MobileSettingsIndex \/>/);
   assert.match(accountHub, /SETTINGS_SECTIONS\.map/);
   assert.match(accountHub, /Every desktop setting is available here/);
+  assert.match(mobileDock, /item\.href === "\/account"/);
   assert.match(accountHub, /parseAccountTab\(searchParams\.get\("tab"\)\)/);
   assert.match(accountHub, /router\.replace\(params\.size > 0 \? `\/account\?\$\{params\}` : "\/account"/);
   assert.match(mobileDock, /pathname\.startsWith\("\/settings"\)/);

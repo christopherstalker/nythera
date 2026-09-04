@@ -44,16 +44,43 @@ test("character cards open the most recently active chat for that character", ()
   assert.equal(roster[0]?.preview, "Latest");
 });
 
-test("library roster sorts chats by latest activity instead of character name", () => {
+test("library roster sorts characters by their latest chat activity", () => {
   const roster = buildCharacterRoster({
-    mine: [{ id: "custom", name: "Aster", description: "No chat yet" }],
+    mine: [],
     liked: [],
     chats: [
-      { id: "older", lastActiveAt: "2026-08-05T10:00:00.000Z", character: { id: "character-1", name: "Ada" }, messages: [{ content: "Older" }] },
-      { id: "latest", lastActiveAt: "2026-08-07T10:00:00.000Z", character: { id: "character-2", name: "Zara" }, messages: [{ content: "Latest" }] },
-      { id: "middle", lastActiveAt: "2026-08-06T10:00:00.000Z", character: { id: "character-3", name: "Mira" }, messages: [{ content: "Middle" }] }
+      { id: "older", lastActiveAt: "2026-08-18T10:00:00.000Z", character: { id: "popular", name: "A popular bot" }, messages: [{ content: "Old chat" }] },
+      { id: "recent", lastActiveAt: "2026-08-24T10:56:00.000Z", character: { id: "recent-bot", name: "Z recent bot" }, messages: [{ content: "Four minutes ago" }] }
     ]
   });
 
-  assert.deepEqual(roster.map((character) => character.chatId), ["latest", "middle", "older", undefined]);
+  assert.deepEqual(roster.map((character) => character.chatId), ["recent", "older"]);
+});
+
+test("library list previews wrap onto a second line", async () => {
+  const source = await readFile(`${root}/src/components/library/character-roster-card.tsx`, "utf8");
+  assert.match(source, /line-clamp-2 break-words/);
+  assert.doesNotMatch(source, /line-clamp-1 text-xs text-\[var\(--text-secondary\)\]/);
+});
+
+test("library roster layout is configured once and mobile rows can shrink", async () => {
+  const [page, roster, card] = await Promise.all([
+    readFile(`${root}/src/app/(main)/library/page.tsx`, "utf8"),
+    readFile(`${root}/src/lib/library-roster.ts`, "utf8"),
+    readFile(`${root}/src/components/library/character-roster-card.tsx`, "utf8")
+  ]);
+
+  assert.match(roster, /LIBRARY_ROSTER_LAYOUT: LibraryRosterLayout = "list"/);
+  assert.match(page, /view=\{LIBRARY_ROSTER_LAYOUT\}/);
+  assert.doesNotMatch(page, /setView|Grid view|List view/);
+  assert.match(card, /grid-cols-\[auto_minmax\(0,1fr\)_auto\]/);
+  assert.match(card, /max-w-full/);
+});
+
+test("account character cards keep their content and actions inside mobile width", async () => {
+  const source = await readFile(`${root}/src/components/account/account-hub-client.tsx`, "utf8");
+
+  assert.match(source, /grid-cols-\[4rem_minmax\(0,1fr\)\]/);
+  assert.match(source, /grid-cols-\[minmax\(0,1fr\)_auto_auto\]/);
+  assert.match(source, /overflow-x-clip/);
 });

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { MAX_CHARACTER_SYSTEM_PROMPT_CHARACTERS } from "../src/lib/prompt-limits";
+import { characterCreateSchema } from "../src/lib/validation";
 
 test("web and mobile character routes persist model overrides", async () => {
   const mutations = await readFile(new URL("../src/lib/character-mutations.ts", import.meta.url), "utf8");
@@ -38,4 +40,20 @@ test("the Advanced editor exposes provider, model, samplers, and system instruct
   ]) {
     assert.match(source, new RegExp(label, "i"));
   }
+});
+
+test("character system instructions accept and preserve prompts up to 50,000 characters", async () => {
+  const prompt = "x".repeat(MAX_CHARACTER_SYSTEM_PROMPT_CHARACTERS);
+  const parsed = characterCreateSchema.parse({
+    creationMode: "custom",
+    name: "Prompt Test",
+    description: "A character used to verify prompt limits.",
+    personality: "Focused, consistent, observant, and concise.",
+    greeting: "Hello.",
+    systemPromptOverride: prompt
+  });
+  const { buildResponsePromptLayer } = await import("../src/lib/response-prompt");
+
+  assert.equal(parsed.systemPromptOverride, prompt);
+  assert.ok(buildResponsePromptLayer({ source: "character", prompt }).includes(prompt));
 });

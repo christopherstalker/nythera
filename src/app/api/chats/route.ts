@@ -9,7 +9,9 @@ import { chatCreateSchema } from "@/lib/validation";
 import { ensureStoryForChat } from "@/lib/stories/story-foundation";
 import { getRecentChats } from "@/lib/recent-chats";
 import { requireAdultConsent } from "@/lib/adult-consent";
-import { getPreferredPersonaId } from "@/lib/user-persona-store";
+import { getPreferredPersona } from "@/lib/user-persona-store";
+import { formatUserPersonaForPrompt } from "@/lib/user-persona";
+import { renderCharacterGreeting } from "@/lib/character-prompt-contract";
 import { renderCharacterPrologue } from "@/lib/prologue-pov";
 
 export async function GET(request: Request) {
@@ -57,27 +59,20 @@ export async function POST(request: Request) {
       throw new HttpError(404, "Character not found.");
     }
 
-    const [providerKeys, defaultPersonaId] = await Promise.all([
-      getEffectiveProviderKeys(user.id),
-      getPreferredPersonaId(user.id, character.id)
-    ]);
-    const defaultPersona = defaultPersonaId
-      ? await prisma.userPersona.findFirst({
-          where: { id: defaultPersonaId, userId: user.id },
-          select: { displayName: true }
-        })
-      : null;
-    const prologue = renderCharacterPrologue({
-      greeting: character.greeting,
+    const providerKeys = await getEffectiveProviderKeys(user.id);
+    const preferredPersona = await getPreferredPersona(user.id, character.id);
+    const greeting = renderCharacterPrologue({
+      greeting: renderCharacterGreeting(character, formatUserPersonaForPrompt(preferredPersona)),
       characterName: character.name,
       communicationStyle: character.communicationStyle,
-      userPersonaName: defaultPersona?.displayName
+      userPersonaName: preferredPersona?.displayName
     });
+    const initialTemperature = input.temperature ?? character.temperature ?? user.defaultTemperature;
     const effectiveSettings = resolveCharacterModelSettings({
       character,
       providerKeys,
       globalModel: input.model ?? userPreferredModelValue(user),
-      chatTemperature: input.temperature
+      chatTemperature: initialTemperature
     });
     const model = input.model ?? effectiveSettings.model;
     const chat = await prisma.$transaction(async (tx) => {
@@ -85,9 +80,9 @@ export async function POST(request: Request) {
         data: {
           userId: user.id,
           characterId: character.id,
-          personaId: defaultPersonaId,
+          personaId: preferredPersona?.id ?? null,
           title: input.title ?? null,
-          temperature: input.temperature,
+          temperature: initialTemperature,
           model,
           responsePrompt: user.defaultResponsePrompt,
           chatMode: input.chatMode ?? character.defaultChatMode ?? user.preferredChatMode,
@@ -100,7 +95,7 @@ export async function POST(request: Request) {
           chatId: created.id,
           sequence: 1,
           role: MessageRole.ASSISTANT,
-          content: prologue,
+          content: greeting,
           model
         }
       });

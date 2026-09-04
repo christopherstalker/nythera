@@ -5,6 +5,8 @@ import { PageShell } from "@/components/ui/page";
 import { getPublicCharacters, normalizePublicCharacterQuery } from "@/lib/discovery-feed";
 import { hasDiscoveryFilters, normalizeDiscoveryFilters } from "@/lib/discovery-query";
 import { loadServerData } from "@/lib/server-data";
+import { SYSTEM_TAG_OPTIONS } from "@/lib/character-tags";
+import { getPublicTagOptions } from "@/lib/tag-library";
 
 type ExplorePageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -33,10 +35,11 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
   let characters: Awaited<ReturnType<typeof getPublicCharacters>> = [];
   let trending: Awaited<ReturnType<typeof getPublicCharacters>> = [];
   let recommended: Awaited<ReturnType<typeof getPublicCharacters>> = [];
+  let tagOptions = SYSTEM_TAG_OPTIONS;
   let isServiceUnavailable = false;
 
   try {
-    [characters, trending, recommended] = await loadServerData("Explore discovery feeds", () =>
+    [characters, trending, recommended, tagOptions] = await loadServerData("Explore discovery feeds", () =>
       Promise.all([
         getPublicCharacters(normalizePublicCharacterQuery({
           search: filters.query,
@@ -48,7 +51,8 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
           take: 50
         })),
         getPublicCharacters(normalizePublicCharacterQuery({ take: 12, sort: "trending", nsfw: "safe" })),
-        getPublicCharacters(normalizePublicCharacterQuery({ take: 12, sort: "new", nsfw: "safe" }))
+        getPublicCharacters(normalizePublicCharacterQuery({ take: 12, sort: "new", nsfw: "safe" })),
+        getPublicTagOptions()
       ])
     );
   } catch (error) {
@@ -70,6 +74,7 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
       initialTrending={trending}
       initialRecommended={recommended}
       initialFilters={filters}
+      tagOptions={tagOptions}
     />
   );
 }

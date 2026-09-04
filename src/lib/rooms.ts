@@ -8,18 +8,21 @@ import { createRoomMessageWithNextSequence } from "@/lib/message-sequence";
 import { containsRussianLanguage, RUSSIAN_LANGUAGE_ERROR } from "@/lib/language-policy";
 import { estimateModelCost } from "@/lib/model-pricing";
 import { assembleNytheraPrompt } from "@/lib/prompt-assembly";
+import { fitPromptMessagesWithinContext } from "@/lib/prompt-budget";
 import { loadAdaptiveRoomHistory } from "@/lib/chat-history";
 import { detectPromptInjection } from "@/lib/prompt-security";
 import { prisma } from "@/lib/prisma";
 import { streamLlmResponse } from "@/lib/proxy";
 import { userPreferredModelValue } from "@/lib/provider-model-options";
 import { moderateText, sanitizeUserText, isMinorBirthDate } from "@/lib/safety";
-import { formatUserPersonaForPrompt } from "@/lib/user-persona";
+import { formatUserPersonaContinuitySource, formatUserPersonaForPrompt } from "@/lib/user-persona";
 import { getEffectiveProviderKeys } from "@/lib/user-keys";
 import { getPromptMemories } from "@/lib/memory-store";
 import { ensureStoryForRoom, getRoomStoryPromptContext, syncRoomTurns } from "@/lib/stories/story-foundation";
-import { markStoryProactiveEventsFired } from "@/lib/stories/narrative-store";
+import { markStoryBeatsCompleted, markStoryProactiveEventsFired } from "@/lib/stories/narrative-store";
 import { logSafeError } from "@/lib/secret-redaction";
+import { configuredOutputTokenLimit } from "@/lib/response-length";
+import { renderCharacterGreeting, renderInitialRoomGreeting } from "@/lib/character-prompt-contract";
 import { renderCharacterPrologue } from "@/lib/prologue-pov";
 import { buildPhysicalMemoryContext } from "@/lib/memory/promptBuilder";
 import { createPhysicalContinuityOutputGuard } from "@/lib/physical-continuity";
@@ -32,6 +35,7 @@ type RoomUser = {
   memoryEnabled: boolean;
   preferredProvider?: string | null;
   preferredModel?: string | null;
+  maxOutputTokens?: number | null;
 };
 
 type RoomInput = {
@@ -86,8 +90,17 @@ export async function getRoomForUser(roomId: string, userId: string) {
     throw new HttpError(404, "Room not found.");
   }
 
-  room.messages.reverse();
-  return room;
+  const persona = room.persona ?? await prisma.userPersona.findFirst({
+    where: { userId: room.userId, isDefault: true }
+  });
+  const userPersona = formatUserPersonaForPrompt(persona);
+  const messages = room.messages.reverse().map((message) => renderInitialRoomGreeting(
+    message,
+    message.character?.name ?? "Character",
+    room.characters.length,
+    userPersona
+  ));
+  return { ...room, messages };
 }
 
 export async function createRoomForUser(user: RoomUser, input: RoomInput) {
@@ -109,8 +122,7 @@ export async function createRoomForUser(user: RoomUser, input: RoomInput) {
 
   const providerKeys = await getEffectiveProviderKeys(user.id);
   const defaultPersona = await prisma.userPersona.findFirst({
-    where: { userId: user.id, isDefault: true },
-    select: { id: true, displayName: true }
+    where: { userId: user.id, isDefault: true }
   });
   const primary = orderedCharacters[0];
   const settings = resolveCharacterModelSettings({
@@ -120,6 +132,7 @@ export async function createRoomForUser(user: RoomUser, input: RoomInput) {
     chatTemperature: input.temperature
   });
   const title = input.title?.trim() || orderedCharacters.map((character) => character.name).slice(0, 3).join(", ");
+  const userPersona = formatUserPersonaForPrompt(defaultPersona);
 
   const created = await prisma.$transaction(async (tx) => {
     const room = await tx.room.create({
@@ -150,7 +163,7 @@ export async function createRoomForUser(user: RoomUser, input: RoomInput) {
             role: RoomMessageRole.CHARACTER,
             characterId: character.id,
             content: renderCharacterPrologue({
-              greeting: character.greeting,
+              greeting: renderCharacterGreeting(character, userPersona),
               characterName: character.name,
               communicationStyle: character.communicationStyle,
               userPersonaName: defaultPersona?.displayName
@@ -263,10 +276,11 @@ export async function sendRoomMessage(input: {
     globalModel: input.body.model ?? room.model,
     chatTemperature: input.body.temperature ?? room.temperature
   });
+  const maxOutputTokens = configuredOutputTokenLimit(effectiveSettings.maxTokens, input.user.maxOutputTokens);
   const history = await loadAdaptiveRoomHistory({
     roomId: room.id,
     model: effectiveSettings.model,
-    maxOutputTokens: effectiveSettings.maxTokens,
+    maxOutputTokens,
     currentMessage: message,
     summary: room.summary
   });
@@ -292,17 +306,27 @@ export async function sendRoomMessage(input: {
     getRoomStoryPromptContext({ roomId: room.id, userId: room.userId, actorCharacterId: speaker.id })
   ]);
   const userPersona = room.userId === input.user.id ? room.persona ?? defaultPersona : defaultPersona;
+  const formattedUserPersona = formatUserPersonaForPrompt(userPersona as UserPersona | null);
   const userPersonaPrompt = formatUserPersonaForPrompt(userPersona as UserPersona | null);
   const physicalContext = buildPhysicalMemoryContext(room.summary, memories);
   const recentMessages = history.messages
-    .map((roomMessage) => ({
-      role: roomMessage.role === RoomMessageRole.CHARACTER ? MessageRole.ASSISTANT : roomMessage.role === RoomMessageRole.SYSTEM ? MessageRole.SYSTEM : MessageRole.USER,
-      content: formatRoomMessageForPrompt(roomMessage)
-    }));
-  const prompt = assembleNytheraPrompt({
+    .map((roomMessage) => {
+      const renderedMessage = renderInitialRoomGreeting(
+        roomMessage,
+        roomMessage.character?.name ?? "Character",
+        room.characters.length,
+        formattedUserPersona
+      );
+      return {
+        role: roomMessage.role === RoomMessageRole.CHARACTER ? MessageRole.ASSISTANT : roomMessage.role === RoomMessageRole.SYSTEM ? MessageRole.SYSTEM : MessageRole.USER,
+        content: formatRoomMessageForPrompt(renderedMessage)
+      };
+    });
+  const assembledPrompt = assembleNytheraPrompt({
     character: speaker,
     memories,
     userPersona: userPersonaPrompt,
+    userPersonaContinuity: formatUserPersonaContinuitySource(userPersona as UserPersona | null),
     summary: history.overflowed ? room.summary : null,
     recentMessages,
     currentMessage: message,
@@ -316,9 +340,17 @@ export async function sendRoomMessage(input: {
     physicalContext,
     injectionAssessment
   });
+  const promptFit = fitPromptMessagesWithinContext(assembledPrompt, {
+    model: effectiveSettings.model,
+    maxOutputTokens
+  });
+  if (promptFit.fixedPromptTooLarge) {
+    throw new HttpError(400, "System instructions exceed this model's context window. Choose a model with a larger context window or shorten the character system prompt.");
+  }
+  const prompt = promptFit.messages;
   const physicalOutputGuard = createPhysicalContinuityOutputGuard(
     speaker,
-    userPersonaPrompt,
+    formatUserPersonaContinuitySource(userPersona as UserPersona | null) ?? userPersonaPrompt,
     { recentMessages, currentMessage: message, persistentPlayerContext: physicalContext },
     { enabled: !selectCustomPrompt(room.responsePrompt, speaker.systemPromptOverride) }
   );
@@ -342,7 +374,7 @@ export async function sendRoomMessage(input: {
     topP: effectiveSettings.topP,
     frequencyPenalty: effectiveSettings.frequencyPenalty,
     presencePenalty: effectiveSettings.presencePenalty,
-    maxTokens: effectiveSettings.maxTokens,
+    maxTokens: maxOutputTokens,
     userId: input.user.id,
     chatId: room.id,
     providerKeys,
@@ -447,6 +479,13 @@ export async function sendRoomMessage(input: {
     sourceRoomMessageId: characterMessage.id
   }).catch((storyError) => {
     logSafeError("Room proactive event completion failed.", storyError);
+  });
+  await markStoryBeatsCompleted({
+    beatIds: storyContext.beatIds,
+    storyId: storyContext.storyId,
+    sourceRoomMessageId: characterMessage.id
+  }).catch((storyError) => {
+    logSafeError("Room story beat completion failed.", storyError);
   });
 
   return {

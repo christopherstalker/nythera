@@ -75,7 +75,7 @@ export function BotGenerator({ onApply }: { onApply: (generated: GeneratedCharac
       </div>
 
       <Field label="Character concept">
-        <Textarea value={concept} onChange={(event) => setConcept(event.target.value)} placeholder={'Describe your character... e.g. "A mysterious vampire librarian"'} rows={4} maxLength={2000} />
+        <Textarea value={concept} onChange={(event) => setConcept(event.target.value)} placeholder={'Describe your character... e.g. "A mysterious vampire librarian"'} rows={4} />
       </Field>
       <GlassButton type="button" variant="glass-primary" onClick={() => void generate()} disabled={loading || concept.trim().length < 8}>
         <Sparkles className="h-4 w-4" /> {loading ? "Generating..." : "Generate"}
@@ -99,7 +99,7 @@ export function BotGenerator({ onApply }: { onApply: (generated: GeneratedCharac
             <CharacterAvatar name={preview.name} avatarUrl={preview.avatarUrl} size="xl" />
             <div className="space-y-2">
               <p className="text-sm font-medium text-[var(--text-primary)]">Portrait</p>
-              <p className="max-w-lg text-xs leading-5 text-[var(--text-muted)]">Upload a portrait now, or keep the generated avatar prompt for your image workflow.</p>
+              <p className="max-w-lg text-xs leading-5 text-[var(--text-muted)]">Upload JPG, PNG, WebP, GIF, AVIF, or BMP up to 6 MB, or keep the generated avatar prompt.</p>
               <ImageFilePicker onPick={(avatarUrl) => update("avatarUrl", avatarUrl)} onError={setError}>
                 <span className="neo-glass-icon-btn inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm text-[var(--text-secondary)]"><ImagePlus className="h-4 w-4" /> Upload avatar</span>
               </ImageFilePicker>

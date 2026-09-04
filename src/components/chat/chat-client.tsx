@@ -24,6 +24,8 @@ import { useUiStore } from "@/stores/use-ui-store";
 import { CHAT_CUSTOM_FONT_FAMILY, useCustomFontFace } from "@/hooks/use-custom-font";
 import { latestAssistantVariantGroup } from "@/lib/message-actions";
 import type { ChatImageAttachment } from "@/lib/chat-attachments";
+import type { SkipTimeDuration } from "@/lib/chat-actions";
+import { getScheduledMessageDelay, SCHEDULED_EVENTS_CHANGED_EVENT } from "@/lib/scheduled-messages";
 import type { ChatInputLimits } from "@/lib/chat-limits";
 
 type ChatClientProps = {
@@ -55,6 +57,7 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
   const [draft, setDraft] = useState("");
   const [model, setModel] = useState(initialModel || "gpt-4o-mini");
   const [temperature, setTemperature] = useState(initialTemperature ?? 0.7);
+  const [maxOutputTokens, setMaxOutputTokens] = useState<number | null>(null);
   const [responsePrompt, setResponsePrompt] = useState(initialResponsePrompt ?? "");
   const [translationLanguage, setTranslationLanguage] = useState(initialTranslationLanguage ?? "");
   const [apiSaveStatus, setApiSaveStatus] = useState<string | null>(null);
@@ -133,16 +136,88 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
   }, [isStreaming]);
 
   useEffect(() => {
-    const checkScheduledMessages = async () => {
-      if (document.visibilityState !== "visible" || isStreamingRef.current) return;
-      const response = await fetch(`/api/chats/${chatId}/scheduled`, { cache: "no-store" });
-      const body = await response.json().catch(() => null);
-      if (response.ok && body?.created) await refreshMessages();
+    if (!readingMode) return;
+
+    const exitReadingMode = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setReadingMode(false);
     };
-    void checkScheduledMessages();
-    const interval = window.setInterval(() => void checkScheduledMessages(), 30_000);
-    return () => window.clearInterval(interval);
-  }, [chatId, refreshMessages]);
+    window.addEventListener("keydown", exitReadingMode);
+    return () => window.removeEventListener("keydown", exitReadingMode);
+  }, [readingMode]);
+
+  useEffect(() => {
+    let disposed = false;
+    let requestInFlight = false;
+    let checkTimeout: number | null = null;
+    let requestController: AbortController | null = null;
+
+    const clearScheduledCheck = () => {
+      if (checkTimeout !== null) {
+        window.clearTimeout(checkTimeout);
+        checkTimeout = null;
+      }
+    };
+
+    const scheduleCheck = (delay: number) => {
+      clearScheduledCheck();
+      checkTimeout = window.setTimeout(() => void checkScheduledMessages(), delay);
+    };
+
+    const checkScheduledMessages = async () => {
+      checkTimeout = null;
+      if (disposed || requestInFlight || document.visibilityState !== "visible" || isStreamingRef.current) {
+        return;
+      }
+
+      requestInFlight = true;
+      requestController = new AbortController();
+      try {
+        const response = await fetch(`/api/chats/${chatId}/scheduled`, {
+          cache: "no-store",
+          signal: requestController.signal
+        });
+        const body = await response.json().catch(() => null);
+        if (!response.ok || disposed) {
+          return;
+        }
+        if (body?.created) {
+          await refreshMessages();
+        }
+        const nextDelay = getScheduledMessageDelay(body?.nextTriggerAt);
+        if (nextDelay !== null) {
+          scheduleCheck(nextDelay);
+        }
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          console.error("Could not check scheduled messages.", error);
+        }
+      } finally {
+        requestInFlight = false;
+        requestController = null;
+      }
+    };
+
+    const resumeScheduledChecks = () => {
+      if (document.visibilityState === "visible" && !isStreamingRef.current) {
+        scheduleCheck(0);
+      } else {
+        clearScheduledCheck();
+      }
+    };
+
+    scheduleCheck(0);
+    document.addEventListener("visibilitychange", resumeScheduledChecks);
+    window.addEventListener("focus", resumeScheduledChecks);
+    window.addEventListener(SCHEDULED_EVENTS_CHANGED_EVENT, resumeScheduledChecks);
+    return () => {
+      disposed = true;
+      clearScheduledCheck();
+      requestController?.abort();
+      document.removeEventListener("visibilitychange", resumeScheduledChecks);
+      window.removeEventListener("focus", resumeScheduledChecks);
+      window.removeEventListener(SCHEDULED_EVENTS_CHANGED_EVENT, resumeScheduledChecks);
+    };
+  }, [chatId, isStreaming, refreshMessages]);
 
   useEffect(() => {
     const flushOfflineQueue = async () => {
@@ -264,9 +339,10 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
           throw new Error("Could not load API keys.");
         }
 
-        const body: { keys?: SavedProviderSummary[] } = await response.json();
+        const body: { keys?: SavedProviderSummary[]; maxOutputTokens?: number | null } = await response.json();
         if (!cancelled) {
           setProviderKeys(Array.isArray(body.keys) ? body.keys : []);
+          setMaxOutputTokens(typeof body.maxOutputTokens === "number" ? body.maxOutputTokens : null);
         }
 
         const catalogResponse = await fetch("/api/keys/models", { signal: controller.signal });
@@ -295,8 +371,9 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
 
           const verifiedKeysResponse = await fetch("/api/keys", { signal: controller.signal });
           if (verifiedKeysResponse.ok && !cancelled) {
-            const verifiedKeysBody: { keys?: SavedProviderSummary[] } = await verifiedKeysResponse.json();
+            const verifiedKeysBody: { keys?: SavedProviderSummary[]; maxOutputTokens?: number | null } = await verifiedKeysResponse.json();
             setProviderKeys(Array.isArray(verifiedKeysBody.keys) ? verifiedKeysBody.keys : []);
+            setMaxOutputTokens(typeof verifiedKeysBody.maxOutputTokens === "number" ? verifiedKeysBody.maxOutputTokens : null);
           }
         }
       } catch (error) {
@@ -345,7 +422,33 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
     setModel(value);
   }, []);
 
-  const submitMessage = useCallback(async (attachments: ChatImageAttachment[], contentOverride?: string) => {
+  const saveMaxOutputTokens = useCallback(async (value: number | null) => {
+    setApiSaveStatus("Saving token limit...");
+    try {
+      const response = await fetch("/api/keys", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ maxOutputTokens: value })
+      });
+      const body: { maxOutputTokens?: number | null; error?: string } | null = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(body?.error ?? "Could not save the token limit.");
+      }
+
+      const savedLimit = typeof body?.maxOutputTokens === "number" ? body.maxOutputTokens : null;
+      setMaxOutputTokens(savedLimit);
+      setApiSaveStatus(savedLimit === null ? "Automatic response limits restored." : `Maximum output saved at ${savedLimit} tokens.`);
+      return true;
+    } catch (error) {
+      setApiSaveStatus(error instanceof Error ? error.message : "Could not save the token limit.");
+      return false;
+    }
+  }, []);
+
+  const submitMessage = useCallback(async (
+    attachments: ChatImageAttachment[],
+    contentOverride?: string
+  ) => {
     const content = contentOverride?.trim() || draft.trim();
     if ((!content && !attachments.length) || isStreaming) {
       return false;
@@ -417,6 +520,14 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
     }
 
     void send("", { ...chatSettingsRef.current, continueChat: true, continueMessageId: assistantMessageId });
+  }, [send]);
+
+  const skipTime = useCallback((assistantMessageId: string, duration: SkipTimeDuration) => {
+    if (isStreamingRef.current) {
+      return;
+    }
+
+    void send("", { ...chatSettingsRef.current, skipTime: true, skipTimeDuration: duration, continueMessageId: assistantMessageId });
   }, [send]);
 
   const regenerate = useCallback((assistantMessageId: string) => {
@@ -568,6 +679,7 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
             onRegenerate={regenerate}
             onRetry={retryMessage}
             onContinue={continueChat}
+            onSkipTime={skipTime}
             onRewind={rewindToMessage}
             onBranch={branch}
             onPin={togglePin}
@@ -589,6 +701,8 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
               temperature={temperature}
               onModelChange={handleModelChange}
               onTemperatureChange={setTemperature}
+              maxOutputTokens={maxOutputTokens}
+              onMaxOutputTokensChange={saveMaxOutputTokens}
               responsePrompt={responsePrompt}
               onResponsePromptChange={setResponsePrompt}
               translationLanguage={translationLanguage}

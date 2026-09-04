@@ -25,14 +25,16 @@ test("character browser features remain available without replacing the editoria
   assert.match(client, /Story dossier/);
 });
 
-test("tiered memory uses 20 session messages and semantic deduplication", async () => {
+test("tiered memory uses the full adaptive transcript and semantic deduplication", async () => {
   const [stream, vector, worker] = await Promise.all([
     read("../src/app/api/chats/[id]/stream/route.ts"),
     read("../src/lib/vector.ts"),
     read("../src/jobs/worker.ts")
   ]);
 
-  assert.match(stream, /history\.messages\.slice\(-20\)/);
+  assert.match(stream, /let recentMessages = history\.messages/);
+  assert.doesNotMatch(stream, /history\.messages\.slice\(-20\)/);
+  assert.match(stream, /buildMemoryRetrievalQuery\(message, recentMessages\)/);
   assert.match(stream, /includeGlobal: false/);
   assert.match(vector, /> 0\.92/);
   assert.match(worker, /extractMemoriesWithLlm/);
@@ -55,7 +57,7 @@ test("roleplay prompt and mode persistence are wired through chat creation", asy
   assert.match(realism, /Never supply the player's dialogue, actions, thoughts, feelings, sensations, decisions, or reactions/);
   assert.match(fantasy, /EMBRACE THE FANTASTIC/);
   assert.match(fantasy, /PROTECT THE PLAYER ROLE/);
-  assert.match(assembly, /PLAYER PERSONA — REFERENCE ONLY/);
+  assert.match(assembly, /PLAYER PERSONA — AUTHORITATIVE IDENTITY AND BOUNDARIES/);
   assert.doesNotMatch(assembly, /4\. Realism over drama/);
   assert.match(createRoute, /character\.defaultChatMode \?\? user\.preferredChatMode/);
   assert.match(schema, /preferredChatMode\s+String\s+@default\("realism"\)/);

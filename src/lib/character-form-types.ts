@@ -7,6 +7,12 @@ export type CharacterCreationMode = "simple" | "custom";
 export type CharacterFormMode = CharacterCreationMode | "prompt";
 export type { MessageLength } from "@/lib/response-length";
 
+export type AdditionalCharacterDraft = {
+  id: string;
+  name: string;
+  personality: string;
+};
+
 export type CharacterFormValue = {
   id?: string;
   creationMode: CharacterCreationMode;
@@ -32,6 +38,7 @@ export type CharacterFormValue = {
   boundaries: string;
   behavioralRules: string;
   forbiddenBehaviors: string;
+  additionalCharacters: AdditionalCharacterDraft[];
   tone: string;
   humor: number;
   romanceLevel: number;
@@ -168,6 +175,7 @@ export const emptyCharacterDraft: CharacterFormValue = {
   boundaries: "",
   behavioralRules: "",
   forbiddenBehaviors: "",
+  additionalCharacters: [],
   tone: "",
   humor: 5,
   romanceLevel: 0,

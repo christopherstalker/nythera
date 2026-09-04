@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { getRequestIp, HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
-import { characterCreateSchema } from "@/lib/validation";
+import { characterCreateSchemaFor } from "@/lib/validation";
 import { expandTagQuery } from "@/lib/character-tags";
 import { redactCharacterModelSettings } from "@/lib/character-model-settings";
 import { createCharacterForUser } from "@/lib/character-mutations";
@@ -119,7 +119,10 @@ export async function POST(request: Request) {
       route: "characters:create"
     });
 
-    const input = await parseJson(request, characterCreateSchema);
+    const unlimitedCharacterFields = user.unlimitedCharacterFields;
+    const input = await parseJson(request, characterCreateSchemaFor(unlimitedCharacterFields), {
+      maxBytes: unlimitedCharacterFields ? null : undefined
+    });
     const character = await createCharacterForUser(input, user);
 
     return json({ character }, { status: 201 });

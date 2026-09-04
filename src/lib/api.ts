@@ -38,8 +38,11 @@ export async function requireUser() {
       memoryEnabled: true,
       compactMode: true,
       notificationsEnabled: true,
+      unlimitedCharacterFields: true,
       preferredProvider: true,
       preferredModel: true,
+      defaultTemperature: true,
+      maxOutputTokens: true,
       defaultResponsePrompt: true,
       preferredChatMode: true,
       bannedAt: true
@@ -98,15 +101,19 @@ export function routeError(error: unknown) {
   return json({ error: "Unexpected server error." }, { status: 500 });
 }
 
-export async function parseJson<T>(request: Request, schema: { parse: (value: unknown) => T }) {
-  const maxBytes = 256 * 1024;
+export async function parseJson<T>(
+  request: Request,
+  schema: { parse: (value: unknown) => T },
+  options: { maxBytes?: number | null } = {}
+) {
+  const maxBytes = options.maxBytes === undefined ? 256 * 1024 : options.maxBytes;
   const contentLength = Number(request.headers.get("content-length") ?? 0);
-  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+  if (maxBytes !== null && Number.isFinite(contentLength) && contentLength > maxBytes) {
     throw new HttpError(413, "Request body is too large.");
   }
 
   const raw = await request.text();
-  if (new TextEncoder().encode(raw).byteLength > maxBytes) {
+  if (maxBytes !== null && new TextEncoder().encode(raw).byteLength > maxBytes) {
     throw new HttpError(413, "Request body is too large.");
   }
 

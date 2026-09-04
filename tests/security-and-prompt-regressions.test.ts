@@ -6,6 +6,15 @@ import { mobileStreamMessageSchema } from "../src/lib/validation";
 
 const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
+test("mobile sessions are invalidated when account recovery increments authVersion", async () => {
+  const mobileAuth = await read("../src/lib/mobile-auth.ts");
+
+  assert.match(mobileAuth, /authVersion: z\.number\(\)\.int\(\)\.nonnegative\(\)\.default\(0\)/);
+  assert.match(mobileAuth, /authVersion: user\.authVersion \?\? 0/);
+  assert.match(mobileAuth, /authVersion: true/);
+  assert.match(mobileAuth, /if \(token\.authVersion !== user\.authVersion\) \{\s*throw new HttpError\(401/);
+});
+
 test("password registration stays unverified and duplicate identities return a conflict", async () => {
   const [webRegistration, mobileRegistration, mobileAuth] = await Promise.all([
     read("../src/app/api/auth/register/route.ts"),
@@ -42,7 +51,7 @@ test("custom prompts receive facts but no built-in behavioral contracts", async 
   assert.match(assembly, /factsOnly \? input\.factualStoryContext : input\.storyContext/);
   assert.match(assembly, /const behaviorLayers = customPromptLayer\s*\? \[customPromptLayer\]\s*: \[roleplayEngineLayer, modeLayer\]/);
   assert.match(assembly, /if \(factsOnly\) \{\s*return \["PLAYER PERSONA \(FACTUAL CONTEXT\)"/);
-  assert.match(assembly, /return \[\s*"PLAYER PERSONA — REFERENCE ONLY"[\s\S]*Preserve the profile's facts, never its prose/);
+  assert.match(assembly, /return \[\s*"PLAYER PERSONA — AUTHORITATIVE IDENTITY AND BOUNDARIES"[\s\S]*Preserve the profile's facts, never its prose/);
   assert.match(assembly, /if \(factsOnly\) \{\s*return \["STRUCTURED STORY FACTS"/);
   assert.doesNotMatch(memoryPrompt, /ADULT INTIMACY|guide style|preserves continuity/i);
   assert.match(physicalContinuity, /factsOnly/);
@@ -57,7 +66,8 @@ test("custom prompts keep their configured sampling and room prompt precedence",
   ]);
 
   for (const route of [webRoute, mobileRoute]) {
-    assert.match(route, /customPromptActive \? effectiveSettings\.temperature : modeTemperature/);
+    assert.match(route, /const temperature = effectiveSettings\.temperature/);
+    assert.doesNotMatch(route, /modeTemperature/);
     assert.match(route, /factualStoryContext: storyContext\.factualText/);
   }
   assert.match(mobileRoute, /temporaryPersona: true/);

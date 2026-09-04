@@ -1,6 +1,6 @@
 import "server-only";
 
-import { MemoryCategory } from "@prisma/client";
+import { MemoryCategory, MemoryStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getPromptMemories } from "@/lib/memory-store";
 import type { ProviderKeys } from "@/lib/user-keys";
@@ -17,7 +17,8 @@ export async function getUserMemories(userId: string, limit = 12) {
   return prisma.memory.findMany({
     where: {
       userId,
-      characterId: null
+      characterId: null,
+      status: MemoryStatus.ACTIVE
     },
     orderBy: [{ importance: "desc" }, { updatedAt: "desc" }],
     take: limit,

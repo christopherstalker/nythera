@@ -9,27 +9,32 @@ import { detectPromptInjection } from "@/lib/prompt-security";
 import { mobileStreamMessageSchema } from "@/lib/validation";
 import { assembleNytheraPrompt } from "@/lib/prompt-assembly";
 import { resolveCharacterPersona } from "@/lib/persona";
-import { maxOutputTokensForVerbosity } from "@/lib/response-length";
+import { providerOutputTokenBudget, resolveChatOutputTokenLimit } from "@/lib/response-length";
 import { loadAdaptiveChatHistory } from "@/lib/chat-history";
 import { streamLlmResponse } from "@/lib/proxy";
 import { getPromptMemories } from "@/lib/memory-store";
-import { schedulePostMessageJobs } from "@/lib/memory";
+import { schedulePostMessageJobs, summarizeChat } from "@/lib/memory";
+import { buildMemoryRetrievalQuery, conversationSummaryIsStale } from "@/lib/memory-policy";
 import { getEffectiveProviderKeys, isUserOwnedProvider } from "@/lib/user-keys";
-import { formatUserPersonaForPrompt } from "@/lib/user-persona";
+import { formatUserPersonaContinuitySource, formatUserPersonaForPrompt } from "@/lib/user-persona";
+import { renderInitialChatGreeting } from "@/lib/character-prompt-contract";
 import { createMessageWithNextSequence } from "@/lib/message-sequence";
 import { resolveCharacterModelSettings } from "@/lib/character-model-settings";
 import { providerFallbackNotice } from "@/lib/provider-fallback";
 import { estimateModelCost } from "@/lib/model-pricing";
 import { logSafeError } from "@/lib/secret-redaction";
 import { getStoryPromptContext, syncChatTurns } from "@/lib/stories/story-foundation";
-import { markStoryProactiveEventsFired } from "@/lib/stories/narrative-store";
-import { buildPromptAddonLayers, modeTemperature } from "@/lib/prompts/buildPrompt";
+import { markStoryBeatsCompleted, markStoryProactiveEventsFired } from "@/lib/stories/narrative-store";
+import { buildPromptAddonLayers } from "@/lib/prompts/buildPrompt";
 import { selectCustomPrompt } from "@/lib/response-prompt";
 import { buildPhysicalMemoryContext, formatTieredMemoryBlocks, getUserMemories, splitMemoriesForPrompt } from "@/lib/memory/promptBuilder";
 import { normalizeChatMode } from "@/lib/chat-mode";
 import { requireAdultConsent } from "@/lib/adult-consent";
 import { schedulePostResponseTasks } from "@/lib/post-response";
 import { containsRussianLanguage, RUSSIAN_LANGUAGE_ERROR } from "@/lib/language-policy";
+import { buildSkipTimePrompt, resolveChatActionMessage, type SkipTimeDuration } from "@/lib/chat-actions";
+import { continuationClientRequestId, skipTimeClientRequestId } from "@/lib/message-actions";
+import { fitPromptMessagesWithinContext } from "@/lib/prompt-budget";
 import { createPhysicalContinuityOutputGuard } from "@/lib/physical-continuity";
 import { getChatInputLimits } from "@/lib/chat-limits.server";
 
@@ -62,9 +67,17 @@ export async function POST(request: Request, context: Context) {
       throw new HttpError(400, `Custom system prompt must be ${inputLimits.responsePrompt.toLocaleString()} characters or fewer.`);
     }
     const continueChat = input.continueChat === true;
+    const skipTime = input.skipTime === true;
+    const skipTimeDuration: SkipTimeDuration | null = input.skipTimeValue && input.skipTimeUnit
+      ? { value: input.skipTimeValue, unit: input.skipTimeUnit }
+      : null;
+    const assistantOnlyAction = continueChat || skipTime;
     const continuationPrompt =
       "Continue the roleplay naturally from the immediately preceding selected assistant response. Do not speak as the user, do not invent a user reply, and keep the scene moving in the character's voice.";
-    const message = continueChat ? continuationPrompt : sanitizeUserText(input.message, inputLimits.message);
+    const actionMessage = resolveChatActionMessage(
+      skipTime ? buildSkipTimePrompt(skipTimeDuration) : continueChat ? continuationPrompt : sanitizeUserText(input.message, inputLimits.message)
+    );
+    const message = actionMessage.promptContent;
     if (containsRussianLanguage(message)) {
       throw new HttpError(400, RUSSIAN_LANGUAGE_ERROR);
     }
@@ -116,8 +129,17 @@ export async function POST(request: Request, context: Context) {
     });
     const model = effectiveSettings.model;
     const characterPersona = resolveCharacterPersona(chat.character);
-    const maxOutputTokens = maxOutputTokensForVerbosity(characterPersona.verbosityLevel, effectiveSettings.maxTokens);
-    let temperature = effectiveSettings.temperature;
+    const maxOutputTokens = resolveChatOutputTokenLimit(
+      characterPersona.verbosityLevel,
+      effectiveSettings.maxTokens,
+      user.maxOutputTokens
+    );
+    const providerMaxOutputTokens = providerOutputTokenBudget({
+      visibleTokenLimit: maxOutputTokens,
+      provider: effectiveSettings.provider,
+      model
+    });
+    const temperature = effectiveSettings.temperature;
     if (!isUserOwnedProvider(effectiveSettings.provider, providerKeys)) {
       await enforceRateLimit({
         userId: user.id,
@@ -126,19 +148,22 @@ export async function POST(request: Request, context: Context) {
         cost: Math.min(maxOutputTokens, 4096)
       });
     }
+    const conversationSummary = conversationSummaryIsStale(chat)
+      ? (await summarizeChat(chat.id))?.summary ?? chat.summary
+      : chat.summary;
     const history = await loadAdaptiveChatHistory({
       chatId: chat.id,
       model,
       maxOutputTokens,
       currentMessage: message,
-      summary: chat.summary
+      summary: conversationSummary
     });
-    const userMessage = continueChat
+    const userMessage = assistantOnlyAction
       ? null
       : await createMessageWithNextSequence({
           chatId: chat.id,
           role: MessageRole.USER,
-          content: message,
+          content: actionMessage.persistedContent,
           clientRequestId: input.requestId
         });
 
@@ -146,7 +171,10 @@ export async function POST(request: Request, context: Context) {
       getPromptMemories({
         userId: user.id,
         characterId: chat.characterId,
-        query: message,
+        chatId: chat.id,
+        query: buildMemoryRetrievalQuery(message, history.messages),
+        semanticLimit: 8,
+        totalLimit: 10,
         includeGlobal: false,
         providerKeys,
         semanticEnabled: user.memoryEnabled
@@ -166,16 +194,22 @@ export async function POST(request: Request, context: Context) {
       characterMemories,
       userMemories
     });
+    const formattedUserPersona = formatUserPersonaForPrompt(userPersona);
+    const recentMessages = history.messages.map((historyMessage) => renderInitialChatGreeting(
+      historyMessage,
+      chat.character.name,
+      formattedUserPersona
+    ));
     const customPromptActive = Boolean(selectCustomPrompt(responsePrompt, effectiveSettings.systemPromptOverride));
-    const recentMessages = history.messages.slice(-20);
     const userPersonaPrompt = formatUserPersonaForPrompt(userPersona);
     const physicalContext = buildPhysicalMemoryContext(chat.summary, [...memories, ...userGlobalMemories]);
 
-    const prompt = assembleNytheraPrompt({
+    const assembledPrompt = assembleNytheraPrompt({
       character: chat.character,
       memories,
-      userPersona: userPersonaPrompt,
-      summary: history.overflowed ? chat.summary : null,
+      userPersona: formattedUserPersona,
+      userPersonaContinuity: formatUserPersonaContinuitySource(userPersona),
+      summary: history.overflowed ? conversationSummary : null,
       recentMessages,
       currentMessage: message,
       responsePrompt,
@@ -187,13 +221,17 @@ export async function POST(request: Request, context: Context) {
       physicalContext,
       translationLanguage: chat.translationLanguage
     });
+    const promptFit = fitPromptMessagesWithinContext(assembledPrompt, { model, maxOutputTokens: providerMaxOutputTokens });
+    if (promptFit.fixedPromptTooLarge) {
+      throw new HttpError(400, "System instructions exceed this model's context window. Choose a model with a larger context window or shorten the character system prompt.");
+    }
+    const prompt = promptFit.messages;
     const physicalOutputGuard = createPhysicalContinuityOutputGuard(
       chat.character,
-      userPersonaPrompt,
+      formatUserPersonaContinuitySource(userPersona) ?? userPersonaPrompt,
       { recentMessages, currentMessage: message, persistentPlayerContext: physicalContext },
       { enabled: !customPromptActive }
     );
-    temperature = customPromptActive ? effectiveSettings.temperature : modeTemperature(chatMode, effectiveSettings.temperature);
 
     const encoder = new TextEncoder();
     let assistantText = "";
@@ -313,7 +351,14 @@ export async function POST(request: Request, context: Context) {
             estimatedCost,
             usageEstimated: usage.usageEstimated,
             flagged: outputBlocked,
-            clientRequestId: continueChat ? `continue-${input.requestId || crypto.randomUUID()}` : undefined
+            clientRequestId: assistantOnlyAction
+              ? skipTime
+                ? skipTimeClientRequestId(input.requestId || crypto.randomUUID(), input.continueMessageId, skipTimeDuration)
+                : input.continueMessageId
+                  ? continuationClientRequestId(input.requestId || crypto.randomUUID(), input.continueMessageId)
+                  : `continue-${input.requestId || crypto.randomUUID()}`
+              : undefined,
+            branchSourceMessageId: assistantOnlyAction ? input.continueMessageId : undefined
           });
           assistantPersisted = true;
 
@@ -351,7 +396,7 @@ export async function POST(request: Request, context: Context) {
                 }
               })
             },
-            ...(user.memoryEnabled && !continueChat
+            ...(user.memoryEnabled && !assistantOnlyAction
               ? [{
                   name: "memory jobs",
                   run: () => schedulePostMessageJobs({
@@ -372,6 +417,14 @@ export async function POST(request: Request, context: Context) {
               name: "story event completion",
               run: () => markStoryProactiveEventsFired({
                 eventIds: storyContext.eventIds,
+                storyId: storyContext.storyId,
+                sourceMessageId: assistantMessage.id
+              })
+            },
+            {
+              name: "story beat completion",
+              run: () => markStoryBeatsCompleted({
+                beatIds: storyContext.beatIds,
                 storyId: storyContext.storyId,
                 sourceMessageId: assistantMessage.id
               })
@@ -403,7 +456,15 @@ export async function POST(request: Request, context: Context) {
               outputTokens: usage.outputTokens,
               estimatedCost,
               usageEstimated: usage.usageEstimated,
-              flagged: true
+              flagged: true,
+              clientRequestId: assistantOnlyAction
+                ? skipTime
+                  ? skipTimeClientRequestId(input.requestId || crypto.randomUUID(), input.continueMessageId, skipTimeDuration)
+                  : input.continueMessageId
+                    ? continuationClientRequestId(input.requestId || crypto.randomUUID(), input.continueMessageId)
+                    : `continue-${input.requestId || crypto.randomUUID()}`
+                : undefined,
+              branchSourceMessageId: assistantOnlyAction ? input.continueMessageId : undefined
             });
             assistantPersisted = true;
             send({ type: "message", message: assistantMessage });

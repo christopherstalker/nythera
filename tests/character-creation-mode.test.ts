@@ -5,7 +5,8 @@ import test from "node:test";
 import {
   buildCharacterCreatePayload,
   creationModeForEditor,
-  creationModeForNewCharacter
+  creationModeForNewCharacter,
+  validateCharacterCreatePayload
 } from "../src/lib/character-form-payload";
 import { emptyCharacterDraft } from "../src/lib/character-form-types";
 import {
@@ -32,6 +33,9 @@ test("the character editor renders the stored guided mode instead of forcing the
   assert.match(form, /const isSimpleMode = formMode === "simple"/);
   assert.doesNotMatch(form, /const isSimpleMode = mode === "create"/);
   assert.match(form, /mode === "edit" \? creationModeForEditor\(initialValue\?\.creationMode\) : "simple"/);
+  assert.match(form, /const visibleChapters = isSimpleMode \? guidedChapters : studioChapters/);
+  assert.doesNotMatch(form, /<StudioChapter id="publishing" number="04"/);
+  assert.match(form, /<StudioChapter id="publishing" number="06"/);
 });
 
 test("creation mode is persisted and legacy database rows default to custom", async () => {
@@ -78,6 +82,24 @@ test("guided creation preserves authored personality and scenario", () => {
   });
 });
 
+test("character creation accepts long opening messages", () => {
+  const greeting = "A".repeat(12_000);
+  const payload = buildCharacterCreatePayload({
+    draft: {
+      ...emptyCharacterDraft,
+      name: "Ari",
+      description: "A quiet archivist who protects dangerous memories.",
+      personality: "Patient, precise, and quietly defiant when the truth is threatened.",
+      greeting
+    },
+    isSimpleMode: true,
+    creationMode: "simple"
+  });
+
+  assert.equal(payload.greeting, greeting);
+  assert.equal(validateCharacterCreatePayload(payload).success, true);
+});
+
 test("response length is normalized and persisted from the shared behavior control", () => {
   const longPayload = buildCharacterCreatePayload({
     draft: {
@@ -118,18 +140,16 @@ test("guided submit saves directly while optional drafting fills only empty fiel
   assert.match(form, /id="character-description"[\s\S]*?minLength=\{10\}/);
   assert.match(form, /disabled=\{saving\}/);
   assert.doesNotMatch(form, /disabled=\{saving \|\| !canSubmit\}/);
-  assert.match(submit, /revealFormError\("Enter a character name[\s\S]*?"identity", "character-name"\)/);
-  assert.match(submit, /revealFormError\("Describe the character's core idea[\s\S]*?"identity", "character-description"\)/);
+  assert.match(submit, /revealIdentityError\("Enter a character name[\s\S]*?"character-name"\)/);
+  assert.match(submit, /revealIdentityError\("Describe the character's core idea[\s\S]*?"character-description"\)/);
 
-  const guidedPublishing = form.slice(
-    form.indexOf('id="publishing" number="04"'),
-    form.indexOf('id="identity" number="01"', form.indexOf('id="publishing" number="04"'))
+  const guidedChapterDefinition = form.slice(
+    form.indexOf("const guidedChapters"),
+    form.indexOf("export function CharacterForm")
   );
 
-  assert.doesNotMatch(guidedPublishing, /Open complete manuscript/);
-  assert.doesNotMatch(guidedPublishing, /switchFormMode\("custom"\)/);
-  assert.match(guidedPublishing, /<BehaviorControls/);
-  assert.match(guidedPublishing, /onMessageLengthChange=\{\(value\) => update\("messageLength", value\)\}/);
+  assert.doesNotMatch(guidedChapterDefinition, /publishing|Bind the volume/);
+  assert.doesNotMatch(form, /Bind the volume|Choose how this character enters your library/);
   assert.doesNotMatch(form, /label="Message length"/);
   assert.match(form, /Response length/);
   assert.match(form, /Prologue point of view/);

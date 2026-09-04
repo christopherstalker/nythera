@@ -5,16 +5,15 @@ import { streamGatewayResponse } from "@/lib/llm-gateway";
 import type { ProviderKeys } from "@/lib/user-keys";
 import type { ExtractedMemory } from "@/lib/memory/types";
 import { createMemory } from "@/lib/vector";
-import { shouldStoreMemoryFromText } from "@/lib/prompt-security";
-import { sanitizePromptContext } from "@/lib/prompt-security";
+import { sanitizePromptContext, shouldStoreMemoryFromText } from "@/lib/prompt-security";
 import { z } from "zod";
 
-const extractionSchemaHint = `[{"text":"...","tier":"character|user","category":"preference|identity|style|avoid|relationship"}]`;
+const extractionSchemaHint = `[{"text":"...","tier":"character|user","category":"preference|identity|style|avoid|relationship|event|promise|state"}]`;
 const extractedMemoriesSchema = z.array(z.object({
   text: z.string().min(2).max(500),
   tier: z.enum(["character", "user"]),
-  category: z.enum(["preference", "identity", "style", "avoid", "relationship"])
-})).max(4);
+  category: z.enum(["preference", "identity", "style", "avoid", "relationship", "event", "promise", "state"])
+})).max(6);
 
 export async function extractMemoriesWithLlm(input: {
   userId: string;
@@ -31,7 +30,8 @@ export async function extractMemoriesWithLlm(input: {
 
   const prompt = [
     "Review this conversation turn. Extract ONLY facts that should be remembered for future chats.",
-    "Focus on: user preferences, relationship developments, promises made, important facts revealed.",
+    "Focus on durable user preferences and identity, relationship developments, promises, secrets, injuries, named people, important objects, goals, locations, and state changes that affect future scenes.",
+    "Write each memory as a self-contained fact with explicit subjects. Never use vague pronouns whose referent will be unclear later.",
     `Return as JSON array: ${extractionSchemaHint}`,
     "If nothing memorable, return [].",
     "",
@@ -65,7 +65,7 @@ export async function extractMemoriesWithLlm(input: {
   if (!Array.isArray(parsed)) return [];
 
   const stored = [];
-  for (const item of parsed.slice(0, 4)) {
+  for (const item of parsed.slice(0, 6)) {
     const text = item.text?.trim();
     if (!text || !shouldStoreMemoryFromText(text)) continue;
 
@@ -78,7 +78,7 @@ export async function extractMemoriesWithLlm(input: {
       category: mapCategory(item.category),
       importance: item.tier === "character" ? 1.35 : 1.2,
       confidence: 0.78,
-      status: MemoryStatus.PENDING,
+      status: MemoryStatus.ACTIVE,
       metadata: { extractor: "llm", tier: item.tier, category: item.category },
       providerKeys: input.providerKeys
     });
@@ -104,6 +104,11 @@ function mapCategory(category: ExtractedMemory["category"]): MemoryCategory {
       return MemoryCategory.USER_PROFILE;
     case "relationship":
       return MemoryCategory.EMOTIONAL_CONTEXT;
+    case "event":
+    case "promise":
+      return MemoryCategory.EVENT;
+    case "state":
+      return MemoryCategory.FACT;
     default:
       return MemoryCategory.FACT;
   }

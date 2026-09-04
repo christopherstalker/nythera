@@ -87,7 +87,7 @@ test("chat chapter follows the conversation order for the active character", asy
   assert.match(route, /const chapterNumber = await prisma\.chat\.count/);
   assert.match(route, /characterId: chat\.characterId/);
   assert.match(route, /createdAt: \{ lt: chat\.createdAt \}/);
-  assert.match(route, /chat: \{ \.\.\.chat, messages, chapterNumber, inputLimits: getChatInputLimits\(user\.id\) \}/);
+  assert.match(route, /chat: \{ \.\.\.serializedChat, messages, chapterNumber, inputLimits: getChatInputLimits\(user\.id\) \}/);
   assert.match(page, /chapterNumber=\{chat\.chapterNumber\}/);
   assert.match(client, /Chapter \{chapterNumber\}/);
   assert.match(header, /Chapter \{chapterNumber\}/);

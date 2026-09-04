@@ -65,6 +65,13 @@ test("chat image preparation cannot hang indefinitely in a mobile webview", asyn
   assert.doesNotMatch(imageClient, /await image\.decode\(\)/);
 });
 
+test("Lookbook uses an opaque surface above the chat composer", async () => {
+  const input = await readFile(new URL("../src/components/chat/ChatInput.tsx", import.meta.url), "utf8");
+
+  assert.match(input, /z-\[60\][^\"]*bg-\[#090909\]/);
+  assert.doesNotMatch(input, /bg-\[#090909\]\/98/);
+});
+
 test("mobile chat tools collapse into one accessible folder menu", async () => {
   const [input, tools] = await Promise.all([
     readFile(new URL("../src/components/chat/ChatInput.tsx", import.meta.url), "utf8"),

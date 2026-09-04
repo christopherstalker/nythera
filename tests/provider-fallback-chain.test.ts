@@ -57,5 +57,15 @@ test("fallback settings have a dedicated authenticated API and ordering UI", asy
   assert.match(settings, /Fallback chain/);
   assert.match(settings, /Move .* up/i);
   assert.match(settings, /Move .* down/i);
+  assert.match(route, /model: z\.string/);
+  assert.match(settings, /Model for \$\{key\.displayName\}/);
+  assert.match(settings, /primaryProvider = providerOrder\[0\]/);
+  assert.doesNotMatch(settings, /fallbackKeys\[index\]\?\.isDefault/);
   assert.doesNotMatch(route, /encryptedKey/);
+});
+
+test("model refresh never disables an entire fallback provider because one key failed", async () => {
+  const modelsRoute = await readFile(new URL("../src/app/api/keys/models/route.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(modelsRoute, /status === "INVALID"[^\n]*fallbackEnabled/);
+  assert.doesNotMatch(modelsRoute, /fallbackPriority:\s*null/);
 });

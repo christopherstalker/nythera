@@ -110,7 +110,9 @@ test("prologue POV persists, changes its generation instruction, and renders the
   ]);
   assert.match(form, /prologuePov: draft\.prologuePov/);
   assert.match(generation, /prologuePovInstruction\(input\.prologuePov\)/);
-  assert.match(webChat, /content: prologue/);
-  assert.match(mobileChat, /content: prologue/);
+  for (const source of [webChat, mobileChat]) {
+    assert.match(source, /const greeting = renderCharacterPrologue/);
+    assert.match(source, /content: greeting/);
+  }
   assert.match(rooms, /renderCharacterPrologue/);
 });

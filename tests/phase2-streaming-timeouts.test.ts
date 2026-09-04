@@ -30,6 +30,7 @@ test("provider calls use explicit timeout and abort signals", async () => {
   assert.match(timeoutSource, /LLM_EMBEDDING_TIMEOUT_MS\s*=\s*15_000/);
   assert.match(gateway, /createActivityTimeoutSignal\([\s\S]*LLM_FIRST_TOKEN_TIMEOUT_MS/);
   assert.match(gateway, /attemptSignal\.reset\(LLM_STREAM_IDLE_TIMEOUT_MS/);
+  assert.match(gateway, /gatewayDeadline\.signal/);
   assert.match(gateway, /chat\.completions\.create\([\s\S]*\{\s*signal:\s*input\.signal\s*\}/);
   assert.match(gateway, /messages\.stream\([\s\S]*\{\s*signal:\s*input\.signal\s*\}/);
   assert.match(gateway, /timeout:\s*LLM_PROVIDER_TIMEOUT_MS/);

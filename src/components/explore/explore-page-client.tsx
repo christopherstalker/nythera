@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Search, ShieldCheck, SlidersHorizontal, Star, X } from "lucide-react";
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page";
 import { SearchBar } from "@/components/ui/search-bar";
-import { DISCOVERY_TAGS, displayTagLabel } from "@/lib/character-tags";
+import { type CharacterTagOption, displayTagLabel } from "@/lib/character-tags";
 import {
   DEFAULT_DISCOVERY_FILTERS,
   type DiscoveryFilters,
@@ -26,7 +26,6 @@ import {
 import { springSoft } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
-const quickTags = DISCOVERY_TAGS.slice(0, 18);
 const sortOptions = [
   { id: "trending", label: "Trending" },
   { id: "top-rated", label: "Top rated" },
@@ -62,12 +61,14 @@ export default function ExplorePageClient({
   initialCharacters,
   initialTrending,
   initialRecommended,
-  initialFilters
+  initialFilters,
+  tagOptions
 }: {
   initialCharacters: CharacterSummary[];
   initialTrending: CharacterSummary[];
   initialRecommended: CharacterSummary[];
   initialFilters: DiscoveryFilters;
+  tagOptions: CharacterTagOption[];
 }) {
   return (
     <Suspense
@@ -82,6 +83,7 @@ export default function ExplorePageClient({
         initialTrending={initialTrending}
         initialRecommended={initialRecommended}
         initialFilters={initialFilters}
+        tagOptions={tagOptions}
       />
     </Suspense>
   );
@@ -91,12 +93,14 @@ function ExplorePageContent({
   initialCharacters,
   initialTrending,
   initialRecommended,
-  initialFilters
+  initialFilters,
+  tagOptions
 }: {
   initialCharacters: CharacterSummary[];
   initialTrending: CharacterSummary[];
   initialRecommended: CharacterSummary[];
   initialFilters: DiscoveryFilters;
+  tagOptions: CharacterTagOption[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -232,6 +236,7 @@ function ExplorePageContent({
         nsfwMode={filters.nsfw}
         tagMatch={filters.tagMatch}
         hasActiveFilters={hasActiveFilters}
+        tagOptions={tagOptions}
         onQueryChange={setQueryDraft}
         onSearch={submitSearch}
         onToggleTag={toggleTag}
@@ -311,6 +316,7 @@ function DiscoveryCommandCenter({
   nsfwMode,
   tagMatch,
   hasActiveFilters,
+  tagOptions,
   onQueryChange,
   onSearch,
   onToggleTag,
@@ -327,6 +333,7 @@ function DiscoveryCommandCenter({
   nsfwMode: DiscoveryNsfwMode;
   tagMatch: DiscoveryTagMatch;
   hasActiveFilters: boolean;
+  tagOptions: CharacterTagOption[];
   onQueryChange: (value: string) => void;
   onSearch: (value: string) => void;
   onToggleTag: (tag: string) => void;
@@ -337,6 +344,18 @@ function DiscoveryCommandCenter({
   onReset: () => void;
 }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [tagQuery, setTagQuery] = useState("");
+  const visibleTags = useMemo(() => {
+    const query = tagQuery.trim().toLocaleLowerCase();
+    const selected = new Set(selectedTags);
+    const matching = tagOptions.filter((tag) => (
+      !query || tag.label.toLocaleLowerCase().includes(query) || tag.slug.includes(query)
+    ));
+    return [
+      ...matching.filter((tag) => selected.has(tag.slug)),
+      ...matching.filter((tag) => !selected.has(tag.slug))
+    ].slice(0, query ? 40 : 24);
+  }, [selectedTags, tagOptions, tagQuery]);
   const activeFilterCount =
     selectedTags.length + (sort !== "trending" ? 1 : 0) + (ratingMin > 0 ? 1 : 0) + (nsfwMode !== "safe" ? 1 : 0);
 
@@ -430,8 +449,9 @@ function DiscoveryCommandCenter({
           transition={springSoft}
           className="neo-glass-panel mt-3 hidden gap-5 rounded-[var(--radius-surface)] p-4 xl:grid"
         >
+          <TagFilterSearch value={tagQuery} onChange={setTagQuery} />
           <div className="flex flex-wrap gap-2">
-            {quickTags.map((tag) => (
+            {visibleTags.map((tag) => (
               <TagButton key={tag.slug} active={selectedTags.includes(tag.slug)} onClick={() => onToggleTag(tag.slug)}>
                 {displayTagLabel(tag.slug)}
               </TagButton>
@@ -488,6 +508,9 @@ function DiscoveryCommandCenter({
                 nsfwMode={nsfwMode}
                 tagMatch={tagMatch}
                 hasActiveFilters={hasActiveFilters}
+                tagOptions={visibleTags}
+                tagQuery={tagQuery}
+                onTagQueryChange={setTagQuery}
                 onToggleTag={onToggleTag}
                 onSortChange={onSortChange}
                 onRatingChange={onRatingChange}
@@ -510,6 +533,9 @@ function DiscoveryFilterControls({
   nsfwMode,
   tagMatch,
   hasActiveFilters,
+  tagOptions,
+  tagQuery,
+  onTagQueryChange,
   onToggleTag,
   onSortChange,
   onRatingChange,
@@ -523,6 +549,9 @@ function DiscoveryFilterControls({
   nsfwMode: DiscoveryNsfwMode;
   tagMatch: DiscoveryTagMatch;
   hasActiveFilters: boolean;
+  tagOptions: CharacterTagOption[];
+  tagQuery: string;
+  onTagQueryChange: (value: string) => void;
   onToggleTag: (tag: string) => void;
   onSortChange: (value: DiscoverySort) => void;
   onRatingChange: (value: number) => void;
@@ -556,9 +585,11 @@ function DiscoveryFilterControls({
         </FilterGroup>
       </div>
 
+      <TagFilterSearch value={tagQuery} onChange={onTagQueryChange} />
+
       <div className="scrollbar-none -mx-1 overflow-x-auto px-1">
         <div className="flex w-max max-w-full flex-wrap gap-2">
-          {quickTags.map((tag) => (
+          {tagOptions.map((tag) => (
             <TagButton
               key={tag.slug}
               active={selectedTags.includes(tag.slug)}
@@ -569,6 +600,10 @@ function DiscoveryFilterControls({
           ))}
         </div>
       </div>
+
+      {tagOptions.length === 0 ? (
+        <p className="text-sm text-[var(--text-muted)]">No matching tags.</p>
+      ) : null}
 
       {selectedTags.length > 1 ? (
         <TagMatchControl value={tagMatch} onChange={onTagMatchChange} />
@@ -585,6 +620,22 @@ function DiscoveryFilterControls({
         </button>
       ) : null}
     </>
+  );
+}
+
+function TagFilterSearch({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <label className="relative block max-w-sm">
+      <span className="sr-only">Filter tags</span>
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+      <input
+        type="search"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="Filter tags..."
+        className="focus-ring h-10 w-full rounded-full border border-[var(--border-subtle)] bg-[var(--color-overlay)] pl-10 pr-4 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+      />
+    </label>
   );
 }
 

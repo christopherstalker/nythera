@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { ArrowDown, ArrowUp, Copy, Eye, EyeOff, ListOrdered, RefreshCw, Save, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { defaultModelForProvider, modelSuggestionsForProvider } from "@/lib/provider-model-options";
 import { FIRST_CLASS_PROVIDER_PRESETS, type ProviderApiFormat } from "@/lib/provider-presets";
 
 type SavedKey = {
@@ -63,6 +64,8 @@ export function KeySettingsClient({ onboarding = false, callbackUrl = "/explore"
   const [status, setStatus] = useState<string | null>(null);
   const [modelCatalog, setModelCatalog] = useState<ModelCatalogEntry[]>([]);
   const [modelCatalogLoading, setModelCatalogLoading] = useState(false);
+  const [maxOutputTokens, setMaxOutputTokens] = useState("");
+  const [savingOutputLimit, setSavingOutputLimit] = useState(false);
   const catalogRefreshInFlightRef = useRef(false);
   const lastCatalogRefreshRef = useRef(0);
 
@@ -102,6 +105,7 @@ export function KeySettingsClient({ onboarding = false, callbackUrl = "/explore"
 
     const body = await response.json();
     setKeys(body.keys ?? []);
+    setMaxOutputTokens(typeof body.maxOutputTokens === "number" ? String(body.maxOutputTokens) : "");
     await refreshModels(false);
   }, [refreshModels]);
 
@@ -157,6 +161,19 @@ export function KeySettingsClient({ onboarding = false, callbackUrl = "/explore"
   );
   const verifiedKeyCount = keys.filter((key) => key.credentialStatus === "VALID").length;
   const fallbackKeys = useMemo(() => Array.from(savedByProvider.values()).map((providerKeys) => providerKeys[0]), [savedByProvider]);
+  const fallbackModels = useMemo(() => {
+    const modelsByProvider = new Map<string, string[]>();
+    for (const key of fallbackKeys) {
+      const discovered = modelCatalog
+        .filter((entry) => entry.provider === key.provider)
+        .flatMap((entry) => entry.models);
+      modelsByProvider.set(
+        key.provider,
+        modelSuggestionsForProvider(key.provider, key.defaultModel, discovered)
+      );
+    }
+    return modelsByProvider;
+  }, [fallbackKeys, modelCatalog]);
   const customError = validateCustomProvider(custom);
   const customStarted = Boolean(custom.provider || custom.displayName || custom.baseUrl || custom.defaultModel || custom.apiKey || custom.label);
 
@@ -247,13 +264,22 @@ export function KeySettingsClient({ onboarding = false, callbackUrl = "/explore"
 
   function moveFallback(index: number, direction: -1 | 1) {
     const target = index + direction;
-    if (target < 0 || target >= fallbackKeys.length || fallbackKeys[index]?.isDefault || fallbackKeys[target]?.isDefault) {
+    if (target < 0 || target >= fallbackKeys.length) {
       return;
     }
     setKeys((current) => {
       const providerOrder = fallbackKeys.map((key) => key.provider);
       [providerOrder[index], providerOrder[target]] = [providerOrder[target], providerOrder[index]];
-      return providerOrder.flatMap((provider) => current.filter((key) => key.provider === provider));
+      const primaryProvider = providerOrder[0];
+      return providerOrder.flatMap((provider) =>
+        current
+          .filter((key) => key.provider === provider)
+          .map((key, keyIndex) => ({
+            ...key,
+            isDefault: provider === primaryProvider && keyIndex === 0,
+            fallbackEnabled: provider === primaryProvider ? true : key.fallbackEnabled
+          }))
+      );
     });
   }
 
@@ -267,6 +293,12 @@ export function KeySettingsClient({ onboarding = false, callbackUrl = "/explore"
     );
   }
 
+  function selectFallbackModel(provider: string, model: string) {
+    setKeys((current) => current.map((key) =>
+      key.provider === provider ? { ...key, defaultModel: model } : key
+    ));
+  }
+
   async function saveFallbackChain() {
     setStatus(null);
     const response = await fetch("/api/keys/fallback", {
@@ -275,6 +307,7 @@ export function KeySettingsClient({ onboarding = false, callbackUrl = "/explore"
       body: JSON.stringify({
         providers: fallbackKeys.map((key) => ({
           provider: key.provider,
+          model: key.defaultModel?.trim() || defaultModelForProvider(key.provider),
           enabled: key.isDefault || key.fallbackEnabled
         }))
       })
@@ -286,6 +319,38 @@ export function KeySettingsClient({ onboarding = false, callbackUrl = "/explore"
     }
     setKeys(body?.keys ?? keys);
     setStatus("Fallback chain saved.");
+  }
+
+  async function saveOutputTokenLimit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const parsedLimit = maxOutputTokens.trim() ? Number(maxOutputTokens) : null;
+    if (parsedLimit !== null && (!Number.isInteger(parsedLimit) || parsedLimit < 128 || parsedLimit > 4096)) {
+      setStatus("Maximum output tokens must be a whole number from 128 to 4096.");
+      return;
+    }
+
+    setSavingOutputLimit(true);
+    setStatus(null);
+    try {
+      const response = await fetch("/api/keys", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ maxOutputTokens: parsedLimit })
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) {
+        setStatus(body?.error ?? "Could not save the output token limit.");
+        return;
+      }
+      setMaxOutputTokens(typeof body.maxOutputTokens === "number" ? String(body.maxOutputTokens) : "");
+      setStatus(body.maxOutputTokens
+        ? `Maximum output set to ${body.maxOutputTokens.toLocaleString()} tokens.`
+        : "Automatic output limits restored.");
+    } catch {
+      setStatus("Could not reach the server. Try saving the output limit again.");
+    } finally {
+      setSavingOutputLimit(false);
+    }
   }
 
   return (
@@ -305,6 +370,33 @@ export function KeySettingsClient({ onboarding = false, callbackUrl = "/explore"
           </div>
         </section>
       ) : null}
+      <form onSubmit={saveOutputTokenLimit} className="glass-card p-4" aria-labelledby="output-token-limit-title">
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(180px,240px)_auto] sm:items-end">
+          <div>
+            <h3 id="output-token-limit-title" className="text-sm font-semibold text-[var(--text-primary)]">Maximum output tokens</h3>
+            <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
+              Set the hard ceiling for each model response. Leave it empty to use Nythera&apos;s automatic Short, Medium, and Long limits.
+            </p>
+          </div>
+          <label className="grid gap-1.5">
+            <span className="text-xs font-medium text-[var(--text-secondary)]">Tokens per response</span>
+            <Input
+              type="number"
+              min={128}
+              max={4096}
+              step={64}
+              value={maxOutputTokens}
+              onChange={(event) => setMaxOutputTokens(event.target.value)}
+              placeholder="Automatic"
+              inputMode="numeric"
+            />
+          </label>
+          <Button type="submit" disabled={savingOutputLimit}>
+            <Save className="h-4 w-4" />
+            {savingOutputLimit ? "Saving..." : "Save limit"}
+          </Button>
+        </div>
+      </form>
       <div className="glass-card flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-semibold text-[var(--text-primary)]">Live model catalog</p>
@@ -322,13 +414,13 @@ export function KeySettingsClient({ onboarding = false, callbackUrl = "/explore"
             <div>
               <h3 className="text-sm font-semibold text-[var(--text-primary)]">Fallback chain</h3>
               <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
-                Rate limits, timeouts, network failures, and provider outages try enabled providers in this order. Invalid keys and rejected requests stop immediately.
+                Move any provider to the first position to make it primary, then choose the exact model for every step. Failed keys advance to the next saved key; invalid requests still stop immediately.
               </p>
             </div>
           </div>
           <div className="mt-4 grid gap-2">
             {fallbackKeys.map((key, index) => (
-              <div key={key.provider} className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] p-3">
+              <div key={key.provider} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] p-3">
                 <input
                   type="checkbox"
                   checked={key.isDefault || key.fallbackEnabled}
@@ -337,18 +429,29 @@ export function KeySettingsClient({ onboarding = false, callbackUrl = "/explore"
                   aria-label={`Include ${key.displayName} in fallback chain`}
                   className="accent-[var(--accent-purple)]"
                 />
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-[var(--text-primary)]">
                     {index + 1}. {key.displayName} {key.isDefault ? "(primary)" : ""}{rejectedProviders.has(key.provider) ? " · invalid key" : ""}
                   </p>
-                  <p className="truncate text-xs text-[var(--text-muted)]">{key.defaultModel || "Provider default model"}</p>
+                  <select
+                    value={key.defaultModel?.trim() || defaultModelForProvider(key.provider)}
+                    onChange={(event) => selectFallbackModel(key.provider, event.target.value)}
+                    aria-label={`Model for ${key.displayName}`}
+                    className="mt-2 h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-elevated)] px-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--accent-purple)]"
+                  >
+                    {(fallbackModels.get(key.provider) ?? [key.defaultModel?.trim() || defaultModelForProvider(key.provider)]).map((model) => (
+                      <option key={model} value={model}>{model}</option>
+                    ))}
+                  </select>
                 </div>
-                <Button type="button" variant="outline" size="icon" aria-label={`Move ${key.displayName} up`} onClick={() => moveFallback(index, -1)} disabled={index === 0 || key.isDefault || fallbackKeys[index - 1]?.isDefault}>
-                  <ArrowUp className="h-4 w-4" />
-                </Button>
-                <Button type="button" variant="outline" size="icon" aria-label={`Move ${key.displayName} down`} onClick={() => moveFallback(index, 1)} disabled={index === fallbackKeys.length - 1 || key.isDefault}>
-                  <ArrowDown className="h-4 w-4" />
-                </Button>
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" size="icon" aria-label={`Move ${key.displayName} up`} onClick={() => moveFallback(index, -1)} disabled={index === 0 || (index === 1 && rejectedProviders.has(key.provider))}>
+                    <ArrowUp className="h-4 w-4" />
+                  </Button>
+                  <Button type="button" variant="outline" size="icon" aria-label={`Move ${key.displayName} down`} onClick={() => moveFallback(index, 1)} disabled={index === fallbackKeys.length - 1}>
+                    <ArrowDown className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
@@ -494,6 +597,7 @@ export function KeySettingsClient({ onboarding = false, callbackUrl = "/explore"
           </div>
         </div>
       ) : null}
+
 
       <form onSubmit={saveCustom} className="glass-card p-4">
         <h3 className="text-sm font-semibold text-[var(--text-primary)]">Add custom provider endpoint</h3>

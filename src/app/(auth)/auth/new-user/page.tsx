@@ -24,13 +24,14 @@ export default async function NewUserRedirectPage({
     redirect("/login");
   }
 
+  const afterPasswordPath = callbackPath.startsWith("/auth/pwa/complete?transactionId=")
+    ? callbackPath
+    : `/tutorial?callbackUrl=${encodeURIComponent(callbackPath)}`;
+  const passwordSetupPath = `/register/password?callbackUrl=${encodeURIComponent(afterPasswordPath)}`;
+
   if (!user.adultTermsAcceptedAt) {
-    return <AdultConsentClient callbackPath={callbackPath} />;
+    return <AdultConsentClient callbackPath={passwordSetupPath} />;
   }
 
-  if (callbackPath.startsWith("/auth/pwa/complete?transactionId=")) {
-    redirect(callbackPath);
-  }
-
-  redirect(`/settings/providers?onboarding=1&callbackUrl=${encodeURIComponent(callbackPath)}`);
+  redirect(passwordSetupPath);
 }

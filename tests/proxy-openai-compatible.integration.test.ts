@@ -84,6 +84,55 @@ integrationTest("a retryable 429 advances to the next key for the same provider"
   assert.match(body, /"attempts":\["same-provider:local-model","same-provider:local-model"\]/);
 });
 
+integrationTest("an invalid credential advances to the next key for the same provider", async (context) => {
+  const attemptedKeys: string[] = [];
+  const upstream = createServer((request, response) => {
+    const authorization = request.headers.authorization ?? "";
+    attemptedKeys.push(authorization.replace(/^Bearer\s+/i, ""));
+    if (authorization === "Bearer invalid-key") {
+      response.writeHead(401, { "content-type": "application/json" });
+      response.end(JSON.stringify({ error: { message: "Invalid API key" } }));
+      return;
+    }
+    writeSuccessfulOpenAIStream(response, "credential recovery response");
+  });
+  const upstreamUrl = await listen(upstream);
+  const proxy = await startProxyWithCleanup(context, [upstream]);
+  const body = await requestProxy(proxy.port, [
+    providerKey("same-provider", upstreamUrl, 0, { id: "key-1", apiKey: "invalid-key", providerPriority: 0 }),
+    providerKey("same-provider", upstreamUrl, 0, { id: "key-2", apiKey: "working-key", providerPriority: 1 })
+  ]);
+
+  assert.deepEqual(attemptedKeys, ["invalid-key", "working-key"]);
+  assert.match(body, /credential recovery response/);
+});
+
+integrationTest("a provider outage skips redundant keys and reaches the next provider", async (context) => {
+  let primaryAttempts = 0;
+  let fallbackAttempts = 0;
+  const primary = createServer((_request, response) => {
+    primaryAttempts += 1;
+    response.writeHead(503, { "content-type": "application/json" });
+    response.end(JSON.stringify({ error: { message: "Provider temporarily unavailable" } }));
+  });
+  const fallback = createServer((_request, response) => {
+    fallbackAttempts += 1;
+    writeSuccessfulOpenAIStream(response, "outage fallback response");
+  });
+  const [primaryUrl, fallbackUrl] = await Promise.all([listen(primary), listen(fallback)]);
+  const proxy = await startProxyWithCleanup(context, [primary, fallback]);
+  const body = await requestProxy(proxy.port, [
+    providerKey("primary-local", primaryUrl, 0, { id: "key-1", apiKey: "first-key", providerPriority: 0 }),
+    providerKey("primary-local", primaryUrl, 0, { id: "key-2", apiKey: "second-key", providerPriority: 1 }),
+    providerKey("fallback-local", fallbackUrl, 1)
+  ]);
+
+  assert.equal(primaryAttempts, 1);
+  assert.equal(fallbackAttempts, 1);
+  assert.match(body, /outage fallback response/);
+  assert.match(body, /"provider":"fallback-local"/);
+});
+
 integrationTest("exhausting every key for a provider returns a specific error", async (context) => {
   let attempts = 0;
   const upstream = createServer((_request, response) => {

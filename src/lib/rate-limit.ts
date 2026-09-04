@@ -86,6 +86,8 @@ const AUTH_HANDOFF_STATUS_LIMIT: RateLimitRule = {
 const ROUTE_LIMITS: Record<string, RateLimitRule> = {
   "auth:nextauth": AUTH_LIMIT,
   "auth:register": AUTH_LIMIT,
+  "auth:forgot-password": AUTH_LIMIT,
+  "auth:reset-password": AUTH_LIMIT,
   "auth:pwa-create": AUTH_LIMIT,
   "auth:pwa-start": AUTH_LIMIT,
   "auth:pwa-complete": AUTH_LIMIT,
@@ -93,6 +95,7 @@ const ROUTE_LIMITS: Record<string, RateLimitRule> = {
   "mobile-auth:login": AUTH_LIMIT,
   "mobile-auth:google": AUTH_LIMIT,
   "mobile-auth:register": AUTH_LIMIT,
+  "account:password": AUTH_LIMIT,
   "chat:stream": MESSAGE_LIMIT,
   "mobile:chat:message": MESSAGE_LIMIT,
   "rooms:message": MESSAGE_LIMIT,

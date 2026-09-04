@@ -15,6 +15,8 @@ test("provider keys support multiple ordered rows per provider", async () => {
   assert.match(migration, /DROP INDEX "UserApiKey_userId_provider_key"/);
   assert.match(keyStore, /userApiKey\.create/);
   assert.match(keyStore, /providerPriority/);
+  assert.match(keyStore, /isDefault: isFirstKey/);
+  assert.doesNotMatch(keyStore, /if \(isFirstForProvider\)/);
 });
 
 test("key APIs update and remove individual credentials", async () => {
@@ -41,6 +43,7 @@ test("same-provider retries precede cross-provider fallbacks", async () => {
     assert.match(source, /attemptRoutes\(route,/);
     assert.match(source, /key\.provider === primary\.providerName/);
     assert.match(source, /canTryAnotherRoute = Boolean\(nextAttempt\) && isKeyScopedFailure/);
+
   }
   assert.match(gateway, /MAX_SAME_PROVIDER_ATTEMPTS = 4/);
   assert.match(gateway, /rotatePrimaryKey/);

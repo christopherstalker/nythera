@@ -104,8 +104,9 @@ test("first-time OAuth users return to the PWA completion route", async () => {
   ]);
 
   assert.match(auth, /newUser:\s*"\/auth\/new-user"/);
-  assert.match(newUserPage, /startsWith\("\/auth\/pwa\/complete\?transactionId="\)/);
-  assert.match(newUserPage, /redirect\(`\/settings\/providers\?onboarding=1/);
+  assert.match(newUserPage, /passwordSetupPath/);
+  assert.match(newUserPage, /register\/password\?callbackUrl=/);
+  assert.match(newUserPage, /AdultConsentClient callbackPath=\{passwordSetupPath\}/);
 });
 
 test("legacy installs receive an explicit canonical migration surface", async () => {
@@ -119,6 +120,6 @@ test("legacy installs receive an explicit canonical migration surface", async ()
   assert.match(config, /permanent: false/);
   assert.match(migrationPage, /Browsers isolate[\s\S]*?sessions by origin/);
   assert.match(migrationPage, /www\.nythera\.art/);
-  assert.match(shell, /pathname\.startsWith\("\/pwa-migrate"\)/);
+  assert.match(shell, /isAuthExperiencePath\(pathname\)/);
   assert.match(shell, /h-dvh touch-pan-y overflow-y-auto overscroll-y-contain/);
 });

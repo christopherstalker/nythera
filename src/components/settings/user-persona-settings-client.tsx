@@ -14,6 +14,7 @@ type PersonaDraft = {
   profileId?: string;
   label: string;
   displayName: string;
+  surname: string;
   avatarUrl: string;
   summary: string;
   background: string;
@@ -35,6 +36,7 @@ type PersonaRevision = { id: string; version: number; createdAt: string };
 const emptyDraft: PersonaDraft = {
   label: "",
   displayName: "",
+  surname: "",
   avatarUrl: "",
   summary: "",
   background: "",
@@ -153,6 +155,7 @@ export function UserPersonaSettingsClient() {
     const payload = isSimpleMode
       ? {
           displayName: draft.displayName.trim(),
+          surname: draft.surname.trim(),
           profileId: draft.profileId,
           label: draft.label.trim() || draft.displayName.trim(),
           avatarUrl: draft.avatarUrl,
@@ -166,6 +169,7 @@ export function UserPersonaSettingsClient() {
         }
       : {
           displayName: draft.displayName,
+          surname: draft.surname,
           profileId: draft.profileId,
           label: draft.label || draft.displayName,
           avatarUrl: draft.avatarUrl,
@@ -394,12 +398,20 @@ export function UserPersonaSettingsClient() {
             onChange={(event) => update("label", event.target.value)}
             placeholder="Profile label, e.g. Main RP"
           />
-          <Input
-            value={draft.displayName}
-            onChange={(event) => update("displayName", event.target.value)}
-            placeholder="Display name"
-            required
-          />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input
+              value={draft.displayName}
+              onChange={(event) => update("displayName", event.target.value)}
+              placeholder="First name"
+              required
+            />
+            <Input
+              value={draft.surname}
+              onChange={(event) => update("surname", event.target.value)}
+              placeholder="Surname (optional)"
+            />
+          </div>
+          <PersonaNameCommands />
           <Textarea
             value={freeform}
             onChange={(event) => setFreeform(event.target.value)}
@@ -414,10 +426,12 @@ export function UserPersonaSettingsClient() {
         </div>
       ) : (
         <>
+          <Input value={draft.label} onChange={(event) => update("label", event.target.value)} placeholder="Profile label, e.g. Main RP" />
           <div className="grid gap-4 lg:grid-cols-2">
-            <Input value={draft.label} onChange={(event) => update("label", event.target.value)} placeholder="Profile label, e.g. Main RP" />
-            <Input value={draft.displayName} onChange={(event) => update("displayName", event.target.value)} placeholder="Persona name" required />
+            <Input value={draft.displayName} onChange={(event) => update("displayName", event.target.value)} placeholder="First name" required />
+            <Input value={draft.surname} onChange={(event) => update("surname", event.target.value)} placeholder="Surname (optional)" />
           </div>
+          <PersonaNameCommands />
           <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
             <ImageFilePicker
               onPick={(dataUrl) => {
@@ -509,6 +523,15 @@ function ModeButton({
   );
 }
 
+function PersonaNameCommands() {
+  return (
+    <p className="text-xs leading-5 text-[var(--text-secondary)]">
+      Template commands: <code className="text-[var(--codex-mint)]">{"{{user}}"}</code> for the first name and{" "}
+      <code className="text-[var(--codex-mint)]">{"{{user_surname}}"}</code> for the optional surname.
+    </p>
+  );
+}
+
 function buildFreeformFromDraft(draft: PersonaDraft) {
   if (draft.traits || draft.likes || draft.dislikes || draft.boundaries || draft.background) {
     return [
@@ -532,6 +555,7 @@ function profileFromApi(profile: Record<string, unknown>): PersonaProfile {
     profileId: String(profile.id ?? "default"),
     label: String(profile.label ?? profile.displayName ?? "Persona"),
     displayName: String(profile.displayName ?? ""),
+    surname: String(profile.surname ?? ""),
     avatarUrl: String(profile.avatarUrl ?? ""),
     summary: String(profile.summary ?? ""),
     background: String(profile.background ?? ""),

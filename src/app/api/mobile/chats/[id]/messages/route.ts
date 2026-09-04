@@ -1,6 +1,7 @@
 import { json, routeError, HttpError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireMobileUser } from "@/lib/mobile-auth";
+import { renderInitialChatGreeting } from "@/lib/character-prompt-contract";
 
 type Context = {
   params: Promise<{ id: string }>;
@@ -19,7 +20,11 @@ export async function GET(request: Request, context: Context) {
         id: (await context.params).id,
         userId: user.id
       },
-      select: { id: true }
+      select: {
+        id: true,
+        character: { select: { name: true } },
+        persona: { select: { displayName: true, surname: true } }
+      }
     });
 
     if (!chat) {
@@ -33,7 +38,17 @@ export async function GET(request: Request, context: Context) {
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {})
     });
 
-    return json({ messages: messages.reverse() });
+    const persona = chat.persona ?? await prisma.userPersona.findFirst({
+      where: { userId: user.id, isDefault: true },
+      select: { displayName: true, surname: true }
+    });
+    return json({
+      messages: messages.reverse().map((message) => renderInitialChatGreeting(
+        message,
+        chat.character.name,
+        persona
+      ))
+    });
   } catch (error) {
     return routeError(error);
   }

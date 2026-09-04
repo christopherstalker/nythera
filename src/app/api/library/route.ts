@@ -8,7 +8,14 @@ const libraryCharacterSelect = {
   id: true,
   name: true,
   avatarUrl: true,
-  description: true
+  description: true,
+  visibility: true,
+  moderationStatus: true,
+  likes: true,
+  ratingAverage: true,
+  ratingCount: true,
+  updatedAt: true,
+  _count: { select: { chats: true } }
 } as const;
 
 export async function GET(request: Request) {

@@ -35,6 +35,7 @@ test("primary navigation uses a desktop codex rail and mobile dock", async () =>
   assert.match(shell, /md:pl-\[var\(--codex-rail-width\)\]/);
   assert.match(shell, /grid-rows-\[minmax\(0,1fr\)_auto\]/);
   assert.match(shell, /<MobileDock \/>/);
+  assert.match(shell, /!isChatSurface \? \([\s\S]*<MobileDock \/>[\s\S]*\) : null/);
   assert.match(shell, /h-\[calc\(var\(--codex-mobile-dock-height\)\+env\(safe-area-inset-bottom\)\)\]/);
   assert.doesNotMatch(shell, /pb-\[calc\(var\(--codex-mobile-dock-height\)/);
   assert.match(shell, /<SidePanel \/>/);

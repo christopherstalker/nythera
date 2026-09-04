@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 const characterModes = [
   { title: "Inscribe", text: "Start from a premise and let Nythera draft a complete dossier for review. The saved character uses the Complete data model." },
-  { title: "Guided", text: "Work through identity, personality, scenario, opening scene, and response length. A Guided character always reopens in Guided when edited." },
+  { title: "Guided", text: "Work through identity, personality, scenario, and the opening scene. A Guided character always reopens in Guided when edited." },
   { title: "Complete", text: "Control persona, lorebook, visual language, model overrides, boundaries, sliders, visibility, and Character Card V2 data. Complete characters reopen in Complete." }
 ] as const;
 

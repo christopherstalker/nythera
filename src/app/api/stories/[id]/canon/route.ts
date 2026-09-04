@@ -1,4 +1,4 @@
-import { StoryFactScope, StoryFactStatus, StoryKnowledgeState } from "@prisma/client";
+import { StoryFactKind, StoryFactScope, StoryFactStatus, StoryKnowledgeState } from "@prisma/client";
 import { getRequestIp, HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { createStoryFact, getStoryCodex, updateStoryFact } from "@/lib/stories/canon-store";
@@ -25,6 +25,7 @@ export async function POST(request: Request, context: Context) {
     const input = await parseJson(request, storyFactCreateSchema);
     const fact = await createStoryFact((await context.params).id, user.id, {
       ...input,
+      kind: input.kind as StoryFactKind,
       scope: input.scope as StoryFactScope
     });
     return json({ fact }, { status: 201 });
@@ -44,6 +45,7 @@ export async function PATCH(request: Request, context: Context) {
     const input = await parseJson(request, storyFactUpdateSchema);
     const fact = await updateStoryFact((await context.params).id, factId, user.id, {
       ...input,
+      kind: input.kind as StoryFactKind | undefined,
       scope: input.scope as StoryFactScope | undefined,
       status: input.status as StoryFactStatus | undefined,
       knowledgeState: input.knowledgeState as StoryKnowledgeState | undefined

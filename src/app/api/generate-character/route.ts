@@ -5,7 +5,7 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 import { getEffectiveProviderKeys } from "@/lib/user-keys";
 
 const schema = z.object({
-  concept: z.string().trim().min(8).max(2000),
+  concept: z.string().trim().min(8),
   name: z.string().trim().min(2).max(80).optional()
 });
 

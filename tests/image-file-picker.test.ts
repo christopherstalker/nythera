@@ -2,7 +2,32 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { compressImageFile } from "../src/lib/image-upload";
+import {
+  AVATAR_IMAGE_ACCEPT,
+  compressImageFile,
+  isSupportedAvatarImageFile
+} from "../src/lib/image-upload";
+
+test("avatar picker accepts modern browser image formats and rejects active or unsupported files", () => {
+  for (const [name, type] of [
+    ["avatar.jpg", "image/jpeg"],
+    ["avatar.png", "image/png"],
+    ["avatar.webp", "image/webp"],
+    ["avatar.gif", "image/gif"],
+    ["avatar.avif", "image/avif"],
+    ["avatar.bmp", "image/bmp"]
+  ]) {
+    assert.equal(isSupportedAvatarImageFile({ name, type }), true, `${name} should be accepted`);
+  }
+
+  assert.equal(isSupportedAvatarImageFile({ name: "avatar.avif", type: "" }), true);
+  assert.equal(isSupportedAvatarImageFile({ name: "avatar.svg", type: "image/svg+xml" }), false);
+  assert.equal(isSupportedAvatarImageFile({ name: "avatar.tiff", type: "image/tiff" }), false);
+  assert.match(AVATAR_IMAGE_ACCEPT, /image\/webp/);
+  assert.match(AVATAR_IMAGE_ACCEPT, /image\/gif/);
+  assert.match(AVATAR_IMAGE_ACCEPT, /image\/avif/);
+  assert.match(AVATAR_IMAGE_ACCEPT, /image\/bmp/);
+});
 
 test("image picker opens from an explicit button and keeps the selected file readable", async () => {
   const source = await readFile(new URL("../src/components/ui/image-file-picker.tsx", import.meta.url), "utf8");
@@ -16,6 +41,7 @@ test("image picker opens from an explicit button and keeps the selected file rea
   assert.match(changeHandler, /finally \{[\s\S]*?input\.value = ""/);
   assert.match(openDialog, /input\.value = "";[\s\S]*?input\.click\(\)/);
   assert.match(source, /disabled=\{disabled\}/);
+  assert.match(source, /accept=\{AVATAR_IMAGE_ACCEPT\}/);
 });
 
 test("image compression does not pre-read Android content-provider files", async () => {
@@ -60,6 +86,15 @@ test("image compression does not pre-read Android content-provider files", async
     restoreGlobal("createImageBitmap", createImageBitmapDescriptor);
     restoreGlobal("document", documentDescriptor);
   }
+});
+
+test("avatar upload errors stay beside the portrait field", async () => {
+  const source = await readFile(new URL("../src/components/characters/character-form.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /<Field label="Portrait" error=\{avatarError\}>/);
+  assert.match(source, /id="character-avatar"[\s\S]*?onError=\{revealAvatarError\}/);
+  assert.match(source, /role="alert" aria-live="assertive"/);
+  assert.match(source, /avatarField\?\.scrollIntoView/);
 });
 
 function restoreGlobal(key: string, descriptor: PropertyDescriptor | undefined) {

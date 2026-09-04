@@ -12,7 +12,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     await enforceRateLimit({ userId: user.id, ip: getRequestIp(request), route: "chat:scheduled" });
     const { id } = await context.params;
     const chat = await prisma.chat.findFirst({ where: { id, userId: user.id, storyId: { not: null } }, select: { id: true, storyId: true } });
-    if (!chat?.storyId) return json({ created: 0 });
+    if (!chat?.storyId) return json({ created: 0, nextTriggerAt: null });
     const due = await prisma.storyProactiveEvent.findMany({ where: { storyId: chat.storyId, status: { in: [StoryProactiveStatus.SCHEDULED, StoryProactiveStatus.READY] }, triggerAt: { not: null, lte: new Date() } }, orderBy: [{ priority: "desc" }, { triggerAt: "asc" }], take: 4 });
     let created = 0;
     for (const event of due) {
@@ -21,7 +21,20 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       await createMessageWithNextSequence({ chatId: chat.id, role: MessageRole.ASSISTANT, content: event.instruction, model: "scheduled-event" });
       created += 1;
     }
-    if (created) await prisma.chat.update({ where: { id: chat.id }, data: { messageCount: { increment: created }, lastActiveAt: new Date() } });
-    return json({ created });
+    const [nextScheduledEvent] = await Promise.all([
+      prisma.storyProactiveEvent.findFirst({
+        where: {
+          storyId: chat.storyId,
+          status: { in: [StoryProactiveStatus.SCHEDULED, StoryProactiveStatus.READY] },
+          triggerAt: { not: null }
+        },
+        orderBy: { triggerAt: "asc" },
+        select: { triggerAt: true }
+      }),
+      created
+        ? prisma.chat.update({ where: { id: chat.id }, data: { messageCount: { increment: created }, lastActiveAt: new Date() } })
+        : Promise.resolve(null)
+    ]);
+    return json({ created, nextTriggerAt: nextScheduledEvent?.triggerAt?.toISOString() ?? null });
   } catch (error) { return routeError(error); }
 }

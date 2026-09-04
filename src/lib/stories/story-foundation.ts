@@ -14,6 +14,7 @@ import { prisma } from "@/lib/prisma";
 import { sanitizePromptContext } from "@/lib/prompt-security";
 import { romanceLevelInstruction } from "@/lib/romance-level";
 import { ensureAutomaticStoryCheckpoint } from "@/lib/stories/continuity-store";
+import { reconcileExplicitSceneTransition } from "@/lib/stories/canon-store";
 
 const EMPTY_WORLD_STATE = {
   time: null,
@@ -136,10 +137,19 @@ export async function ensureStoryForChat(chatId: string, userId: string) {
           });
         }
 
+        const scene = await tx.storyScene.create({
+          data: {
+            storyId: story.id,
+            timelineId: timeline.id,
+            title: "Current scene",
+            startedAtSequence: chat.messages.at(-1)?.sequence ?? chat.messages.length
+          }
+        });
         await tx.storyStateSnapshot.create({
           data: {
             storyId: story.id,
             timelineId: timeline.id,
+            sceneId: scene.id,
             version: 0,
             state: EMPTY_WORLD_STATE
           }
@@ -274,8 +284,16 @@ export async function ensureStoryForRoom(roomId: string, userId: string) {
         }))
       });
     }
+    const scene = await tx.storyScene.create({
+      data: {
+        storyId: story.id,
+        timelineId: timeline.id,
+        title: "Current scene",
+        startedAtSequence: room.messages.at(-1)?.sequence ?? room.messages.length
+      }
+    });
     await tx.storyStateSnapshot.create({
-      data: { storyId: story.id, timelineId: timeline.id, version: 0, state: EMPTY_WORLD_STATE }
+      data: { storyId: story.id, timelineId: timeline.id, sceneId: scene.id, version: 0, state: EMPTY_WORLD_STATE }
     });
     await tx.room.update({
       where: { id: room.id },
@@ -290,10 +308,20 @@ export async function syncChatTurns(chatId: string, userId: string) {
   const foundation = await ensureStoryForChat(chatId, userId);
   const chat = await prisma.chat.findFirst({
     where: { id: chatId, userId },
-    include: {
+    select: {
+      characterId: true,
+      lastActiveAt: true,
+      summary: true,
       messages: {
+        where: { storyTurn: { is: null } },
         orderBy: [{ createdAt: "desc" }, { sequence: "desc" }, { id: "desc" }],
-        take: 500
+        take: 500,
+        select: {
+          id: true,
+          role: true,
+          content: true,
+          sequence: true
+        }
       },
       timeline: { select: { id: true } }
     }
@@ -345,10 +373,20 @@ export async function syncRoomTurns(roomId: string, userId: string) {
   const foundation = await ensureStoryForRoom(roomId, userId);
   const room = await prisma.room.findFirst({
     where: { id: roomId, userId },
-    include: {
+    select: {
+      lastActiveAt: true,
+      summary: true,
       messages: {
+        where: { storyTurn: { is: null } },
         orderBy: [{ createdAt: "desc" }, { sequence: "desc" }, { id: "desc" }],
-        take: 500
+        take: 500,
+        select: {
+          id: true,
+          role: true,
+          content: true,
+          sequence: true,
+          characterId: true
+        }
       },
       timeline: { select: { id: true } }
     }
@@ -402,6 +440,7 @@ export async function getStoryPromptContext(input: {
   includeCheckpoint?: boolean;
 }) {
   const foundation = await syncChatTurns(input.chatId, input.userId);
+  await reconcileExplicitSceneTransition({ ...foundation, userId: input.userId });
   return buildStoryPromptContext(foundation, input.userId, input.actorCharacterId, input.includeCheckpoint);
 }
 
@@ -411,6 +450,7 @@ export async function getRoomStoryPromptContext(input: {
   actorCharacterId?: string | null;
 }) {
   const foundation = await syncRoomTurns(input.roomId, input.userId);
+  await reconcileExplicitSceneTransition({ ...foundation, userId: input.userId });
   return buildStoryPromptContext(foundation, input.userId, input.actorCharacterId);
 }
 
@@ -430,7 +470,7 @@ async function buildStoryPromptContext(
             OR: [{ timelineId: null }, { timelineId: foundation.timelineId }]
           },
           orderBy: [{ updatedAt: "desc" }, { locked: "desc" }, { importance: "desc" }],
-          take: 24,
+          take: 80,
           include: {
             subjectEntity: { select: { name: true } },
             knowledge: { select: { participantId: true, state: true } }
@@ -448,7 +488,7 @@ async function buildStoryPromptContext(
           take: 8
         },
         beats: {
-          where: { timelineId: foundation.timelineId, status: { in: ["READY", "PLANNED"] } },
+          where: { timelineId: foundation.timelineId, status: "READY" },
           orderBy: [{ status: "desc" }, { priority: "desc" }, { position: "asc" }],
           take: 12
         },
@@ -480,7 +520,7 @@ async function buildStoryPromptContext(
         },
         participantStates: {
           where: { timelineId: foundation.timelineId },
-          include: { participant: { select: { id: true, displayName: true } } },
+          include: { participant: { select: { id: true, displayName: true, role: true } } },
           orderBy: { updatedAt: "desc" },
           take: 16
         },
@@ -490,7 +530,7 @@ async function buildStoryPromptContext(
             OR: [{ timelineId: null }, { timelineId: foundation.timelineId }]
           },
           include: {
-            participant: { select: { id: true, displayName: true } },
+            participant: { select: { id: true, displayName: true, role: true } },
             entity: { select: { id: true, name: true } }
           },
           orderBy: { updatedAt: "desc" },
@@ -500,6 +540,11 @@ async function buildStoryPromptContext(
           where: { timelineId: foundation.timelineId },
           orderBy: { createdAt: "desc" },
           take: 1
+        },
+        scenes: {
+          where: { timelineId: foundation.timelineId },
+          orderBy: { startedAtSequence: "desc" },
+          take: 2
         },
         safetyProfile: true
       }
@@ -516,7 +561,14 @@ async function buildStoryPromptContext(
     throw new HttpError(404, "Story not found.");
   }
 
-  const factLines = story.facts.map((fact, index) => {
+  const currentSequence = story.turns[0]?.sequence ?? 0;
+  const applicableFacts = story.facts.filter((fact) => {
+    if (fact.kind !== "STATE") return true;
+    const started = fact.validFromSequence === null || fact.validFromSequence <= currentSequence;
+    const notEnded = fact.validUntilSequence === null || currentSequence <= fact.validUntilSequence;
+    return started && notEnded;
+  }).slice(0, 24);
+  const factLines = applicableFacts.map((fact, index) => {
     const subject = fact.subjectEntity?.name ? `${sanitizePromptContext(fact.subjectEntity.name, 120)} ` : "";
     const predicate = sanitizePromptContext(fact.predicate, 180);
     const objectText = sanitizePromptContext(fact.objectText, 2400);
@@ -529,13 +581,16 @@ async function buildStoryPromptContext(
           ? ` [ACTOR KNOWLEDGE: ${actorKnowledge}]`
           : " [NOT KNOWN BY ACTIVE CHARACTER — preserve as world truth without acting on or revealing it]"
         : ` [${fact.scope} CANON]`;
-    if (fact.predicate === "is true now" || fact.predicate === "is not true now") {
-      const state = fact.predicate === "is true now" ? "CURRENTLY TRUE" : "CURRENTLY FALSE";
-      return `${index + 1}. ${objectText} [${state}]${scope}${lock}`;
+    if (fact.kind === "STATE") {
+      const when = fact.worldTime ? ` recorded for ${sanitizePromptContext(fact.worldTime, 200)}` : " for the active scene";
+      return `${index + 1}. ${objectText} [TEMPORARY STATE${when}; never reset time or replay an earlier scene to preserve it]${scope}${lock}`;
     }
-    return `${index + 1}. ${subject}${predicate}: ${objectText}${scope}${lock}`;
+    if (fact.kind === "EVENT") {
+      const when = fact.worldTime ? ` at ${sanitizePromptContext(fact.worldTime, 200)}` : "";
+      return `${index + 1}. ${objectText} [PAST EVENT${when}; preserve as history and never stage it again]${scope}${lock}`;
+    }
+    return `${index + 1}. ${subject}${predicate}: ${objectText} [PERMANENT CANON]${scope}${lock}`;
   });
-  const currentSequence = story.turns[0]?.sequence ?? 0;
   const now = Date.now();
   const dueEvents = story.proactiveEvents.filter((event) => {
     const belongsToActor = !event.actorParticipantId || !actor || event.actorParticipantId === actor.id;
@@ -552,7 +607,12 @@ async function buildStoryPromptContext(
     });
   const director = story.director;
   const participantStateLines = story.participantStates
-    .filter((state) => !actor || state.participantId === actor.id)
+    .filter((state) =>
+      !actor ||
+      state.participantId === actor.id ||
+      state.participant.role === "PLAYER" ||
+      state.participant.role === "OWNER"
+    )
     .map((state) => {
       const details = [
         state.displayNameOverride ? `name ${state.displayNameOverride}` : null,
@@ -567,11 +627,18 @@ async function buildStoryPromptContext(
       return `- ${state.participant.displayName}: ${details.join("; ")}`;
     });
   const visualLines = story.visualReferences
-    .filter((reference) => !actor || !reference.participantId || reference.participantId === actor.id)
+    .filter((reference) =>
+      !actor ||
+      !reference.participantId ||
+      reference.participantId === actor.id ||
+      reference.participant?.role === "PLAYER" ||
+      reference.participant?.role === "OWNER"
+    )
     .map((reference) => `- [${reference.kind}] ${reference.participant?.displayName ?? reference.entity?.name ?? "Story"} / ${reference.title}: ${sanitizePromptContext(reference.prompt || reference.notes || "Locked visual continuity reference.", 500)}`);
   const checkpoint = story.checkpoints[0];
   const safety = story.safetyProfile;
   const world = story.snapshots[0]?.state ?? EMPTY_WORLD_STATE;
+  const activeScene = story.scenes.find((scene) => scene.status === "ACTIVE") ?? story.scenes[0];
   const text = [
     "SESSION SAFETY (AUTHORITATIVE)",
     safety
@@ -590,10 +657,14 @@ async function buildStoryPromptContext(
       : "No story-specific safety profile exists. Continue to obey platform safety and the active persona boundaries.",
     "",
     "STORY CANON (AUTHORITATIVE)",
-    "Every recorded fact below is binding world truth. Canon overrides summaries, alternative regenerations, inferred details, and ordinary Memory. Never omit or contradict an applicable canon fact. Respect knowledge labels: preserve unknown facts without making the active character reveal or act on knowledge they do not have.",
+    "Permanent canon is binding world truth. Temporary states apply only to the active scene and their recorded time. Past events are history, not instructions to recreate them. Newer turns override stale temporary state. Respect knowledge labels without making the active character reveal or act on unknown facts.",
     factLines.length > 0 ? factLines.join("\n") : "No structured canon facts have been recorded yet.",
     "",
     "CURRENT WORLD STATE",
+    activeScene
+      ? `Active scene: ${sanitizePromptContext(activeScene.title || "Untitled scene", 160)}; in-world time: ${sanitizePromptContext(activeScene.worldTime || "not specified", 200)}; location: ${sanitizePromptContext(activeScene.location || "not specified", 240)}.`
+      : "No explicit active scene is recorded.",
+    "Treat this as a continuity snapshot, not a command to repeat its opening beat. If recent turns establish a later time, day, or location, continue from the newer turn and never rewind to this snapshot.",
     sanitizePromptContext(JSON.stringify(world), 2200),
     "",
     "NARRATIVE DIRECTOR",
@@ -608,7 +679,7 @@ async function buildStoryPromptContext(
     "",
     "NEXT STORY BEATS",
     story.beats.length > 0
-      ? story.beats.slice(0, 6).map((beat) => `- [${beat.status}] ${beat.title}: ${sanitizePromptContext(beat.description, 500)}`).join("\n")
+      ? story.beats.slice(0, 4).map((beat) => `- One-shot opportunity — advance toward it without replaying an earlier setup: ${beat.title}: ${sanitizePromptContext(beat.description, 500)}`).join("\n")
       : "No beat is prescribed. Advance naturally without forcing a twist.",
     "",
     "OPEN HOOKS",
@@ -695,7 +766,7 @@ async function buildStoryPromptContext(
       : "No applicable checkpoint is included."
   ].join("\n");
 
-  return { ...foundation, text, factualText, eventIds: dueEvents.map((event) => event.id) };
+  return { ...foundation, text, factualText, eventIds: dueEvents.map((event) => event.id), beatIds: story.beats.slice(0, 4).map((beat) => beat.id) };
 }
 
 class StoryClaimConflict extends Error {}

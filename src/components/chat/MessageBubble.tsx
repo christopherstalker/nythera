@@ -9,10 +9,11 @@ import { TypingIndicator } from "@/components/chat/TypingIndicator";
 import { springSnappy, springSoft } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
-import { ChevronLeft, ChevronRight, MoreHorizontal, PenLine, Pin, RefreshCw, SendHorizontal, Volume2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock3, MoreHorizontal, PenLine, Pin, RefreshCw, SendHorizontal, Volume2 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { applyRichTextFormat, richTextFormatFromShortcut } from "@/lib/rich-text-formatting";
 import type { ChatImageAttachment } from "@/lib/chat-attachments";
+import type { SkipTimeDuration } from "@/lib/chat-actions";
 
 const LONG_PRESS_DELAY_MS = 500;
 const DELETE_EXIT_DELAY_MS = 140;
@@ -36,6 +37,7 @@ type MessageBubbleProps = {
   onRegenerate?: (messageId: string) => void;
   onRetry?: (messageId: string) => void;
   onContinue?: (messageId: string) => void;
+  onSkipTime?: (messageId: string, duration: SkipTimeDuration) => void;
   onRewind?: (messageId: string) => void;
   onBranch?: (messageId: string) => void;
   onPin?: (messageId: string) => void;
@@ -65,6 +67,7 @@ function MessageBubbleComponent({
   onRegenerate,
   onRetry,
   onContinue,
+  onSkipTime,
   onRewind,
   onBranch,
   onPin,
@@ -75,6 +78,7 @@ function MessageBubbleComponent({
   onNextVariant
 }: MessageBubbleProps) {
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [actionsPanel, setActionsPanel] = useState<"actions" | "skip-time">("actions");
   const [isEditing, setIsEditing] = useState(false);
   const [editDraft, setEditDraft] = useState(content);
   const [editError, setEditError] = useState<string | null>(null);
@@ -155,10 +159,19 @@ function MessageBubbleComponent({
 
   const handleContextMenu = (event: React.MouseEvent) => {
     event.preventDefault();
+    setActionsPanel("actions");
     setActionsOpen(true);
   };
 
-  const openActions = () => setActionsOpen(true);
+  const openActions = () => {
+    setActionsPanel("actions");
+    setActionsOpen(true);
+  };
+
+  const openSkipTime = () => {
+    setActionsPanel("skip-time");
+    setActionsOpen(true);
+  };
 
   const handleTouchStart = () => {
     if (touchTimerRef.current) {
@@ -166,6 +179,7 @@ function MessageBubbleComponent({
     }
 
     touchTimerRef.current = setTimeout(() => {
+      setActionsPanel("actions");
       setActionsOpen(true);
     }, LONG_PRESS_DELAY_MS);
   };
@@ -267,7 +281,7 @@ function MessageBubbleComponent({
         </motion.div>
 
         {hasVariants ? (
-          <div className="mt-5 flex w-full items-center gap-3 border-t border-white/10 pt-3 font-sans" aria-label={`Version ${variantIndex! + 1} of ${variantCount}`}>
+          <div className="mt-5 flex w-full flex-wrap items-center gap-2 border-t border-white/10 pt-3 font-sans sm:gap-3" aria-label={`Version ${variantIndex! + 1} of ${variantCount}`}>
             <button type="button" onClick={() => onPreviousVariant?.()} disabled={variantIndex! <= 0} className="focus-ring inline-flex h-9 items-center gap-1 rounded-sm px-2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30"><ChevronLeft className="h-4 w-4" />Previous</button>
             <span className="text-[11px] uppercase tracking-[.12em] text-[var(--text-muted)]">Version {variantIndex! + 1} of {variantCount}</span>
             <button type="button" onClick={() => onNextVariant?.()} disabled={variantIndex! >= variantCount! - 1} className="focus-ring inline-flex h-9 items-center gap-1 rounded-sm px-2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30">Next<ChevronRight className="h-4 w-4" /></button>
@@ -302,6 +316,11 @@ function MessageBubbleComponent({
                       <SendHorizontal className="h-4 w-4" />
                     </ActionButton>
                   ) : null}
+                  {onSkipTime ? (
+                    <ActionButton label="Skip time" onClick={openSkipTime} showLabel className="sm:hidden">
+                      <Clock3 className="h-4 w-4" />
+                    </ActionButton>
+                  ) : null}
                 </>
               ) : null}
               <ActionButton label="More" onClick={openActions} showLabel>
@@ -318,11 +337,13 @@ function MessageBubbleComponent({
       {actionsOpen ? (
         <MessageContextMenu
           isOpen
+          initialPanel={actionsPanel}
           onClose={() => setActionsOpen(false)}
           onCopy={copyToClipboard}
           onEdit={edit}
           onRegenerate={!isUser && onRegenerate ? () => onRegenerate(id) : undefined}
           onContinue={!isUser && onContinue ? () => onContinue(id) : undefined}
+          onSkipTime={!isUser && onSkipTime ? (duration) => onSkipTime(id, duration) : undefined}
           onRewind={onRewind ? () => onRewind(id) : undefined}
           onPin={onPin ? () => onPin(id) : undefined}
           onBranch={onBranch ? () => onBranch(id) : undefined}
@@ -452,6 +473,7 @@ function areMessageBubblePropsEqual(previous: MessageBubbleProps, next: MessageB
     Boolean(previous.onRetry) === Boolean(next.onRetry) &&
     Boolean(previous.onRegenerate) === Boolean(next.onRegenerate) &&
     Boolean(previous.onContinue) === Boolean(next.onContinue) &&
+    Boolean(previous.onSkipTime) === Boolean(next.onSkipTime) &&
     Boolean(previous.onRewind) === Boolean(next.onRewind)
   );
 }

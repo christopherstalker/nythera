@@ -48,8 +48,7 @@ export async function GET(request: Request) {
         where: { id: representative.id, userId: user.id },
         data: {
           credentialStatus: status,
-          validatedAt: new Date(),
-          ...(status === "INVALID" ? { fallbackEnabled: false, fallbackPriority: null } : {})
+          validatedAt: new Date()
         }
       });
     }));

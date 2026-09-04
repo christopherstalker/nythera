@@ -7,24 +7,29 @@ import { ShieldCheck, UserPlus } from "lucide-react";
 import { AuthExperience, TravelerNameSuggestions } from "@/components/auth/auth-experience";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
 import { TurnstileWidget } from "@/components/auth/turnstile-widget";
+import { UsernameField } from "@/components/profile/username-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { hasAuthenticatedSession } from "@/lib/auth-client";
+import { normalizeUsername, usernameValidationMessage } from "@/lib/username";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [adultAcknowledged, setAdultAcknowledged] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState("");
   const normalizedEmail = email.trim();
-  const normalizedUsername = username.trim();
+  const normalizedUsername = normalizeUsername(username);
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
-  const usernameValid = /^[a-zA-Z0-9_]{3,24}$/.test(normalizedUsername);
+  const usernameValid = !usernameValidationMessage(normalizedUsername);
   const passwordValid = password.length >= 8 && password.length <= 128;
-  const formValid = adultAcknowledged && emailValid && usernameValid && passwordValid;
+  const passwordsMatch = password === confirmPassword;
+  const formValid = adultAcknowledged && emailValid && usernameValid && usernameAvailable === true && passwordValid && passwordsMatch;
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -33,7 +38,9 @@ export default function RegisterPage() {
     }
 
     if (!formValid) {
-      setError("Use a valid email, a 3–24 character traveler name, and a password of at least 8 characters.");
+      setError(passwordsMatch
+        ? "Use a valid email, a 3–24 character traveler name, and a password of at least 8 characters."
+        : "Passwords do not match.");
       return;
     }
 
@@ -124,18 +131,7 @@ export default function RegisterPage() {
       <form onSubmit={onSubmit} className="mt-6 space-y-4">
         <Input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" type="email" autoComplete="email" required aria-invalid={Boolean(email) && !emailValid} />
         <div className="space-y-3">
-          <Input
-            value={username}
-            onChange={(event) => setUsername(event.target.value)}
-            placeholder="Traveler name"
-            autoComplete="username"
-            minLength={3}
-            maxLength={24}
-            pattern="[a-zA-Z0-9_]+"
-            aria-invalid={Boolean(username) && !usernameValid}
-            required
-          />
-          <p className="text-xs leading-5 text-[var(--text-muted)]">3–24 letters, numbers, or underscores.</p>
+          <UsernameField id="registration-username" value={username} onChange={setUsername} onAvailabilityChange={setUsernameAvailable} />
           <TravelerNameSuggestions onSelect={setUsername} />
         </div>
         <Input
@@ -147,6 +143,17 @@ export default function RegisterPage() {
           minLength={8}
           maxLength={128}
           aria-invalid={Boolean(password) && !passwordValid}
+          required
+        />
+        <Input
+          value={confirmPassword}
+          onChange={(event) => setConfirmPassword(event.target.value)}
+          placeholder="Confirm password"
+          type="password"
+          autoComplete="new-password"
+          minLength={8}
+          maxLength={128}
+          aria-invalid={Boolean(confirmPassword) && !passwordsMatch}
           required
         />
         <p className="text-xs leading-5 text-[var(--text-muted)]">At least 8 characters.</p>

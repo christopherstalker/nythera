@@ -9,6 +9,7 @@ import { upload } from "@vercel/blob/client";
 import { ArrowUpRight, Camera, Check, Copy, ImagePlus, MessageCircle, Plus, Settings2, Share2, Sparkles, Type, UserRound, Wand2, X } from "lucide-react";
 import { MusicEmbedPlayer } from "@/components/music/MusicEmbedPlayer";
 import { PublicProfileView } from "@/components/profile/public-profile-view";
+import { UsernameField } from "@/components/profile/username-field";
 import { FormattedTextarea } from "@/components/rich-text/formatted-textarea";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ import { resolveMusicEmbed } from "@/lib/music-embed";
 import { cn } from "@/lib/utils";
 import { PROFILE_CUSTOM_FONT_FAMILY } from "@/hooks/use-custom-font";
 import { SETTINGS_SECTIONS } from "@/components/settings/settings-sections";
+import { AccountPasswordClient } from "@/components/settings/account-password-client";
 
 type Profile = {
   email: string;
@@ -203,13 +205,14 @@ export function AccountHubClient() {
     setSettings(parseProfileSettings(body.profile.profileSettings));
     setStatus("Profile saved.");
     setProfileEditing(false);
+    window.dispatchEvent(new CustomEvent("nythera:profile-updated", { detail: { profile: body.profile } }));
   }
 
   if (sessionStatus === "loading") return <div className="skeleton h-72 rounded-sm" />;
   if (sessionStatus === "unauthenticated") return <p className="px-5 py-10 text-sm text-[var(--text-secondary)]">Sign in to manage your account.</p>;
 
   return (
-    <div className="pb-8">
+    <div className="min-w-0 max-w-full overflow-x-clip pb-8">
       <header className="border-b border-[var(--codex-rule)] px-5 pb-6 pt-4 sm:px-0 sm:pt-0">
         <p className="codex-kicker">Your account</p>
         <div className="mt-3 flex items-start gap-5 sm:items-end">
@@ -227,6 +230,7 @@ export function AccountHubClient() {
 
         <div className="mt-5 flex flex-wrap gap-2">
           <Button type="button" variant="secondary" onClick={() => selectTab("profile", true)}><UserRound className="h-4 w-4" />Edit profile</Button>
+          <Button asChild variant="secondary"><Link href="/studio"><Wand2 className="h-4 w-4" />Creator Studio</Link></Button>
           <Button type="button" variant="secondary" onClick={() => void shareProfile()} disabled={!username}>{copied ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}{copied ? "Copied" : "Share profile"}</Button>
           {username ? <Button asChild variant="ghost"><Link href={publicProfileUrl(username)} target="_blank">View public page</Link></Button> : null}
         </div>
@@ -264,7 +268,7 @@ export function AccountHubClient() {
                   {avatarValue ? <Choice onClick={() => setAvatarValue("")}><X className="h-3.5 w-3.5" />Remove avatar</Choice> : null}
                 </div>
               </div>
-              <label className={fieldLabelClass}>Username<Input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Username" autoComplete="username" /></label>
+              <label className={fieldLabelClass}>Username<UsernameField id="account-username" value={username} onChange={setUsername} currentUsername={profile?.username} /></label>
               <label className={fieldLabelClass}>Email<Input value={profile?.email ?? ""} disabled /></label>
               <label className={fieldLabelClass}>Bio<FormattedTextarea value={bio} onChange={setBio} maxLength={800} placeholder="Tell visitors about you and the worlds you create." previewLabel="Public bio preview" /></label>
             </EditorSection>
@@ -358,7 +362,48 @@ function Choice({ active = false, onClick, children }: { active?: boolean; onCli
 }
 
 function CharacterStudio({ characters }: { characters: StudioCharacter[] }) {
-  return <section className="space-y-5" aria-labelledby="character-studio-title"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="codex-kicker">Your collection</p><h2 id="character-studio-title" className="mt-1 text-2xl font-semibold text-[var(--text-primary)]">My characters</h2></div><Button asChild size="lg"><Link href="/create-character"><Sparkles className="h-4 w-4" />Create character</Link></Button></div>{characters.length ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{characters.map((character) => <article key={character.id} className="group flex min-h-52 flex-col border border-[var(--codex-rule)] bg-[var(--codex-paper-raised)] p-5 transition-transform motion-safe:hover:-translate-y-1"><div className="flex items-center gap-4"><Avatar name={character.name} src={character.avatarUrl} size="lg" className="h-20 w-20" /><div className="min-w-0 flex-1"><h3 className="truncate text-lg font-semibold text-[var(--text-primary)]">{character.name}</h3><span className="mt-2 inline-flex rounded-full border border-[var(--codex-rule)] px-2.5 py-1 text-[10px] uppercase tracking-[.12em] text-[var(--text-muted)]">{character.visibility?.toLowerCase() ?? "draft"}</span></div></div><p className="mt-4 line-clamp-2 flex-1 text-sm leading-6 text-[var(--text-secondary)]">{character.description || "A new character waiting for their story."}</p><div className="mt-5 flex items-center gap-2 border-t border-[var(--codex-rule)] pt-4"><span className="mr-auto inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)]"><MessageCircle className="h-3.5 w-3.5" />{character._count?.chats ?? 0}</span><Button asChild variant="outline" size="sm"><Link href={`/character/${character.id}`}>View</Link></Button><Button asChild size="sm"><Link href={`/character/${character.id}/edit`}>Edit</Link></Button></div></article>)}</div> : <div className="flex flex-col items-center border border-dashed border-[var(--codex-rule)] px-6 py-16 text-center"><div className="grid h-20 w-20 place-items-center rounded-full border border-[var(--codex-rule)] text-[var(--codex-mint)]"><Wand2 className="h-8 w-8" /></div><h3 className="mt-6 text-xl font-semibold text-[var(--text-primary)]">No characters yet</h3><p className="mt-2 max-w-sm text-sm leading-6 text-[var(--text-secondary)]">Create your first character and shape their personality, voice, and world.</p><Button asChild className="mt-6"><Link href="/create-character"><Plus className="h-4 w-4" />Create character</Link></Button></div>}</section>;
+  return (
+    <section className="min-w-0 space-y-5" aria-labelledby="character-studio-title">
+      <div className="flex min-w-0 flex-col items-start gap-4 xs:flex-row xs:items-end xs:justify-between">
+        <div className="min-w-0">
+          <p className="codex-kicker">Your collection</p>
+          <h2 id="character-studio-title" className="mt-1 text-2xl font-semibold text-[var(--text-primary)]">My characters</h2>
+        </div>
+        <Button asChild size="lg" className="w-full xs:w-auto">
+          <Link href="/create-character"><Sparkles className="h-4 w-4" />Create character</Link>
+        </Button>
+      </div>
+
+      {characters.length ? (
+        <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {characters.map((character) => (
+            <article key={character.id} className="group flex min-w-0 max-w-full flex-col border border-[var(--codex-rule)] bg-[var(--codex-paper-raised)] p-4 transition-transform motion-safe:hover:-translate-y-1 sm:min-h-52 sm:p-5">
+              <div className="grid min-w-0 grid-cols-[4rem_minmax(0,1fr)] items-center gap-3 sm:grid-cols-[5rem_minmax(0,1fr)] sm:gap-4">
+                <Avatar name={character.name} src={character.avatarUrl} size="lg" className="h-16 w-16 sm:h-20 sm:w-20" />
+                <div className="min-w-0">
+                  <h3 className="truncate text-base font-semibold text-[var(--text-primary)] sm:text-lg">{character.name}</h3>
+                  <span className="mt-2 inline-flex rounded-full border border-[var(--codex-rule)] px-2.5 py-1 text-[10px] uppercase tracking-[.12em] text-[var(--text-muted)]">{character.visibility?.toLowerCase() ?? "draft"}</span>
+                </div>
+              </div>
+              <p className="mt-4 line-clamp-2 flex-1 break-words text-sm leading-6 text-[var(--text-secondary)] [overflow-wrap:anywhere]">{character.description || "A new character waiting for their story."}</p>
+              <div className="mt-4 grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 border-t border-[var(--codex-rule)] pt-3 sm:mt-5 sm:pt-4">
+                <span className="inline-flex min-w-0 items-center gap-1.5 text-xs text-[var(--text-muted)]"><MessageCircle className="h-3.5 w-3.5 shrink-0" />{character._count?.chats ?? 0}</span>
+                <Button asChild variant="outline" size="sm"><Link href={`/character/${character.id}`}>View</Link></Button>
+                <Button asChild size="sm"><Link href={`/character/${character.id}/edit`}>Edit</Link></Button>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center border border-dashed border-[var(--codex-rule)] px-6 py-16 text-center">
+          <div className="grid h-20 w-20 place-items-center rounded-full border border-[var(--codex-rule)] text-[var(--codex-mint)]"><Wand2 className="h-8 w-8" /></div>
+          <h3 className="mt-6 text-xl font-semibold text-[var(--text-primary)]">No characters yet</h3>
+          <p className="mt-2 max-w-sm text-sm leading-6 text-[var(--text-secondary)]">Create your first character and shape their personality, voice, and world.</p>
+          <Button asChild className="mt-6"><Link href="/create-character"><Plus className="h-4 w-4" />Create character</Link></Button>
+        </div>
+      )}
+    </section>
+  );
 }
 
 function MobileSettingsIndex() {
@@ -367,6 +412,9 @@ function MobileSettingsIndex() {
       <p className="codex-kicker">Account control center</p>
       <h2 id="mobile-settings-title" className="mt-2 font-editorial text-4xl text-[var(--text-primary)]">All settings</h2>
       <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">Every desktop setting is available here in the mobile and installed app experience.</p>
+      <div className="mt-6">
+        <AccountPasswordClient />
+      </div>
       <div className="mt-6 grid gap-3 sm:grid-cols-2">
         {SETTINGS_SECTIONS.map((section) => {
           const Icon = section.icon;

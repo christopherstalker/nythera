@@ -1,12 +1,14 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { SCHEDULED_EVENTS_CHANGED_EVENT } from "@/lib/scheduled-messages";
 import { parsePersonaLines } from "@/lib/user-persona-profiles";
 
 export type PersonaProfile = {
   id: string;
   label: string;
   displayName: string;
+  surname: string;
   avatarUrl?: string | null;
   summary: string;
   background?: string | null;
@@ -22,6 +24,7 @@ export type PersonaDraft = {
   profileId?: string;
   label: string;
   displayName: string;
+  surname: string;
   avatarUrl: string;
   summary: string;
   background: string;
@@ -72,6 +75,10 @@ export type StoryFactRow = {
   id: string;
   predicate: string;
   objectText: string;
+  kind: "PERMANENT" | "STATE" | "EVENT";
+  worldTime?: string | null;
+  validFromSequence?: number | null;
+  validUntilSequence?: number | null;
   scope: "STORY" | "PARTICIPANT" | "CHARACTER" | "OWNER";
   locked: boolean;
   importance: number;
@@ -84,6 +91,8 @@ export type StoryFactRow = {
 };
 
 export type StoryStateDraft = {
+  sceneTitle: string;
+  previousSceneSummary: string;
   time: string;
   location: string;
   weather: string;
@@ -95,11 +104,23 @@ export type StoryStateDraft = {
 
 export type CanonDraft = {
   subjectEntityId: string;
-  predicate: string;
+  kind: StoryFactRow["kind"];
+  worldTime: string;
   objectText: string;
   scope: StoryFactRow["scope"];
   locked: boolean;
   participantIds: string[];
+};
+
+export type StorySceneRow = {
+  id: string;
+  status: "ACTIVE" | "CLOSED" | "ARCHIVED";
+  title?: string | null;
+  worldTime?: string | null;
+  location?: string | null;
+  startedAtSequence: number;
+  endedAtSequence?: number | null;
+  summary?: string | null;
 };
 
 export type StoryDirectorDraft = {
@@ -231,6 +252,7 @@ export type StorySafetyDraft = { contentRating: "GENERAL" | "TEEN" | "MATURE"; h
 export const emptyPersonaDraft: PersonaDraft = {
   label: "",
   displayName: "",
+  surname: "",
   avatarUrl: "",
   summary: "",
   background: "",
@@ -241,6 +263,8 @@ export const emptyPersonaDraft: PersonaDraft = {
 };
 
 export const emptyStoryStateDraft: StoryStateDraft = {
+  sceneTitle: "",
+  previousSceneSummary: "",
   time: "",
   location: "",
   weather: "",
@@ -252,7 +276,8 @@ export const emptyStoryStateDraft: StoryStateDraft = {
 
 export const emptyCanonDraft: CanonDraft = {
   subjectEntityId: "",
-  predicate: "is true now",
+  kind: "PERMANENT",
+  worldTime: "",
   objectText: "",
   scope: "STORY",
   locked: false,
@@ -310,6 +335,8 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
   const [storyTimelineId, setStoryTimelineId] = useState<string | null>(null);
   const [storyParticipants, setStoryParticipants] = useState<StoryParticipantRow[]>([]);
   const [storyEntities, setStoryEntities] = useState<StoryEntityRow[]>([]);
+  const [storyScenes, setStoryScenes] = useState<StorySceneRow[]>([]);
+  const [activeStoryScene, setActiveStoryScene] = useState<StorySceneRow | null>(null);
   const [canonFacts, setCanonFacts] = useState<StoryFactRow[]>([]);
   const [canonDraft, setCanonDraft] = useState<CanonDraft>(emptyCanonDraft);
   const [canonStatus, setCanonStatus] = useState<string | null>(null);
@@ -573,13 +600,18 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     const story = body.story && typeof body.story === "object" ? body.story as Record<string, unknown> : null;
     const timeline = body.timeline && typeof body.timeline === "object" ? body.timeline as Record<string, unknown> : null;
     const snapshot = body.snapshot && typeof body.snapshot === "object" ? body.snapshot as Record<string, unknown> : null;
+    const activeScene = body.activeScene && typeof body.activeScene === "object" ? body.activeScene as StorySceneRow : null;
     setStoryId(String(foundation?.storyId ?? story?.id ?? "") || null);
     setStoryTimelineId(String(foundation?.timelineId ?? timeline?.id ?? "") || null);
     setStoryParticipants(Array.isArray(story?.participants) ? story.participants as StoryParticipantRow[] : []);
     setStoryEntities(Array.isArray(story?.entities) ? story.entities as StoryEntityRow[] : []);
+    setStoryScenes(Array.isArray(body.scenes) ? body.scenes as StorySceneRow[] : []);
+    setActiveStoryScene(activeScene);
     setCanonFacts(Array.isArray(body.facts) ? body.facts as StoryFactRow[] : []);
     const state = snapshot?.state && typeof snapshot.state === "object" ? snapshot.state as Record<string, unknown> : {};
     setStoryStateDraft({
+      sceneTitle: activeScene?.title ?? (typeof state.sceneTitle === "string" ? state.sceneTitle : ""),
+      previousSceneSummary: "",
       time: typeof state.time === "string" ? state.time : "",
       location: typeof state.location === "string" ? state.location : "",
       weather: typeof state.weather === "string" ? state.weather : "",
@@ -678,6 +710,7 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
         profileId: draft.profileId,
         label: draft.label || draft.displayName,
         displayName: draft.displayName,
+        surname: draft.surname,
         avatarUrl: draft.avatarUrl,
         summary: draft.summary,
         background: draft.background,
@@ -817,7 +850,7 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
 
   async function addCanonFact(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!storyId || !canonDraft.predicate.trim() || !canonDraft.objectText.trim()) {
+    if (!storyId || !canonDraft.objectText.trim()) {
       setCanonStatus("Write the canonical fact before saving.");
       return;
     }
@@ -831,8 +864,10 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
       body: JSON.stringify({
         timelineId: storyTimelineId,
         subjectEntityId: canonDraft.subjectEntityId || null,
-        predicate: canonDraft.predicate,
+        predicate: canonDraft.kind === "PERMANENT" ? "is" : canonDraft.kind === "STATE" ? "currently" : "happened",
         objectText: canonDraft.objectText,
+        kind: canonDraft.kind,
+        worldTime: canonDraft.worldTime.trim() || null,
         scope: canonDraft.scope,
         locked: canonDraft.locked,
         importance: canonDraft.locked ? 3 : 1.5,
@@ -876,6 +911,7 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        sceneTitle: storyStateDraft.sceneTitle.trim() || null,
         time: storyStateDraft.time.trim() || null,
         location: storyStateDraft.location.trim() || null,
         weather: storyStateDraft.weather.trim() || null,
@@ -890,6 +926,29 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     }
     setStoryStateStatus("Scene state updated for the next turn.");
     await loadStoryCodex().catch((error) => setStoryStateStatus(error instanceof Error ? error.message : "Scene saved, but the section could not refresh."));
+  }
+
+  async function advanceStoryScene() {
+    if (!storyId) return;
+    const response = await performWrite("scene:advance", `/api/stories/${storyId}/state`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        sceneTitle: storyStateDraft.sceneTitle.trim() || null,
+        previousSceneSummary: storyStateDraft.previousSceneSummary.trim() || null,
+        time: storyStateDraft.time.trim() || null,
+        location: storyStateDraft.location.trim() || null,
+        weather: storyStateDraft.weather.trim() || null,
+        inventory: parsePersonaLines(storyStateDraft.inventory),
+        conditions: parsePersonaLines(storyStateDraft.conditions),
+        threats: parsePersonaLines(storyStateDraft.threats),
+        notes: parsePersonaLines(storyStateDraft.notes),
+        carryInventory: true
+      })
+    }, setStoryStateStatus, "Could not advance the scene.");
+    if (!response) return;
+    setStoryStateStatus("New scene started. Previous temporary states were closed.");
+    await loadStoryCodex().catch((error) => setStoryStateStatus(error instanceof Error ? error.message : "Scene advanced, but the section could not refresh."));
   }
 
   function updateStorySafetyDraft<K extends keyof StorySafetyDraft>(field: K, value: StorySafetyDraft[K]) {
@@ -1044,6 +1103,7 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     });
     if (response?.ok) {
       setStoryEventDraft(emptyStoryEventDraft);
+      window.dispatchEvent(new Event(SCHEDULED_EVENTS_CHANGED_EVENT));
     }
     await finishNarrativeWrite(response, "Character initiative scheduled.");
   }
@@ -1057,6 +1117,9 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ kind, id, ...input })
     }, setStoryNarrativeStatus, "Could not update the story plan.");
+    if (response?.ok && kind === "event") {
+      window.dispatchEvent(new Event(SCHEDULED_EVENTS_CHANGED_EVENT));
+    }
     await finishNarrativeWrite(response, "Narrative plan updated.");
   }
 
@@ -1230,6 +1293,8 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     storyTimelineId,
     storyParticipants,
     storyEntities,
+    storyScenes,
+    activeStoryScene,
     canonFacts,
     canonDraft,
     canonStatus,
@@ -1281,6 +1346,7 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     updateCanonFact,
     updateStoryStateDraft,
     saveStoryState,
+    advanceStoryScene,
     updateStoryDirectorDraft,
     updateStoryArcDraft,
     updateStoryBeatDraft,
@@ -1355,6 +1421,7 @@ export function profileFromApi(profile: Record<string, unknown>): PersonaProfile
     id: String(profile.id ?? "default"),
     label: String(profile.label ?? profile.displayName ?? "Persona"),
     displayName: String(profile.displayName ?? ""),
+    surname: String(profile.surname ?? ""),
     avatarUrl: typeof profile.avatarUrl === "string" ? profile.avatarUrl : null,
     summary: String(profile.summary ?? ""),
     background: typeof profile.background === "string" ? profile.background : "",
@@ -1373,6 +1440,7 @@ export function profileToDraft(profile: Record<string, unknown>): PersonaDraft {
     profileId: parsed.id,
     label: parsed.label,
     displayName: parsed.displayName,
+    surname: parsed.surname,
     avatarUrl: parsed.avatarUrl ?? "",
     summary: parsed.summary,
     background: parsed.background ?? "",

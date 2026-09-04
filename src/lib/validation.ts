@@ -2,6 +2,8 @@ import { z } from "zod";
 import { ELEVATED_CHAT_MESSAGE_LENGTH, ELEVATED_RESPONSE_PROMPT_LENGTH } from "@/lib/chat-limits";
 import { resolveMusicEmbed } from "@/lib/music-embed";
 import { isRussianLanguageLabel, RUSSIAN_LANGUAGE_ERROR } from "@/lib/language-policy";
+import { MAX_CHARACTER_SYSTEM_PROMPT_CHARACTERS } from "@/lib/prompt-limits";
+import { usernameSchema } from "@/lib/username";
 
 const MAX_IMAGE_DATA_URL_BYTES = 140_000;
 const MAX_IMAGE_DATA_URL_LENGTH = 190_000;
@@ -126,6 +128,21 @@ export const characterVisualIdentitySchema = z.object({
   chatBackground: z.string().trim().max(500).optional()
 });
 
+const additionalCharacterPersonaSchema = z.object({
+  id: z.string().trim().min(1).max(80).optional(),
+  name: z.string().trim().min(2).max(80),
+  personality: z.string().trim().min(20).max(5000),
+  role: z.string().trim().min(1).max(120).optional(),
+  archetype: z.string().trim().min(1).max(120).optional(),
+  personalityTraits: personaListSchema.optional(),
+  speakingStyle: z.string().trim().max(500).optional(),
+  emotionalTone: z.string().trim().max(240).optional(),
+  motivation: z.string().trim().max(800).optional(),
+  boundaries: personaListSchema.optional(),
+  behavioralRules: personaListSchema.optional(),
+  forbiddenBehaviors: personaListSchema.optional()
+});
+
 export const characterPersonaSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   role: z.string().trim().min(1).max(120).optional(),
@@ -141,7 +158,8 @@ export const characterPersonaSchema = z.object({
   forbiddenBehaviors: personaListSchema.optional(),
   verbosityLevel: z.enum(["concise", "balanced", "expressive", "immersive"]).optional(),
   relationshipStyle: z.enum(["friend", "romantic", "mentor", "rival", "antagonist"]).optional(),
-  relationshipDynamics: z.enum(["friend", "romantic", "mentor", "rival", "antagonist"]).optional()
+  relationshipDynamics: z.enum(["friend", "romantic", "mentor", "rival", "antagonist"]).optional(),
+  additionalCharacters: z.array(additionalCharacterPersonaSchema).max(7).optional()
 });
 
 export const characterCreateSchema = z.object({
@@ -166,16 +184,84 @@ export const characterCreateSchema = z.object({
   frequencyPenalty: z.number().min(-2).max(2).nullable().optional(),
   presencePenalty: z.number().min(-2).max(2).nullable().optional(),
   maxTokens: z.number().int().min(1).max(4096).nullable().optional(),
-  systemPromptOverride: z.string().trim().max(8000).nullable().optional(),
+  systemPromptOverride: z.string().trim().max(MAX_CHARACTER_SYSTEM_PROMPT_CHARACTERS).nullable().optional(),
   defaultChatMode: z.enum(["realism", "fantasy"]).default("realism")
 });
 
 export const characterUpdateSchema = characterCreateSchema.partial();
 
+const unlimitedAdditionalCharacterPersonaSchema = additionalCharacterPersonaSchema.extend({
+  name: z.string().trim().min(2),
+  personality: z.string().trim().min(20),
+  role: z.string().trim().min(1).optional(),
+  archetype: z.string().trim().min(1).optional(),
+  personalityTraits: z.array(z.string().trim().min(1)).max(16).optional(),
+  speakingStyle: z.string().trim().optional(),
+  emotionalTone: z.string().trim().optional(),
+  motivation: z.string().trim().optional(),
+  boundaries: z.array(z.string().trim().min(1)).max(16).optional(),
+  behavioralRules: z.array(z.string().trim().min(1)).max(16).optional(),
+  forbiddenBehaviors: z.array(z.string().trim().min(1)).max(16).optional()
+});
+
+const unlimitedCharacterPersonaSchema = characterPersonaSchema.extend({
+  name: z.string().trim().min(1).optional(),
+  role: z.string().trim().min(1).optional(),
+  archetype: z.string().trim().min(1).optional(),
+  personalityTraits: z.array(z.string().trim().min(1)).max(16).optional(),
+  speakingStyle: z.string().trim().optional(),
+  background: z.string().trim().optional(),
+  emotionalTone: z.string().trim().optional(),
+  boundaries: z.array(z.string().trim().min(1)).max(16).optional(),
+  motivation: z.string().trim().optional(),
+  behavioralRules: z.array(z.string().trim().min(1)).max(16).optional(),
+  forbiddenBehaviors: z.array(z.string().trim().min(1)).max(16).optional(),
+  additionalCharacters: z.array(unlimitedAdditionalCharacterPersonaSchema).max(7).optional()
+});
+
+const unlimitedCharacterLorebookSchema = characterLorebookSchema.extend({
+  entries: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1),
+        keywords: z.array(z.string().trim().min(1)).min(1).max(12),
+        text: z.string().trim().min(1)
+      })
+    )
+    .max(24)
+});
+
+const unlimitedCharacterCreateSchema = characterCreateSchema.extend({
+  name: z.string().min(2),
+  description: z.string().min(10),
+  personality: z.string().min(20),
+  scenario: z.string().optional(),
+  greeting: z.string().min(2),
+  communicationStyle: communicationStyleSchema.extend({
+    tone: z.string().optional()
+  }).optional(),
+  persona: unlimitedCharacterPersonaSchema.optional(),
+  lorebook: unlimitedCharacterLorebookSchema.optional(),
+  visualIdentity: characterVisualIdentitySchema.extend({
+    chatBackground: z.string().trim().optional()
+  }).optional(),
+  systemPromptOverride: z.string().trim().nullable().optional()
+});
+
+export const unlimitedCharacterUpdateSchema = unlimitedCharacterCreateSchema.partial();
+
+export function characterCreateSchemaFor(unlimitedCharacterFields: boolean) {
+  return unlimitedCharacterFields ? unlimitedCharacterCreateSchema : characterCreateSchema;
+}
+
+export function characterUpdateSchemaFor(unlimitedCharacterFields: boolean) {
+  return unlimitedCharacterFields ? unlimitedCharacterUpdateSchema : characterUpdateSchema;
+}
+
 export const chatCreateSchema = z.object({
   characterId: z.string().min(1),
   title: z.string().max(120).optional(),
-  temperature: z.coerce.number().min(0).max(2).default(0.7),
+  temperature: z.coerce.number().min(0).max(2).optional(),
   model: z.string().trim().min(1).max(160).optional(),
   chatMode: z.enum(["realism", "fantasy"]).optional()
 });
@@ -232,10 +318,17 @@ export const streamMessageSchema = z
     regenerateMessageId: z.string().min(1).max(120).optional(),
     retryUserMessageId: z.string().min(1).max(120).optional(),
     continueChat: z.boolean().optional(),
+    skipTime: z.boolean().optional(),
+    skipTimeValue: z.number().int().min(1).max(1_000_000_000).optional(),
+    skipTimeUnit: z.enum(["minute", "hour", "day", "week", "month", "year"]).optional(),
     continueMessageId: z.string().min(1).max(120).optional(),
     branchMessageId: z.string().min(1).max(120).optional()
   })
-  .refine((input) => input.continueChat || input.regenerate || input.retryUserMessageId || input.message.trim().length > 0 || input.attachmentIds.length > 0, {
+  .refine((input) => (input.skipTimeValue === undefined) === (input.skipTimeUnit === undefined), {
+    message: "Skip time value and unit must be provided together.",
+    path: ["skipTimeValue"]
+  })
+  .refine((input) => input.continueChat || input.skipTime || input.regenerate || input.retryUserMessageId || input.message.trim().length > 0 || input.attachmentIds.length > 0, {
     message: "Message is required.",
     path: ["message"]
   });
@@ -260,12 +353,7 @@ export const mobileStreamMessageSchema = streamMessageSchema.superRefine((input,
 
 export const registerSchema = z.object({
   email: z.string().trim().email(),
-  username: z
-    .string()
-    .trim()
-    .min(3)
-    .max(24)
-    .regex(/^[a-zA-Z0-9_]+$/, "Username can contain letters, numbers, and underscores only."),
+  username: usernameSchema,
   password: z.string().min(8).max(128),
   adultAcknowledged: z.literal(true, {
     errorMap: () => ({ message: "Confirm that you are 18 or older before creating an account." })
@@ -297,6 +385,7 @@ const listFromTextSchema = z
 
 export const userPersonaSchema = z.object({
   displayName: z.string().trim().min(2).max(80),
+  surname: z.string().trim().max(80).optional().or(z.literal("")).nullable(),
   avatarUrl: imageSourceSchema.optional().or(z.literal("")).nullable(),
   summary: z.string().trim().min(10).max(8000),
   background: z.string().trim().max(3000).optional().or(z.literal("")).nullable(),
@@ -342,6 +431,10 @@ export const storyFactCreateSchema = z.object({
   sourceMessageId: z.string().trim().min(1).optional().nullable(),
   predicate: z.string().trim().min(1, "Choose whether the fact is true now.").max(120, "Truth state is too long."),
   objectText: z.string().trim().min(1, "Write the canonical fact.").max(6000, "Canonical facts can be up to 6,000 characters."),
+  kind: z.enum(["PERMANENT", "STATE", "EVENT"]).default("PERMANENT"),
+  worldTime: z.string().trim().max(200).optional().nullable(),
+  validFromSequence: z.coerce.number().int().min(0).optional().nullable(),
+  validUntilSequence: z.coerce.number().int().min(0).optional().nullable(),
   scope: z.enum(["STORY", "PARTICIPANT", "CHARACTER", "OWNER"]).default("STORY"),
   confidence: z.coerce.number().min(0).max(1).default(1),
   importance: z.coerce.number().min(0).max(5).default(1),
@@ -361,6 +454,7 @@ export const storyFactUpdateSchema = storyFactCreateSchema
 const storyStateListSchema = z.array(z.string().trim().min(1).max(300)).max(50).default([]);
 
 export const storyStateSchema = z.object({
+  sceneTitle: z.string().trim().max(160).nullable().default(null),
   time: z.string().trim().max(200).nullable().default(null),
   location: z.string().trim().max(240).nullable().default(null),
   weather: z.string().trim().max(200).nullable().default(null),
@@ -368,6 +462,11 @@ export const storyStateSchema = z.object({
   conditions: storyStateListSchema,
   threats: storyStateListSchema,
   notes: storyStateListSchema
+});
+
+export const storySceneAdvanceSchema = storyStateSchema.extend({
+  previousSceneSummary: z.string().trim().max(2400).nullable().default(null),
+  carryInventory: z.boolean().default(true)
 });
 
 const storyIntensitySchema = z.coerce.number().int().min(0).max(10);
@@ -544,12 +643,12 @@ export const roomCreateSchema = z.object({
   characterIds: z.array(z.string().trim().min(1)).min(2).max(6),
   model: z.string().trim().min(1).max(120).optional(),
   temperature: z.coerce.number().min(0).max(2).default(0.7),
-  responsePrompt: z.string().trim().max(2000).optional().or(z.literal(""))
+  responsePrompt: z.string().trim().optional().or(z.literal(""))
 });
 
 export const roomPatchSchema = z.object({
   title: z.string().trim().min(2).max(120).optional(),
-  responsePrompt: z.string().trim().max(2000).optional().or(z.literal("")),
+  responsePrompt: z.string().trim().optional().or(z.literal("")),
   archived: z.boolean().optional()
 });
 

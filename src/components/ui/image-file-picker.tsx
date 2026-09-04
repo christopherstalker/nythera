@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useRef, useState } from "react";
-import { compressImageFile } from "@/lib/image-upload";
+import { AVATAR_IMAGE_ACCEPT, compressImageFile } from "@/lib/image-upload";
 import { cn } from "@/lib/utils";
 
 type ImageFilePickerProps = {
@@ -69,7 +69,7 @@ export function ImageFilePicker({
         ref={inputRef}
         id={inputId}
         type="file"
-        accept="image/*"
+        accept={AVATAR_IMAGE_ACCEPT}
         disabled={disabled}
         onChange={handleChange}
         className={cn("sr-only", inputClassName)}

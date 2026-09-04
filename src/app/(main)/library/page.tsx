@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { BookMarked, Compass, Grid3X3, List, Plus, Search } from "lucide-react";
+import { BookMarked, Compass, Plus, Search } from "lucide-react";
 import { motion } from "motion/react";
 import { CharacterRosterCard } from "@/components/library/character-roster-card";
 import type { CharacterSummary } from "@/components/characters/CharacterCard";
 import { GlassButton } from "@/components/ui/GlassButton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader, PageShell } from "@/components/ui/page";
-import { buildCharacterRoster, filterRoster } from "@/lib/library-roster";
+import { buildCharacterRoster, filterRoster, LIBRARY_ROSTER_LAYOUT } from "@/lib/library-roster";
 import { springSoft } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
@@ -32,7 +32,6 @@ export default function LibraryPage() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
-  const [view, setView] = useState<"grid" | "list">("grid");
   const lastLoadedAt = useRef(0);
 
   const loadLibrary = useCallback(async () => {
@@ -91,18 +90,12 @@ export default function LibraryPage() {
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search characters..." className="w-full bg-transparent text-sm outline-none placeholder:text-[var(--text-muted)]" />
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
-          {FILTERS.map((item) => (
-            <button key={item} type="button" onClick={() => setFilter(item)} className={cn("neo-glass-chip px-3 py-1.5 text-xs capitalize", filter === item && "is-active")}>
-              {item}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <GlassButton variant={view === "grid" ? "glass-primary" : "glass-icon"} size="icon" onClick={() => setView("grid")} aria-label="Grid view"><Grid3X3 className="h-4 w-4" /></GlassButton>
-          <GlassButton variant={view === "list" ? "glass-primary" : "glass-icon"} size="icon" onClick={() => setView("list")} aria-label="List view"><List className="h-4 w-4" /></GlassButton>
-        </div>
+      <div className="flex flex-wrap gap-2">
+        {FILTERS.map((item) => (
+          <button key={item} type="button" onClick={() => setFilter(item)} className={cn("neo-glass-chip px-3 py-1.5 text-xs capitalize", filter === item && "is-active")}>
+            {item}
+          </button>
+        ))}
       </div>
 
       {error ? (
@@ -119,12 +112,12 @@ export default function LibraryPage() {
       ) : !library ? (
         <div className="skeleton h-64 rounded-[var(--radius-surface)]" />
       ) : filtered.length ? (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={springSoft} className={cn(view === "grid" ? "grid gap-4 sm:grid-cols-2 xl:grid-cols-3" : "grid gap-3")}>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={springSoft} className={cn(LIBRARY_ROSTER_LAYOUT === "grid" ? "grid gap-4 sm:grid-cols-2 xl:grid-cols-3" : "grid gap-3")}>
           {filtered.map((character) => (
             <CharacterRosterCard
               key={character.id}
               character={character}
-              view={view}
+              view={LIBRARY_ROSTER_LAYOUT}
               onToggleFavorite={toggleFavorite}
               onDelete={deleteCharacter}
             />

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { historyTokenBudget, selectNewestHistoryWithinBudget } from "../src/lib/prompt-budget";
+import { fitPromptMessagesWithinContext, historyTokenBudget, promptContextWindow, selectNewestHistoryWithinBudget } from "../src/lib/prompt-budget";
 import { modelContextWindow, UNKNOWN_MODEL_CONTEXT_WINDOW } from "../src/lib/provider-model-options";
 import { buildConversationSummary } from "../src/lib/conversation-summary";
 import { buildPhysicalContinuityLayer } from "../src/lib/physical-continuity";
@@ -14,6 +14,7 @@ test("custom prompt replaces the fixed Roleplay Engine after factual context", a
   assert.match(source, /const behaviorLayers = customPromptLayer[\s\S]*\? \[customPromptLayer\][\s\S]*: \[roleplayEngineLayer, modeLayer\]/);
   assert.match(source, /const system = \[\.\.\.contextLayers, \.\.\.behaviorLayers, physicalContinuityLayer, translationLayer\]/);
   assert.match(source, /Address the player only as you/);
+  assert.match(source, /use only the identity and pronouns explicitly authorized by the active player persona/);
   assert.match(source, /Secondary characters stay alive/);
   assert.match(source, /do not wait to be addressed/);
   assert.match(source, /must contribute dialogue and initiative of their own/);
@@ -66,15 +67,53 @@ test("adaptive history uses full fitting transcripts, newest overflow, and an 8K
   assert.equal(overflow.overflowed, true);
   assert.equal(modelContextWindow("custom:unknown-model"), UNKNOWN_MODEL_CONTEXT_WINDOW);
   assert.ok(historyTokenBudget({ model: "custom:unknown-model", maxOutputTokens: 900, currentMessage: "hello" }) < UNKNOWN_MODEL_CONTEXT_WINDOW);
+  assert.equal(promptContextWindow("openrouter:x-ai/grok-4.3"), 30_000);
+  assert.ok(historyTokenBudget({ model: "openrouter:x-ai/grok-4.3", maxOutputTokens: 1_050, currentMessage: "hello" }) < 30_000);
+});
+
+test("the final prompt budget drops oldest history before system instructions", () => {
+  const system = { role: "system" as const, content: "s".repeat(12_000) };
+  const oldUserMessage = { role: "user" as const, content: "o".repeat(4_000) };
+  const oldAssistantMessage = { role: "assistant" as const, content: "a".repeat(4_000) };
+  const recentUserMessage = { role: "user" as const, content: "u".repeat(4_000) };
+  const recentAssistantMessage = { role: "assistant" as const, content: "r".repeat(4_000) };
+  const currentMessage = { role: "user" as const, content: "continue" };
+  const fitted = fitPromptMessagesWithinContext(
+    [system, oldUserMessage, oldAssistantMessage, recentUserMessage, recentAssistantMessage, currentMessage],
+    { model: "custom:unknown-model", maxOutputTokens: 900 }
+  );
+
+  assert.equal(fitted.fixedPromptTooLarge, false);
+  assert.equal(fitted.droppedMessages, 2);
+  assert.deepEqual(fitted.messages, [system, recentUserMessage, recentAssistantMessage, currentMessage]);
+});
+
+test("OpenRouter prompts stay below its unpaid-account context gate", () => {
+  const system = { role: "system" as const, content: "s".repeat(24_000) };
+  const history = Array.from({ length: 220 }, (_, index) => ({
+    role: index % 2 === 0 ? "user" as const : "assistant" as const,
+    content: `${index}: ${"h".repeat(780)}`
+  }));
+  const currentMessage = { role: "user" as const, content: "continue" };
+  const fitted = fitPromptMessagesWithinContext(
+    [system, ...history, currentMessage],
+    { model: "openrouter:x-ai/grok-4.3", maxOutputTokens: 1_050 }
+  );
+
+  assert.ok(fitted.tokenBudget < 30_000);
+  assert.ok(fitted.estimatedTokens <= fitted.tokenBudget);
+  assert.ok(fitted.droppedMessages > 0);
+  assert.deepEqual(fitted.messages.at(-1), currentMessage);
 });
 
 test("rolling summaries extend through a watermark instead of repeatedly summarizing the same turns", async () => {
   const memory = await read("../src/lib/memory.ts");
   const stream = await read("../src/app/api/chats/[id]/stream/route.ts");
-  assert.match(memory, /sequence: \{ gt: chat\.summaryThroughSequence, lte: cutoffSequence \}/);
-  assert.match(memory, /buildConversationSummary\(branchMessages, chat\.summary\)/);
+  assert.match(memory, /sequence: \{ gt: summaryThroughSequence, lte: cutoffSequence \}/);
+  assert.match(memory, /buildConversationSummary\(selectPersistedConversationBranch\(messages\), summary\)/);
   assert.match(memory, /selectPersistedConversationBranch/);
   assert.match(memory, /data: \{ summary, summaryThroughSequence \}/);
+  assert.match(memory, /while \(summaryThroughSequence < cutoffSequence\)/);
   assert.match(stream, /loadAdaptiveChatHistory/);
   assert.doesNotMatch(stream, /take: 40/);
 });

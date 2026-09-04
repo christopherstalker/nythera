@@ -1,6 +1,10 @@
 import { toChatPreview } from "@/lib/chat-preview";
 import type { CharacterSummary } from "@/components/characters/CharacterCard";
 
+export type LibraryRosterLayout = "grid" | "list";
+
+export const LIBRARY_ROSTER_LAYOUT: LibraryRosterLayout = "list";
+
 export type RosterCharacter = {
   id: string;
   name: string;
@@ -11,6 +15,7 @@ export type RosterCharacter = {
   isCustom: boolean;
   isRecent: boolean;
   lastActive?: string;
+  lastActiveAt?: number;
   glowColor?: string;
 };
 
@@ -49,6 +54,7 @@ export function buildCharacterRoster(input: {
       isCustom: false,
       isRecent: true,
       lastActive: formatLastActive(chat.lastActiveAt),
+      lastActiveAt: timestamp(chat.lastActiveAt),
       glowColor: "rgba(99,102,241,0.15)"
     });
   }
@@ -65,6 +71,7 @@ export function buildCharacterRoster(input: {
       isCustom: false,
       isRecent: existing?.isRecent ?? false,
       lastActive: existing?.lastActive,
+      lastActiveAt: existing?.lastActiveAt,
       glowColor: "rgba(251,191,36,0.15)"
     });
   }
@@ -81,6 +88,7 @@ export function buildCharacterRoster(input: {
       isCustom: true,
       isRecent: existing?.isRecent ?? false,
       lastActive: existing?.lastActive,
+      lastActiveAt: existing?.lastActiveAt,
       glowColor: "rgba(139,92,246,0.15)"
     });
   }
@@ -98,6 +106,12 @@ function chatActivityTime(value?: string | Date) {
   if (!value) return 0;
   const timestamp = new Date(value).getTime();
   return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function timestamp(value?: string | Date) {
+  if (!value) return undefined;
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 function formatLastActive(value?: string | Date) {

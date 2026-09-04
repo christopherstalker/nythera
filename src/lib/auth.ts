@@ -17,9 +17,13 @@ import {
   consumePwaAuthTransaction,
   PwaAuthTransactionError
 } from "@/lib/pwa-auth-transactions";
+import { usernameValidationMessage } from "@/lib/username";
 
 const MAX_SESSION_IMAGE_URL_LENGTH = 2048;
 const SESSION_PROFILE_REFRESH_MS = 5 * 60 * 1000;
+const authSecrets = [env.AUTH_SECRET, env.AUTH_SECRET_PREVIOUS].filter(
+  (secret): secret is string => Boolean(secret)
+);
 
 assertCanonicalAuthOrigin(process.env.VERCEL_ENV, env.AUTH_URL, env.NEXTAUTH_URL);
 
@@ -36,17 +40,19 @@ function safeSessionImageUrl(value: string | null | undefined) {
 }
 
 async function generateUniqueUsername(seed: string) {
-  const base =
+  const cleaned =
     seed
       .toLowerCase()
       .replace(/[^a-z0-9_]/g, "")
       .replace(/^_+|_+$/g, "")
-      .slice(0, 18) || "traveler";
+      .replace(/_+/g, "_")
+      .slice(0, 18);
+  const base = !usernameValidationMessage(cleaned) ? cleaned : "traveler";
 
   let candidate = base;
   let suffix = 0;
 
-  while (await prisma.user.findUnique({ where: { username: candidate }, select: { id: true } })) {
+  while (await prisma.user.findFirst({ where: { username: { equals: candidate, mode: "insensitive" } }, select: { id: true } })) {
     suffix += 1;
     candidate = `${base}${suffix}`.slice(0, 20);
   }
@@ -178,6 +184,7 @@ const providers = [
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
+  secret: authSecrets.length > 0 ? authSecrets : undefined,
   trustHost: true,
   session: {
     strategy: "jwt",
@@ -237,14 +244,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               username: true,
               role: true,
               avatarUrl: true,
-              image: true
+              image: true,
+              authVersion: true,
+              bannedAt: true
             }
           });
+
+          if (!dbUser || dbUser.bannedAt) {
+            return null;
+          }
+
+          if (
+            typeof token.authVersion === "number" &&
+            token.authVersion !== dbUser.authVersion
+          ) {
+            return null;
+          }
 
           if (dbUser) {
             token.email = dbUser.email;
             token.role = dbUser.role;
             token.username = dbUser.username;
+            token.authVersion = dbUser.authVersion;
             const safeImage = safeSessionImageUrl(dbUser.avatarUrl ?? dbUser.image);
             if (safeImage) {
               token.picture = safeImage;
@@ -254,7 +275,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
           token.profileRefreshedAt = Date.now();
         } catch (error) {
-          if (!token.email) {
+          if (!token.email || typeof token.authVersion !== "number") {
             throw error;
           }
         }

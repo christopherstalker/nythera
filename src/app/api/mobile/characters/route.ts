@@ -3,7 +3,7 @@ import { z } from "zod";
 import { json, parseJson, routeError, HttpError, getRequestIp } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireMobileUser } from "@/lib/mobile-auth";
-import { characterCreateSchema } from "@/lib/validation";
+import { characterCreateSchemaFor } from "@/lib/validation";
 import { redactCharacterModelSettings } from "@/lib/character-model-settings";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { createCharacterForUser } from "@/lib/character-mutations";
@@ -79,7 +79,10 @@ export async function POST(request: Request) {
       route: "mobile:characters:create"
     });
 
-    const input = await parseJson(request, characterCreateSchema);
+    const unlimitedCharacterFields = user.unlimitedCharacterFields;
+    const input = await parseJson(request, characterCreateSchemaFor(unlimitedCharacterFields), {
+      maxBytes: unlimitedCharacterFields ? null : undefined
+    });
     const character = await createCharacterForUser(input, user);
 
     return json({ character }, { status: 201 });

@@ -9,8 +9,10 @@ import {
   formatPlayerPhysicalCanon
 } from "../src/lib/physical-continuity";
 import {
+  configuredOutputTokenLimit,
   maxOutputTokensForVerbosity,
   providerOutputTokenBudget,
+  resolveChatOutputTokenLimit,
   responseLengthTarget
 } from "../src/lib/response-length";
 import { romanceLevelInstruction } from "../src/lib/romance-level";
@@ -51,13 +53,19 @@ test("response sizes have hard prompt ranges and matching provider caps", () => 
   assert.equal(maxOutputTokensForVerbosity("balanced"), 480);
   assert.equal(maxOutputTokensForVerbosity("immersive"), 1_050);
   assert.equal(maxOutputTokensForVerbosity("immersive", 700), 700);
+  assert.equal(configuredOutputTokenLimit(null, null), null);
+  assert.equal(configuredOutputTokenLimit(1_200, 2_048), 1_200);
+  assert.equal(configuredOutputTokenLimit(null, 2_048), 2_048);
+  assert.equal(resolveChatOutputTokenLimit("concise", null, null), 240);
+  assert.equal(resolveChatOutputTokenLimit("concise", null, 2_048), 2_048);
+  assert.equal(resolveChatOutputTokenLimit("immersive", 700, 2_048), 700);
   assert.equal(providerOutputTokenBudget({ visibleTokenLimit: 520, provider: "openai", model: "gpt-5" }), 520);
   assert.equal(providerOutputTokenBudget({ visibleTokenLimit: 520, provider: "gemini", model: "gemini-2.5-flash" }), 2_056);
   assert.equal(providerOutputTokenBudget({ visibleTokenLimit: 1_050, provider: "gemini", model: "gemini-3.6-flash" }), 2_586);
   assert.equal(providerOutputTokenBudget({ visibleTokenLimit: 520, provider: "gemini", model: "failover-proof:failover-model" }), 2_056);
 });
 
-test("explicit character and player heights become authoritative spatial constraints", () => {
+test("explicit character and player heights become private semantic spatial constraints", () => {
   const layer = buildPhysicalContinuityLayer(
     {
       name: "Marek",

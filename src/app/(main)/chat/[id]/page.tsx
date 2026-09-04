@@ -89,7 +89,7 @@ export default function ChatPage() {
             <div className="skeleton h-24 w-4/5" />
           </div>
         </div>
-        <div className="px-4 pb-[calc(5.75rem+env(safe-area-inset-bottom))] pt-2 md:pb-4">
+        <div className="px-4 pb-[calc(.75rem+env(safe-area-inset-bottom))] pt-2 md:pb-4">
           <div className="mx-auto h-16 max-w-[900px] rounded-2xl bg-[var(--bg-input)]" />
         </div>
       </div>

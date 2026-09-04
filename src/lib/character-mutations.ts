@@ -8,6 +8,7 @@ import { canonicalizeCharacterPersona } from "@/lib/character-prompt-contract";
 import { normalizeCharacterTags } from "@/lib/character-tags";
 import { prisma } from "@/lib/prisma";
 import { moderateText } from "@/lib/safety";
+import { rememberUserTags } from "@/lib/tag-library";
 import { characterCreateSchema, characterUpdateSchema } from "@/lib/validation";
 import { containsRussianLanguage, RUSSIAN_CHARACTER_PUBLICATION_ERROR } from "@/lib/language-policy";
 
@@ -52,34 +53,39 @@ export async function createCharacterForUser(input: CharacterCreateInput, user: 
     lorebook: input.lorebook
   });
 
-  const character = await prisma.character.create({
-    data: {
-      creatorId: user.id,
-      creationMode: input.creationMode,
-      name: input.name,
-      avatarUrl: input.avatarUrl || null,
-      description: input.description,
-      personality: input.personality,
-      scenario: input.scenario,
-      greeting: input.greeting,
-      communicationStyle: input.communicationStyle ?? Prisma.JsonNull,
-      persona: persona ?? Prisma.JsonNull,
-      lorebook: input.lorebook ?? Prisma.JsonNull,
-      visualIdentity: input.visualIdentity ?? Prisma.JsonNull,
-      preferredProvider: input.preferredProvider,
-      preferredModel: input.preferredModel,
-      temperature: input.temperature,
-      topP: input.topP,
-      frequencyPenalty: input.frequencyPenalty,
-      presencePenalty: input.presencePenalty,
-      maxTokens: input.maxTokens,
-      systemPromptOverride: input.systemPromptOverride,
-      defaultChatMode: input.defaultChatMode,
-      visibility: input.visibility,
-      tags: normalizeCharacterTags(input.tags),
-      isNSFW: input.isNSFW,
-      moderationStatus: "APPROVED"
-    }
+  const tags = normalizeCharacterTags(input.tags);
+  const character = await prisma.$transaction(async (transaction) => {
+    const created = await transaction.character.create({
+      data: {
+        creatorId: user.id,
+        creationMode: input.creationMode,
+        name: input.name,
+        avatarUrl: input.avatarUrl || null,
+        description: input.description,
+        personality: input.personality,
+        scenario: input.scenario,
+        greeting: input.greeting,
+        communicationStyle: input.communicationStyle ?? Prisma.JsonNull,
+        persona: persona ?? Prisma.JsonNull,
+        lorebook: input.lorebook ?? Prisma.JsonNull,
+        visualIdentity: input.visualIdentity ?? Prisma.JsonNull,
+        preferredProvider: input.preferredProvider,
+        preferredModel: input.preferredModel,
+        temperature: input.temperature,
+        topP: input.topP,
+        frequencyPenalty: input.frequencyPenalty,
+        presencePenalty: input.presencePenalty,
+        maxTokens: input.maxTokens,
+        systemPromptOverride: input.systemPromptOverride,
+        defaultChatMode: input.defaultChatMode,
+        visibility: input.visibility,
+        tags,
+        isNSFW: input.isNSFW,
+        moderationStatus: "APPROVED"
+      }
+    });
+    await rememberUserTags(transaction, user.id, tags);
+    return created;
   });
 
   invalidateCharacterDiscovery();
@@ -149,18 +155,25 @@ export async function updateCharacterForUser(characterId: string, input: Charact
     lorebook: input.lorebook ?? character.lorebook
   });
 
-  const updated = await prisma.character.update({
-    where: { id: characterId },
-    data: {
-      ...input,
-      tags: input.tags === undefined ? undefined : normalizeCharacterTags(input.tags),
-      avatarUrl: input.avatarUrl === "" ? null : input.avatarUrl,
-      communicationStyle: input.communicationStyle === undefined ? undefined : input.communicationStyle ?? Prisma.JsonNull,
-      persona: input.name === undefined && input.persona === undefined ? undefined : persona ?? Prisma.JsonNull,
-      lorebook: input.lorebook === undefined ? undefined : input.lorebook ?? Prisma.JsonNull,
-      visualIdentity: input.visualIdentity === undefined ? undefined : input.visualIdentity ?? Prisma.JsonNull,
-      moderationStatus: "APPROVED"
+  const tags = input.tags === undefined ? undefined : normalizeCharacterTags(input.tags);
+  const updated = await prisma.$transaction(async (transaction) => {
+    const nextCharacter = await transaction.character.update({
+      where: { id: characterId },
+      data: {
+        ...input,
+        tags,
+        avatarUrl: input.avatarUrl === "" ? null : input.avatarUrl,
+        communicationStyle: input.communicationStyle === undefined ? undefined : input.communicationStyle ?? Prisma.JsonNull,
+        persona: input.name === undefined && input.persona === undefined ? undefined : persona ?? Prisma.JsonNull,
+        lorebook: input.lorebook === undefined ? undefined : input.lorebook ?? Prisma.JsonNull,
+        visualIdentity: input.visualIdentity === undefined ? undefined : input.visualIdentity ?? Prisma.JsonNull,
+        moderationStatus: "APPROVED"
+      }
+    });
+    if (tags) {
+      await rememberUserTags(transaction, character.creatorId, tags);
     }
+    return nextCharacter;
   });
 
   invalidateCharacterDiscovery();

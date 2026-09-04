@@ -14,6 +14,7 @@ export async function createStoryPackage(storyId: string, userId: string, public
         include: {
           turns: { orderBy: { sequence: "asc" }, take: 500, select: { sequence: true, channel: true, content: true, actorCharacterId: true, createdAt: true } },
           snapshots: { orderBy: { version: "desc" }, take: 1, select: { version: true, state: true } },
+          scenes: { orderBy: { startedAtSequence: "asc" }, take: 100, select: { status: true, title: true, worldTime: true, location: true, startedAtSequence: true, endedAtSequence: true, summary: true } },
           participantStates: { select: { participantId: true, displayNameOverride: true, pronouns: true, currentMood: true, appearance: true, currentGoal: true, innerConflict: true, voiceStyle: true, speakingStyle: true } },
           visualReferences: { where: { locked: true }, select: { participantId: true, kind: true, title: true, imageUrl: true, prompt: true, notes: true } },
           checkpoints: { orderBy: { createdAt: "desc" }, take: 1, select: { title: true, summary: true, openThreads: true, stateVersion: true } }
@@ -23,7 +24,7 @@ export async function createStoryPackage(storyId: string, userId: string, public
         where: { status: "ACTIVE" },
         orderBy: [{ locked: "desc" }, { importance: "desc" }],
         take: 250,
-        select: { predicate: true, objectText: true, scope: true, locked: true, importance: true, timelineId: true, subjectEntity: { select: { name: true } } }
+        select: { predicate: true, objectText: true, kind: true, worldTime: true, validFromSequence: true, validUntilSequence: true, scope: true, locked: true, importance: true, timelineId: true, subjectEntity: { select: { name: true } } }
       },
       director: true,
       arcs: { orderBy: [{ priority: "desc" }, { createdAt: "asc" }], take: 50 },
@@ -42,7 +43,7 @@ export async function createStoryPackage(storyId: string, userId: string, public
   const worldState = publicView ? withoutPrivateWorldNotes(timeline?.snapshots[0]?.state ?? null) : timeline?.snapshots[0]?.state ?? null;
   const facts = story.facts
     .filter((fact) => (!fact.timelineId || fact.timelineId === activeTimelineId) && (!publicView || fact.scope === "STORY"))
-    .map((fact) => ({ subject: fact.subjectEntity?.name ?? null, predicate: fact.predicate, objectText: fact.objectText, scope: fact.scope, locked: fact.locked, importance: fact.importance }));
+    .map((fact) => ({ subject: fact.subjectEntity?.name ?? null, predicate: fact.predicate, objectText: fact.objectText, kind: fact.kind, worldTime: fact.worldTime, validFromSequence: fact.validFromSequence, validUntilSequence: fact.validUntilSequence, scope: fact.scope, locked: fact.locked, importance: fact.importance }));
   const states = (timeline?.participantStates ?? []).map((state) => ({
     participantId: state.participantId,
     displayNameOverride: state.displayNameOverride,
@@ -57,12 +58,13 @@ export async function createStoryPackage(storyId: string, userId: string, public
 
   return {
     format: "nythera.story",
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     story: { title: story.title, mode: story.mode },
     timeline: timeline ? {
       label: timeline.label,
       turns: timeline.turns.map((turn) => ({ ...turn, createdAt: turn.createdAt.toISOString() })),
+      scenes: timeline.scenes,
       worldState
     } : null,
     cast: story.participants,

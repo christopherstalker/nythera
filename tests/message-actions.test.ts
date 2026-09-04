@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   canEditMessageRole,
+  conversationBranchThroughMessage,
   continuationClientRequestId,
   latestAssistantVariantGroup,
   partitionMessagesForRewind,
@@ -12,6 +13,8 @@ import {
   prepareUserRetryTurn,
   resolveVariantSelection,
   selectPersistedConversationBranch,
+  skipTimeClientRequestId,
+  skipTimeDurationFromClientRequestId,
   shouldRegenerateAfterMessageEdit
 } from "../src/lib/message-actions";
 import { streamMessageSchema } from "../src/lib/validation";
@@ -108,6 +111,38 @@ test("regeneration supports opening and continued assistant-only turns", () => {
   assert.deepEqual(continuedResult?.recentMessages.map((message) => message.id), ["a1"]);
 });
 
+test("regenerating a skip-time response preserves the skip-time action", () => {
+  const opening = { id: "a1", role: "ASSISTANT" as const, content: "Welcome to the paddock." };
+  const skipTime = {
+    id: "a2",
+    role: "ASSISTANT" as const,
+    content: "Three weeks later, the team returns to the circuit.",
+    clientRequestId: skipTimeClientRequestId("request-1", opening.id, { value: 6, unit: "hour" }),
+    branchSourceMessageId: opening.id
+  };
+  const skipTimeVariant = {
+    id: "a3",
+    role: "ASSISTANT" as const,
+    content: "By the following race weekend, the paddock has changed."
+  };
+
+  const firstAttempt = prepareRegenerationTurn([opening, skipTime], skipTime.id);
+  const regeneratedAttempt = prepareRegenerationTurn([opening, skipTime, skipTimeVariant], skipTimeVariant.id);
+
+  assert.equal(firstAttempt?.trigger, "skip-time");
+  assert.deepEqual(firstAttempt?.skipTimeDuration, { value: 6, unit: "hour" });
+  assert.equal(regeneratedAttempt?.trigger, "skip-time");
+  assert.deepEqual(regeneratedAttempt?.skipTimeDuration, { value: 6, unit: "hour" });
+  assert.deepEqual(regeneratedAttempt?.recentMessages.map((message) => message.id), ["a1"]);
+  assert.deepEqual(latestAssistantVariantGroup([opening, skipTime, skipTimeVariant]).map((message) => message.id), ["a2", "a3"]);
+});
+
+test("skip-time request ids retain custom durations without changing their branch source", () => {
+  const requestId = skipTimeClientRequestId("request-2", "assistant-1", { value: 1, unit: "minute" });
+
+  assert.deepEqual(skipTimeDurationFromClientRequestId(requestId), { value: 1, unit: "minute" });
+});
+
 test("continuation follows the selected response from the latest regeneration group", () => {
   const conversation = [
     { id: "u1", role: "USER" as const, content: "Open the archive." },
@@ -120,6 +155,26 @@ test("continuation follows the selected response from the latest regeneration gr
   assert.deepEqual(selectedBranch?.map((message) => message.id), ["u1", "a2"]);
   assert.equal(prepareContinuationTurn(conversation, "a1")?.at(-1)?.content, "First response.");
   assert.equal(prepareContinuationTurn(conversation, "missing"), null);
+});
+
+test("a new chat branch keeps only the selected regeneration and its canonical ancestry", () => {
+  const conversation = [
+    { id: "u1", role: "USER" as const, content: "Choose a door." },
+    { id: "a1", role: "ASSISTANT" as const, content: "The red door opens." },
+    { id: "a2", role: "ASSISTANT" as const, content: "The blue door opens." },
+    { id: "a3", role: "ASSISTANT" as const, content: "The black door opens." },
+    { id: "u2", role: "USER" as const, content: "Step through the blue door.", branchSourceMessageId: "a2" },
+    { id: "a4", role: "ASSISTANT" as const, content: "Cold air spills out." }
+  ];
+
+  assert.deepEqual(
+    conversationBranchThroughMessage(conversation, "a2")?.map((message) => message.id),
+    ["u1", "a2"]
+  );
+  assert.deepEqual(
+    conversationBranchThroughMessage(conversation, "a4")?.map((message) => message.id),
+    ["u1", "a2", "u2", "a4"]
+  );
 });
 
 test("active response selection moves to the latest assistant turn", () => {
@@ -161,9 +216,13 @@ test("persisted continuations keep the selected regeneration as the canonical br
   assert.deepEqual(selectPersistedConversationBranch(conversation).map((message) => message.id), ["u1", "a2", "a4", "u2"]);
 });
 
-test("stream validation permits empty text only for continue, regenerate, and retry actions", () => {
+test("stream validation permits empty text only for assistant-only, regenerate, and retry actions", () => {
   assert.equal(streamMessageSchema.safeParse({ message: "" }).success, false);
   assert.equal(streamMessageSchema.safeParse({ message: "", continueChat: true }).success, true);
+  assert.equal(streamMessageSchema.safeParse({ message: "", skipTime: true }).success, true);
+  assert.equal(streamMessageSchema.safeParse({ message: "", skipTime: true, skipTimeValue: 1, skipTimeUnit: "minute" }).success, true);
+  assert.equal(streamMessageSchema.safeParse({ message: "", skipTime: true, skipTimeValue: 0, skipTimeUnit: "minute" }).success, false);
+  assert.equal(streamMessageSchema.safeParse({ message: "", skipTime: true, skipTimeValue: 5 }).success, false);
   assert.equal(
     streamMessageSchema.safeParse({ message: "", regenerate: true, regenerateMessageId: "assistant-message" }).success,
     true

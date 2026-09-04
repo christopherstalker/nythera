@@ -1,17 +1,30 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
-import { Copy, Edit3, GitFork, History, Pin, Play, RefreshCcw, ShieldAlert, Trash2, X } from "lucide-react";
+import { Clock3, Copy, Edit3, GitFork, History, Pin, Play, RefreshCcw, ShieldAlert, Trash2, X } from "lucide-react";
+import type { SkipTimeDuration, SkipTimeUnit } from "@/lib/chat-actions";
+
+const SKIP_TIME_PRESETS: Array<{ label: string; duration: SkipTimeDuration }> = [
+  { label: "1 min", duration: { value: 1, unit: "minute" } },
+  { label: "5 min", duration: { value: 5, unit: "minute" } },
+  { label: "30 min", duration: { value: 30, unit: "minute" } },
+  { label: "1 hour", duration: { value: 1, unit: "hour" } },
+  { label: "6 hours", duration: { value: 6, unit: "hour" } },
+  { label: "1 day", duration: { value: 1, unit: "day" } },
+  { label: "1 week", duration: { value: 1, unit: "week" } }
+];
 
 type MessageContextMenuProps = {
   isOpen: boolean;
+  initialPanel?: "actions" | "skip-time";
   onClose: () => void;
   onCopy: () => void;
   onEdit?: () => void;
   onRegenerate?: () => void;
   onContinue?: () => void;
+  onSkipTime?: (duration: SkipTimeDuration) => void;
   onRewind?: () => void;
   onPin?: () => void;
   onBranch?: () => void;
@@ -23,11 +36,13 @@ type MessageContextMenuProps = {
 
 export function MessageContextMenu({
   isOpen,
+  initialPanel = "actions",
   onClose,
   onCopy,
   onEdit,
   onRegenerate,
   onContinue,
+  onSkipTime,
   onRewind,
   onPin,
   onBranch,
@@ -37,6 +52,14 @@ export function MessageContextMenu({
   isPinned,
 }: MessageContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
+  const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
+  const [skipTimeOpen, setSkipTimeOpen] = useState(initialPanel === "skip-time" && Boolean(onSkipTime));
+  const [skipTimeValue, setSkipTimeValue] = useState("1");
+  const [skipTimeUnit, setSkipTimeUnit] = useState<SkipTimeUnit>("minute");
+
+  useEffect(() => {
+    setPortalRoot(document.body);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -62,7 +85,18 @@ export function MessageContextMenu({
     };
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (!isOpen) setSkipTimeOpen(false);
+  }, [isOpen]);
+
+  function submitSkipTime() {
+    const value = Number(skipTimeValue);
+    if (!Number.isInteger(value) || value < 1 || value > 1_000_000_000 || !onSkipTime) return;
+    onSkipTime({ value, unit: skipTimeUnit });
+    onClose();
+  }
+
+  if (!isOpen || !portalRoot) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/20 px-3 pt-3 backdrop-blur-[2px] md:items-center md:p-6">
@@ -90,6 +124,76 @@ export function MessageContextMenu({
             <X className="h-4 w-4" />
           </button>
         </div>
+        {skipTimeOpen ? (
+          <div className="side-panel-scroll min-h-0 overflow-y-auto py-4">
+            <div className="flex items-center gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[var(--accent-purple)]/40 text-[var(--accent-purple)]">
+                <Clock3 className="h-4 w-4" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-[var(--text-primary)]">How much time should pass?</p>
+                <p className="mt-0.5 text-xs text-[var(--text-muted)]">Choose from one minute to any custom interval.</p>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-4 gap-2">
+              {SKIP_TIME_PRESETS.map((preset) => {
+                const selected = skipTimeValue === String(preset.duration.value) && skipTimeUnit === preset.duration.unit;
+                return (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => {
+                      setSkipTimeValue(String(preset.duration.value));
+                      setSkipTimeUnit(preset.duration.unit);
+                    }}
+                    className={cn(
+                      "focus-ring min-h-10 rounded-lg border px-2 text-xs transition-colors",
+                      selected
+                        ? "border-[var(--accent-purple)] bg-[var(--accent-purple)]/10 text-[var(--text-primary)]"
+                        : "border-white/10 bg-white/[.025] text-[var(--text-secondary)] hover:bg-white/[.07]"
+                    )}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-4 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
+              <label className="grid gap-1.5 text-[10px] font-semibold uppercase tracking-[.12em] text-[var(--text-muted)]">
+                Amount
+                <input
+                  type="number"
+                  min={1}
+                  max={1_000_000_000}
+                  step={1}
+                  inputMode="numeric"
+                  value={skipTimeValue}
+                  onChange={(event) => setSkipTimeValue(event.target.value.replace(/[^0-9]/g, "").slice(0, 10))}
+                  className="focus-ring h-11 min-w-0 rounded-lg border border-white/15 bg-black/30 px-3 text-sm text-[var(--text-primary)]"
+                />
+              </label>
+              <label className="grid gap-1.5 text-[10px] font-semibold uppercase tracking-[.12em] text-[var(--text-muted)]">
+                Unit
+                <select
+                  value={skipTimeUnit}
+                  onChange={(event) => setSkipTimeUnit(event.target.value as SkipTimeUnit)}
+                  className="focus-ring h-11 min-w-0 rounded-lg border border-white/15 bg-[#111] px-3 text-sm text-[var(--text-primary)]"
+                >
+                  <option value="minute">Minutes</option>
+                  <option value="hour">Hours</option>
+                  <option value="day">Days</option>
+                  <option value="week">Weeks</option>
+                  <option value="month">Months</option>
+                  <option value="year">Years</option>
+                </select>
+              </label>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setSkipTimeOpen(false)} className="focus-ring h-10 rounded-full border border-white/15 px-4 text-xs text-[var(--text-secondary)]">Back</button>
+              <button type="button" onClick={submitSkipTime} disabled={!/^\d+$/.test(skipTimeValue) || Number(skipTimeValue) < 1} className="focus-ring h-10 rounded-full border border-[var(--accent-purple)] bg-[var(--accent-purple)]/10 px-5 text-xs font-semibold text-[var(--text-primary)] disabled:opacity-40">Advance time</button>
+            </div>
+          </div>
+        ) : (
         <div className="side-panel-scroll grid min-h-0 grid-cols-4 gap-2 overflow-y-auto py-3">
           <MenuItem onClick={onCopy} icon={<Copy className="h-4 w-4" />}>
             Copy
@@ -110,6 +214,12 @@ export function MessageContextMenu({
           {onContinue ? (
             <MenuItem onClick={onContinue} icon={<Play className="h-4 w-4" />}>
               Continue
+            </MenuItem>
+          ) : null}
+
+          {onSkipTime ? (
+            <MenuItem onClick={() => setSkipTimeOpen(true)} icon={<Clock3 className="h-4 w-4" />}>
+              Skip time
             </MenuItem>
           ) : null}
 
@@ -135,13 +245,14 @@ export function MessageContextMenu({
             </MenuItem>
           ) : null}
         </div>
+        )}
         <div className="h-px bg-white/10" />
         <MenuItem onClick={onDelete} destructive wide icon={<Trash2 className="h-4 w-4" />}>
           Delete
         </MenuItem>
       </div>
     </div>,
-    document.body
+    portalRoot
   );
 }
 

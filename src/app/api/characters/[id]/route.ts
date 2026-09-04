@@ -3,9 +3,10 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { HttpError, getRequestIp, json, parseJson, requireUser, routeError } from "@/lib/api";
 import { enforceRateLimit } from "@/lib/rate-limit";
-import { characterUpdateSchema } from "@/lib/validation";
+import { characterUpdateSchemaFor } from "@/lib/validation";
 import { redactCharacterModelSettings } from "@/lib/character-model-settings";
 import { deleteCharacterForUser, updateCharacterForUser } from "@/lib/character-mutations";
+import { rememberUserTags } from "@/lib/tag-library";
 
 type Context = {
   params: Promise<{ id: string }>;
@@ -15,6 +16,12 @@ export async function GET(request: Request, context: Context) {
   try {
     const characterId = (await context.params).id;
     const session = await auth();
+    const viewerCapabilities = session?.user?.id
+      ? await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { unlimitedCharacterFields: true }
+        })
+      : null;
     const viewerOnly = new URL(request.url).searchParams.get("view") === "viewer";
 
     if (viewerOnly) {
@@ -78,6 +85,9 @@ export async function GET(request: Request, context: Context) {
         recentChat,
         viewer: {
           canEdit: Boolean(session?.user?.id && session.user.id === access.creatorId),
+          unlimitedCharacterFields: Boolean(
+            session?.user?.id === access.creatorId && viewerCapabilities?.unlimitedCharacterFields
+          ),
           liked: Boolean(liked),
           rating: myRating
         }
@@ -149,6 +159,7 @@ export async function GET(request: Request, context: Context) {
       recentChat,
       viewer: {
         canEdit,
+        unlimitedCharacterFields: Boolean(canEdit && viewerCapabilities?.unlimitedCharacterFields),
         liked: Boolean(liked),
         rating: myRating
       }
@@ -161,7 +172,10 @@ export async function GET(request: Request, context: Context) {
 export async function PATCH(request: Request, context: Context) {
   try {
     const user = await requireUser();
-    const input = await parseJson(request, characterUpdateSchema);
+    const unlimitedCharacterFields = user.unlimitedCharacterFields;
+    const input = await parseJson(request, characterUpdateSchemaFor(unlimitedCharacterFields), {
+      maxBytes: unlimitedCharacterFields ? null : undefined
+    });
     const updated = await updateCharacterForUser((await context.params).id, input, user);
 
     return json({ character: updated });
@@ -197,27 +211,31 @@ export async function POST(request: Request, context: Context) {
       throw new HttpError(404, "Public character not found.");
     }
 
-    const clone = await prisma.character.create({
-      data: {
-        creatorId: user.id,
-        cloneSourceId: source.id,
-        creationMode: source.creationMode,
-        name: `${source.name} remix`,
-        avatarUrl: source.avatarUrl,
-        description: source.description,
-        personality: source.personality,
-        scenario: source.scenario,
-        greeting: source.greeting,
-        communicationStyle: source.communicationStyle ?? Prisma.JsonNull,
-        persona: source.persona ?? Prisma.JsonNull,
-        lorebook: source.lorebook ?? Prisma.JsonNull,
-        visualIdentity: source.visualIdentity ?? Prisma.JsonNull,
-        visibility: "PRIVATE",
-        moderationStatus: "APPROVED",
-        tags: source.tags,
-        isNSFW: source.isNSFW,
-        defaultChatMode: source.defaultChatMode
-      }
+    const clone = await prisma.$transaction(async (transaction) => {
+      const character = await transaction.character.create({
+        data: {
+          creatorId: user.id,
+          cloneSourceId: source.id,
+          creationMode: source.creationMode,
+          name: `${source.name} remix`,
+          avatarUrl: source.avatarUrl,
+          description: source.description,
+          personality: source.personality,
+          scenario: source.scenario,
+          greeting: source.greeting,
+          communicationStyle: source.communicationStyle ?? Prisma.JsonNull,
+          persona: source.persona ?? Prisma.JsonNull,
+          lorebook: source.lorebook ?? Prisma.JsonNull,
+          visualIdentity: source.visualIdentity ?? Prisma.JsonNull,
+          visibility: "PRIVATE",
+          moderationStatus: "APPROVED",
+          tags: source.tags,
+          isNSFW: source.isNSFW,
+          defaultChatMode: source.defaultChatMode
+        }
+      });
+      await rememberUserTags(transaction, user.id, source.tags);
+      return character;
     });
 
     return json({ character: clone }, { status: 201 });

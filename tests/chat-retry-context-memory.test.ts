@@ -36,10 +36,10 @@ test("contextual exchange memory is stored independently of the queue worker", a
   assert.ok(contextualWrite >= 0 && contextualWrite < queueWrite);
   assert.match(memory, /extractor: "contextual-exchange"/);
   assert.match(memory, /category: MemoryCategory\.EVENT/);
+  assert.match(memory, /status: MemoryStatus\.ACTIVE/);
   assert.match(memory, /Earlier scene context:/);
   assert.match(memory, /sourceChatId: input\.chatId/);
-  for (const route of [stream, mobile]) {
-    assert.match(route, /schedulePostMessageJobs/);
-    assert.match(route, /user\.memoryEnabled && !continueChat/);
-  }
+  for (const route of [stream, mobile]) assert.match(route, /schedulePostMessageJobs/);
+  assert.match(stream, /user\.memoryEnabled && !effectiveAssistantAction/);
+  assert.match(mobile, /user\.memoryEnabled && !assistantOnlyAction/);
 });

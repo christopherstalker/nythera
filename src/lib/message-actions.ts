@@ -1,3 +1,5 @@
+import type { SkipTimeDuration, SkipTimeUnit } from "@/lib/chat-actions";
+
 export type EditableMessageRole = "USER" | "ASSISTANT" | "SYSTEM";
 
 export function canEditMessageRole(role: EditableMessageRole) {
@@ -54,7 +56,7 @@ export function latestAssistantVariantGroup<T extends RegenerationMessage>(messa
   let firstVariantIndex = latestAssistantIndex;
   while (
     firstVariantIndex > 0 &&
-    !messages[firstVariantIndex].clientRequestId?.startsWith("continue-") &&
+    !assistantActionKind(messages[firstVariantIndex].clientRequestId) &&
     messages[firstVariantIndex - 1].role === "ASSISTANT"
   ) {
     firstVariantIndex -= 1;
@@ -64,15 +66,45 @@ export function latestAssistantVariantGroup<T extends RegenerationMessage>(messa
 }
 
 const CONTINUATION_BRANCH_MARKER = "::branch=";
+const SKIP_TIME_DURATION_MARKER = "::duration=";
+const CONTINUATION_REQUEST_PREFIX = "continue-";
+const SKIP_TIME_REQUEST_PREFIX = "skip-time-";
+
+export type AssistantActionKind = "continuation" | "skip-time";
 
 export function continuationClientRequestId(requestId: string, sourceMessageId: string) {
-  return `continue-${requestId}${CONTINUATION_BRANCH_MARKER}${sourceMessageId}`;
+  return `${CONTINUATION_REQUEST_PREFIX}${requestId}${CONTINUATION_BRANCH_MARKER}${sourceMessageId}`;
+}
+
+export function skipTimeClientRequestId(requestId: string, sourceMessageId?: string | null, duration?: SkipTimeDuration | null) {
+  const durationMarker = duration ? `${SKIP_TIME_DURATION_MARKER}${duration.value}:${duration.unit}` : "";
+  return `${SKIP_TIME_REQUEST_PREFIX}${requestId}${durationMarker}${sourceMessageId ? `${CONTINUATION_BRANCH_MARKER}${sourceMessageId}` : ""}`;
+}
+
+export function assistantActionKind(clientRequestId?: string | null): AssistantActionKind | null {
+  if (clientRequestId?.startsWith(SKIP_TIME_REQUEST_PREFIX)) return "skip-time";
+  if (clientRequestId?.startsWith(CONTINUATION_REQUEST_PREFIX)) return "continuation";
+  return null;
 }
 
 export function continuationSourceMessageId(clientRequestId?: string | null) {
-  if (!clientRequestId?.startsWith("continue-")) return null;
+  if (!clientRequestId || !assistantActionKind(clientRequestId)) return null;
   const markerIndex = clientRequestId.lastIndexOf(CONTINUATION_BRANCH_MARKER);
   return markerIndex < 0 ? null : clientRequestId.slice(markerIndex + CONTINUATION_BRANCH_MARKER.length) || null;
+}
+
+export function skipTimeDurationFromClientRequestId(clientRequestId?: string | null): SkipTimeDuration | null {
+  if (!clientRequestId?.startsWith(SKIP_TIME_REQUEST_PREFIX)) return null;
+  const markerIndex = clientRequestId.indexOf(SKIP_TIME_DURATION_MARKER);
+  if (markerIndex < 0) return null;
+
+  const encoded = clientRequestId
+    .slice(markerIndex + SKIP_TIME_DURATION_MARKER.length)
+    .split(CONTINUATION_BRANCH_MARKER, 1)[0];
+  const [rawValue, rawUnit] = encoded.split(":", 2);
+  const value = Number(rawValue);
+  if (!Number.isInteger(value) || value < 1 || !isSkipTimeUnit(rawUnit)) return null;
+  return { value, unit: rawUnit };
 }
 
 export function branchSourceMessageId(message: Pick<RegenerationMessage, "branchSourceMessageId" | "clientRequestId">) {
@@ -90,7 +122,7 @@ export function selectPersistedConversationBranch<T extends RegenerationMessage>
         let groupStart = sourceIndex;
         while (
           groupStart > 0 &&
-          !selected[groupStart].clientRequestId?.startsWith("continue-") &&
+          !assistantActionKind(selected[groupStart].clientRequestId) &&
           selected[groupStart - 1].role === "ASSISTANT"
         ) {
           groupStart -= 1;
@@ -100,7 +132,7 @@ export function selectPersistedConversationBranch<T extends RegenerationMessage>
         while (
           groupEnd + 1 < selected.length &&
           selected[groupEnd + 1].role === "ASSISTANT" &&
-          !selected[groupEnd + 1].clientRequestId?.startsWith("continue-")
+          !assistantActionKind(selected[groupEnd + 1].clientRequestId)
         ) {
           groupEnd += 1;
         }
@@ -115,8 +147,9 @@ export function selectPersistedConversationBranch<T extends RegenerationMessage>
 }
 
 export type RegenerationTurn<T extends RegenerationMessage = RegenerationMessage> = {
-  trigger: "user" | "continuation" | "opening";
+  trigger: "user" | AssistantActionKind | "opening";
   currentMessage?: string;
+  skipTimeDuration?: SkipTimeDuration | null;
   recentMessages: T[];
 };
 
@@ -155,7 +188,7 @@ export function prepareContinuationTurn<T extends RegenerationMessage>(
   let firstVariantIndex = latestAssistantIndex;
   while (
     firstVariantIndex > 0 &&
-    !messages[firstVariantIndex].clientRequestId?.startsWith("continue-") &&
+    !assistantActionKind(messages[firstVariantIndex].clientRequestId) &&
     messages[firstVariantIndex - 1].role === "ASSISTANT"
   ) {
     firstVariantIndex -= 1;
@@ -168,6 +201,27 @@ export function prepareContinuationTurn<T extends RegenerationMessage>(
   }
 
   return [...messages.slice(0, firstVariantIndex), selected];
+}
+
+export function conversationBranchThroughMessage<T extends RegenerationMessage>(
+  messages: T[],
+  targetMessageId: string
+) {
+  const targetIndex = messages.findIndex((message) => message.id === targetMessageId);
+  if (targetIndex < 0) return null;
+
+  const prefix = messages.slice(0, targetIndex + 1);
+  const target = prefix.at(-1);
+  if (!target) return null;
+
+  if (target.role !== "ASSISTANT") {
+    return selectPersistedConversationBranch(prefix);
+  }
+
+  const selectedVariantPrefix = prepareContinuationTurn(prefix, target.id);
+  return selectedVariantPrefix
+    ? selectPersistedConversationBranch(selectedVariantPrefix)
+    : null;
 }
 
 export function prepareRegenerationTurn<T extends RegenerationMessage>(
@@ -197,7 +251,7 @@ export function prepareRegenerationTurn<T extends RegenerationMessage>(
   let firstVariantIndex = latestAssistantIndex;
   while (
     firstVariantIndex > 0 &&
-    !messages[firstVariantIndex].clientRequestId?.startsWith("continue-") &&
+    !assistantActionKind(messages[firstVariantIndex].clientRequestId) &&
     messages[firstVariantIndex - 1].role === "ASSISTANT"
   ) {
     firstVariantIndex -= 1;
@@ -218,10 +272,18 @@ export function prepareRegenerationTurn<T extends RegenerationMessage>(
     };
   }
 
+  const trigger = assistantActionKind(messages[firstVariantIndex].clientRequestId) ?? "opening";
   return {
-    trigger: messages[firstVariantIndex].clientRequestId?.startsWith("continue-") ? "continuation" : "opening",
+    trigger,
+    skipTimeDuration: trigger === "skip-time"
+      ? skipTimeDurationFromClientRequestId(messages[firstVariantIndex].clientRequestId)
+      : null,
     recentMessages: messages.slice(0, firstVariantIndex)
   };
+}
+
+function isSkipTimeUnit(value?: string): value is SkipTimeUnit {
+  return value === "minute" || value === "hour" || value === "day" || value === "week" || value === "month" || value === "year";
 }
 
 export function partitionMessagesForRewind<T extends { id: string }>(messages: T[], messageId: string) {

@@ -74,7 +74,11 @@ async function uploadImage(request: Request, userId: string) {
     width: form.get("width"),
     height: form.get("height")
   });
-  if (!(image instanceof File) || !CHAT_IMAGE_TYPES.includes(image.type as (typeof CHAT_IMAGE_TYPES)[number]) || image.size > MAX_CHAT_IMAGE_BYTES) {
+  if (
+    !(image instanceof File) ||
+    !CHAT_IMAGE_TYPES.includes(image.type as (typeof CHAT_IMAGE_TYPES)[number]) ||
+    image.size > MAX_CHAT_IMAGE_BYTES
+  ) {
     throw new HttpError(400, "Unsupported image attachment.");
   }
 

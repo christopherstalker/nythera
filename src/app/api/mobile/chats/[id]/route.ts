@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { requireMobileUser } from "@/lib/mobile-auth";
 import { chatUpdateSchema } from "@/lib/validation";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { renderInitialChatGreeting } from "@/lib/character-prompt-contract";
+import { formatUserPersonaForPrompt } from "@/lib/user-persona";
 import { getChatInputLimits } from "@/lib/chat-limits.server";
 
 type Context = {
@@ -34,8 +36,16 @@ export async function GET(request: Request, context: Context) {
       throw new HttpError(404, "Chat not found.");
     }
 
-    chat.messages.reverse();
-    return json({ chat: { ...chat, inputLimits: getChatInputLimits(user.id) } });
+    const persona = chat.persona ?? await prisma.userPersona.findFirst({
+      where: { userId: user.id, isDefault: true }
+    });
+    const userPersona = formatUserPersonaForPrompt(persona);
+    const messages = chat.messages.reverse().map((message) => renderInitialChatGreeting(
+      message,
+      chat.character.name,
+      userPersona
+    ));
+    return json({ chat: { ...chat, messages, inputLimits: getChatInputLimits(user.id) } });
   } catch (error) {
     return routeError(error);
   }
@@ -78,13 +88,14 @@ export async function PATCH(request: Request, context: Context) {
         lastActiveAt: new Date()
       }
     });
-    const [updated] = input.responsePrompt === undefined && input.chatMode === undefined
+    const [updated] = input.temperature === undefined && input.responsePrompt === undefined && input.chatMode === undefined
       ? [await chatUpdate]
       : await prisma.$transaction([
           chatUpdate,
           prisma.user.update({
             where: { id: user.id },
             data: {
+              defaultTemperature: input.temperature,
               defaultResponsePrompt: input.responsePrompt === undefined ? undefined : input.responsePrompt || null,
               preferredChatMode: input.chatMode
             }

@@ -7,31 +7,42 @@ import { moderateText, sanitizeUserText } from "@/lib/safety";
 import { detectPromptInjection, sanitizePromptContext } from "@/lib/prompt-security";
 import { streamMessageSchema } from "@/lib/validation";
 import { assembleNytheraPrompt } from "@/lib/prompt-assembly";
-import { buildPromptAddonLayers, modeTemperature } from "@/lib/prompts/buildPrompt";
+import { buildPromptAddonLayers } from "@/lib/prompts/buildPrompt";
 import { selectCustomPrompt } from "@/lib/response-prompt";
 import { buildPhysicalMemoryContext, formatTieredMemoryBlocks, getUserMemories, splitMemoriesForPrompt } from "@/lib/memory/promptBuilder";
 import { getPromptMemories } from "@/lib/memory-store";
 import { normalizeChatMode } from "@/lib/chat-mode";
 import { loadAdaptiveChatHistory } from "@/lib/chat-history";
 import { streamLlmResponse } from "@/lib/proxy";
-import { schedulePostMessageJobs } from "@/lib/memory";
+import { schedulePostMessageJobs, summarizeChat } from "@/lib/memory";
+import { buildMemoryRetrievalQuery, conversationSummaryIsStale } from "@/lib/memory-policy";
 import { getEffectiveProviderKeys, isUserOwnedProvider } from "@/lib/user-keys";
-import { formatUserPersonaForPrompt } from "@/lib/user-persona";
+import { formatUserPersonaContinuitySource, formatUserPersonaForPrompt } from "@/lib/user-persona";
+import { renderInitialChatGreeting } from "@/lib/character-prompt-contract";
 import { createMessageWithNextSequence } from "@/lib/message-sequence";
 import { resolveCharacterModelSettings } from "@/lib/character-model-settings";
 import { providerFallbackNotice } from "@/lib/provider-fallback";
-import { continuationClientRequestId, prepareContinuationTurn, prepareRegenerationTurn, prepareUserRetryTurn } from "@/lib/message-actions";
+import {
+  continuationClientRequestId,
+  prepareContinuationTurn,
+  prepareRegenerationTurn,
+  prepareUserRetryTurn,
+  skipTimeClientRequestId,
+  type AssistantActionKind
+} from "@/lib/message-actions";
 import { getStoryPromptContext, syncChatTurns } from "@/lib/stories/story-foundation";
-import { markStoryProactiveEventsFired } from "@/lib/stories/narrative-store";
+import { markStoryBeatsCompleted, markStoryProactiveEventsFired } from "@/lib/stories/narrative-store";
 import { estimateModelCost } from "@/lib/model-pricing";
 import { elapsedMs, logPerformanceMetric, measurePrismaOperation, performanceStart } from "@/lib/performance-logger";
 import { logSafeError } from "@/lib/secret-redaction";
 import { requireAdultConsent } from "@/lib/adult-consent";
 import { schedulePostResponseTasks } from "@/lib/post-response";
 import { resolveCharacterPersona } from "@/lib/persona";
-import { maxOutputTokensForVerbosity } from "@/lib/response-length";
+import { providerOutputTokenBudget, resolveChatOutputTokenLimit } from "@/lib/response-length";
 import { loadPromptImages, resolveOwnedChatAssets, serializeAsset } from "@/lib/chat-media";
 import { containsRussianLanguage, RUSSIAN_LANGUAGE_ERROR } from "@/lib/language-policy";
+import { buildSkipTimePrompt, resolveChatActionMessage, type SkipTimeDuration } from "@/lib/chat-actions";
+import { fitPromptMessagesWithinContext } from "@/lib/prompt-budget";
 import { createPhysicalContinuityOutputGuard } from "@/lib/physical-continuity";
 import { getChatInputLimits } from "@/lib/chat-limits.server";
 
@@ -65,11 +76,18 @@ export async function POST(request: Request, context: Context) {
       throw new HttpError(400, `Custom system prompt must be ${inputLimits.responsePrompt.toLocaleString()} characters or fewer.`);
     }
     const continueChat = input.continueChat === true;
+    const skipTime = input.skipTime === true;
+    let skipTimeDuration: SkipTimeDuration | null = input.skipTimeValue && input.skipTimeUnit
+      ? { value: input.skipTimeValue, unit: input.skipTimeUnit }
+      : null;
+    const assistantOnlyAction = continueChat || skipTime;
     const continuationPrompt =
       "Continue the roleplay naturally from the immediately preceding selected assistant response. Do not speak as the user, do not invent a user reply, and keep the scene moving in the character's voice.";
-    let message = continueChat ? continuationPrompt : sanitizeUserText(input.message, inputLimits.message);
+    let message = skipTime ? buildSkipTimePrompt(skipTimeDuration) : continueChat ? continuationPrompt : sanitizeUserText(input.message, inputLimits.message);
+    let persistedUserContent = message;
     let branchInstruction: string | null = null;
     let resolvedBranchMessageId: string | null = null;
+    let regeneratedAssistantAction: AssistantActionKind | null = null;
 
     const chat = await measurePrismaOperation(
       {
@@ -125,8 +143,17 @@ export async function POST(request: Request, context: Context) {
     });
     const model = effectiveSettings.model;
     const characterPersona = resolveCharacterPersona(chat.character);
-    const maxOutputTokens = maxOutputTokensForVerbosity(characterPersona.verbosityLevel, effectiveSettings.maxTokens);
-    let temperature = effectiveSettings.temperature;
+    const maxOutputTokens = resolveChatOutputTokenLimit(
+      characterPersona.verbosityLevel,
+      effectiveSettings.maxTokens,
+      user.maxOutputTokens
+    );
+    const providerMaxOutputTokens = providerOutputTokenBudget({
+      visibleTokenLimit: maxOutputTokens,
+      provider: effectiveSettings.provider,
+      model
+    });
+    const temperature = effectiveSettings.temperature;
     if (!isUserOwnedProvider(effectiveSettings.provider, providerKeys)) {
       await enforceRateLimit({
         userId: user.id,
@@ -135,14 +162,17 @@ export async function POST(request: Request, context: Context) {
         cost: Math.min(maxOutputTokens, 4096)
       });
     }
+    const conversationSummary = conversationSummaryIsStale(chat)
+      ? (await summarizeChat(chat.id))?.summary ?? chat.summary
+      : chat.summary;
     const history = await loadAdaptiveChatHistory({
       chatId: chat.id,
       model,
       maxOutputTokens,
       currentMessage: message,
-      summary: chat.summary
+      summary: conversationSummary
     });
-    let recentMessages = history.messages.slice(-20);
+    let recentMessages = history.messages;
     let userMessage: Awaited<ReturnType<typeof createMessageWithNextSequence>> | null = null;
 
     if (input.retryUserMessageId) {
@@ -159,13 +189,21 @@ export async function POST(request: Request, context: Context) {
         throw new HttpError(409, "Only the latest assistant response can be regenerated. Rewind or branch from an earlier turn.");
       }
 
+      regeneratedAssistantAction = regenerationTurn.trigger === "continuation" || regenerationTurn.trigger === "skip-time"
+        ? regenerationTurn.trigger
+        : null;
+      if (regenerationTurn.trigger === "skip-time") {
+        skipTimeDuration = regenerationTurn.skipTimeDuration ?? null;
+      }
       message = regenerationTurn.trigger === "user"
         ? sanitizeUserText(regenerationTurn.currentMessage ?? "", inputLimits.message)
-        : regenerationTurn.trigger === "continuation"
-          ? continuationPrompt
-          : "Write a fresh alternative opening message for this roleplay. Stay in character, establish the scene, and leave room for the user to respond.";
+        : regenerationTurn.trigger === "skip-time"
+          ? buildSkipTimePrompt(skipTimeDuration)
+          : regenerationTurn.trigger === "continuation"
+            ? continuationPrompt
+            : "Write a fresh alternative opening message for this roleplay. Stay in character, establish the scene, and leave room for the user to respond.";
       recentMessages = regenerationTurn.recentMessages;
-    } else if (continueChat && input.continueMessageId) {
+    } else if (assistantOnlyAction && input.continueMessageId) {
       const continuationMessages = prepareContinuationTurn(recentMessages, input.continueMessageId);
       if (!continuationMessages) {
         throw new HttpError(409, "That response is no longer available to continue. Refresh the chat and try again.");
@@ -183,6 +221,11 @@ export async function POST(request: Request, context: Context) {
       }
     }
 
+    const resolvedActionMessage = resolveChatActionMessage(message);
+    message = resolvedActionMessage.promptContent;
+    persistedUserContent = resolvedActionMessage.persistedContent;
+    const effectiveAssistantAction = assistantOnlyAction || regeneratedAssistantAction !== null;
+
     if (containsRussianLanguage(message)) {
       throw new HttpError(400, RUSSIAN_LANGUAGE_ERROR);
     }
@@ -198,11 +241,11 @@ export async function POST(request: Request, context: Context) {
       throw new HttpError(400, moderation.reason ?? "Message blocked by safety policy.");
     }
 
-    if (!input.regenerate && !input.retryUserMessageId && !continueChat) {
+    if (!input.regenerate && !input.retryUserMessageId && !assistantOnlyAction) {
       userMessage = await createMessageWithNextSequence({
         chatId: chat.id,
         role: MessageRole.USER,
-        content: message,
+        content: persistedUserContent,
         clientRequestId: input.requestId,
         branchSourceMessageId: resolvedBranchMessageId
       });
@@ -217,12 +260,15 @@ export async function POST(request: Request, context: Context) {
       }
     }
 
+    const memoryQuery = buildMemoryRetrievalQuery(message, recentMessages);
     const [memories, userGlobalMemories, defaultUserPersona, storyContext] = await Promise.all([
       getPromptMemories({
         userId: user.id,
         characterId: chat.characterId,
-        query: message,
-        totalLimit: 5,
+        chatId: chat.id,
+        query: memoryQuery,
+        semanticLimit: 8,
+        totalLimit: 10,
         includeGlobal: false,
         providerKeys,
         semanticEnabled: user.memoryEnabled
@@ -251,13 +297,21 @@ export async function POST(request: Request, context: Context) {
       characterMemories,
       userMemories
     });
+    const formattedUserPersona = formatUserPersonaForPrompt(userPersona);
+    const userPersonaContinuity = formatUserPersonaContinuitySource(userPersona);
+    recentMessages = recentMessages.map((historyMessage) => renderInitialChatGreeting(
+      historyMessage,
+      chat.character.name,
+      formattedUserPersona
+    ));
 
     const currentImages = await loadPromptImages(attachedAssets);
-    const prompt = assembleNytheraPrompt({
+    const assembledPrompt = assembleNytheraPrompt({
       character: chat.character,
       memories,
-      userPersona: userPersonaPrompt,
-      summary: history.overflowed && !branchInstruction ? chat.summary : null,
+      userPersona: formattedUserPersona,
+      userPersonaContinuity,
+      summary: history.overflowed && !branchInstruction ? conversationSummary : null,
       recentMessages,
       currentMessage: message,
       currentImages,
@@ -271,14 +325,27 @@ export async function POST(request: Request, context: Context) {
       physicalContext,
       translationLanguage: chat.translationLanguage
     });
+    const promptFit = fitPromptMessagesWithinContext(assembledPrompt, { model, maxOutputTokens: providerMaxOutputTokens });
+    if (promptFit.fixedPromptTooLarge) {
+      throw new HttpError(400, "System instructions exceed this model's context window. Choose a model with a larger context window or shorten the character system prompt.");
+    }
+    const prompt = promptFit.messages;
+    logPerformanceMetric("chat_prompt_context", {
+      route: "chat:stream",
+      model,
+      personaCharacters: formattedUserPersona?.length ?? 0,
+      memoryCount: memories.length,
+      promptEstimatedTokens: promptFit.estimatedTokens,
+      promptTokenBudget: promptFit.tokenBudget,
+      promptHistoryDropped: promptFit.droppedMessages
+    });
     const physicalOutputGuard = createPhysicalContinuityOutputGuard(
       chat.character,
-      userPersonaPrompt,
+      userPersonaContinuity ?? userPersonaPrompt,
       { recentMessages, currentMessage: message, persistentPlayerContext: physicalContext },
       { enabled: !customPromptActive }
     );
 
-    temperature = customPromptActive ? effectiveSettings.temperature : modeTemperature(chatMode, effectiveSettings.temperature);
 
     const encoder = new TextEncoder();
     let assistantText = "";
@@ -413,12 +480,14 @@ export async function POST(request: Request, context: Context) {
             estimatedCost,
             usageEstimated: usage.usageEstimated,
             flagged: outputBlocked,
-            clientRequestId: continueChat && input.continueMessageId
-              ? continuationClientRequestId(input.requestId || crypto.randomUUID(), input.continueMessageId)
-              : continueChat
-                ? `continue-${input.requestId || crypto.randomUUID()}`
-                : undefined,
-            branchSourceMessageId: continueChat ? input.continueMessageId : undefined
+            clientRequestId: assistantOnlyAction
+              ? skipTime
+                ? skipTimeClientRequestId(input.requestId || crypto.randomUUID(), input.continueMessageId, skipTimeDuration)
+                : input.continueMessageId
+                  ? continuationClientRequestId(input.requestId || crypto.randomUUID(), input.continueMessageId)
+                  : `continue-${input.requestId || crypto.randomUUID()}`
+              : undefined,
+            branchSourceMessageId: assistantOnlyAction ? input.continueMessageId : undefined
           });
           assistantPersisted = true;
           const actualMessageCount = await prisma.message.count({ where: { chatId: chat.id } });
@@ -429,8 +498,8 @@ export async function POST(request: Request, context: Context) {
               model,
               temperature,
               responsePrompt: input.responsePrompt === undefined ? undefined : input.responsePrompt || null,
-              summary: continueChat ? null : undefined,
-              summaryThroughSequence: continueChat ? 0 : undefined,
+              summary: effectiveAssistantAction ? null : undefined,
+              summaryThroughSequence: effectiveAssistantAction ? 0 : undefined,
               activeAssistantMessageId: assistant.id,
               temporaryPersonaId: chat.temporaryPersonaId ? null : undefined,
               lastActiveAt: new Date(),
@@ -458,7 +527,7 @@ export async function POST(request: Request, context: Context) {
                 }
               })
             },
-            ...(user.memoryEnabled && !continueChat
+            ...(user.memoryEnabled && !effectiveAssistantAction
               ? [{
                   name: "memory jobs",
                   run: () => schedulePostMessageJobs({
@@ -479,6 +548,14 @@ export async function POST(request: Request, context: Context) {
               name: "story event completion",
               run: () => markStoryProactiveEventsFired({
                 eventIds: storyContext.eventIds,
+                storyId: storyContext.storyId,
+                sourceMessageId: assistant.id
+              })
+            },
+            {
+              name: "story beat completion",
+              run: () => markStoryBeatsCompleted({
+                beatIds: storyContext.beatIds,
                 storyId: storyContext.storyId,
                 sourceMessageId: assistant.id
               })
@@ -510,12 +587,14 @@ export async function POST(request: Request, context: Context) {
               estimatedCost,
               usageEstimated: usage.usageEstimated,
               flagged: true,
-              clientRequestId: continueChat && input.continueMessageId
-                ? continuationClientRequestId(input.requestId || crypto.randomUUID(), input.continueMessageId)
-                : continueChat
-                  ? `continue-${input.requestId || crypto.randomUUID()}`
-                  : undefined,
-              branchSourceMessageId: continueChat ? input.continueMessageId : undefined
+              clientRequestId: assistantOnlyAction
+                ? skipTime
+                  ? skipTimeClientRequestId(input.requestId || crypto.randomUUID(), input.continueMessageId, skipTimeDuration)
+                  : input.continueMessageId
+                    ? continuationClientRequestId(input.requestId || crypto.randomUUID(), input.continueMessageId)
+                    : `continue-${input.requestId || crypto.randomUUID()}`
+                : undefined,
+              branchSourceMessageId: assistantOnlyAction ? input.continueMessageId : undefined
             });
             assistantPersisted = true;
             const actualMessageCount = await prisma.message.count({ where: { chatId: chat.id } });
@@ -525,8 +604,8 @@ export async function POST(request: Request, context: Context) {
                 messageCount: actualMessageCount,
                 model,
                 temperature,
-                summary: continueChat ? null : undefined,
-                summaryThroughSequence: continueChat ? 0 : undefined,
+                summary: effectiveAssistantAction ? null : undefined,
+                summaryThroughSequence: effectiveAssistantAction ? 0 : undefined,
                 activeAssistantMessageId: assistant.id,
                 temporaryPersonaId: chat.temporaryPersonaId ? null : undefined,
                 lastActiveAt: new Date(),

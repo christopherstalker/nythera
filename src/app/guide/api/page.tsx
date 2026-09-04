@@ -43,7 +43,7 @@ export default function ApiGuidePage() {
           </ApiStep>
 
           <ApiStep icon={Route} number="03" title="Use fallback routing">
-            <p>Enable fallback on saved providers and arrange priority. If the selected provider has a retryable outage or rate limit, Nythera can advance to the next enabled connection. Invalid credentials are not retried through the chain.</p>
+            <p>Arrange saved providers, choose an exact model for each step, and move any provider into the primary position. Nythera advances past exhausted or invalid credentials and skips directly to the next provider during an outage; malformed requests still stop immediately.</p>
           </ApiStep>
 
           <ApiStep icon={Settings2} number="04" title="Connect a custom endpoint">

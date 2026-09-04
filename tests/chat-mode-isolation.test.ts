@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { buildPromptAddonLayers, modeTemperature } from "../src/lib/prompts/buildPrompt";
+import { buildPromptAddonLayers } from "../src/lib/prompts/buildPrompt";
 
 const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
@@ -59,11 +59,16 @@ test("internal modes reject generic model prose without blending their world rul
   assert.doesNotMatch(fantasy, /Respect ordinary cause and effect|social norms/);
 });
 
-test("realism sampling stays restrained while fantasy keeps creative headroom", () => {
-  assert.equal(modeTemperature("realism", 1.8), 0.75);
-  assert.equal(modeTemperature("realism", 0.1), 0.35);
-  assert.equal(modeTemperature("fantasy", 0.2), 0.85);
-  assert.equal(modeTemperature("fantasy", 1.8), 1.15);
+test("chat modes never override the user's selected temperature", async () => {
+  const [webRoute, mobileRoute] = await Promise.all([
+    read("../src/app/api/chats/[id]/stream/route.ts"),
+    read("../src/app/api/mobile/chats/[id]/message/route.ts")
+  ]);
+
+  for (const route of [webRoute, mobileRoute]) {
+    assert.match(route, /const temperature = effectiveSettings\.temperature/);
+    assert.doesNotMatch(route, /modeTemperature/);
+  }
 });
 
 test("persona authorship and post-response work are protected at the prompt and route boundaries", async () => {
@@ -75,7 +80,7 @@ test("persona authorship and post-response work are protected at the prompt and 
     read("../src/lib/message-sequence.ts")
   ]);
 
-  assert.match(assembly, /PLAYER PERSONA — REFERENCE ONLY/);
+  assert.match(assembly, /PLAYER PERSONA — AUTHORITATIVE IDENTITY AND BOUNDARIES/);
   assert.match(assembly, /Do not repeatedly notice, inventory, praise, fetishize/);
   assert.match(assembly, /Preserve the profile's facts, never its prose/);
   assert.match(assembly, /Do not quote, closely paraphrase, echo, enumerate/);

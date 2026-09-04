@@ -5,17 +5,14 @@ import { usePathname } from "next/navigation";
 import { NavRail } from "@/components/nav/NavRail";
 import { MobileDock } from "@/components/nav/MobileDock";
 import { SidePanel } from "@/components/panel/SidePanel";
+import { isAuthExperiencePath } from "@/lib/auth-routes";
 import { cn } from "@/lib/utils";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const mainRef = useRef<HTMLElement>(null);
-  const hideChrome =
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/register") ||
-    pathname.startsWith("/auth/new-user") ||
-    pathname.startsWith("/auth/pwa") ||
-    pathname.startsWith("/pwa-migrate");
+  const isTutorialSurface = pathname.startsWith("/tutorial");
+  const hideChrome = isAuthExperiencePath(pathname) || isTutorialSurface;
   const isChatSurface = pathname.startsWith("/chat/");
   const isRoomSurface = pathname.startsWith("/room/");
   const isImmersiveSurface = isChatSurface || isRoomSurface;

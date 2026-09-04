@@ -19,6 +19,7 @@ test("personas are normalized as first-class rows with one default and chat bind
   assert.match(schema, /personas\s+UserPersona\[\]/);
   assert.match(schema, /personaId\s+String\?/);
   assert.match(schema, /label\s+String\?/);
+  assert.match(schema, /surname\s+String\?/);
   assert.match(schema, /isDefault\s+Boolean\s+@default\(false\)/);
   assert.doesNotMatch(userPersonaModel, /userId\s+String\s+@unique/);
   assert.match(migration, /DROP INDEX IF EXISTS "UserPersona_userId_key"/);
@@ -34,8 +35,8 @@ test("personas are normalized as first-class rows with one default and chat bind
   assert.match(store, /const shouldBecomeDefault = existingPersonas\.length === 0/);
   assert.match(webRoute, /defaultProfileId/);
   assert.match(mobileRoute, /defaultProfileId/);
-  assert.match(chatCreate, /personaId: defaultPersonaId/);
-  assert.match(mobileChatCreate, /personaId: defaultPersonaId/);
+  assert.match(chatCreate, /personaId: preferredPersona\?\.id \?\? null/);
+  assert.match(mobileChatCreate, /personaId: preferredPersona\?\.id \?\? null/);
   assert.match(streamRoute, /chat\.persona \?\? defaultUserPersona/);
   assert.match(quickPanel, /chatId/);
 });

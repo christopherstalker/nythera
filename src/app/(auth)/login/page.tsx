@@ -100,6 +100,11 @@ function LoginPageContent() {
           autoComplete="current-password"
           required
         />
+        <div className="text-right">
+          <Link href="/forgot-password" className="text-xs font-medium text-[var(--accent-mint)] no-underline hover:underline">
+            Forgot password?
+          </Link>
+        </div>
         {error ? <p className="border-l border-destructive bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
         <Button className="w-full" type="submit" size="lg" disabled={submitting}>
           <Mail className="h-4 w-4" />

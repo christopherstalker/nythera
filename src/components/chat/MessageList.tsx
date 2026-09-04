@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import type { ChatMessage } from "@/hooks/useChat";
-import { resolveVariantSelection } from "@/lib/message-actions";
+import { assistantActionKind, resolveVariantSelection } from "@/lib/message-actions";
+import type { SkipTimeDuration } from "@/lib/chat-actions";
 
 const NEAR_BOTTOM_THRESHOLD_PX = 120;
 const MESSAGE_ROW_ESTIMATE_PX = 180;
@@ -23,6 +24,7 @@ type MessageListProps = {
   onRegenerate?: (messageId: string) => void;
   onRetry?: (messageId: string) => void;
   onContinue?: (messageId: string) => void;
+  onSkipTime?: (messageId: string, duration: SkipTimeDuration) => void;
   onRewind?: (messageId: string) => void;
   onBranch?: (messageId: string) => void;
   onPin?: (messageId: string) => void;
@@ -32,7 +34,7 @@ type MessageListProps = {
   readingMode?: boolean;
 };
 
-export function MessageList({ messages, characterName, characterAvatarUrl, personaName, personaAvatarUrl, summary, error, notice, onEdit, onDelete, onRegenerate, onRetry, onContinue, onRewind, onBranch, onPin, activeAssistantMessageId, onActiveVariantChange, hasSoundtrack = false, readingMode = false }: MessageListProps) {
+export function MessageList({ messages, characterName, characterAvatarUrl, personaName, personaAvatarUrl, summary, error, notice, onEdit, onDelete, onRegenerate, onRetry, onContinue, onSkipTime, onRewind, onBranch, onPin, activeAssistantMessageId, onActiveVariantChange, hasSoundtrack = false, readingMode = false }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const nearBottomRef = useRef(true);
   const previousRowCountRef = useRef(0);
@@ -178,6 +180,7 @@ export function MessageList({ messages, characterName, characterAvatarUrl, perso
                 onRegenerate={onRegenerate}
                 onRetry={onRetry}
                 onContinue={onContinue}
+                onSkipTime={onSkipTime}
                 onRewind={onRewind}
                 onBranch={onBranch}
                 onPin={onPin}
@@ -218,6 +221,7 @@ function MessageRow({
   onRegenerate,
   onRetry,
   onContinue,
+  onSkipTime,
   onRewind,
   onBranch,
   onPin,
@@ -237,6 +241,7 @@ function MessageRow({
   onRegenerate?: (messageId: string) => void;
   onRetry?: (messageId: string) => void;
   onContinue?: (messageId: string) => void;
+  onSkipTime?: (messageId: string, duration: SkipTimeDuration) => void;
   onRewind?: (messageId: string) => void;
   onBranch?: (messageId: string) => void;
   onPin?: (messageId: string) => void;
@@ -291,6 +296,7 @@ function MessageRow({
         onRegenerate={canRegenerate ? onRegenerate : undefined}
         onRetry={row.message.role === "USER" && isLatestMessage ? onRetry : undefined}
         onContinue={canRegenerate ? onContinue : undefined}
+        onSkipTime={canRegenerate ? onSkipTime : undefined}
         onRewind={!isLatestMessage ? onRewind : undefined}
         onBranch={onBranch}
         onPin={onPin}
@@ -323,6 +329,7 @@ function MessageRow({
       onDelete={onDelete}
       onRegenerate={isLatestVariantGroup ? onRegenerate : undefined}
       onContinue={isLatestVariantGroup ? onContinue : undefined}
+      onSkipTime={isLatestVariantGroup ? onSkipTime : undefined}
       onRewind={!isSelectedLatestMessage ? onRewind : undefined}
       onBranch={onBranch}
       onPin={onPin}
@@ -400,7 +407,7 @@ function buildDisplayItems(messages: ChatMessage[]): DisplayItem[] {
     while (
       nextIndex < messages.length &&
       messages[nextIndex].role === "ASSISTANT" &&
-      !messages[nextIndex].clientRequestId?.startsWith("continue-")
+      !assistantActionKind(messages[nextIndex].clientRequestId)
     ) {
       variants.push(messages[nextIndex]);
       nextIndex += 1;

@@ -133,7 +133,7 @@ test("regeneration sends and validates the selected latest assistant id", async 
   assert.match(clientSource, /regenerateMessageId: assistantMessageId/);
   assert.match(clientSource, /previousUser\?\.content \?\? ""/);
   assert.match(hookSource, /regenerateMessageId: options\?\.regenerateMessageId/);
-  assert.match(hookSource, /!isContinuation && !isRegeneration/);
+  assert.match(hookSource, /!isAssistantAction && !isRegeneration/);
   assert.match(validationSource, /regenerateMessageId: z\.string\(\)/);
   assert.match(streamSource, /prepareRegenerationTurn\(recentMessages, input\.regenerateMessageId\)/);
 });

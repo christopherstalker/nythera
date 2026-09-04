@@ -66,7 +66,13 @@ function PersonaEditor({ panel, compact = false }: { panel: PanelState; compact?
 
       <form onSubmit={panel.savePersona} className="grid gap-2">
         {!compact ? <Input value={panel.draft.label} onChange={(event) => panel.updateDraft("label", event.target.value)} placeholder="Profile label" /> : null}
-        <Input value={panel.draft.displayName} onChange={(event) => panel.updateDraft("displayName", event.target.value)} placeholder="Your roleplay name" required />
+        <div className="grid grid-cols-2 gap-2">
+          <Input value={panel.draft.displayName} onChange={(event) => panel.updateDraft("displayName", event.target.value)} placeholder="First name" required />
+          <Input value={panel.draft.surname} onChange={(event) => panel.updateDraft("surname", event.target.value)} placeholder="Surname (optional)" />
+        </div>
+        <p className="text-[11px] leading-4 text-[var(--text-muted)]">
+          <code>{"{{user}}"}</code> · <code>{"{{user_surname}}"}</code>
+        </p>
         <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-2">
           <ImageFilePicker
             onPick={panel.pickAvatar}
@@ -219,7 +225,11 @@ export function SceneTabContent({ panel }: { panel: PanelState }) {
     <div className="grid gap-6">
       <form onSubmit={panel.saveStoryState} className="grid gap-4 border-b border-[var(--border-default)] pb-6">
         <div className="grid gap-3 border-b border-[var(--border-default)] pb-4">
-          <p className="codex-kicker">Current scene</p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="codex-kicker">Current scene</p>
+            {panel.activeStoryScene ? <span className="text-[10px] uppercase tracking-[.12em] text-[var(--accent-mint)]">Active · turn {panel.activeStoryScene.startedAtSequence}</span> : null}
+          </div>
+          <Input value={draft.sceneTitle} onChange={(event) => panel.updateStoryStateDraft("sceneTitle", event.target.value)} placeholder="Scene title" />
           <Input value={draft.location} onChange={(event) => panel.updateStoryStateDraft("location", event.target.value)} placeholder="Location" />
           <div className="grid grid-cols-2 gap-2">
             <Input value={draft.time} onChange={(event) => panel.updateStoryStateDraft("time", event.target.value)} placeholder="Time" />
@@ -230,9 +240,26 @@ export function SceneTabContent({ panel }: { panel: PanelState }) {
         <SceneListField label="Conditions" value={draft.conditions} onChange={(value) => panel.updateStoryStateDraft("conditions", value)} />
         <SceneListField label="Active threats" value={draft.threats} onChange={(value) => panel.updateStoryStateDraft("threats", value)} />
         <SceneListField label="Director notes" value={draft.notes} onChange={(value) => panel.updateStoryStateDraft("notes", value)} />
-        <Button type="submit" disabled={!panel.storyId || panel.pendingAction === "scene:save"}><Check className="h-4 w-4" />{panel.pendingAction === "scene:save" ? "Saving..." : "Save scene state"}</Button>
+        <Textarea value={draft.previousSceneSummary} onChange={(event) => panel.updateStoryStateDraft("previousSceneSummary", event.target.value)} placeholder="Optional summary of the scene being closed" className="min-h-20" />
+        <div className="grid grid-cols-2 gap-2">
+          <Button type="submit" disabled={!panel.storyId || panel.pendingAction === "scene:save"}><Check className="h-4 w-4" />{panel.pendingAction === "scene:save" ? "Saving..." : "Save state"}</Button>
+          <Button type="button" variant="outline" onClick={() => void panel.advanceStoryScene()} disabled={!panel.storyId || panel.pendingAction === "scene:advance"}><CalendarClock className="h-4 w-4" />{panel.pendingAction === "scene:advance" ? "Advancing..." : "New scene / day"}</Button>
+        </div>
+        <p className="text-xs leading-5 text-[var(--text-muted)]">Edit the time, location, and title for what comes next, then start a new scene. Temporary states from the previous scene will expire automatically.</p>
         {panel.storyStateStatus ? <PanelStatusText>{panel.storyStateStatus}</PanelStatusText> : null}
       </form>
+
+      {panel.storyScenes.some((scene) => scene.status !== "ACTIVE") ? (
+        <section className="grid gap-2 border-b border-[var(--border-default)] pb-6">
+          <NarrativeHeading icon={CalendarClock} title="Recent scenes" subtitle="Closed scenes remain history and are never replayed as the present" />
+          {panel.storyScenes.filter((scene) => scene.status !== "ACTIVE").slice(0, 3).map((scene) => (
+            <div key={scene.id} className="border-l border-[var(--border-default)] pl-3 text-xs leading-5 text-[var(--text-secondary)]">
+              <p className="text-[var(--text-primary)]">{scene.title || "Untitled scene"}{scene.worldTime ? ` · ${scene.worldTime}` : ""}</p>
+              {scene.summary ? <p className="mt-1 text-[var(--text-muted)]">{scene.summary}</p> : null}
+            </div>
+          ))}
+        </section>
+      ) : null}
 
       <form onSubmit={panel.saveStorySafety} className="grid gap-3">
         <NarrativeHeading icon={ShieldAlert} title="Session safety" subtitle="Hard limits, veils, check-ins, and an immediate pause" />
@@ -399,28 +426,20 @@ export function CanonTabContent({ panel }: { panel: PanelState }) {
           />
           <span className="text-right text-[11px] tabular-nums text-[var(--text-muted)]">{draft.objectText.length}/6000</span>
         </label>
-        <div className="flex items-center justify-between gap-3 border border-[var(--border-default)] bg-[var(--bg-input)] px-3 py-2">
-          <div>
-            <p className="text-sm text-[var(--text-primary)]">Is this true right now?</p>
-            <p className="text-xs text-[var(--text-muted)]">Stored as the current state of the canon.</p>
-          </div>
-          <div className="grid shrink-0 grid-cols-2 border border-[var(--border-default)]" role="group" aria-label="Current truth state">
-            {(["is true now", "is not true now"] as const).map((value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => panel.updateCanonDraft("predicate", value)}
-                className={cn(
-                  "focus-ring h-9 min-w-12 px-3 text-xs uppercase tracking-[.1em] transition-colors",
-                  draft.predicate === value ? "bg-[var(--accent-mint)] text-black" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                )}
-                aria-pressed={draft.predicate === value}
-              >
-                {value === "is true now" ? "Yes" : "No"}
-              </button>
-            ))}
-          </div>
-        </div>
+        <label className="grid gap-2">
+          <span className="text-xs uppercase tracking-[.12em] text-[var(--text-muted)]">Fact type</span>
+          <select value={draft.kind} onChange={(event) => panel.updateCanonDraft("kind", event.target.value as typeof draft.kind)} className={panelSelectClass} aria-label="Canon fact type">
+            <option value="PERMANENT">Always true — permanent canon</option>
+            <option value="STATE">Current state — expires with the scene</option>
+            <option value="EVENT">Happened once — historical event</option>
+          </select>
+        </label>
+        {draft.kind !== "PERMANENT" ? (
+          <label className="grid gap-2">
+            <span className="text-xs uppercase tracking-[.12em] text-[var(--text-muted)]">In-world time</span>
+            <Input value={draft.worldTime} onChange={(event) => panel.updateCanonDraft("worldTime", event.target.value)} placeholder="Example: Day 3, morning" />
+          </label>
+        ) : null}
         <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
           <select value={draft.scope} onChange={(event) => panel.updateCanonDraft("scope", event.target.value as typeof draft.scope)} className="focus-ring h-11 min-w-0 border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-sm text-[var(--text-primary)]" aria-label="Canon visibility">
             <option value="STORY">Known in the story</option>
@@ -444,7 +463,7 @@ export function CanonTabContent({ panel }: { panel: PanelState }) {
             {knowledgeParticipants.length === 0 ? <p className="text-xs text-[var(--text-muted)]">No cast member is available for this scope.</p> : null}
           </fieldset>
         ) : null}
-        <Button type="submit" disabled={!panel.storyId || !draft.predicate.trim() || !draft.objectText.trim() || missingKnowledgeParticipant || panel.pendingAction === "canon:add"}>
+        <Button type="submit" disabled={!panel.storyId || !draft.objectText.trim() || missingKnowledgeParticipant || panel.pendingAction === "canon:add"}>
           <Plus className="h-4 w-4" />
           {panel.pendingAction === "canon:add" ? "Adding..." : "Add to canon"}
         </Button>
@@ -456,7 +475,7 @@ export function CanonTabContent({ panel }: { panel: PanelState }) {
           <article key={fact.id} className="grid gap-2 border-b border-[var(--border-default)] py-4">
             <div className="flex items-start gap-3">
               <div className="min-w-0 flex-1">
-                <p className="text-xs uppercase tracking-[.12em] text-[var(--text-muted)]">{fact.subjectEntity?.name ?? "Story"} · {fact.predicate === "is true now" ? "true now" : fact.predicate === "is not true now" ? "not true now" : fact.predicate}</p>
+                <p className="text-xs uppercase tracking-[.12em] text-[var(--text-muted)]">{fact.subjectEntity?.name ?? "Story"} · {fact.kind === "PERMANENT" ? "always true" : fact.kind === "STATE" ? "current state" : "past event"}{fact.worldTime ? ` · ${fact.worldTime}` : ""}</p>
                 <p className="mt-1 text-sm leading-6 text-[var(--text-primary)]">{fact.objectText}</p>
               </div>
               <button type="button" onClick={() => void panel.updateCanonFact(fact.id, { locked: !fact.locked })} className={cn("focus-ring grid h-8 w-8 shrink-0 place-items-center", fact.locked ? "text-[var(--accent-mint)]" : "text-[var(--text-muted)]")} aria-label={fact.locked ? "Unlock canon fact" : "Lock canon fact"}>

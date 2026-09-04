@@ -35,3 +35,11 @@ test("chat reads select only fields rendered by conversation surfaces", async ()
   assert.match(recentChats, /select:\s*\{\s*id:\s*true,\s*title:\s*true/);
   assert.doesNotMatch(recentChats, /include:\s*\{\s*character:/);
 });
+
+test("story synchronization reads only turns that have not been imported", async () => {
+  const foundation = await readFile(`${root}/src/lib/stories/story-foundation.ts`, "utf8");
+
+  assert.equal(foundation.match(/where: \{ storyTurn: \{ is: null \} \}/g)?.length, 2);
+  assert.match(foundation, /characterId: true,\s*lastActiveAt: true,\s*summary: true,\s*messages:/);
+  assert.match(foundation, /role: true,\s*content: true,\s*sequence: true/);
+});

@@ -45,4 +45,3 @@ export async function embedTextOpenAI(params: { model?: string; input: string[] 
   });
   return res.data.map((d) => d.embedding);
 }
-

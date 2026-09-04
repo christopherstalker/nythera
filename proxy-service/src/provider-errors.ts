@@ -22,7 +22,7 @@ export function classifyProviderError(error: unknown): ProviderErrorClassificati
     return { code: "invalid_api_key", message: "The selected provider rejected the API key. Check the key in Settings.", status: status ?? 401, retryable: false };
   }
   if (reportsPromptLimit) {
-    return { code: "prompt_too_large", message: "The request exceeded this provider's context limit. Nythera will shorten older history before retrying.", status, retryable: false };
+    return { code: "prompt_too_large", message: "The request exceeds this model's context limit. Choose a model with a larger context window or shorten the instructions.", status, retryable: false };
   }
   const exhaustedCredit = error !== null && typeof error === "object" && (
     ("code" in error && error.code === "credit_balance_exhausted") ||

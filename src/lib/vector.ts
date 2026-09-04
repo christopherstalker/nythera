@@ -15,6 +15,7 @@ export async function searchMemories(input: {
   limit?: number;
   providerKeys?: ProviderKeys;
   includeGlobal?: boolean;
+  sourceChatId?: string;
 }): Promise<RetrievedMemory[]> {
   const embedding = await createEmbedding(input.query, input.providerKeys);
   const vector = toVectorLiteral(embedding);
@@ -29,7 +30,17 @@ export async function searchMemories(input: {
           AND status = 'ACTIVE'::"MemoryStatus"
           AND embedding IS NOT NULL
           AND ("characterId" = ${input.characterId ?? null} OR (${includeGlobal} AND "characterId" IS NULL))
-          AND (1 - (embedding <=> ${vector}::vector)) >= 0.18
+          AND (
+            ${input.sourceChatId ?? null}::text IS NULL
+            OR "sourceChatId" IS NULL
+            OR "sourceChatId" = ${input.sourceChatId ?? null}
+            OR category IN (
+              'USER_PROFILE'::"MemoryCategory",
+              'PREFERENCE'::"MemoryCategory",
+              'RECURRING_TOPIC'::"MemoryCategory"
+            )
+          )
+          AND (1 - (embedding <=> ${vector}::vector)) >= 0.35
         ORDER BY embedding <=> ${vector}::vector, importance DESC
         LIMIT ${limit}
       `;

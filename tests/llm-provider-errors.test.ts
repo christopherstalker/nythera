@@ -44,6 +44,14 @@ test("provider errors have safe actionable classifications", async () => {
   assert.equal(insufficientBalance.retryable, false);
   assert.deepEqual(proxyProviderErrors!.classifyProviderError({ status: 402 }), insufficientBalance);
 
+  const promptLimit = providerErrors!.classifyProviderError({
+    status: 402,
+    message: "Prompt tokens limit exceeded: 51948 > 32000"
+  });
+  assert.equal(promptLimit.code, "prompt_too_large");
+  assert.match(promptLimit.message, /context limit/i);
+  assert.deepEqual(proxyProviderErrors!.classifyProviderError({ status: 402, message: "Prompt tokens limit exceeded: 51948 > 32000" }), promptLimit);
+
   const invalidParameters = providerErrors!.classifyProviderError({ status: 422 });
   assert.equal(invalidParameters.code, "invalid_parameters");
   assert.equal(invalidParameters.retryable, false);

@@ -6,7 +6,7 @@ async function read(path: string) {
   return readFile(new URL(path, import.meta.url), "utf8");
 }
 
-test("new accounts enter verified BYOK onboarding", async () => {
+test("new accounts play the tutorial before verified BYOK onboarding", async () => {
   const [register, newUser, providers, keyRoute] = await Promise.all([
     read("../src/app/(auth)/register/page.tsx"),
     read("../src/app/(auth)/auth/new-user/page.tsx"),
@@ -16,8 +16,9 @@ test("new accounts enter verified BYOK onboarding", async () => {
 
   assert.match(register, /\/auth\/new-user\?callbackUrl=\/explore/);
   assert.match(register, /password\.length >= 8/);
-  assert.match(register, /\^\[a-zA-Z0-9_\]\{3,24\}\$/);
-  assert.match(newUser, /\/settings\/providers\?onboarding=1/);
+  assert.match(register, /normalizeUsername\(username\)/);
+  assert.match(register, /usernameValidationMessage\(normalizedUsername\)/);
+  assert.match(newUser, /\/tutorial\?callbackUrl=/);
   assert.match(providers, /First connection/);
   assert.match(providers, /Verify and save/);
   assert.match(keyRoute, /validateProviderCredentials/);
@@ -106,7 +107,8 @@ test("invalid provider keys are quarantined while pending keys remain usable", a
   assert.match(schema, /credentialStatus String\s+@default\("UNVERIFIED"\)/);
   assert.match(keys, /credentialStatus: "VALID"/);
   assert.match(modelsRoute, /credentialStatusFromDiscovery/);
-  assert.match(modelsRoute, /fallbackEnabled: false/);
+  assert.doesNotMatch(modelsRoute, /fallbackEnabled: false/);
+  assert.match(modelsRoute, /where: \{ id: representative\.id, userId: user\.id \}/);
   assert.match(keys, /credentialStatus: \{ not: "INVALID" \}/);
   assert.match(chat, /key\.credentialStatus !== "INVALID"/);
   assert.match(chat, /verifiedKeysResponse/);

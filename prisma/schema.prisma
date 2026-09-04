@@ -27,16 +27,24 @@ model User {
   memoryEnabled         Boolean   @default(true)
   compactMode           Boolean   @default(false)
   notificationsEnabled  Boolean   @default(false)
+  unlimitedCharacterFields Boolean @default(false)
+  tutorialStatus        String    @default("NOT_STARTED")
+  tutorialStep          Int       @default(0)
+  tutorialState         Json?
+  tutorialCompletedAt   DateTime?
   preferredTheme        String    @default("dark")
   accentColor           String    @default("#8F81F7")
   profileSettings       Json?
   preferredProvider     String?
   preferredModel        String    @default("gpt-4o-mini")
+  defaultTemperature    Float     @default(0.7)
+  maxOutputTokens       Int?
   lastPersonaId         String?
   defaultResponsePrompt String?   @db.Text
   preferredChatMode     String    @default("realism")
   bannedAt              DateTime?
   banReason             String?   @db.Text
+  authVersion           Int       @default(0)
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
@@ -44,6 +52,7 @@ model User {
   sessions            Session[]
   authenticators      Authenticator[]
   passwordCredential  PasswordCredential?
+  passwordResetTokens PasswordResetToken[]
   personas            UserPersona[]
   characters          Character[]
   chats               Chat[]
@@ -66,6 +75,7 @@ model User {
   chatMacros          ChatMacro[]
   roomMemberships     RoomMember[]
   roomMessages        RoomMessage[]
+  savedTags           UserTag[]
 }
 
 model Account {
@@ -127,6 +137,19 @@ model PasswordCredential {
   updatedAt    DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Character {
@@ -195,6 +218,22 @@ model Character {
   @@index([visibility, moderationStatus, isNSFW, blockedAt, createdAt(sort: Desc)], map: "character_discovery_new_idx")
   @@index([visibility, moderationStatus, isNSFW, blockedAt, ratingAverage(sort: Desc), ratingCount(sort: Desc), likes(sort: Desc)], map: "character_discovery_rating_idx")
   @@index([tags], type: Gin)
+}
+
+model UserTag {
+  id         String   @id @default(cuid())
+  userId     String
+  slug       String   @db.VarChar(32)
+  label      String   @db.VarChar(32)
+  useCount   Int      @default(1)
+  lastUsedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, slug])
+  @@index([userId, lastUsedAt(sort: Desc)])
 }
 
 model UserPersonaRevision {
@@ -403,6 +442,7 @@ model UserPersona {
   userId      String
   label       String?
   displayName String
+  surname     String?
   avatarUrl   String?
   summary     String     @db.Text
   background  String?    @db.Text
@@ -564,6 +604,7 @@ model Story {
   entities          StoryEntity[]
   facts             StoryFact[]
   snapshots         StoryStateSnapshot[]
+  scenes            StoryScene[]
   director          StoryDirectorProfile?
   arcs              StoryArc[]
   beats             StoryBeat[]
@@ -645,6 +686,7 @@ model StoryTimeline {
   turns             StoryTurn[]
   facts             StoryFact[]
   snapshots         StoryStateSnapshot[]
+  scenes            StoryScene[]
   arcs              StoryArc[]
   beats             StoryBeat[]
   hooks             StoryHook[]
@@ -726,25 +768,29 @@ model StoryEntity {
 }
 
 model StoryFact {
-  id              String                       @id @default(cuid())
-  storyId         String
-  timelineId      String?
-  subjectEntityId String?
-  objectEntityId  String?
-  sourceTurnId    String?
-  sourceMessageId String?
-  predicate       String
-  objectText      String                       @db.Text
-  objectData      Json?
-  scope           StoryFactScope               @default(STORY)
-  status          StoryFactStatus              @default(ACTIVE)
-  confidence      Float                        @default(1)
-  importance      Float                        @default(1)
-  locked          Boolean                      @default(false)
-  embedding       Unsupported("vector(1536)")?
-  metadata        Json?
-  createdAt       DateTime                     @default(now())
-  updatedAt       DateTime                     @updatedAt
+  id                 String                       @id @default(cuid())
+  storyId            String
+  timelineId         String?
+  subjectEntityId    String?
+  objectEntityId     String?
+  sourceTurnId       String?
+  sourceMessageId    String?
+  predicate          String
+  objectText         String                       @db.Text
+  objectData         Json?
+  kind               StoryFactKind                @default(PERMANENT)
+  worldTime          String?
+  validFromSequence  Int?
+  validUntilSequence Int?
+  scope              StoryFactScope               @default(STORY)
+  status             StoryFactStatus              @default(ACTIVE)
+  confidence         Float                        @default(1)
+  importance         Float                        @default(1)
+  locked             Boolean                      @default(false)
+  embedding          Unsupported("vector(1536)")?
+  metadata           Json?
+  createdAt          DateTime                     @default(now())
+  updatedAt          DateTime                     @updatedAt
 
   story         Story            @relation(fields: [storyId], references: [id], onDelete: Cascade)
   timeline      StoryTimeline?   @relation(fields: [timelineId], references: [id], onDelete: Cascade)
@@ -755,6 +801,7 @@ model StoryFact {
   knowledge     StoryKnowledge[]
 
   @@index([storyId, status, locked, importance(sort: Desc)])
+  @@index([storyId, kind, status, validUntilSequence])
   @@index([timelineId])
   @@index([subjectEntityId, predicate])
   @@index([objectEntityId])
@@ -782,6 +829,7 @@ model StoryStateSnapshot {
   storyId      String
   timelineId   String
   sourceTurnId String?
+  sceneId      String?
   version      Int
   state        Json
   createdAt    DateTime @default(now())
@@ -789,10 +837,34 @@ model StoryStateSnapshot {
   story      Story         @relation(fields: [storyId], references: [id], onDelete: Cascade)
   timeline   StoryTimeline @relation(fields: [timelineId], references: [id], onDelete: Cascade)
   sourceTurn StoryTurn?    @relation(fields: [sourceTurnId], references: [id], onDelete: SetNull)
+  scene      StoryScene?   @relation(fields: [sceneId], references: [id], onDelete: SetNull)
 
   @@unique([timelineId, version])
   @@index([storyId, createdAt(sort: Desc)])
   @@index([sourceTurnId])
+  @@index([sceneId])
+}
+
+model StoryScene {
+  id                String           @id @default(cuid())
+  storyId           String
+  timelineId        String
+  status            StorySceneStatus @default(ACTIVE)
+  title             String?
+  worldTime         String?
+  location          String?
+  startedAtSequence Int              @default(0)
+  endedAtSequence   Int?
+  summary           String?          @db.Text
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  story     Story                @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  timeline  StoryTimeline        @relation(fields: [timelineId], references: [id], onDelete: Cascade)
+  snapshots StoryStateSnapshot[]
+
+  @@index([storyId, status, updatedAt(sort: Desc)])
+  @@index([timelineId, status, startedAtSequence(sort: Desc)])
 }
 
 model StoryDirectorProfile {
@@ -1311,6 +1383,18 @@ enum StoryFactStatus {
   ACTIVE
   SUPERSEDED
   RETRACTED
+}
+
+enum StoryFactKind {
+  PERMANENT
+  STATE
+  EVENT
+}
+
+enum StorySceneStatus {
+  ACTIVE
+  CLOSED
+  ARCHIVED
 }
 
 enum StoryKnowledgeState {

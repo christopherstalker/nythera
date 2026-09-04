@@ -36,6 +36,16 @@ test("unmatched formatting punctuation remains visible", () => {
   assert.equal(richTextToPlainText("A normal ) bracket"), "A normal ) bracket");
 });
 
+test("a greeting wrapped in stars keeps italic formatting across line breaks", () => {
+  const greeting = "*The door opens.\nShe studies you in silence.*";
+  const blocks = parseRichText(greeting);
+
+  assert.equal(blocks.length, 1);
+  assert.equal(blocks[0]?.children[0]?.type, "format");
+  assert.equal(blocks[0]?.children[0]?.type === "format" ? blocks[0].children[0].format : null, "italic");
+  assert.equal(richTextToPlainText(greeting), "The door opens.\nShe studies you in silence.");
+});
+
 test("selection formatting can combine and toggle styles", () => {
   const italic = applyRichTextFormat("quiet", 0, 5, "italic");
   assert.deepEqual(italic, { value: "*quiet*", selectionStart: 1, selectionEnd: 6 });

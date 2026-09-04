@@ -49,7 +49,7 @@ export function resolveCharacterModelSettings(input: {
   return {
     model,
     provider: explicitGlobalProvider ?? (useCharacterProvider ? matchingKey!.provider : inferredGlobalProvider ?? defaultKey?.provider ?? null),
-    temperature: input.character.temperature ?? input.chatTemperature,
+    temperature: input.chatTemperature,
     topP: input.character.topP ?? null,
     frequencyPenalty: input.character.frequencyPenalty ?? null,
     presencePenalty: input.character.presencePenalty ?? null,

@@ -62,6 +62,24 @@ export function maxOutputTokensForVerbosity(verbosity: ResponseVerbosity, config
   return configuredLimit == null ? lengthLimit : Math.min(configuredLimit, lengthLimit);
 }
 
+export function configuredOutputTokenLimit(characterLimit?: number | null, userLimit?: number | null) {
+  if (characterLimit == null) return userLimit ?? null;
+  if (userLimit == null) return characterLimit;
+  return Math.min(characterLimit, userLimit);
+}
+
+export function resolveChatOutputTokenLimit(
+  verbosity: ResponseVerbosity,
+  characterLimit?: number | null,
+  userLimit?: number | null
+) {
+  if (userLimit == null) {
+    return maxOutputTokensForVerbosity(verbosity, characterLimit);
+  }
+
+  return configuredOutputTokenLimit(characterLimit, userLimit)!;
+}
+
 export function providerOutputTokenBudget(input: {
   visibleTokenLimit?: number | null;
   provider?: string | null;

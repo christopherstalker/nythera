@@ -1,9 +1,10 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
+import { renderInitialChatGreeting } from "@/lib/character-prompt-contract";
 
-export function getRecentChats(userId: string, take = 8, characterId?: string | null) {
-  return prisma.chat.findMany({
+export async function getRecentChats(userId: string, take = 8, characterId?: string | null) {
+  const chats = await prisma.chat.findMany({
     where: {
       userId,
       archivedAt: null,
@@ -18,6 +19,7 @@ export function getRecentChats(userId: string, take = 8, characterId?: string | 
       lastActiveAt: true,
       createdAt: true,
       updatedAt: true,
+      persona: { select: { displayName: true, surname: true } },
       character: {
         select: {
           id: true,
@@ -32,8 +34,27 @@ export function getRecentChats(userId: string, take = 8, characterId?: string | 
         select: {
           content: true,
           role: true,
+          sequence: true
         }
       }
     }
+  });
+
+  const defaultPersona = chats.some((chat) => !chat.persona)
+    ? await prisma.userPersona.findFirst({
+        where: { userId, isDefault: true },
+        select: { displayName: true, surname: true }
+      })
+    : null;
+
+  return chats.map((chat) => {
+    const persona = chat.persona ?? defaultPersona;
+    const messages = chat.messages.map((message) => renderInitialChatGreeting(
+      message,
+      chat.character.name,
+      persona
+    ));
+    const { persona: _persona, ...serializedChat } = chat;
+    return { ...serializedChat, messages };
   });
 }

@@ -8,6 +8,7 @@ import { chatUpdateSchema } from "@/lib/validation";
 import { requireAdultConsent } from "@/lib/adult-consent";
 import { prepareContinuationTurn } from "@/lib/message-actions";
 import { messageAttachmentsSelect, serializeChatAttachment } from "@/lib/chat-media";
+import { renderInitialChatGreeting } from "@/lib/character-prompt-contract";
 import { getChatInputLimits } from "@/lib/chat-limits.server";
 
 type Context = {
@@ -43,6 +44,7 @@ export async function GET(request: Request, context: Context) {
             appearance: true,
             activeAssistantMessageId: true,
             createdAt: true,
+            persona: { select: { displayName: true, surname: true } },
             character: {
               select: {
                 id: true,
@@ -62,6 +64,7 @@ export async function GET(request: Request, context: Context) {
                 id: true,
                 role: true,
                 content: true,
+                sequence: true,
                 createdAt: true,
                 clientRequestId: true,
                 branchSourceMessageId: true,
@@ -97,14 +100,16 @@ export async function GET(request: Request, context: Context) {
       }
     });
 
+    const persona = chat.persona ?? await prisma.userPersona.findFirst({
+      where: { userId: user.id, isDefault: true },
+      select: { displayName: true, surname: true }
+    });
     const messages = chat.messages.reverse().map((message) => ({
-      ...message,
+      ...renderInitialChatGreeting(message, chat.character.name, persona),
       attachments: message.attachments.map(serializeChatAttachment)
     }));
-    return json(
-      { chat: { ...chat, messages, chapterNumber, inputLimits: getChatInputLimits(user.id) } },
-      { headers: { "Cache-Control": "private, no-store" } }
-    );
+    const { persona: _persona, ...serializedChat } = chat;
+    return json({ chat: { ...serializedChat, messages, chapterNumber, inputLimits: getChatInputLimits(user.id) } }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return routeError(error);
   }
@@ -189,7 +194,7 @@ export async function PATCH(request: Request, context: Context) {
       }
     });
 
-    const shouldUpdateUser = selectedModel !== undefined || input.responsePrompt !== undefined || input.chatMode !== undefined;
+    const shouldUpdateUser = selectedModel !== undefined || input.temperature !== undefined || input.responsePrompt !== undefined || input.chatMode !== undefined;
     const [updated] =
       !shouldUpdateUser
         ? [await chatUpdate]
@@ -199,6 +204,7 @@ export async function PATCH(request: Request, context: Context) {
               where: { id: user.id },
               data: {
                 ...userModelPreferences,
+                defaultTemperature: input.temperature,
                 defaultResponsePrompt: input.responsePrompt === undefined ? undefined : input.responsePrompt || null,
                 preferredChatMode: input.chatMode
               }

@@ -25,7 +25,8 @@ const mobileTokenPayloadSchema = z.object({
   sub: z.string(),
   email: z.string().email(),
   iat: z.number(),
-  exp: z.number()
+  exp: z.number(),
+  authVersion: z.number().int().nonnegative().default(0)
 });
 
 export type MobileUser = Awaited<ReturnType<typeof requireMobileUser>>;
@@ -47,12 +48,13 @@ function sign(input: string) {
   return createHmac("sha256", getMobileSecret()).update(input).digest("base64url");
 }
 
-export function createMobileToken(user: { id: string; email: string }) {
+export function createMobileToken(user: { id: string; email: string; authVersion?: number }) {
   const now = Math.floor(Date.now() / 1000);
   const payload = {
     type: "mobile" as const,
     sub: user.id,
     email: user.email,
+    authVersion: user.authVersion ?? 0,
     iat: now,
     exp: now + TOKEN_TTL_SECONDS
   };
@@ -112,8 +114,12 @@ export async function requireMobileUser(request: Request) {
       memoryEnabled: true,
       compactMode: true,
       notificationsEnabled: true,
+      unlimitedCharacterFields: true,
       preferredProvider: true,
       preferredModel: true,
+      defaultTemperature: true,
+      maxOutputTokens: true,
+      authVersion: true,
       defaultResponsePrompt: true,
       preferredChatMode: true,
       bannedAt: true
@@ -122,6 +128,10 @@ export async function requireMobileUser(request: Request) {
 
   if (!user || user.bannedAt) {
     throw new HttpError(403, "This account cannot access the platform.");
+  }
+
+  if (token.authVersion !== user.authVersion) {
+    throw new HttpError(401, "Mobile session expired. Sign in again.");
   }
 
   return user;

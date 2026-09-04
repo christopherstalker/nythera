@@ -13,6 +13,25 @@ export type CommunicationStyle = {
   prologuePov?: "second" | "third";
 };
 
+export type CharacterPersonaMember = {
+  id?: string;
+  name: string;
+  personality?: string;
+  role?: string;
+  archetype?: string;
+  personalityTraits?: string[];
+  speakingStyle?: string;
+  emotionalTone?: string;
+  initiativeLevel?: "low" | "medium" | "high";
+  verbosityLevel?: "concise" | "balanced" | "expressive" | "immersive";
+  relationshipStyle?: "friend" | "romantic" | "mentor" | "rival" | "antagonist";
+  relationshipDynamics?: "friend" | "romantic" | "mentor" | "rival" | "antagonist";
+  motivation?: string;
+  behavioralRules?: string[];
+  forbiddenBehaviors?: string[];
+  boundaries?: string[];
+};
+
 export type CharacterPersona = {
   name?: string;
   role?: string;
@@ -28,6 +47,7 @@ export type CharacterPersona = {
   verbosityLevel?: "concise" | "balanced" | "expressive" | "immersive";
   relationshipStyle?: "friend" | "romantic" | "mentor" | "rival" | "antagonist";
   relationshipDynamics?: "friend" | "romantic" | "mentor" | "rival" | "antagonist";
+  additionalCharacters?: CharacterPersonaMember[];
 };
 
 export type PublicCharacterProfile = {

@@ -4,6 +4,7 @@ import { HttpError, getRequestIp, json, parseJson, requireUser, routeError } fro
 import { prisma } from "@/lib/prisma";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { syncChatTurns } from "@/lib/stories/story-foundation";
+import { conversationBranchThroughMessage } from "@/lib/message-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -45,13 +46,14 @@ export async function POST(request: Request, context: Context) {
       throw new HttpError(404, "Chat not found.");
     }
 
-    const targetIndex = source.messages.findIndex((message) => message.id === input.messageId);
-    if (targetIndex < 0) {
+    const messages = conversationBranchThroughMessage(
+      source.messages.filter((message) => message.role !== MessageRole.SYSTEM),
+      input.messageId
+    );
+    if (!messages) {
       throw new HttpError(404, "Message not found.");
     }
-    if (targetIndex >= 200) {
-      throw new HttpError(413, "Only the latest 200 messages can be branched.");
-    }
+    const forkSequence = messages.length;
 
     const graphCounts = await Promise.all([
       prisma.storyFact.count({ where: { storyId: foundation.storyId, timelineId: foundation.timelineId } }),
@@ -65,8 +67,6 @@ export async function POST(request: Request, context: Context) {
     if (graphCounts.reduce((sum, count) => sum + count, 0) > 1000) {
       throw new HttpError(413, "This story graph is too large to branch safely.");
     }
-
-    const messages = source.messages.slice(0, targetIndex + 1).filter((message) => message.role !== MessageRole.SYSTEM);
 
     const forkedFromTurn = await prisma.storyTurn.findFirst({
       where: { timelineId: foundation.timelineId, sourceMessageId: input.messageId },
@@ -83,7 +83,7 @@ export async function POST(request: Request, context: Context) {
           storyId: foundation.storyId,
           parentTimelineId: foundation.timelineId,
           forkedFromTurnId: forkedFromTurn?.id,
-          label: input.title?.trim() || `Branch after turn ${targetIndex + 1}`,
+          label: input.title?.trim() || `Branch after turn ${forkSequence}`,
           isActive: true
         }
       });
@@ -94,7 +94,7 @@ export async function POST(request: Request, context: Context) {
           personaId: source.personaId,
           storyId: foundation.storyId,
           timelineId: timeline.id,
-          title: input.title || source.title,
+          title: input.title?.trim() || `${source.title || "Untitled chat"} · Branch`,
           temperature: source.temperature,
           model: source.model,
           responsePrompt: source.responsePrompt,
@@ -104,6 +104,7 @@ export async function POST(request: Request, context: Context) {
         }
       });
 
+      let activeAssistantMessageId: string | null = null;
       for (const [index, message] of messages.entries()) {
         const copied = await tx.message.create({
           data: {
@@ -121,6 +122,9 @@ export async function POST(request: Request, context: Context) {
             flagged: message.flagged
           }
         });
+        if (message.role === MessageRole.ASSISTANT) {
+          activeAssistantMessageId = copied.id;
+        }
         if (message.attachments.length) {
           await tx.messageAttachment.createMany({
             data: message.attachments.map((attachment) => ({
@@ -145,7 +149,21 @@ export async function POST(request: Request, context: Context) {
       }
 
       const sourceFacts = await tx.storyFact.findMany({
-        where: { storyId: foundation.storyId, timelineId: foundation.timelineId, status: "ACTIVE" },
+        where: {
+          storyId: foundation.storyId,
+          timelineId: foundation.timelineId,
+          status: "ACTIVE",
+          OR: [
+            { kind: { in: ["PERMANENT", "EVENT"] } },
+            {
+              kind: "STATE",
+              AND: [
+                { OR: [{ validFromSequence: null }, { validFromSequence: { lte: forkSequence } }] },
+                { OR: [{ validUntilSequence: null }, { validUntilSequence: { gte: forkSequence } }] }
+              ]
+            }
+          ]
+        },
         include: { knowledge: true }
       });
       for (const fact of sourceFacts) {
@@ -160,6 +178,10 @@ export async function POST(request: Request, context: Context) {
             predicate: fact.predicate,
             objectText: fact.objectText,
             objectData: fact.objectData ?? undefined,
+            kind: fact.kind,
+            worldTime: fact.worldTime,
+            validFromSequence: fact.validFromSequence,
+            validUntilSequence: fact.validUntilSequence,
             scope: fact.scope,
             status: fact.status,
             confidence: fact.confidence,
@@ -207,7 +229,7 @@ export async function POST(request: Request, context: Context) {
       if (sourceBeats.length > 0) {
         await tx.storyBeat.createMany({
           data: sourceBeats.map((beat) => {
-            const resolvedAfterFork = (beat.resolvedByTurn?.sequence ?? 0) > targetIndex + 1;
+            const resolvedAfterFork = (beat.resolvedByTurn?.sequence ?? 0) > forkSequence;
             return {
               storyId: foundation.storyId,
               timelineId: timeline.id,
@@ -232,7 +254,7 @@ export async function POST(request: Request, context: Context) {
       if (sourceHooks.length > 0) {
         await tx.storyHook.createMany({
           data: sourceHooks.map((hook) => {
-            const resolvedAfterFork = (hook.resolvedByTurn?.sequence ?? 0) > targetIndex + 1;
+            const resolvedAfterFork = (hook.resolvedByTurn?.sequence ?? 0) > forkSequence;
             return {
               storyId: foundation.storyId,
               timelineId: timeline.id,
@@ -367,10 +389,26 @@ export async function POST(request: Request, context: Context) {
         where: { timelineId: foundation.timelineId },
         orderBy: { version: "desc" }
       });
+      const sourceScene = await tx.storyScene.findFirst({
+        where: { storyId: foundation.storyId, timelineId: foundation.timelineId, status: "ACTIVE" },
+        orderBy: { startedAtSequence: "desc" }
+      });
+      const scene = await tx.storyScene.create({
+        data: {
+          storyId: foundation.storyId,
+          timelineId: timeline.id,
+          status: "ACTIVE",
+          title: sourceScene?.title ?? "Current scene",
+          worldTime: sourceScene?.worldTime,
+          location: sourceScene?.location,
+          startedAtSequence: forkSequence
+        }
+      });
       await tx.storyStateSnapshot.create({
         data: {
           storyId: foundation.storyId,
           timelineId: timeline.id,
+          sceneId: scene.id,
           version: 0,
           state: latestSnapshot?.state ?? {}
         }
@@ -380,7 +418,10 @@ export async function POST(request: Request, context: Context) {
         data: { lastActiveAt: new Date() }
       });
 
-      return created;
+      return tx.chat.update({
+        where: { id: created.id },
+        data: { activeAssistantMessageId }
+      });
     });
 
     return json({ chat: branch }, { status: 201 });

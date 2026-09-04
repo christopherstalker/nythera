@@ -7,6 +7,7 @@ const fallbackSchema = z.object({
     .array(
       z.object({
         provider: z.string().min(1).max(48),
+        model: z.string().trim().min(1).max(160),
         enabled: z.boolean()
       })
     )

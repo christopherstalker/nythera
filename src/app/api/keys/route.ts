@@ -4,6 +4,7 @@ import { HttpError, json, parseJson, requireUser, routeError } from "@/lib/api";
 import { assertSafeOutboundUrl } from "@/lib/safe-outbound-url";
 import { enforceFirstClassProviderConfig } from "@/lib/provider-presets";
 import { validateProviderCredentials } from "@/lib/provider-model-catalog";
+import { prisma } from "@/lib/prisma";
 
 const saveKeySchema = z.object({
   provider: z.string().trim().min(2).max(48).regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/, "Provider IDs may contain letters, numbers, hyphens, and underscores only."),
@@ -15,11 +16,31 @@ const saveKeySchema = z.object({
   label: z.string().max(80).optional()
 });
 
+const providerSettingsSchema = z.object({
+  maxOutputTokens: z.number().int().min(128).max(4096).nullable()
+});
+
 export async function GET() {
   try {
     const user = await requireUser();
     const keys = await listUserApiKeys(user.id);
-    return json({ keys });
+    return json({ keys, maxOutputTokens: user.maxOutputTokens });
+  } catch (error) {
+    return routeError(error);
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const user = await requireUser();
+    const input = await parseJson(request, providerSettingsSchema);
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: { maxOutputTokens: input.maxOutputTokens },
+      select: { maxOutputTokens: true }
+    });
+
+    return json(updated);
   } catch (error) {
     return routeError(error);
   }

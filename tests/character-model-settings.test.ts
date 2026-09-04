@@ -24,7 +24,7 @@ const providerKeys = [
   }
 ];
 
-test("uses an available character provider and all character sampler overrides", () => {
+test("uses an available character provider while preserving the chat temperature", () => {
   assert.deepEqual(
     resolveCharacterModelSettings({
       character: {
@@ -44,7 +44,7 @@ test("uses an available character provider and all character sampler overrides",
     {
       model: "groq:llama-3.3-70b-versatile",
       provider: "groq",
-      temperature: 0.8,
+      temperature: 0.7,
       topP: 0.9,
       frequencyPenalty: 0.2,
       presencePenalty: 0.3,
@@ -99,7 +99,7 @@ test("explicit per-message provider model overrides the character preferred prov
 
   assert.equal(result.model, "openai:gpt-4o-mini");
   assert.equal(result.provider, "openai");
-  assert.equal(result.temperature, 0.9);
+  assert.equal(result.temperature, 0.65);
   assert.equal(result.usedCharacterProvider, false);
   assert.equal(result.fellBackToGlobalProvider, false);
 });

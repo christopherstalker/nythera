@@ -49,6 +49,7 @@ export async function listMemories(input: {
 export async function getPromptMemories(input: {
   userId: string;
   characterId: string;
+  chatId?: string;
   query: string;
   pinnedLimit?: number;
   semanticLimit?: number;
@@ -79,6 +80,30 @@ export async function getPromptMemories(input: {
     }
   });
 
+  const continuity = await prisma.memory.findMany({
+    where: {
+      userId: input.userId,
+      characterId: input.characterId,
+      ...(input.chatId ? { sourceChatId: input.chatId } : {}),
+      pinned: false,
+      status: MemoryStatus.ACTIVE,
+      category: {
+        in: [MemoryCategory.EVENT, MemoryCategory.EMOTIONAL_CONTEXT, MemoryCategory.FACT]
+      }
+    },
+    orderBy: [{ updatedAt: "desc" }, { importance: "desc" }],
+    take: 3,
+    select: {
+      id: true,
+      content: true,
+      importance: true,
+      category: true,
+      confidence: true,
+      metadata: true,
+      pinned: true
+    }
+  });
+
   let semantic: RetrievedMemory[] = [];
   if (input.semanticEnabled !== false) {
     try {
@@ -88,7 +113,8 @@ export async function getPromptMemories(input: {
         query: input.query,
         limit: Math.max(1, Math.min(input.semanticLimit ?? 5, 10)),
         providerKeys: input.providerKeys,
-        includeGlobal: input.includeGlobal ?? true
+        includeGlobal: input.includeGlobal ?? true,
+        sourceChatId: input.chatId
       });
     } catch (error) {
       logSafeError("Prompt memory semantic retrieval failed.", error);
@@ -97,7 +123,7 @@ export async function getPromptMemories(input: {
 
   const seenIds = new Set<string>();
   const seenContent = new Set<string>();
-  return [...pinned, ...semantic].filter((memory) => {
+  return [...pinned, ...semantic, ...continuity].filter((memory) => {
     const normalizedContent = memory.content.trim().toLocaleLowerCase();
     if (seenIds.has(memory.id) || seenContent.has(normalizedContent)) {
       return false;

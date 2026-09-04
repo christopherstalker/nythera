@@ -1,6 +1,6 @@
 "use client";
 
-import { KeyboardEvent, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FocusEvent } from "react";
 import { ArrowUp, BookmarkPlus, LoaderCircle, X } from "lucide-react";
 import { motion } from "motion/react";
 import { Avatar } from "@/components/ui/avatar";
@@ -15,6 +15,8 @@ import { prepareChatImage } from "@/lib/chat-image-client";
 import { ChatToolsMenu } from "@/components/chat/ChatToolsMenu";
 import { containsRussianLanguage, RUSSIAN_LANGUAGE_ERROR } from "@/lib/language-policy";
 import { matchLorebookEntries } from "@/lib/lorebook";
+import { estimatePromptTokens } from "@/lib/prompt-budget";
+import { cn } from "@/lib/utils";
 
 const EMPTY_RECENT_MESSAGES: NonNullable<ChatInputProps["recentMessages"]> = [];
 
@@ -30,6 +32,8 @@ type ChatInputProps = {
   temperature?: number;
   onModelChange?: (value: string) => void;
   onTemperatureChange?: (value: number) => void;
+  maxOutputTokens?: number | null;
+  onMaxOutputTokensChange?: (value: number | null) => Promise<boolean>;
   responsePrompt?: string;
   onResponsePromptChange?: (value: string) => void;
   translationLanguage?: string;
@@ -55,6 +59,8 @@ export function ChatInput({
   temperature,
   onModelChange,
   onTemperatureChange,
+  maxOutputTokens,
+  onMaxOutputTokensChange,
   responsePrompt,
   onResponsePromptChange,
   translationLanguage,
@@ -68,13 +74,18 @@ export function ChatInput({
   inputLimits
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const composerRef = useRef<HTMLDivElement | null>(null);
   const apiPanelRef = useRef<HTMLDivElement | null>(null);
   const lookbookPanelRef = useRef<HTMLDivElement | null>(null);
   const [apiOpen, setApiOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [modelSearch, setModelSearch] = useState("");
+  const [maxOutputTokensDraft, setMaxOutputTokensDraft] = useState(maxOutputTokens == null ? "" : String(maxOutputTokens));
+  const [maxOutputTokensSaving, setMaxOutputTokensSaving] = useState(false);
+  const [maxOutputTokensError, setMaxOutputTokensError] = useState<string | null>(null);
   const [attachmentStatus, setAttachmentStatus] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<ChatImageAttachment[]>([]);
+  const [composerExpanded, setComposerExpanded] = useState(Boolean(value.trim()));
   const [imageUploading, setImageUploading] = useState(false);
   const [lookbookOpen, setLookbookOpen] = useState(false);
   const [lookbookLoading, setLookbookLoading] = useState(false);
@@ -90,10 +101,37 @@ export function ChatInput({
     () => matchLorebookEntries(lorebook, [value, ...recentMessages.slice(-10).map((message) => message.content)]),
     [lorebook, recentMessages, value]
   );
+  const showExpandedComposer = composerExpanded || Boolean(value.trim()) || attachments.length > 0;
+  const resize = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    if (!showExpandedComposer) {
+      textarea.style.height = "32px";
+      return;
+    }
+
+    textarea.style.height = "0px";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 240)}px`;
+  }, [showExpandedComposer]);
 
   useEffect(() => {
     resize();
-  }, [value]);
+  }, [resize, value]);
+
+  useEffect(() => {
+    if (value.trim() || attachments.length > 0) setComposerExpanded(true);
+  }, [attachments.length, value]);
+
+  useEffect(() => {
+    if (toolsOpen || apiOpen || lookbookOpen || value.trim() || attachments.length > 0) return;
+    if (document.activeElement !== textareaRef.current) setComposerExpanded(false);
+  }, [apiOpen, attachments.length, lookbookOpen, toolsOpen, value]);
+
+  useEffect(() => {
+    setMaxOutputTokensDraft(maxOutputTokens == null ? "" : String(maxOutputTokens));
+    setMaxOutputTokensError(null);
+  }, [maxOutputTokens]);
 
   useEffect(() => {
     if (!apiOpen && !lookbookOpen) return;
@@ -120,14 +158,10 @@ export function ChatInput({
 
   useEffect(() => { void fetch("/api/chat-macros").then((response) => response.ok ? response.json() : null).then((body) => setMacros(Array.isArray(body?.macros) ? body.macros : [])); }, []);
 
-  function resize() {
-    const textarea = textareaRef.current;
-    if (!textarea) {
-      return;
-    }
-
-    textarea.style.height = "0px";
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 240)}px`;
+  function collapseComposer(event: FocusEvent<HTMLTextAreaElement>) {
+    const nextTarget = event.relatedTarget as Node | null;
+    if (nextTarget && composerRef.current?.contains(nextTarget)) return;
+    if (!value.trim() && attachments.length === 0) setComposerExpanded(false);
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -194,6 +228,8 @@ export function ChatInput({
     if (accepted) {
       setAttachments([]);
       setAttachmentStatus(null);
+      setComposerExpanded(false);
+      textareaRef.current?.blur();
     }
   }
 
@@ -353,7 +389,26 @@ export function ChatInput({
   const responsePromptLimit = inputLimits?.responsePrompt ?? MAX_RESPONSE_PROMPT_LENGTH;
   const elevatedLimits = inputLimits?.elevated === true;
   const canSend = !disabled && !imageUploading && Boolean(value.trim() || attachments.length) && value.length <= messageLimit;
-  const hasApiControls = Boolean(onModelChange || onTemperatureChange || onResponsePromptChange || onTranslationLanguageChange);
+  async function saveMaxOutputTokens() {
+    if (!onMaxOutputTokensChange || maxOutputTokensSaving) return;
+
+    const normalizedDraft = maxOutputTokensDraft.trim();
+    const parsedLimit = normalizedDraft === "" ? null : Number(normalizedDraft);
+    if (parsedLimit !== null && (!Number.isInteger(parsedLimit) || parsedLimit < 128 || parsedLimit > 4096)) {
+      setMaxOutputTokensError("Enter a whole number from 128 to 4096, or leave empty for automatic limits.");
+      return;
+    }
+
+    setMaxOutputTokensError(null);
+    setMaxOutputTokensSaving(true);
+    const saved = await onMaxOutputTokensChange(parsedLimit);
+    setMaxOutputTokensSaving(false);
+    if (!saved) {
+      setMaxOutputTokensError("Could not save the token limit.");
+    }
+  }
+
+  const hasApiControls = Boolean(onModelChange || onTemperatureChange || onMaxOutputTokensChange || onResponsePromptChange || onTranslationLanguageChange);
   const currentTemperature = temperature ?? 0.7;
   const modelOptions = modelGroups.flatMap((group) => group.options);
   const hasModelOptions = modelOptions.length > 0;
@@ -463,6 +518,48 @@ export function ChatInput({
               </span>
             </label>
           ) : null}
+          {onMaxOutputTokensChange ? (
+            <div className="grid min-w-0 gap-1.5">
+              <label htmlFor={`max-output-tokens-${chatId}`} className="px-1 text-[11px] font-medium uppercase text-[var(--text-muted)]">
+                Maximum output tokens
+              </label>
+              <span className="flex min-w-0 items-center gap-2">
+                <input
+                  id={`max-output-tokens-${chatId}`}
+                  type="number"
+                  inputMode="numeric"
+                  min={128}
+                  max={4096}
+                  step={64}
+                  value={maxOutputTokensDraft}
+                  onChange={(event) => {
+                    setMaxOutputTokensDraft(event.target.value);
+                    setMaxOutputTokensError(null);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void saveMaxOutputTokens();
+                    }
+                  }}
+                  placeholder="Automatic"
+                  aria-describedby={`max-output-tokens-help-${chatId}`}
+                  className="focus-ring h-10 min-w-0 flex-1 rounded-sm border border-white/15 bg-[#111] px-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent-purple)]"
+                />
+                <button
+                  type="button"
+                  onClick={() => void saveMaxOutputTokens()}
+                  disabled={maxOutputTokensSaving}
+                  className="focus-ring h-10 shrink-0 rounded-sm border border-white/15 px-3 text-[11px] font-semibold uppercase tracking-[.12em] text-[var(--text-primary)] transition-colors hover:border-[var(--accent-purple)] disabled:cursor-wait disabled:opacity-60"
+                >
+                  {maxOutputTokensSaving ? "Saving" : "Save"}
+                </button>
+              </span>
+              <span id={`max-output-tokens-help-${chatId}`} className={`px-1 text-[11px] ${maxOutputTokensError ? "text-red-300" : "text-[var(--text-muted)]"}`}>
+                {maxOutputTokensError ?? "Global response ceiling. Leave empty to use automatic model limits."}
+              </span>
+            </div>
+          ) : null}
           {onTranslationLanguageChange ? (
             <label className="grid min-w-0 gap-1.5 sm:col-span-2">
               <span className="px-1 text-[11px] font-medium uppercase text-[var(--text-muted)]">Automatic translation</span>
@@ -520,12 +617,17 @@ export function ChatInput({
         </motion.div>
       ) : null}
       <motion.div
-        className="composer-dock pointer-events-auto relative mx-auto flex w-full max-w-[var(--chat-content-width,1000px)] flex-col gap-2 border border-white/15 bg-black/75 px-4 py-3 sm:px-5"
+        ref={composerRef}
+        data-expanded={showExpandedComposer}
+        className={cn(
+          "composer-dock pointer-events-auto relative mx-auto flex w-full max-w-[var(--chat-content-width,1000px)] flex-col border border-white/15 bg-black/75 px-4 transition-[padding] sm:px-5",
+          showExpandedComposer ? "gap-2 py-3" : "gap-0 py-2"
+        )}
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={springSoft}
       >
-        {attachments.length ? (
+        {showExpandedComposer && attachments.length ? (
           <div className="flex gap-2 overflow-x-auto border-b border-[var(--border-subtle)] pb-2" aria-label="Attached images">
             {attachments.map((attachment) => (
               <div key={attachment.assetId} className="group relative h-20 w-20 shrink-0 overflow-hidden rounded-sm border border-white/15 bg-black/50">
@@ -575,7 +677,7 @@ export function ChatInput({
           </div>
         ) : null}
 
-        {activeLorebookEntries.length ? (
+        {showExpandedComposer && activeLorebookEntries.length ? (
           <div className="rounded-sm border border-[var(--codex-mint)]/35 bg-[var(--codex-mint)]/[.06] px-3 py-2" role="status">
             <p className="text-[10px] font-semibold uppercase tracking-[.16em] text-[var(--codex-mint)]">
               Lorebook active · {activeLorebookEntries.length}
@@ -591,15 +693,17 @@ export function ChatInput({
           </div>
         ) : null}
 
-        <RichTextToolbar
-          textareaRef={textareaRef}
-          value={value}
-          onChange={onChange}
-          compact
-          className="relative border-b border-[var(--border-subtle)] pb-2"
-        />
+        {showExpandedComposer ? (
+          <RichTextToolbar
+            textareaRef={textareaRef}
+            value={value}
+            onChange={onChange}
+            compact
+            className="relative border-b border-[var(--border-subtle)] pb-2"
+          />
+        ) : null}
 
-        <div className="relative flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div className={cn("relative flex gap-3", showExpandedComposer ? "flex-col sm:flex-row sm:items-end" : "flex-row items-center")}>
           <textarea
             ref={textareaRef}
             value={value}
@@ -608,14 +712,19 @@ export function ChatInput({
             onChange={(event) => onChange(event.target.value.slice(0, messageLimit))}
             onInput={resize}
             onKeyDown={handleKeyDown}
+            onFocus={() => setComposerExpanded(true)}
+            onBlur={collapseComposer}
             placeholder="Write what happens next…"
-            className="relative max-h-[220px] min-h-16 w-full flex-1 resize-none overflow-y-auto bg-transparent px-0 py-1 text-[length:var(--chat-font-size,24px)] font-[var(--chat-font-weight,500)] leading-[var(--chat-line-height,1.5)] text-[var(--chat-text-color,var(--codex-ivory))] outline-none placeholder:italic placeholder:text-[var(--text-muted)] sm:min-h-8"
+            className={cn(
+              "relative max-h-[220px] w-full flex-1 resize-none overflow-y-auto bg-transparent px-0 py-1 text-[length:var(--chat-font-size,24px)] font-[var(--chat-font-weight,500)] leading-[var(--chat-line-height,1.5)] text-[var(--chat-text-color,var(--codex-ivory))] outline-none placeholder:italic placeholder:text-[var(--text-muted)]",
+              showExpandedComposer ? "min-h-16 sm:min-h-8" : "min-h-8"
+            )}
             style={{ fontFamily: "var(--chat-font-family, var(--font-editorial))" }}
             disabled={disabled}
           />
 
-          <div className="relative flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
-            <div className="flex min-w-0 items-center sm:hidden">
+          <div className={cn("relative flex items-center justify-between gap-3", showExpandedComposer ? "w-full sm:w-auto sm:justify-end" : "w-auto shrink-0 justify-end")}>
+            <div className={cn("min-w-0 items-center sm:hidden", showExpandedComposer ? "flex" : "hidden")}>
               {onOpenComposer ? (
                 <motion.button
                   type="button"

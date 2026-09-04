@@ -13,9 +13,3 @@ export function buildPromptAddonLayers(input: {
     sessionMemory: buildExternalPrompt(input)
   };
 }
-
-export function modeTemperature(mode: ChatMode, base: number) {
-  return mode === "fantasy"
-    ? Math.min(1.15, Math.max(base, 0.85))
-    : Math.min(0.75, Math.max(base, 0.35));
-}
