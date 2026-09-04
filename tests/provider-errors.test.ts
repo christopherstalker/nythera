@@ -25,6 +25,14 @@ for (const [name, classify] of [
     assert.equal(classify({ status: 503, message: "Unavailable" }).retryable, true);
   });
 
+  test(`${name} distinguishes exhausted credits from transient rate limits`, () => {
+    for (const details of [{ code: "credit_balance_exhausted" }, { type: "insufficient_quota" }]) {
+      const classified = classify({ status: 429, message: "Request rejected", ...details });
+      assert.equal(classified.code, "insufficient_balance");
+      assert.equal(classified.retryable, false);
+    }
+  });
+
   test(`${name} classifies the gateway deadline message as a retryable network failure`, () => {
     const classified = classify(new Error("Provider request timed out."));
     assert.equal(classified.code, "network_error");

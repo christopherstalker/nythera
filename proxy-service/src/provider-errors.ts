@@ -24,7 +24,11 @@ export function classifyProviderError(error: unknown): ProviderErrorClassificati
   if (reportsPromptLimit) {
     return { code: "prompt_too_large", message: "The request exceeded this provider's context limit. Nythera will shorten older history before retrying.", status, retryable: false };
   }
-  if (status === 402) {
+  const exhaustedCredit = error !== null && typeof error === "object" && (
+    ("code" in error && error.code === "credit_balance_exhausted") ||
+    ("type" in error && error.type === "insufficient_quota")
+  );
+  if (status === 402 || status === 429 && exhaustedCredit) {
     return { code: "insufficient_balance", message: "The provider account cannot cover this request. Add credits, reduce the response length, or choose another provider.", status, retryable: false };
   }
   if (status === 400 || status === 422) {
