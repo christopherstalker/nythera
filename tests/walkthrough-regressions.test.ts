@@ -34,12 +34,27 @@ test("chat preserves rejected drafts and exposes interruption state", async () =
   ]);
 
   assert.match(limits, /MAX_CHAT_MESSAGE_LENGTH = 4000/);
-  assert.match(input, /maxLength=\{MAX_CHAT_MESSAGE_LENGTH\}/);
-  assert.match(input, /MAX_CHAT_MESSAGE_LENGTH\.toLocaleString/);
+  assert.match(input, /maxLength=\{messageLimit\}/);
+  assert.match(input, /inputLimits\?\.elevated === true/);
   assert.match(client, /if \(!accepted\)/);
   assert.match(client, /setDraft\(\(current\) => current \|\| content\)/);
   assert.match(hook, /The previous response was interrupted/);
-  assert.match(validation, /max\(MAX_CHAT_MESSAGE_LENGTH/);
+  assert.match(validation, /max\(ELEVATED_CHAT_MESSAGE_LENGTH/);
+});
+
+test("rate-limit bypass accounts receive extended chat and custom prompt limits", async () => {
+  const [limits, serverLimits, route, streamRoute] = await Promise.all([
+    read("../src/lib/chat-limits.ts"),
+    read("../src/lib/chat-limits.server.ts"),
+    read("../src/app/api/chats/[id]/route.ts"),
+    read("../src/app/api/chats/[id]/stream/route.ts")
+  ]);
+
+  assert.match(limits, /ELEVATED_CHAT_MESSAGE_LENGTH = 60_000/);
+  assert.match(limits, /ELEVATED_RESPONSE_PROMPT_LENGTH = 60_000/);
+  assert.match(serverLimits, /process\.env\.RATE_LIMIT_BYPASS_USER_IDS/);
+  assert.match(route, /inputLimits: getChatInputLimits\(user\.id\)/);
+  assert.match(streamRoute, /sanitizeUserText\(input\.message, inputLimits\.message\)/);
 });
 
 test("private character owners receive server-rendered profiles without public indexing", async () => {

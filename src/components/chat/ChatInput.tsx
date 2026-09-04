@@ -9,14 +9,13 @@ import type { ProviderModelGroup } from "@/lib/provider-model-options";
 import { RESPONSE_PROMPT_EXAMPLES } from "@/lib/response-prompt";
 import { springSnappy, springSoft } from "@/lib/motion";
 import { applyRichTextFormat, richTextFormatFromShortcut } from "@/lib/rich-text-formatting";
-import { MAX_CHAT_MESSAGE_LENGTH } from "@/lib/chat-limits";
+import { MAX_CHAT_MESSAGE_LENGTH, MAX_RESPONSE_PROMPT_LENGTH, type ChatInputLimits } from "@/lib/chat-limits";
 import { MAX_CHAT_IMAGE_ATTACHMENTS, type ChatImageAttachment, type LookbookImage } from "@/lib/chat-attachments";
 import { prepareChatImage } from "@/lib/chat-image-client";
 import { ChatToolsMenu } from "@/components/chat/ChatToolsMenu";
 import { containsRussianLanguage, RUSSIAN_LANGUAGE_ERROR } from "@/lib/language-policy";
 import { matchLorebookEntries } from "@/lib/lorebook";
 
-const MAX_RESPONSE_PROMPT_LENGTH = 2000;
 const EMPTY_RECENT_MESSAGES: NonNullable<ChatInputProps["recentMessages"]> = [];
 
 type ChatInputProps = {
@@ -41,6 +40,7 @@ type ChatInputProps = {
   onOpenComposer?: () => void;
   lorebook?: unknown;
   recentMessages?: Array<{ role: string; content: string }>;
+  inputLimits?: ChatInputLimits;
 };
 
 export function ChatInput({
@@ -64,7 +64,8 @@ export function ChatInput({
   personaAvatarUrl,
   onOpenComposer,
   lorebook,
-  recentMessages = EMPTY_RECENT_MESSAGES
+  recentMessages = EMPTY_RECENT_MESSAGES,
+  inputLimits
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const apiPanelRef = useRef<HTMLDivElement | null>(null);
@@ -163,8 +164,9 @@ export function ChatInput({
       const contents = await file.text();
       const prefix = value.trimEnd() ? `${value.trimEnd()}\n\n` : "";
       const nextValue = `${prefix}[Attached context: ${file.name}]\n${contents.trim()}`;
-      if (nextValue.length > MAX_CHAT_MESSAGE_LENGTH) {
-        setAttachmentStatus(`That file would exceed the ${MAX_CHAT_MESSAGE_LENGTH.toLocaleString()} character message limit.`);
+      const messageLimit = inputLimits?.message ?? MAX_CHAT_MESSAGE_LENGTH;
+      if (nextValue.length > messageLimit) {
+        setAttachmentStatus(`That file would exceed the ${messageLimit.toLocaleString()} character message limit.`);
         return;
       }
       onChange(nextValue);
@@ -347,7 +349,10 @@ export function ChatInput({
     setAttachmentStatus(response.ok ? `${title} saved to Lookbook.` : body?.error ?? "Could not save this look.");
   }
 
-  const canSend = !disabled && !imageUploading && Boolean(value.trim() || attachments.length) && value.length <= MAX_CHAT_MESSAGE_LENGTH;
+  const messageLimit = inputLimits?.message ?? MAX_CHAT_MESSAGE_LENGTH;
+  const responsePromptLimit = inputLimits?.responsePrompt ?? MAX_RESPONSE_PROMPT_LENGTH;
+  const elevatedLimits = inputLimits?.elevated === true;
+  const canSend = !disabled && !imageUploading && Boolean(value.trim() || attachments.length) && value.length <= messageLimit;
   const hasApiControls = Boolean(onModelChange || onTemperatureChange || onResponsePromptChange || onTranslationLanguageChange);
   const currentTemperature = temperature ?? 0.7;
   const modelOptions = modelGroups.flatMap((group) => group.options);
@@ -477,11 +482,14 @@ export function ChatInput({
             <label className="grid min-w-0 gap-1.5 sm:col-span-2">
               <span className="grid min-w-0 gap-1 px-1 text-[11px] font-medium uppercase text-[var(--text-muted)] sm:flex sm:items-center sm:justify-between sm:gap-3">
                 <span>Custom system prompt</span>
-                <span className="min-w-0 normal-case tracking-normal sm:text-right">Overrides built-in prompt · {(responsePrompt ?? "").length}/{MAX_RESPONSE_PROMPT_LENGTH}</span>
+                <span className="min-w-0 normal-case tracking-normal sm:text-right">
+                  {elevatedLimits ? `Extended prompt · ${(responsePrompt ?? "").length.toLocaleString()} characters` : `Overrides built-in prompt · ${(responsePrompt ?? "").length}/${responsePromptLimit}`}
+                </span>
               </span>
               <textarea
                 value={responsePrompt ?? ""}
-                onChange={(event) => onResponsePromptChange(event.target.value.slice(0, MAX_RESPONSE_PROMPT_LENGTH))}
+                maxLength={responsePromptLimit}
+                onChange={(event) => onResponsePromptChange(event.target.value.slice(0, responsePromptLimit))}
                 placeholder="Leave blank to use Nythera's built-in roleplay prompt, or paste a complete system prompt to replace it."
                 rows={3}
                 className="focus-ring min-h-20 resize-y rounded-sm border border-white/15 bg-[#111] px-3 py-2 text-xs leading-5 text-[var(--text-primary)] focus:border-[var(--accent-purple)]"
@@ -596,8 +604,8 @@ export function ChatInput({
             ref={textareaRef}
             value={value}
             rows={1}
-            maxLength={MAX_CHAT_MESSAGE_LENGTH}
-            onChange={(event) => onChange(event.target.value.slice(0, MAX_CHAT_MESSAGE_LENGTH))}
+            maxLength={messageLimit}
+            onChange={(event) => onChange(event.target.value.slice(0, messageLimit))}
             onInput={resize}
             onKeyDown={handleKeyDown}
             placeholder="Write what happens next…"
@@ -669,8 +677,8 @@ export function ChatInput({
         </div>
         <div className="relative flex items-center justify-between gap-3 px-1 text-xs text-[var(--text-muted)]">
           <p role="status">{attachmentStatus}</p>
-          <span className={value.length >= MAX_CHAT_MESSAGE_LENGTH ? "text-amber-300" : undefined}>
-            {value.length.toLocaleString()}/{MAX_CHAT_MESSAGE_LENGTH.toLocaleString()}
+          <span className={value.length >= messageLimit ? "text-amber-300" : undefined}>
+            {elevatedLimits ? `${value.length.toLocaleString()} characters · extended` : `${value.length.toLocaleString()}/${messageLimit.toLocaleString()}`}
           </span>
         </div>
       </motion.div>

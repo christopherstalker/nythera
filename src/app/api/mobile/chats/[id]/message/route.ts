@@ -31,6 +31,7 @@ import { requireAdultConsent } from "@/lib/adult-consent";
 import { schedulePostResponseTasks } from "@/lib/post-response";
 import { containsRussianLanguage, RUSSIAN_LANGUAGE_ERROR } from "@/lib/language-policy";
 import { createPhysicalContinuityOutputGuard } from "@/lib/physical-continuity";
+import { getChatInputLimits } from "@/lib/chat-limits.server";
 
 type Context = {
   params: Promise<{ id: string }>;
@@ -52,11 +53,18 @@ export async function POST(request: Request, context: Context) {
       route: "mobile:chat:message"
     });
 
+    const inputLimits = getChatInputLimits(user.id);
     const input = await parseJson(request, mobileStreamMessageSchema);
+    if (input.message.length > inputLimits.message) {
+      throw new HttpError(400, `Message must be ${inputLimits.message.toLocaleString()} characters or fewer.`);
+    }
+    if ((input.responsePrompt?.length ?? 0) > inputLimits.responsePrompt) {
+      throw new HttpError(400, `Custom system prompt must be ${inputLimits.responsePrompt.toLocaleString()} characters or fewer.`);
+    }
     const continueChat = input.continueChat === true;
     const continuationPrompt =
       "Continue the roleplay naturally from the immediately preceding selected assistant response. Do not speak as the user, do not invent a user reply, and keep the scene moving in the character's voice.";
-    const message = continueChat ? continuationPrompt : sanitizeUserText(input.message);
+    const message = continueChat ? continuationPrompt : sanitizeUserText(input.message, inputLimits.message);
     if (containsRussianLanguage(message)) {
       throw new HttpError(400, RUSSIAN_LANGUAGE_ERROR);
     }

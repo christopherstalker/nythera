@@ -1,4 +1,5 @@
 import { sanitizePromptContext } from "@/lib/prompt-security";
+import { ELEVATED_RESPONSE_PROMPT_LENGTH } from "@/lib/chat-limits";
 
 export const RESPONSE_PROMPT_EXAMPLES = [
   {
@@ -31,7 +32,7 @@ export function selectCustomPrompt(chatPrompt?: string | null, characterPrompt?:
 }
 
 export function buildResponsePromptLayer(selection: CustomPromptSelection) {
-  const promptLimit = selection.source === "chat" ? 2000 : 8000;
+  const promptLimit = selection.source === "chat" ? ELEVATED_RESPONSE_PROMPT_LENGTH : 8000;
   const customPrompt = sanitizePromptContext(selection.prompt, promptLimit);
   const owner = selection.source === "chat" ? "CHAT USER" : "CHARACTER CREATOR";
 

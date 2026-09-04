@@ -24,6 +24,7 @@ import { useUiStore } from "@/stores/use-ui-store";
 import { CHAT_CUSTOM_FONT_FAMILY, useCustomFontFace } from "@/hooks/use-custom-font";
 import { latestAssistantVariantGroup } from "@/lib/message-actions";
 import type { ChatImageAttachment } from "@/lib/chat-attachments";
+import type { ChatInputLimits } from "@/lib/chat-limits";
 
 type ChatClientProps = {
   chatId: string;
@@ -42,6 +43,7 @@ type ChatClientProps = {
   characterLorebook?: unknown;
   initialMessages: ChatMessage[];
   initialActiveAssistantMessageId?: string | null;
+  inputLimits?: ChatInputLimits;
 };
 
 const API_SETTINGS_SAVE_DEBOUNCE_MS = 500;
@@ -49,7 +51,7 @@ const ACTIVE_VARIANT_SAVE_DEBOUNCE_MS = 500;
 const DOUBLE_TAP_MAX_DELAY_MS = 350;
 const DOUBLE_TAP_MAX_DISTANCE_PX = 24;
 
-export function ChatClient({ chatId, chapterNumber, characterId, characterName, characterAvatarUrl, characterBackgroundUrl, characterLorebook, summary, model: initialModel, temperature: initialTemperature, responsePrompt: initialResponsePrompt, chatMode: initialChatMode, translationLanguage: initialTranslationLanguage, appearance: initialAppearance, initialMessages, initialActiveAssistantMessageId }: ChatClientProps) {
+export function ChatClient({ chatId, chapterNumber, characterId, characterName, characterAvatarUrl, characterBackgroundUrl, characterLorebook, summary, model: initialModel, temperature: initialTemperature, responsePrompt: initialResponsePrompt, chatMode: initialChatMode, translationLanguage: initialTranslationLanguage, appearance: initialAppearance, initialMessages, initialActiveAssistantMessageId, inputLimits }: ChatClientProps) {
   const [draft, setDraft] = useState("");
   const [model, setModel] = useState(initialModel || "gpt-4o-mini");
   const [temperature, setTemperature] = useState(initialTemperature ?? 0.7);
@@ -597,6 +599,7 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
               onOpenComposer={() => setSidePanelOpen(true)}
               lorebook={characterLorebook}
               recentMessages={messages}
+              inputLimits={inputLimits}
             />
           </div>
         </div>

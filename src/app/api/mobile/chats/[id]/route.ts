@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireMobileUser } from "@/lib/mobile-auth";
 import { chatUpdateSchema } from "@/lib/validation";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { getChatInputLimits } from "@/lib/chat-limits.server";
 
 type Context = {
   params: Promise<{ id: string }>;
@@ -34,7 +35,7 @@ export async function GET(request: Request, context: Context) {
     }
 
     chat.messages.reverse();
-    return json({ chat });
+    return json({ chat: { ...chat, inputLimits: getChatInputLimits(user.id) } });
   } catch (error) {
     return routeError(error);
   }
@@ -44,6 +45,10 @@ export async function PATCH(request: Request, context: Context) {
   try {
     const user = await requireMobileUser(request);
     const input = await parseJson(request, chatUpdateSchema);
+    const inputLimits = getChatInputLimits(user.id);
+    if ((input.responsePrompt?.length ?? 0) > inputLimits.responsePrompt) {
+      throw new HttpError(400, `Custom system prompt must be ${inputLimits.responsePrompt.toLocaleString()} characters or fewer.`);
+    }
     const chat = await prisma.chat.findFirst({
       where: {
         id: (await context.params).id,
