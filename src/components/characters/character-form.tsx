@@ -368,7 +368,9 @@ export function CharacterForm({ mode, initialValue, unlimitedCharacterFields = f
       setFileImportResult({
         fileName: typeof body?.file?.name === "string" ? body.file.name : sourceFile.name,
         kind: body.kind,
-        warnings: Array.isArray(body.warnings) ? body.warnings.filter((warning: unknown) => typeof warning === "string") : []
+        warnings: Array.isArray(body.warnings)
+          ? body.warnings.filter((warning: unknown) => typeof warning === "string")
+          : []
       });
     } catch {
       setError("Could not create a character draft from this file.");
@@ -417,7 +419,8 @@ export function CharacterForm({ mode, initialValue, unlimitedCharacterFields = f
       draft,
       generated: generatedPreview,
       isSimpleMode: false,
-      creationMode: mode === "edit" ? creationModeForEditor(initialValue?.creationMode) : creationModeForNewCharacter(formMode),
+      creationMode:
+        mode === "edit" ? creationModeForEditor(initialValue?.creationMode) : creationModeForNewCharacter(formMode),
       unlimitedCharacterFields
     });
     const card = {
@@ -573,7 +576,6 @@ export function CharacterForm({ mode, initialValue, unlimitedCharacterFields = f
       return;
     }
 
-
     const preview = generatedPreview;
 
     if (!isSimpleMode && draft.visibility === "PUBLIC" && !draft.avatarUrl.trim()) {
@@ -585,7 +587,8 @@ export function CharacterForm({ mode, initialValue, unlimitedCharacterFields = f
       draft,
       generated: preview,
       isSimpleMode: isSimpleMode || isPromptMode,
-      creationMode: mode === "edit" ? creationModeForEditor(initialValue?.creationMode) : creationModeForNewCharacter(formMode),
+      creationMode:
+        mode === "edit" ? creationModeForEditor(initialValue?.creationMode) : creationModeForNewCharacter(formMode),
       unlimitedCharacterFields
     });
 
@@ -612,16 +615,24 @@ export function CharacterForm({ mode, initialValue, unlimitedCharacterFields = f
       const body = await response.json().catch(() => null);
       if (!response.ok) {
         const issueMessage = firstIssueMessage(body?.issues);
-        revealFormError(issueMessage ? `${body?.error ?? "Could not save character."} ${issueMessage}` : body?.error ?? "Could not save character.");
+        revealFormError(
+          issueMessage
+            ? `${body?.error ?? "Could not save character."} ${issueMessage}`
+            : (body?.error ?? "Could not save character.")
+        );
         return;
       }
 
       if (typeof body?.character?.id !== "string") {
-        revealFormError("The character was saved, but the server returned an invalid response. Refresh your library before trying again.");
+        revealFormError(
+          "The character was saved, but the server returned an invalid response. Refresh your library before trying again."
+        );
         return;
       }
 
-      window.dispatchEvent(new CustomEvent("nythera:characters-updated", { detail: { characterId: body.character.id } }));
+      window.dispatchEvent(
+        new CustomEvent("nythera:characters-updated", { detail: { characterId: body.character.id } })
+      );
       router.push(`/character/${body.character.id}`);
     } catch {
       revealFormError("Could not reach the server. Check your connection and try again.");
@@ -631,8 +642,18 @@ export function CharacterForm({ mode, initialValue, unlimitedCharacterFields = f
   }
 
   const visibleChapters = isSimpleMode ? guidedChapters : studioChapters;
-  const currentChapterIndex = Math.max(0, visibleChapters.findIndex((chapter) => chapter.id === activeChapter));
-  const completedCoreFields = [draft.name, draft.description, draft.greeting, draft.personality, draft.scenario, draft.avatarUrl].filter((value) => value.trim()).length;
+  const currentChapterIndex = Math.max(
+    0,
+    visibleChapters.findIndex((chapter) => chapter.id === activeChapter)
+  );
+  const completedCoreFields = [
+    draft.name,
+    draft.description,
+    draft.greeting,
+    draft.personality,
+    draft.scenario,
+    draft.avatarUrl
+  ].filter((value) => value.trim()).length;
   const completion = Math.round((completedCoreFields / 6) * 100);
 
   return (
@@ -660,12 +681,14 @@ export function CharacterForm({ mode, initialValue, unlimitedCharacterFields = f
       <form noValidate onSubmit={onSubmit} className="codex-manuscript chat-scroll min-w-0 overflow-y-auto">
         <header className="codex-studio-header">
           <div>
-            <p className="codex-kicker">{mode === "edit" ? "Character archive / revision" : "New volume / character studio"}</p>
+            <p className="codex-kicker">
+              {mode === "edit" ? "Character archive / revision" : "New volume / character studio"}
+            </p>
             <h1 className="font-editorial mt-3 text-[clamp(2.8rem,6vw,5.25rem)] font-medium leading-[.84] tracking-[-.04em] text-[var(--codex-ivory)]">
-              {mode === "edit" ? "Revise the dossier" : "Inscribe a living voice"}
+              {mode === "edit" ? "Edit character" : "Create a character"}
             </h1>
             <p className="mt-4 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
-              Move through the manuscript chapter by chapter. The dossier beside it updates as the character takes shape.
+              Start with a name and a short description. Add personality, a first scene and details at your own pace.
             </p>
             {unlimitedCharacterFields ? (
               <p className="mt-4 inline-flex border border-[var(--codex-mint)]/45 bg-[var(--codex-mint)]/[.06] px-3 py-2 font-mono text-[10px] uppercase tracking-[.14em] text-[var(--codex-mint)]">
@@ -676,14 +699,41 @@ export function CharacterForm({ mode, initialValue, unlimitedCharacterFields = f
 
           {mode === "create" ? (
             <div className="codex-mode-index" aria-label="Creation method">
-              <ModeButton label="Inscribe" icon={Zap} active={isPromptMode} onClick={() => switchFormMode("prompt")} />
+              <ModeButton label="AI draft" icon={Zap} active={isPromptMode} onClick={() => switchFormMode("prompt")} />
               <ModeButton label="Guided" icon={Wand2} active={isSimpleMode} onClick={() => switchFormMode("simple")} />
-              <ModeButton label="Complete" icon={SlidersHorizontal} active={formMode === "custom"} onClick={() => switchFormMode("custom")} />
+              <ModeButton
+                label="Advanced"
+                icon={SlidersHorizontal}
+                active={formMode === "custom"}
+                onClick={() => switchFormMode("custom")}
+              />
             </div>
           ) : null}
         </header>
 
-        {error && !errorFieldId ? <p ref={formErrorRef} className="codex-error-note" role="alert" aria-live="assertive" tabIndex={-1}>{error}</p> : null}
+        {!isPromptMode ? (
+          <label className="mb-6 grid gap-2 text-sm text-[var(--text-secondary)] xl:hidden">
+            Jump to section · {currentChapterIndex + 1} of {visibleChapters.length}
+            <select
+              aria-label="Character editor section"
+              value={activeChapter}
+              onChange={(event) => selectChapter(event.target.value as StudioChapterId)}
+              className="focus-ring h-12 w-full rounded-xl border border-[var(--codex-rule)] bg-[var(--bg-input)] px-3 text-base"
+            >
+              {visibleChapters.map((chapter) => (
+                <option key={chapter.id} value={chapter.id}>
+                  {chapter.number} · {chapter.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+
+        {error && !errorFieldId ? (
+          <p ref={formErrorRef} className="codex-error-note" role="alert" aria-live="assertive" tabIndex={-1}>
+            {error}
+          </p>
+        ) : null}
 
         {mode === "create" ? (
           <CharacterFileImportPanel
@@ -704,124 +754,686 @@ export function CharacterForm({ mode, initialValue, unlimitedCharacterFields = f
               <div>
                 <p className="codex-kicker">Inscribe from prompt</p>
                 <h2>Begin with a premise</h2>
-                <p>Describe the person, tension, world, and desired relationship. Nythera will draft the complete dossier for review.</p>
+                <p>
+                  Describe the person, tension, world, and desired relationship. Nythera will draft the complete dossier
+                  for review.
+                </p>
               </div>
             </div>
             <BotGenerator onApply={applyGeneratedCharacter} />
           </section>
         ) : isSimpleMode ? (
           <div className="codex-chapter-stack">
-            <StudioChapter id="identity" number="01" title="Identity" description="Name the character and define the promise at the center of every conversation." active={activeChapter === "identity"} onSelect={() => selectChapter("identity")} onAssist={() => assistSection("basics")} assisting={assistingSection === "basics"}>
-              <Field label="Portrait" error={avatarError}><AvatarUpload id="character-avatar" value={draft.avatarUrl} name={draft.name} onChange={(value) => update("avatarUrl", value)} onError={revealAvatarError} large /></Field>
-              <Field label="Character name" error={identityError?.fieldId === "character-name" ? identityError.message : null} required><Input id="character-name" value={draft.name} onChange={(event) => update("name", event.target.value)} placeholder="Ari the Archivist" minLength={2} required /></Field>
-              <Field label="Core idea" hint="Formatting is rendered everywhere this subtitle appears." error={identityError?.fieldId === "character-description" ? identityError.message : null} required><FormattedTextarea id="character-description" value={draft.description} onChange={(value) => update("description", value)} placeholder="Who are they, what tension follows them, and why should someone stay?" className="min-h-40" minLength={10} required /></Field>
-              <Field label="Index terms"><TagChipInput value={draft.tags} onChange={(tags) => update("tags", tags)} presets={VIBE_PRESETS} /></Field>
+            <StudioChapter
+              id="identity"
+              number="01"
+              title="Identity"
+              description="Name the character and define the promise at the center of every conversation."
+              active={activeChapter === "identity"}
+              onSelect={() => selectChapter("identity")}
+              onAssist={() => assistSection("basics")}
+              assisting={assistingSection === "basics"}
+            >
+              <Field label="Portrait" error={avatarError}>
+                <AvatarUpload
+                  id="character-avatar"
+                  value={draft.avatarUrl}
+                  name={draft.name}
+                  onChange={(value) => update("avatarUrl", value)}
+                  onError={revealAvatarError}
+                  large
+                />
+              </Field>
+              <Field
+                label="Character name"
+                error={identityError?.fieldId === "character-name" ? identityError.message : null}
+                required
+              >
+                <Input
+                  id="character-name"
+                  value={draft.name}
+                  onChange={(event) => update("name", event.target.value)}
+                  placeholder="Ari the Archivist"
+                  minLength={2}
+                  required
+                />
+              </Field>
+              <Field
+                label="Core idea"
+                hint="Formatting is rendered everywhere this subtitle appears."
+                error={identityError?.fieldId === "character-description" ? identityError.message : null}
+                required
+              >
+                <FormattedTextarea
+                  id="character-description"
+                  value={draft.description}
+                  onChange={(value) => update("description", value)}
+                  placeholder="Who are they, what tension follows them, and why should someone stay?"
+                  className="min-h-40"
+                  minLength={10}
+                  required
+                />
+              </Field>
+              <Field label="Index terms">
+                <TagChipInput value={draft.tags} onChange={(tags) => update("tags", tags)} presets={VIBE_PRESETS} />
+              </Field>
             </StudioChapter>
-            <StudioChapter id="voice" number="02" title="Personality & scenario" description="Add the character's inner logic and the world around them, or let Nythera draft only what is missing." active={activeChapter === "voice"} onSelect={() => selectChapter("voice")}>
-              <Field label="Personality" hint="Optional. Describe how they think, react, and carry themselves."><Textarea value={draft.personality} onChange={(event) => update("personality", event.target.value)} placeholder="Calm under pressure, fiercely observant, and reluctant to trust easy answers." className="min-h-44" /></Field>
-              <AdditionalPersonalitiesEditor characters={draft.additionalCharacters} onAdd={addAdditionalPersonality} onChange={updateAdditionalPersonality} onRemove={removeAdditionalPersonality} />
-              <Field label="Background"><Textarea value={draft.background} onChange={(event) => update("background", event.target.value)} placeholder="What shaped them, and what do they want now?" className="min-h-44" /></Field>
-              <Field label="Scenario / world" hint="Optional. Establish where the story starts and what must remain true."><Textarea value={draft.scenario} onChange={(event) => update("scenario", event.target.value)} placeholder="The archive is sealed for the night when a forbidden volume opens by itself." className="min-h-44" /></Field>
+            <StudioChapter
+              id="voice"
+              number="02"
+              title="Personality & scenario"
+              description="Add the character's inner logic and the world around them, or let Nythera draft only what is missing."
+              active={activeChapter === "voice"}
+              onSelect={() => selectChapter("voice")}
+            >
+              <Field label="Personality" hint="Optional. Describe how they think, react, and carry themselves.">
+                <Textarea
+                  value={draft.personality}
+                  onChange={(event) => update("personality", event.target.value)}
+                  placeholder="Calm under pressure, fiercely observant, and reluctant to trust easy answers."
+                  className="min-h-44"
+                />
+              </Field>
+              <AdditionalPersonalitiesEditor
+                characters={draft.additionalCharacters}
+                onAdd={addAdditionalPersonality}
+                onChange={updateAdditionalPersonality}
+                onRemove={removeAdditionalPersonality}
+              />
+              <Field label="Background">
+                <Textarea
+                  value={draft.background}
+                  onChange={(event) => update("background", event.target.value)}
+                  placeholder="What shaped them, and what do they want now?"
+                  className="min-h-44"
+                />
+              </Field>
+              <Field
+                label="Scenario / world"
+                hint="Optional. Establish where the story starts and what must remain true."
+              >
+                <Textarea
+                  value={draft.scenario}
+                  onChange={(event) => update("scenario", event.target.value)}
+                  placeholder="The archive is sealed for the night when a forbidden volume opens by itself."
+                  className="min-h-44"
+                />
+              </Field>
               {generatedPreview ? <GeneratedPreviewCard preview={generatedPreview} /> : null}
-              <Button type="button" variant="outline" onClick={generatePreview} disabled={!canGeneratePreview || generatingPreview}><Sparkles className="h-4 w-4" />{generatingPreview ? "Drafting..." : "Draft empty fields"}</Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={generatePreview}
+                disabled={!canGeneratePreview || generatingPreview}
+              >
+                <Sparkles className="h-4 w-4" />
+                {generatingPreview ? "Drafting..." : "Draft empty fields"}
+              </Button>
             </StudioChapter>
-            <StudioChapter id="scene" number="03" title="First scene" description="Write the threshold where the relationship begins." active={activeChapter === "scene"} onSelect={() => selectChapter("scene")} onAssist={() => assistSection("greeting")} assisting={assistingSection === "greeting"}>
+            <StudioChapter
+              id="scene"
+              number="03"
+              title="First scene"
+              description="Write the threshold where the relationship begins."
+              active={activeChapter === "scene"}
+              onSelect={() => selectChapter("scene")}
+              onAssist={() => assistSection("greeting")}
+              assisting={assistingSection === "greeting"}
+            >
               <ProloguePovControl value={draft.prologuePov} onChange={(value) => update("prologuePov", value)} />
-              <Field label="Greeting / first message" hint="This becomes the first page of every new conversation."><FormattedTextarea value={draft.greeting} onChange={(value) => update("greeting", value)} placeholder="Set the scene, place the character in motion, and leave the user room to answer." className="min-h-52" /></Field>
+              <Field label="Greeting / first message" hint="This becomes the first page of every new conversation.">
+                <FormattedTextarea
+                  value={draft.greeting}
+                  onChange={(value) => update("greeting", value)}
+                  placeholder="Set the scene, place the character in motion, and leave the user room to answer."
+                  className="min-h-52"
+                />
+              </Field>
             </StudioChapter>
           </div>
         ) : (
           <div className="codex-chapter-stack">
-            <StudioChapter id="identity" number="01" title="Identity" description="The portrait, name, and core promise readers meet first." active={activeChapter === "identity"} onSelect={() => selectChapter("identity")} onAssist={() => assistSection("basics")} assisting={assistingSection === "basics"}>
-              <Field label="Portrait" error={avatarError}><AvatarUpload id="character-avatar" value={draft.avatarUrl} name={draft.name} onChange={(value) => update("avatarUrl", value)} onError={revealAvatarError} large /></Field>
-              <Field label="Character name" error={identityError?.fieldId === "character-name" ? identityError.message : null} required><Input id="character-name" value={draft.name} onChange={(event) => update("name", event.target.value)} placeholder="Ari the Archivist" minLength={2} required /></Field>
-              <Field label="Essence" hint="Formatting is rendered everywhere this subtitle appears." error={identityError?.fieldId === "character-description" ? identityError.message : null} required><FormattedTextarea id="character-description" value={draft.description} onChange={(value) => update("description", value)} placeholder="A soft-spoken fantasy guide with a sharp memory." className="min-h-40" minLength={10} required /></Field>
-              <Field label="Index terms"><TagChipInput value={draft.tags} onChange={(tags) => update("tags", tags)} placeholder="Type any tag and press Enter" /></Field>
-              <div className="grid gap-6 sm:grid-cols-2"><Field label="Role"><Input value={draft.personaRole} onChange={(event) => update("personaRole", event.target.value)} placeholder="Mentor, rival, companion..." /></Field><Field label="Archetype"><Input value={draft.archetype} onChange={(event) => update("archetype", event.target.value)} placeholder="Archivist, detective, bard..." /></Field></div>
+            <StudioChapter
+              id="identity"
+              number="01"
+              title="Identity"
+              description="The portrait, name, and core promise readers meet first."
+              active={activeChapter === "identity"}
+              onSelect={() => selectChapter("identity")}
+              onAssist={() => assistSection("basics")}
+              assisting={assistingSection === "basics"}
+            >
+              <Field label="Portrait" error={avatarError}>
+                <AvatarUpload
+                  id="character-avatar"
+                  value={draft.avatarUrl}
+                  name={draft.name}
+                  onChange={(value) => update("avatarUrl", value)}
+                  onError={revealAvatarError}
+                  large
+                />
+              </Field>
+              <Field
+                label="Character name"
+                error={identityError?.fieldId === "character-name" ? identityError.message : null}
+                required
+              >
+                <Input
+                  id="character-name"
+                  value={draft.name}
+                  onChange={(event) => update("name", event.target.value)}
+                  placeholder="Ari the Archivist"
+                  minLength={2}
+                  required
+                />
+              </Field>
+              <Field
+                label="Essence"
+                hint="Formatting is rendered everywhere this subtitle appears."
+                error={identityError?.fieldId === "character-description" ? identityError.message : null}
+                required
+              >
+                <FormattedTextarea
+                  id="character-description"
+                  value={draft.description}
+                  onChange={(value) => update("description", value)}
+                  placeholder="A soft-spoken fantasy guide with a sharp memory."
+                  className="min-h-40"
+                  minLength={10}
+                  required
+                />
+              </Field>
+              <Field label="Index terms">
+                <TagChipInput
+                  value={draft.tags}
+                  onChange={(tags) => update("tags", tags)}
+                  placeholder="Type any tag and press Enter"
+                />
+              </Field>
+              <div className="grid gap-6 sm:grid-cols-2">
+                <Field label="Role">
+                  <Input
+                    value={draft.personaRole}
+                    onChange={(event) => update("personaRole", event.target.value)}
+                    placeholder="Mentor, rival, companion..."
+                  />
+                </Field>
+                <Field label="Archetype">
+                  <Input
+                    value={draft.archetype}
+                    onChange={(event) => update("archetype", event.target.value)}
+                    placeholder="Archivist, detective, bard..."
+                  />
+                </Field>
+              </div>
             </StudioChapter>
 
-            <StudioChapter id="voice" number="02" title="Voice & personality" description="The private logic beneath every response." active={activeChapter === "voice"} onSelect={() => selectChapter("voice")} onAssist={() => assistSection("personality")} assisting={assistingSection === "personality"}>
-              <Field label="Personality"><Textarea value={draft.personality} onChange={(event) => update("personality", event.target.value)} placeholder="How they think, react, and carry themselves." className="min-h-44" /></Field>
-              <AdditionalPersonalitiesEditor characters={draft.additionalCharacters} onAdd={addAdditionalPersonality} onChange={updateAdditionalPersonality} onRemove={removeAdditionalPersonality} />
-              <Field label="Background"><Textarea value={draft.background} onChange={(event) => update("background", event.target.value)} placeholder="The history and motivations that shaped them." className="min-h-44" /></Field>
-              <Field label="Traits"><Textarea value={draft.personaTraits} onChange={(event) => update("personaTraits", event.target.value)} placeholder="One trait per line." /></Field>
-              <Field label="Speaking style"><Textarea value={draft.speakingStyle} onChange={(event) => update("speakingStyle", event.target.value)} placeholder="Cadence, vocabulary, restraint, recurring habits." /></Field>
-              <div className="grid gap-6 sm:grid-cols-2"><Field label="Emotional tone"><Input value={draft.emotionalTone} onChange={(event) => update("emotionalTone", event.target.value)} /></Field><Field label="Tone"><Input value={draft.tone} onChange={(event) => update("tone", event.target.value)} /></Field><Field label="Relationship style"><Input value={draft.relationshipStyle} onChange={(event) => update("relationshipStyle", event.target.value)} /></Field></div>
-              <div className="grid gap-6 sm:grid-cols-2"><Field label="Initiative"><Input value={draft.initiativeLevel} onChange={(event) => update("initiativeLevel", event.target.value)} /></Field><Field label="Verbosity"><Input value={draft.verbosityLevel} onChange={(event) => update("verbosityLevel", event.target.value)} /></Field></div>
-              <Field label="Motivation"><Textarea value={draft.motivation} onChange={(event) => update("motivation", event.target.value)} /></Field>
+            <StudioChapter
+              id="voice"
+              number="02"
+              title="Voice & personality"
+              description="The private logic beneath every response."
+              active={activeChapter === "voice"}
+              onSelect={() => selectChapter("voice")}
+              onAssist={() => assistSection("personality")}
+              assisting={assistingSection === "personality"}
+            >
+              <Field label="Personality">
+                <Textarea
+                  value={draft.personality}
+                  onChange={(event) => update("personality", event.target.value)}
+                  placeholder="How they think, react, and carry themselves."
+                  className="min-h-44"
+                />
+              </Field>
+              <AdditionalPersonalitiesEditor
+                characters={draft.additionalCharacters}
+                onAdd={addAdditionalPersonality}
+                onChange={updateAdditionalPersonality}
+                onRemove={removeAdditionalPersonality}
+              />
+              <Field label="Background">
+                <Textarea
+                  value={draft.background}
+                  onChange={(event) => update("background", event.target.value)}
+                  placeholder="The history and motivations that shaped them."
+                  className="min-h-44"
+                />
+              </Field>
+              <Field label="Traits">
+                <Textarea
+                  value={draft.personaTraits}
+                  onChange={(event) => update("personaTraits", event.target.value)}
+                  placeholder="One trait per line."
+                />
+              </Field>
+              <Field label="Speaking style">
+                <Textarea
+                  value={draft.speakingStyle}
+                  onChange={(event) => update("speakingStyle", event.target.value)}
+                  placeholder="Cadence, vocabulary, restraint, recurring habits."
+                />
+              </Field>
+              <div className="grid gap-6 sm:grid-cols-2">
+                <Field label="Emotional tone">
+                  <Input
+                    value={draft.emotionalTone}
+                    onChange={(event) => update("emotionalTone", event.target.value)}
+                  />
+                </Field>
+                <Field label="Tone">
+                  <Input value={draft.tone} onChange={(event) => update("tone", event.target.value)} />
+                </Field>
+                <Field label="Relationship style">
+                  <Input
+                    value={draft.relationshipStyle}
+                    onChange={(event) => update("relationshipStyle", event.target.value)}
+                  />
+                </Field>
+              </div>
+              <div className="grid gap-6 sm:grid-cols-2">
+                <Field label="Initiative">
+                  <Input
+                    value={draft.initiativeLevel}
+                    onChange={(event) => update("initiativeLevel", event.target.value)}
+                  />
+                </Field>
+                <Field label="Verbosity">
+                  <Input
+                    value={draft.verbosityLevel}
+                    onChange={(event) => update("verbosityLevel", event.target.value)}
+                  />
+                </Field>
+              </div>
+              <Field label="Motivation">
+                <Textarea value={draft.motivation} onChange={(event) => update("motivation", event.target.value)} />
+              </Field>
             </StudioChapter>
 
-            <StudioChapter id="scene" number="03" title="Scene & first message" description="The world state and first beat that begin the story." active={activeChapter === "scene"} onSelect={() => selectChapter("scene")} onAssist={() => assistSection("scenario")} assisting={assistingSection === "scenario"}>
-              <Field label="Scenario / world"><Textarea value={draft.scenario} onChange={(event) => update("scenario", event.target.value)} placeholder="Where the scene starts and what must remain true." className="min-h-44" /></Field>
+            <StudioChapter
+              id="scene"
+              number="03"
+              title="Scene & first message"
+              description="The world state and first beat that begin the story."
+              active={activeChapter === "scene"}
+              onSelect={() => selectChapter("scene")}
+              onAssist={() => assistSection("scenario")}
+              assisting={assistingSection === "scenario"}
+            >
+              <Field label="Scenario / world">
+                <Textarea
+                  value={draft.scenario}
+                  onChange={(event) => update("scenario", event.target.value)}
+                  placeholder="Where the scene starts and what must remain true."
+                  className="min-h-44"
+                />
+              </Field>
               <ProloguePovControl value={draft.prologuePov} onChange={(value) => update("prologuePov", value)} />
-              <Field label="Greeting / first message" hint="Write it as the opening paragraph of a scene, not an instruction."><FormattedTextarea value={draft.greeting} onChange={(value) => update("greeting", value)} placeholder="The first message your character sends." className="min-h-52" /></Field>
+              <Field
+                label="Greeting / first message"
+                hint="Write it as the opening paragraph of a scene, not an instruction."
+              >
+                <FormattedTextarea
+                  value={draft.greeting}
+                  onChange={(value) => update("greeting", value)}
+                  placeholder="The first message your character sends."
+                  className="min-h-52"
+                />
+              </Field>
             </StudioChapter>
 
-            <StudioChapter id="lore" number="04" title="Lore & memory" description="Canonical facts that surface only when the story calls for them." active={activeChapter === "lore"} onSelect={() => selectChapter("lore")} onAssist={() => assistSection("lorebook")} assisting={assistingSection === "lorebook"}>
+            <StudioChapter
+              id="lore"
+              number="04"
+              title="Lore & memory"
+              description="Canonical facts that surface only when the story calls for them."
+              active={activeChapter === "lore"}
+              onSelect={() => selectChapter("lore")}
+              onAssist={() => assistSection("lorebook")}
+              assisting={assistingSection === "lorebook"}
+            >
               <div className="codex-subleaf space-y-3">
                 <p className="codex-kicker">How it works</p>
-                <p className="text-sm leading-6 text-[var(--text-secondary)]">Write comma-separated trigger words before <code>=&gt;</code>, then the canonical fact. When a trigger appears in the current turn or recent chat history, Nythera adds that fact to the character&apos;s private context.</p>
-                <p className="text-xs leading-5 text-[var(--text-muted)]">Use a blank line between entries. Matching ignores capitalization and checks text inside longer phrases.</p>
+                <p className="text-sm leading-6 text-[var(--text-secondary)]">
+                  Write comma-separated trigger words before <code>=&gt;</code>, then the canonical fact. When a trigger
+                  appears in the current turn or recent chat history, Nythera adds that fact to the character&apos;s
+                  private context.
+                </p>
+                <p className="text-xs leading-5 text-[var(--text-muted)]">
+                  Use a blank line between entries. Matching ignores capitalization and checks text inside longer
+                  phrases.
+                </p>
               </div>
-              <Field label="Keyword lorebook" hint={`${parsedLorebook.entries.length} valid ${parsedLorebook.entries.length === 1 ? "entry" : "entries"}.`}><Textarea value={draft.lorebookText} onChange={(event) => update("lorebookText", event.target.value)} placeholder={"silver gate, moon gate => The Silver Gate only opens under a full moon.\n\nArchivist oath => Archivists cannot knowingly destroy a true record."} className="min-h-64" /></Field>
+              <Field
+                label="Keyword lorebook"
+                hint={`${parsedLorebook.entries.length} valid ${parsedLorebook.entries.length === 1 ? "entry" : "entries"}.`}
+              >
+                <Textarea
+                  value={draft.lorebookText}
+                  onChange={(event) => update("lorebookText", event.target.value)}
+                  placeholder={
+                    "silver gate, moon gate => The Silver Gate only opens under a full moon.\n\nArchivist oath => Archivists cannot knowingly destroy a true record."
+                  }
+                  className="min-h-64"
+                />
+              </Field>
               <div className="codex-subleaf space-y-3">
-                <div><p className="codex-kicker">Test triggers</p><p className="mt-2 text-sm text-[var(--text-muted)]">Type a sample player message to see exactly which facts would enter the next reply.</p></div>
-                <Input value={lorebookPreviewText} onChange={(event) => setLorebookPreviewText(event.target.value)} placeholder="We finally reached the silver gate." />
+                <div>
+                  <p className="codex-kicker">Test triggers</p>
+                  <p className="mt-2 text-sm text-[var(--text-muted)]">
+                    Type a sample player message to see exactly which facts would enter the next reply.
+                  </p>
+                </div>
+                <Input
+                  value={lorebookPreviewText}
+                  onChange={(event) => setLorebookPreviewText(event.target.value)}
+                  placeholder="We finally reached the silver gate."
+                />
                 {lorebookPreviewText.trim() ? (
                   lorebookMatches.length ? (
                     <div className="grid gap-2" role="status">
                       {lorebookMatches.map((entry, index) => (
-                        <div key={entry.id ?? `${entry.matchedKeywords.join("-")}-${index}`} className="rounded-sm border border-[var(--codex-mint)]/35 bg-[var(--codex-mint)]/[.05] p-3">
-                          <p className="text-[11px] font-semibold uppercase tracking-[.12em] text-[var(--codex-mint)]">Triggered by {entry.matchedKeywords.join(", ")}</p>
+                        <div
+                          key={entry.id ?? `${entry.matchedKeywords.join("-")}-${index}`}
+                          className="rounded-sm border border-[var(--codex-mint)]/35 bg-[var(--codex-mint)]/[.05] p-3"
+                        >
+                          <p className="text-[11px] font-semibold uppercase tracking-[.12em] text-[var(--codex-mint)]">
+                            Triggered by {entry.matchedKeywords.join(", ")}
+                          </p>
                           <p className="mt-1.5 text-sm leading-6 text-[var(--text-primary)]">{entry.text}</p>
                         </div>
                       ))}
                     </div>
-                  ) : <p className="text-sm text-[var(--text-muted)]" role="status">No entries match this sample yet.</p>
-                ) : <p className="text-sm text-[var(--text-muted)]">No sample entered.</p>}
+                  ) : (
+                    <p className="text-sm text-[var(--text-muted)]" role="status">
+                      No entries match this sample yet.
+                    </p>
+                  )
+                ) : (
+                  <p className="text-sm text-[var(--text-muted)]">No sample entered.</p>
+                )}
               </div>
             </StudioChapter>
 
-            <StudioChapter id="appearance" number="05" title="Visual language" description="A restrained palette and environmental cue for the conversation." active={activeChapter === "appearance"} onSelect={() => selectChapter("appearance")} onAssist={() => assistSection("visual")} assisting={assistingSection === "visual"}>
-              <div className="grid gap-6 sm:grid-cols-3"><Field label="Accent"><Input type="color" value={draft.visualAccentColor} onChange={(event) => update("visualAccentColor", event.target.value)} /></Field><Field label="Secondary"><Input type="color" value={draft.visualGradientFrom} onChange={(event) => update("visualGradientFrom", event.target.value)} /></Field><Field label="Fallback"><Input type="color" value={draft.visualGradientTo} onChange={(event) => update("visualGradientTo", event.target.value)} /></Field></div>
-              <Field label="Chat atmosphere"><Input value={draft.visualChatBackground} onChange={(event) => update("visualChatBackground", event.target.value)} placeholder="moonlit archive, neon rain, warm cabin..." /></Field>
-              <Field label="Avatar prompt"><Textarea value={draft.visualAvatarPrompt} onChange={(event) => update("visualAvatarPrompt", event.target.value)} placeholder="Portrait direction for an image generator." /></Field>
-              <div className="codex-color-proof" style={{ borderColor: draft.visualAccentColor }}><span style={{ background: draft.visualGradientFrom }} /><p>{draft.visualChatBackground.trim() || "The environmental cue will guide the chat surface."}</p></div>
+            <StudioChapter
+              id="appearance"
+              number="05"
+              title="Visual language"
+              description="A restrained palette and environmental cue for the conversation."
+              active={activeChapter === "appearance"}
+              onSelect={() => selectChapter("appearance")}
+              onAssist={() => assistSection("visual")}
+              assisting={assistingSection === "visual"}
+            >
+              <div className="grid gap-6 sm:grid-cols-3">
+                <Field label="Accent">
+                  <Input
+                    type="color"
+                    value={draft.visualAccentColor}
+                    onChange={(event) => update("visualAccentColor", event.target.value)}
+                  />
+                </Field>
+                <Field label="Secondary">
+                  <Input
+                    type="color"
+                    value={draft.visualGradientFrom}
+                    onChange={(event) => update("visualGradientFrom", event.target.value)}
+                  />
+                </Field>
+                <Field label="Fallback">
+                  <Input
+                    type="color"
+                    value={draft.visualGradientTo}
+                    onChange={(event) => update("visualGradientTo", event.target.value)}
+                  />
+                </Field>
+              </div>
+              <Field label="Chat atmosphere">
+                <Input
+                  value={draft.visualChatBackground}
+                  onChange={(event) => update("visualChatBackground", event.target.value)}
+                  placeholder="moonlit archive, neon rain, warm cabin..."
+                />
+              </Field>
+              <Field label="Avatar prompt">
+                <Textarea
+                  value={draft.visualAvatarPrompt}
+                  onChange={(event) => update("visualAvatarPrompt", event.target.value)}
+                  placeholder="Portrait direction for an image generator."
+                />
+              </Field>
+              <div className="codex-color-proof" style={{ borderColor: draft.visualAccentColor }}>
+                <span style={{ background: draft.visualGradientFrom }} />
+                <p>{draft.visualChatBackground.trim() || "The environmental cue will guide the chat surface."}</p>
+              </div>
             </StudioChapter>
 
-            <StudioChapter id="publishing" number="06" title="Behavior & publishing" description="Model direction, boundaries, intensity, and who may discover the character." active={activeChapter === "publishing"} onSelect={() => selectChapter("publishing")} onAssist={() => assistSection("advanced")} assisting={assistingSection === "advanced"}>
-              <div className="codex-subleaf"><p className="codex-kicker">Model direction</p><div className="mt-6 grid gap-6 sm:grid-cols-2"><Field label="Default experience"><select value={draft.defaultChatMode} onChange={(event) => update("defaultChatMode", event.target.value === "fantasy" ? "fantasy" : "realism")} className="focus-ring glass-input h-12 w-full px-4 text-sm text-[var(--text-primary)]"><option value="realism">Realism — natural and grounded</option><option value="fantasy">Fantasy — vivid and immersive</option></select></Field><Field label="Provider override"><select value={draft.preferredProvider} onChange={(event) => { const provider = event.target.value; const option = providerOptions.find((item) => item.provider === provider); setDraft((current) => ({ ...current, preferredProvider: provider, preferredModel: provider && !current.preferredModel ? option?.defaultModel ?? "" : current.preferredModel })); }} className="focus-ring glass-input h-12 w-full px-4 text-sm text-[var(--text-primary)]"><option value="">Use global default</option>{providerOptions.map((provider) => <option key={provider.provider} value={provider.provider}>{provider.displayName}</option>)}</select></Field><Field label="Model override"><Input value={draft.preferredModel} onChange={(event) => update("preferredModel", event.target.value)} /></Field><OptionalNumberInput label="Temperature" value={draft.temperature} min={0} max={2} step={0.1} onChange={(value) => update("temperature", value)} /><OptionalNumberInput label="Top P" value={draft.topP} min={0} max={1} step={0.05} onChange={(value) => update("topP", value)} /><OptionalNumberInput label="Frequency penalty" value={draft.frequencyPenalty} min={-2} max={2} step={0.1} onChange={(value) => update("frequencyPenalty", value)} /><OptionalNumberInput label="Presence penalty" value={draft.presencePenalty} min={-2} max={2} step={0.1} onChange={(value) => update("presencePenalty", value)} /><OptionalNumberInput label="Max tokens" value={draft.maxTokens} min={1} max={4096} step={1} onChange={(value) => update("maxTokens", value)} /></div><Field label="System prompt override" hint={`Creator instructions below platform safety and above the persona · ${draft.systemPromptOverride.length.toLocaleString()}${unlimitedCharacterFields ? " characters · no account limit" : ` / ${MAX_CHARACTER_SYSTEM_PROMPT_CHARACTERS.toLocaleString()} characters`} · ~${estimatePromptTokens(draft.systemPromptOverride).toLocaleString()} tokens`}><Textarea value={draft.systemPromptOverride} onChange={(event) => update("systemPromptOverride", event.target.value)} maxLength={unlimitedCharacterFields ? undefined : MAX_CHARACTER_SYSTEM_PROMPT_CHARACTERS} className="min-h-36" /></Field></div>
-              <Field label="Boundaries"><Textarea value={draft.boundaries} onChange={(event) => update("boundaries", event.target.value)} /></Field>
-              <Field label="Behavioral rules"><Textarea value={draft.behavioralRules} onChange={(event) => update("behavioralRules", event.target.value)} /></Field>
-              <Field label="Forbidden behaviors"><Textarea value={draft.forbiddenBehaviors} onChange={(event) => update("forbiddenBehaviors", event.target.value)} /></Field>
+            <StudioChapter
+              id="publishing"
+              number="06"
+              title="Behavior & publishing"
+              description="Model direction, boundaries, intensity, and who may discover the character."
+              active={activeChapter === "publishing"}
+              onSelect={() => selectChapter("publishing")}
+              onAssist={() => assistSection("advanced")}
+              assisting={assistingSection === "advanced"}
+            >
+              <div className="codex-subleaf">
+                <p className="codex-kicker">Model direction</p>
+                <div className="mt-6 grid gap-6 sm:grid-cols-2">
+                  <Field label="Default experience">
+                    <select
+                      value={draft.defaultChatMode}
+                      onChange={(event) =>
+                        update("defaultChatMode", event.target.value === "fantasy" ? "fantasy" : "realism")
+                      }
+                      className="focus-ring glass-input h-12 w-full px-4 text-sm text-[var(--text-primary)]"
+                    >
+                      <option value="realism">Realism — natural and grounded</option>
+                      <option value="fantasy">Fantasy — vivid and immersive</option>
+                    </select>
+                  </Field>
+                  <Field label="Provider override">
+                    <select
+                      value={draft.preferredProvider}
+                      onChange={(event) => {
+                        const provider = event.target.value;
+                        const option = providerOptions.find((item) => item.provider === provider);
+                        setDraft((current) => ({
+                          ...current,
+                          preferredProvider: provider,
+                          preferredModel:
+                            provider && !current.preferredModel ? (option?.defaultModel ?? "") : current.preferredModel
+                        }));
+                      }}
+                      className="focus-ring glass-input h-12 w-full px-4 text-sm text-[var(--text-primary)]"
+                    >
+                      <option value="">Use global default</option>
+                      {providerOptions.map((provider) => (
+                        <option key={provider.provider} value={provider.provider}>
+                          {provider.displayName}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Model override">
+                    <Input
+                      value={draft.preferredModel}
+                      onChange={(event) => update("preferredModel", event.target.value)}
+                    />
+                  </Field>
+                  <OptionalNumberInput
+                    label="Temperature"
+                    value={draft.temperature}
+                    min={0}
+                    max={2}
+                    step={0.1}
+                    onChange={(value) => update("temperature", value)}
+                  />
+                  <OptionalNumberInput
+                    label="Top P"
+                    value={draft.topP}
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    onChange={(value) => update("topP", value)}
+                  />
+                  <OptionalNumberInput
+                    label="Frequency penalty"
+                    value={draft.frequencyPenalty}
+                    min={-2}
+                    max={2}
+                    step={0.1}
+                    onChange={(value) => update("frequencyPenalty", value)}
+                  />
+                  <OptionalNumberInput
+                    label="Presence penalty"
+                    value={draft.presencePenalty}
+                    min={-2}
+                    max={2}
+                    step={0.1}
+                    onChange={(value) => update("presencePenalty", value)}
+                  />
+                  <OptionalNumberInput
+                    label="Max tokens"
+                    value={draft.maxTokens}
+                    min={1}
+                    max={4096}
+                    step={1}
+                    onChange={(value) => update("maxTokens", value)}
+                  />
+                </div>
+                <Field
+                  label="System prompt override"
+                  hint={`Creator instructions below platform safety and above the persona · ${draft.systemPromptOverride.length.toLocaleString()}${unlimitedCharacterFields ? " characters · no account limit" : ` / ${MAX_CHARACTER_SYSTEM_PROMPT_CHARACTERS.toLocaleString()} characters`} · ~${estimatePromptTokens(draft.systemPromptOverride).toLocaleString()} tokens`}
+                >
+                  <Textarea
+                    value={draft.systemPromptOverride}
+                    onChange={(event) => update("systemPromptOverride", event.target.value)}
+                    maxLength={unlimitedCharacterFields ? undefined : MAX_CHARACTER_SYSTEM_PROMPT_CHARACTERS}
+                    className="min-h-36"
+                  />
+                </Field>
+              </div>
+              <Field label="Boundaries">
+                <Textarea value={draft.boundaries} onChange={(event) => update("boundaries", event.target.value)} />
+              </Field>
+              <Field label="Behavioral rules">
+                <Textarea
+                  value={draft.behavioralRules}
+                  onChange={(event) => update("behavioralRules", event.target.value)}
+                />
+              </Field>
+              <Field label="Forbidden behaviors">
+                <Textarea
+                  value={draft.forbiddenBehaviors}
+                  onChange={(event) => update("forbiddenBehaviors", event.target.value)}
+                />
+              </Field>
               <BehaviorControls
                 draft={draft}
                 onSliderChange={update}
                 onMessageLengthChange={(value) => update("messageLength", value)}
               />
-              <div className="codex-visibility-index"><VisibilityButton icon={Lock} label="Private" selected={draft.visibility === "PRIVATE"} onClick={() => update("visibility", "PRIVATE")} /><VisibilityButton icon={Globe} label="Unlisted" selected={draft.visibility === "UNLISTED"} onClick={() => update("visibility", "UNLISTED")} /><VisibilityButton icon={Globe} label="Public" selected={draft.visibility === "PUBLIC"} onClick={() => update("visibility", "PUBLIC")} /></div>
-              <label className="codex-check-row"><input type="checkbox" checked={draft.isNSFW} onChange={(event) => update("isNSFW", event.target.checked)} />Mark as age-gated / NSFW</label>
-              <div className="codex-subleaf"><p className="codex-kicker">Character Card V2</p><p className="mt-2 text-sm text-[var(--text-muted)]">Import or export this dossier as interoperable JSON.</p><div className="mt-4 flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={exportCharacterCard}><Download className="h-4 w-4" />Export Card V2</Button><Button type="button" variant="outline" onClick={importCharacterCard}><FileJson className="h-4 w-4" />Import JSON</Button></div><Textarea value={draft.characterCardJson} onChange={(event) => update("characterCardJson", event.target.value)} className="mt-4 min-h-36 font-mono text-xs" /></div>
+              <div className="codex-visibility-index">
+                <VisibilityButton
+                  icon={Lock}
+                  label="Private"
+                  selected={draft.visibility === "PRIVATE"}
+                  onClick={() => update("visibility", "PRIVATE")}
+                />
+                <VisibilityButton
+                  icon={Globe}
+                  label="Unlisted"
+                  selected={draft.visibility === "UNLISTED"}
+                  onClick={() => update("visibility", "UNLISTED")}
+                />
+                <VisibilityButton
+                  icon={Globe}
+                  label="Public"
+                  selected={draft.visibility === "PUBLIC"}
+                  onClick={() => update("visibility", "PUBLIC")}
+                />
+              </div>
+              <label className="codex-check-row">
+                <input
+                  type="checkbox"
+                  checked={draft.isNSFW}
+                  onChange={(event) => update("isNSFW", event.target.checked)}
+                />
+                Mark as age-gated / NSFW
+              </label>
+              <div className="codex-subleaf">
+                <p className="codex-kicker">Character Card V2</p>
+                <p className="mt-2 text-sm text-[var(--text-muted)]">
+                  Import or export this dossier as interoperable JSON.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" onClick={exportCharacterCard}>
+                    <Download className="h-4 w-4" />
+                    Export Card V2
+                  </Button>
+                  <Button type="button" variant="outline" onClick={importCharacterCard}>
+                    <FileJson className="h-4 w-4" />
+                    Import JSON
+                  </Button>
+                </div>
+                <Textarea
+                  value={draft.characterCardJson}
+                  onChange={(event) => update("characterCardJson", event.target.value)}
+                  className="mt-4 min-h-36 font-mono text-xs"
+                />
+              </div>
             </StudioChapter>
           </div>
         )}
 
         <footer className="codex-studio-actions">
           {error ? (
-            <p id="character-form-error" className="codex-error-note codex-studio-action-error" role="alert" tabIndex={-1}>
+            <p
+              id="character-form-error"
+              className="codex-error-note codex-studio-action-error"
+              role="alert"
+              tabIndex={-1}
+            >
               {error}
             </p>
           ) : null}
           <div className="codex-studio-secondary-actions flex min-w-0 items-center gap-2">
-            {!isPromptMode && currentChapterIndex > 0 ? <Button type="button" variant="ghost" onClick={() => selectChapter(visibleChapters[currentChapterIndex - 1].id)}>Previous</Button> : null}
-            {!isPromptMode && currentChapterIndex < visibleChapters.length - 1 ? <Button type="button" variant="outline" onClick={() => selectChapter(visibleChapters[currentChapterIndex + 1].id)}>Next chapter</Button> : null}
+            {!isPromptMode && currentChapterIndex > 0 ? (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => selectChapter(visibleChapters[currentChapterIndex - 1].id)}
+              >
+                Previous
+              </Button>
+            ) : null}
+            {!isPromptMode && currentChapterIndex < visibleChapters.length - 1 ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => selectChapter(visibleChapters[currentChapterIndex + 1].id)}
+              >
+                Next chapter
+              </Button>
+            ) : null}
           </div>
           {isPromptMode ? (
-            <p className="text-xs leading-5 text-[var(--text-muted)]">Generate and apply the draft above before creating the character.</p>
+            <p className="text-xs leading-5 text-[var(--text-muted)]">
+              Generate and apply the draft above before creating the character.
+            </p>
           ) : (
             <div className="codex-studio-primary-wrap">
-              {!hasCoreIdentity ? <p className="text-[11px] leading-4 text-[var(--text-muted)]">Add a name and core idea. Clicking create will take you to anything missing.</p> : null}
-              <Button className="codex-studio-primary-action" type="submit" size="lg" disabled={saving}><Save className="h-4 w-4" />{saving ? "Binding..." : mode === "edit" ? "Save revision" : "Create character"}</Button>
+              {!hasCoreIdentity ? (
+                <p className="text-[11px] leading-4 text-[var(--text-muted)]">
+                  Add a name and core idea. Clicking create will take you to anything missing.
+                </p>
+              ) : null}
+              <Button className="codex-studio-primary-action" type="submit" size="lg" disabled={saving}>
+                <Save className="h-4 w-4" />
+                {saving ? "Saving…" : mode === "edit" ? "Save changes" : "Create character"}
+              </Button>
             </div>
           )}
         </footer>
@@ -848,7 +1460,9 @@ function AdditionalPersonalitiesEditor({
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
               <p className="codex-kicker">Personality {index + 2}</p>
-              <p className="mt-1 text-sm text-[var(--text-muted)]">A separate hero with their own identity and behavior.</p>
+              <p className="mt-1 text-sm text-[var(--text-muted)]">
+                A separate hero with their own identity and behavior.
+              </p>
             </div>
             <button
               type="button"
@@ -861,9 +1475,19 @@ function AdditionalPersonalitiesEditor({
           </div>
           <div className="space-y-4">
             <Field label="Character name" required>
-              <Input value={character.name} onChange={(event) => onChange(character.id, "name", event.target.value)} placeholder="Mira" minLength={2} required />
+              <Input
+                value={character.name}
+                onChange={(event) => onChange(character.id, "name", event.target.value)}
+                placeholder="Mira"
+                minLength={2}
+                required
+              />
             </Field>
-            <Field label="Personality" hint="Describe how this hero thinks, reacts, speaks, and carries themselves." required>
+            <Field
+              label="Personality"
+              hint="Describe how this hero thinks, reacts, speaks, and carries themselves."
+              required
+            >
               <Textarea
                 value={character.personality}
                 onChange={(event) => onChange(character.id, "personality", event.target.value)}
@@ -882,7 +1506,9 @@ function AdditionalPersonalitiesEditor({
         {characters.length ? "Add another personality" : "Add personality"}
       </Button>
       <p className="text-xs leading-5 text-[var(--text-muted)]">
-        {characters.length >= 7 ? "Maximum of eight heroes per bot." : "Each added personality becomes another independent hero in the same bot."}
+        {characters.length >= 7
+          ? "Maximum of eight heroes per bot."
+          : "Each added personality becomes another independent hero in the same bot."}
       </p>
     </section>
   );
@@ -927,7 +1553,9 @@ function StudioChapter({
           </button>
         ) : null}
       </header>
-      <div id={`studio-${id}-body`} className="codex-chapter-body">{children}</div>
+      <div id={`studio-${id}-body`} className="codex-chapter-body">
+        {children}
+      </div>
     </section>
   );
 }
@@ -1001,11 +1629,19 @@ function GeneratedPreviewCard({ preview }: { preview: GeneratedCharacterPreview 
   return (
     <div className="rounded-[var(--radius-lg)] border border-[rgb(var(--accent-rgb)_/_0.28)] bg-[var(--accent-purple-soft)] p-4">
       <p className="text-sm font-semibold text-[var(--text-primary)]">{preview.name?.trim() || "Generated preview"}</p>
-      {preview.description ? <RichMessageText text={preview.description} className="mt-1 line-clamp-2 text-sm text-[var(--text-secondary)]" /> : null}
+      {preview.description ? (
+        <RichMessageText
+          text={preview.description}
+          className="mt-1 line-clamp-2 text-sm text-[var(--text-secondary)]"
+        />
+      ) : null}
       <p className="mt-3 text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-muted)]">Personality</p>
       <p className="mt-1 line-clamp-4 text-sm leading-6 text-[var(--text-secondary)]">{preview.personality}</p>
       <p className="mt-3 text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-muted)]">Opening message</p>
-      <RichMessageText text={preview.greeting} className="mt-1 line-clamp-3 text-sm leading-6 text-[var(--text-secondary)]" />
+      <RichMessageText
+        text={preview.greeting}
+        className="mt-1 line-clamp-3 text-sm leading-6 text-[var(--text-secondary)]"
+      />
     </div>
   );
 }
@@ -1040,9 +1676,17 @@ function AvatarUpload({
               large ? "h-20 w-20 sm:h-32 sm:w-32" : "h-20 w-20"
             )}
           >
-            {value ? <img src={value} alt="" className="h-full w-full object-cover" /> : large ? <Upload className="h-8 w-8" /> : <ImagePlus className="h-5 w-5" />}
+            {value ? (
+              <img src={value} alt="" className="h-full w-full object-cover" />
+            ) : large ? (
+              <Upload className="h-8 w-8" />
+            ) : (
+              <ImagePlus className="h-5 w-5" />
+            )}
           </span>
-          <span className="mt-3 text-sm text-[var(--text-secondary)]">{value ? "Click to replace image" : "Upload an avatar image"}</span>
+          <span className="mt-3 text-sm text-[var(--text-secondary)]">
+            {value ? "Click to replace image" : "Upload an avatar image"}
+          </span>
           <span className="mt-1 text-xs text-[var(--text-muted)]">JPG, PNG, WebP, GIF, AVIF, or BMP · up to 6 MB</span>
         </div>
       </ImageFilePicker>
@@ -1052,7 +1696,11 @@ function AvatarUpload({
           Clear image
         </Button>
       ) : null}
-      {!value && name.trim() ? <p className="mt-2 text-xs text-[var(--text-muted)]">No image yet — a generated initial will be used in preview.</p> : null}
+      {!value && name.trim() ? (
+        <p className="mt-2 text-xs text-[var(--text-muted)]">
+          No image yet — a generated initial will be used in preview.
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -1107,7 +1755,11 @@ function Field({
       </span>
       {hint ? <span className="mt-1 block text-xs text-[var(--text-muted)]">{hint}</span> : null}
       <span className="mt-2 block min-w-0">{children}</span>
-      {error ? <span className="mt-2 block text-xs leading-5 text-[oklch(.78_.12_25)]" role="alert" aria-live="assertive">{error}</span> : null}
+      {error ? (
+        <span className="mt-2 block text-xs leading-5 text-[oklch(.78_.12_25)]" role="alert" aria-live="assertive">
+          {error}
+        </span>
+      ) : null}
     </label>
   );
 }
@@ -1154,12 +1806,7 @@ function BehaviorControls({
       </fieldset>
       <div className="grid gap-6 sm:grid-cols-2">
         {behaviorSliderFields.map(({ field, label }) => (
-          <Slider
-            key={field}
-            label={label}
-            value={draft[field]}
-            onChange={(value) => onSliderChange(field, value)}
-          />
+          <Slider key={field} label={label} value={draft[field]} onChange={(value) => onSliderChange(field, value)} />
         ))}
       </div>
     </div>
@@ -1253,7 +1900,9 @@ function VisibilityButton({
       onClick={onClick}
       className={cn(
         "focus-ring flex h-10 items-center justify-center gap-2 rounded-sm border font-mono text-[10px] font-medium uppercase tracking-[.12em] transition-colors duration-150 active:scale-[.98]",
-        selected ? "border-[var(--codex-mint)]/55 bg-[color-mix(in_oklch,var(--codex-mint)_10%,transparent)] text-[var(--codex-mint)]" : "border-transparent text-[var(--text-secondary)] hover:border-[var(--codex-rule)] hover:text-[var(--text-primary)]"
+        selected
+          ? "border-[var(--codex-mint)]/55 bg-[color-mix(in_oklch,var(--codex-mint)_10%,transparent)] text-[var(--codex-mint)]"
+          : "border-transparent text-[var(--text-secondary)] hover:border-[var(--codex-rule)] hover:text-[var(--text-primary)]"
       )}
     >
       <Icon className="h-4 w-4" />
@@ -1267,7 +1916,8 @@ function firstIssueMessage(issues: unknown) {
     return null;
   }
 
-  const fieldErrors = "fieldErrors" in issues ? (issues as { fieldErrors?: Record<string, string[]> }).fieldErrors : null;
+  const fieldErrors =
+    "fieldErrors" in issues ? (issues as { fieldErrors?: Record<string, string[]> }).fieldErrors : null;
   if (!fieldErrors) {
     return null;
   }

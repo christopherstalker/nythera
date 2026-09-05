@@ -1,13 +1,4 @@
-import {
-  BookOpen,
-  Brain,
-  Eye,
-  KeyRound,
-  Mic2,
-  UserCog,
-  UserRound,
-  type LucideIcon
-} from "lucide-react";
+import { BookOpen, Brain, Eye, KeyRound, Mic2, UserCog, UserRound, type LucideIcon } from "lucide-react";
 
 export type SettingsSection = {
   href: string;
@@ -47,7 +38,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   {
     href: "/settings/interface",
     label: "Interface",
-    description: "Chat density and the permanent Living Codex theme.",
+    description: "Message spacing, chat density and reading preferences.",
     icon: Eye,
     legacyHash: "interface"
   },

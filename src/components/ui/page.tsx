@@ -29,18 +29,21 @@ export function PageHeader({
   title,
   description,
   actions,
-  className
+  className,
+  compact = false
 }: {
   icon?: LucideIcon;
   title: string;
   description?: string;
   actions?: React.ReactNode;
   className?: string;
+  compact?: boolean;
 }) {
   return (
     <header
       className={cn(
         "codex-page-header grid gap-5 border-b border-[var(--codex-rule)] pb-7 md:grid-cols-[104px_minmax(0,1fr)_auto] md:items-end md:pb-9",
+        compact && "codex-workspace-header",
         className
       )}
     >

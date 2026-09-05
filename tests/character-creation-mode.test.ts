@@ -9,11 +9,7 @@ import {
   validateCharacterCreatePayload
 } from "../src/lib/character-form-payload";
 import { emptyCharacterDraft } from "../src/lib/character-form-types";
-import {
-  normalizeMessageLength,
-  responseLengthTarget,
-  verbosityForMessageLength
-} from "../src/lib/response-length";
+import { normalizeMessageLength, responseLengthTarget, verbosityForMessageLength } from "../src/lib/response-length";
 
 test("new character modes persist the matching data shape", () => {
   assert.equal(creationModeForNewCharacter("simple"), "simple");
@@ -34,8 +30,8 @@ test("the character editor renders the stored guided mode instead of forcing the
   assert.doesNotMatch(form, /const isSimpleMode = mode === "create"/);
   assert.match(form, /mode === "edit" \? creationModeForEditor\(initialValue\?\.creationMode\) : "simple"/);
   assert.match(form, /const visibleChapters = isSimpleMode \? guidedChapters : studioChapters/);
-  assert.doesNotMatch(form, /<StudioChapter id="publishing" number="04"/);
-  assert.match(form, /<StudioChapter id="publishing" number="06"/);
+  assert.doesNotMatch(form, /<StudioChapter\s+id="publishing"\s+number="04"/);
+  assert.match(form, /<StudioChapter\s+id="publishing"\s+number="06"/);
 });
 
 test("creation mode is persisted and legacy database rows default to custom", async () => {
@@ -119,7 +115,10 @@ test("response length is normalized and persisted from the shared behavior contr
   assert.equal(verbosityForMessageLength("short"), "concise");
   assert.equal(verbosityForMessageLength("long"), "immersive");
   assert.match(responseLengthTarget("concise"), /1-2 compact paragraphs.*60-140 words/);
-  assert.match(responseLengthTarget("balanced"), /3-4 developed paragraphs.*200-300 words.*hard maximum.*fifth paragraph/);
+  assert.match(
+    responseLengthTarget("balanced"),
+    /3-4 developed paragraphs.*200-300 words.*hard maximum.*fifth paragraph/
+  );
   assert.match(responseLengthTarget("immersive"), /4-7 immersive paragraphs.*320-650 words/);
 });
 

@@ -19,8 +19,9 @@ test("account settings are split into dedicated routes behind one shared shell",
   assert.match(shell, /aria-current=\{active \? "page" : undefined\}/);
   assert.match(shell, /router\.replace\(legacySection\.href\)/);
   assert.doesNotMatch(shell, /PageHeader/);
-  assert.match(overview, /<h1[^>]*>Settings<\/h1>/);
-  assert.match(overview, /SETTINGS_SECTIONS\.map/);
+  assert.match(overview, /<h1[^>]*>\s*Settings\s*<\/h1>/);
+  assert.match(overview, /SETTINGS_SECTIONS\.filter/);
+  assert.match(overview, /matchingSections\.map/);
 
   assert.match(sections, /href: "\/account"/);
   for (const route of ["personas", "providers", "voice", "interface", "memory", "help"]) {
@@ -40,7 +41,13 @@ test("settings responsibilities no longer mount together on the overview page", 
     read("../src/app/(main)/settings/memory/page.tsx")
   ]);
 
-  for (const client of ["ProfileSettingsClient", "UserPersonaSettingsClient", "KeySettingsClient", "VoiceKeySettingsClient", "MemorySettingsClient"]) {
+  for (const client of [
+    "ProfileSettingsClient",
+    "UserPersonaSettingsClient",
+    "KeySettingsClient",
+    "VoiceKeySettingsClient",
+    "MemorySettingsClient"
+  ]) {
     assert.doesNotMatch(overview, new RegExp(client));
   }
   assert.match(account, /redirect\("\/account"\)/);
@@ -86,5 +93,8 @@ test("provider recovery controls appear before provider forms and connected prov
   const providers = await read("../src/components/settings/key-settings-client.tsx");
 
   assert.ok(providers.indexOf(">Fallback chain<") < providers.indexOf("orderedProviders.map"));
-  assert.match(providers, /Number\(savedByProvider\.has\(right\.provider\)\) - Number\(savedByProvider\.has\(left\.provider\)\)/);
+  assert.match(
+    providers,
+    /Number\(savedByProvider\.has\(right\.provider\)\) - Number\(savedByProvider\.has\(left\.provider\)\)/
+  );
 });
