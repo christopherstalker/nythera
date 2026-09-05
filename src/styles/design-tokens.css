@@ -3,7 +3,7 @@
     /* Primitive color channels */
     --primitive-coffee-400: 0.78 0.065 65;
     --primitive-coffee-500: 0.68 0.085 55;
-    --primitive-coffee-600: 0.60 0.085 50;
+    --primitive-coffee-600: 0.6 0.085 50;
     --primitive-warning-500: 0.78 0.15 80;
     --primitive-danger-500: 0.65 0.2 25;
 
@@ -72,13 +72,19 @@
     --side-panel-width: 280px;
     --codex-rail-width: 72px;
     --codex-mobile-dock-height: 68px;
-    --font-editorial: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+    --font-editorial: "Lora", Georgia, "Times New Roman", serif;
     --type-editorial-display: clamp(3.25rem, 8vw, 7rem);
     --type-editorial-title: clamp(2rem, 4vw, 4.25rem);
 
     /* Aurora gradients */
-    --gradient-aurora-primary: linear-gradient(120deg, oklch(var(--color-accent-primary)) 0%, oklch(var(--color-accent-secondary)) 100%);
-    --gradient-aurora-ambient: radial-gradient(ellipse 80% 55% at 20% 78%, oklch(var(--color-accent-primary) / .38) 0%, transparent 58%), radial-gradient(ellipse 70% 45% at 78% 22%, oklch(var(--color-accent-secondary) / .28) 0%, transparent 62%);
+    --gradient-aurora-primary: linear-gradient(
+      120deg,
+      oklch(var(--color-accent-primary)) 0%,
+      oklch(var(--color-accent-secondary)) 100%
+    );
+    --gradient-aurora-ambient:
+      radial-gradient(ellipse 80% 55% at 20% 78%, oklch(var(--color-accent-primary) / 0.38) 0%, transparent 58%),
+      radial-gradient(ellipse 70% 45% at 78% 22%, oklch(var(--color-accent-secondary) / 0.28) 0%, transparent 62%);
 
     /* Existing component aliases */
     --bg-base: oklch(var(--color-canvas));
@@ -99,7 +105,7 @@
     --brand-glow-strong: transparent;
     --accent-purple: oklch(var(--color-accent-primary));
     --accent-purple-hover: oklch(var(--color-accent-strong));
-    --accent-purple-soft: oklch(var(--color-accent-primary) / .28);
+    --accent-purple-soft: oklch(var(--color-accent-primary) / 0.28);
     --accent-secondary: oklch(var(--color-accent-secondary));
     --accent-teal: oklch(var(--primitive-coffee-500));
     --accent-rgb: 169 121 90;
@@ -141,12 +147,13 @@
     --ring: var(--color-focus-ring);
   }
 
-  :root, .dark {
+  :root,
+  .dark {
     /* Dark semantic color channels */
     --color-canvas: 0.08 0 0;
     --color-surface: 0.16 0 0;
     --color-elevated: 0.22 0 0;
-    --color-overlay: oklch(var(--color-elevated) / .72);
+    --color-overlay: oklch(var(--color-elevated) / 0.72);
     --color-text-primary: 0.98 0 0;
     --color-text-secondary: 0.86 0 0;
     --color-text-muted: 0.74 0 0;
@@ -163,27 +170,31 @@
     --color-danger: var(--primitive-danger-500);
 
     /* Dark elevation and backdrop aliases */
-    --elevation-raised: 0 16px 42px oklch(0 0 0 / .26);
-    --elevation-floating: 0 24px 72px oklch(0 0 0 / .34);
-    --elevation-glow: 0 0 0 1px oklch(var(--color-focus-ring) / .46), 0 0 42px oklch(var(--color-accent-primary) / .24);
+    --elevation-raised: 0 16px 42px oklch(0 0 0 / 0.26);
+    --elevation-floating: 0 24px 72px oklch(0 0 0 / 0.34);
+    --elevation-glow:
+      0 0 0 1px oklch(var(--color-focus-ring) / 0.46), 0 0 42px oklch(var(--color-accent-primary) / 0.24);
     --shadow-card: var(--elevation-floating);
     --shadow-elevated: var(--elevation-floating);
     --shadow-soft: var(--elevation-raised);
     --shadow-glow: var(--elevation-glow);
-    --shadow-glow-soft: 0 0 32px oklch(var(--color-accent-primary) / .18);
-    --glass-highlight: inset 0 1px 0 oklch(1 0 0 / .08);
+    --shadow-glow-soft: 0 0 32px oklch(var(--color-accent-primary) / 0.18);
+    --glass-highlight: inset 0 1px 0 oklch(1 0 0 / 0.08);
     --app-body-gradient: var(--gradient-aurora-ambient), var(--bg-base);
-    --app-shell-gradient: linear-gradient(180deg, oklch(var(--color-canvas)) 0%, oklch(var(--color-canvas) / .96) 100%);
-    --chat-overlay: oklch(var(--color-canvas) / .9);
+    --app-shell-gradient: linear-gradient(
+      180deg,
+      oklch(var(--color-canvas)) 0%,
+      oklch(var(--color-canvas) / 0.96) 100%
+    );
+    --chat-overlay: oklch(var(--color-canvas) / 0.9);
     --codex-paper: oklch(0.115 0.008 70);
     --codex-paper-raised: oklch(0.145 0.01 70);
     --codex-paper-soft: oklch(0.18 0.012 70);
     --codex-ivory: oklch(0.91 0.018 75);
-    --codex-rule: oklch(0.46 0.018 70 / .34);
+    --codex-rule: oklch(0.46 0.018 70 / 0.34);
     --codex-mint: oklch(var(--color-accent-secondary));
     --codex-violet: oklch(var(--color-accent-primary));
     --accent-mint: var(--codex-mint);
     --accent-violet: var(--codex-violet);
   }
-
 }

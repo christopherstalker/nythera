@@ -4,6 +4,22 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: "Lora";
+  src: url("/fonts/lora/Lora-Variable.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lora";
+  src: url("/fonts/lora/Lora-Italic-Variable.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 400 700;
+  font-display: swap;
+}
+
 @layer base {
   * {
     @apply border-border;
@@ -64,7 +80,9 @@
     color: oklch(var(--color-text-primary));
     -webkit-tap-highlight-color: transparent;
     text-rendering: optimizeLegibility;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
   }
 
   @media (display-mode: standalone) {
@@ -247,17 +265,17 @@
 /* Final Living Codex composition overrides. Kept last so legacy glass rules cannot win. */
 @layer components {
   .codex-kicker {
-    font-size: .68rem;
+    font-size: 0.68rem;
     font-weight: 600;
     line-height: 1.2;
-    letter-spacing: .22em;
+    letter-spacing: 0.22em;
     text-transform: uppercase;
     color: var(--text-muted);
   }
 
   .codex-index {
     font-family: var(--font-editorial);
-    font-size: .78rem;
+    font-size: 0.78rem;
     font-variant-numeric: tabular-nums;
     color: var(--text-muted);
   }
@@ -282,8 +300,7 @@
 
   .codex-auth {
     background:
-      linear-gradient(145deg, oklch(var(--color-accent-primary) / .055), transparent 35%),
-      var(--codex-paper);
+      linear-gradient(145deg, oklch(var(--color-accent-primary) / 0.055), transparent 35%), var(--codex-paper);
   }
 
   .codex-auth::after {
@@ -291,7 +308,7 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
-    opacity: .035;
+    opacity: 0.035;
     background: url("/textures/noise.svg") repeat;
     background-size: 180px;
     mix-blend-mode: screen;
@@ -318,7 +335,7 @@
 
     .codex-rooms .codex-page-header,
     .codex-settings .codex-page-header {
-      margin-bottom: .5rem;
+      margin-bottom: 0.5rem;
     }
   }
 }
@@ -488,7 +505,9 @@
   .orbital-nav-active {
     color: var(--text-primary);
     background: color-mix(in oklch, var(--bg-elevated) 74%, transparent);
-    box-shadow: var(--glass-highlight), 0 0 28px oklch(var(--color-accent-secondary) / .12);
+    box-shadow:
+      var(--glass-highlight),
+      0 0 28px oklch(var(--color-accent-secondary) / 0.12);
   }
 
   .orbital-tablet-solid {
@@ -560,7 +579,7 @@
 
   .rail-action-active {
     @apply text-[var(--text-primary)];
-    border: 1px solid rgb(var(--accent-rgb) / .28);
+    border: 1px solid rgb(var(--accent-rgb) / 0.28);
     background: var(--bg-elevated);
     box-shadow: none;
   }
@@ -589,9 +608,14 @@
   .nythera-cosmic-backdrop {
     isolation: isolate;
     background:
-      radial-gradient(ellipse 120% 72% at 16% -12%, oklch(var(--color-accent-secondary) / .13), transparent 44%),
-      radial-gradient(ellipse 110% 68% at 92% 18%, oklch(var(--color-accent-primary) / .12), transparent 48%),
-      linear-gradient(180deg, oklch(var(--color-canvas)) 0%, oklch(0.098 0.018 266) 42%, oklch(var(--color-canvas)) 100%);
+      radial-gradient(ellipse 120% 72% at 16% -12%, oklch(var(--color-accent-secondary) / 0.13), transparent 44%),
+      radial-gradient(ellipse 110% 68% at 92% 18%, oklch(var(--color-accent-primary) / 0.12), transparent 48%),
+      linear-gradient(
+        180deg,
+        oklch(var(--color-canvas)) 0%,
+        oklch(0.098 0.018 266) 42%,
+        oklch(var(--color-canvas)) 100%
+      );
   }
 
   .nythera-cosmic-backdrop::before,
@@ -603,38 +627,61 @@
   }
 
   .nythera-cosmic-backdrop::before {
-    opacity: .46;
+    opacity: 0.46;
     background-image:
-      linear-gradient(118deg, transparent 0 29%, oklch(var(--color-accent-secondary) / .13) 38%, transparent 49% 100%),
-      linear-gradient(64deg, transparent 0 58%, oklch(var(--color-accent-primary) / .11) 67%, transparent 78% 100%);
-    filter: blur(.2px);
+      linear-gradient(118deg, transparent 0 29%, oklch(var(--color-accent-secondary) / 0.13) 38%, transparent 49% 100%),
+      linear-gradient(64deg, transparent 0 58%, oklch(var(--color-accent-primary) / 0.11) 67%, transparent 78% 100%);
+    filter: blur(0.2px);
     mask-image: radial-gradient(ellipse 88% 72% at 50% 36%, black 0%, transparent 82%);
     mix-blend-mode: screen;
     animation: nythera-nebula-drift 72s ease-in-out infinite alternate;
   }
 
   .nythera-cosmic-backdrop::after {
-    opacity: .24;
+    opacity: 0.24;
     background-image:
-      linear-gradient(156deg, transparent 0 47%, oklch(0.92 0.07 225 / .28) 47.2%, transparent 48.1% 100%),
-      linear-gradient(24deg, transparent 0 68%, oklch(var(--color-accent-secondary) / .16) 68.3%, transparent 69.1% 100%);
-    background-position: 11% 18%, 88% 34%;
-    background-size: 760px 420px, 920px 560px;
+      linear-gradient(156deg, transparent 0 47%, oklch(0.92 0.07 225 / 0.28) 47.2%, transparent 48.1% 100%),
+      linear-gradient(
+        24deg,
+        transparent 0 68%,
+        oklch(var(--color-accent-secondary) / 0.16) 68.3%,
+        transparent 69.1% 100%
+      );
+    background-position:
+      11% 18%,
+      88% 34%;
+    background-size:
+      760px 420px,
+      920px 560px;
     mask-image: radial-gradient(ellipse 92% 70% at 50% 34%, black 0%, transparent 84%);
   }
 
   .nythera-cosmic-starfield {
-    opacity: .72;
+    opacity: 0.72;
     background-image:
-      radial-gradient(circle at 18% 22%, oklch(1 0 0 / .58) 0 .9px, transparent 1.6px),
-      radial-gradient(circle at 72% 34%, oklch(var(--color-accent-secondary) / .44) 0 1px, transparent 1.6px),
-      radial-gradient(circle at 42% 76%, oklch(var(--color-accent-primary) / .4) 0 1px, transparent 1.5px),
-      radial-gradient(circle at 88% 18%, oklch(0.86 0.1 218 / .42) 0 .8px, transparent 1.6px),
-      radial-gradient(circle at 9% 64%, oklch(0.9 0.08 300 / .34) 0 .8px, transparent 1.5px),
-      linear-gradient(115deg, transparent 0 34%, oklch(var(--color-accent-secondary) / .055) 40%, transparent 52%),
-      linear-gradient(22deg, transparent 0 58%, oklch(var(--color-accent-primary) / .05) 66%, transparent 78%);
-    background-position: 0 0, 24px 42px, 90px 12px, 120px 28px, 32px 138px, 0 0, 0 0;
-    background-size: 168px 168px, 248px 248px, 328px 328px, 420px 420px, 520px 520px, 100% 100%, 100% 100%;
+      radial-gradient(circle at 18% 22%, oklch(1 0 0 / 0.58) 0 0.9px, transparent 1.6px),
+      radial-gradient(circle at 72% 34%, oklch(var(--color-accent-secondary) / 0.44) 0 1px, transparent 1.6px),
+      radial-gradient(circle at 42% 76%, oklch(var(--color-accent-primary) / 0.4) 0 1px, transparent 1.5px),
+      radial-gradient(circle at 88% 18%, oklch(0.86 0.1 218 / 0.42) 0 0.8px, transparent 1.6px),
+      radial-gradient(circle at 9% 64%, oklch(0.9 0.08 300 / 0.34) 0 0.8px, transparent 1.5px),
+      linear-gradient(115deg, transparent 0 34%, oklch(var(--color-accent-secondary) / 0.055) 40%, transparent 52%),
+      linear-gradient(22deg, transparent 0 58%, oklch(var(--color-accent-primary) / 0.05) 66%, transparent 78%);
+    background-position:
+      0 0,
+      24px 42px,
+      90px 12px,
+      120px 28px,
+      32px 138px,
+      0 0,
+      0 0;
+    background-size:
+      168px 168px,
+      248px 248px,
+      328px 328px,
+      420px 420px,
+      520px 520px,
+      100% 100%,
+      100% 100%;
     animation: nythera-cosmic-drift 44s linear infinite;
   }
 
@@ -642,12 +689,25 @@
     content: "";
     position: absolute;
     inset: 0;
-    opacity: .32;
+    opacity: 0.32;
     background-image:
-      linear-gradient(100deg, transparent 0 18%, oklch(var(--color-border-strong) / .15) 18.4%, transparent 19.2% 100%),
-      linear-gradient(150deg, transparent 0 64%, oklch(var(--color-accent-secondary) / .14) 64.4%, transparent 65.2% 100%),
-      linear-gradient(38deg, transparent 0 74%, oklch(var(--color-accent-primary) / .11) 74.3%, transparent 75.1% 100%);
-    background-size: 520px 320px, 640px 420px, 860px 520px;
+      linear-gradient(
+        100deg,
+        transparent 0 18%,
+        oklch(var(--color-border-strong) / 0.15) 18.4%,
+        transparent 19.2% 100%
+      ),
+      linear-gradient(
+        150deg,
+        transparent 0 64%,
+        oklch(var(--color-accent-secondary) / 0.14) 64.4%,
+        transparent 65.2% 100%
+      ),
+      linear-gradient(38deg, transparent 0 74%, oklch(var(--color-accent-primary) / 0.11) 74.3%, transparent 75.1% 100%);
+    background-size:
+      520px 320px,
+      640px 420px,
+      860px 520px;
     mask-image: radial-gradient(ellipse 90% 74% at 50% 42%, black 0%, transparent 78%);
   }
 
@@ -655,28 +715,34 @@
     content: "";
     position: absolute;
     inset: 0;
-    opacity: .36;
+    opacity: 0.36;
     background-image:
-      radial-gradient(circle at 28% 31%, oklch(1 0 0 / .72) 0 .8px, transparent 1.7px),
-      radial-gradient(circle at 62% 58%, oklch(0.94 0.08 230 / .56) 0 .8px, transparent 1.6px),
-      radial-gradient(circle at 77% 24%, oklch(0.93 0.09 315 / .5) 0 .7px, transparent 1.5px);
-    background-position: 14px 18px, 60px 96px, 144px 34px;
-    background-size: 360px 360px, 480px 480px, 620px 620px;
+      radial-gradient(circle at 28% 31%, oklch(1 0 0 / 0.72) 0 0.8px, transparent 1.7px),
+      radial-gradient(circle at 62% 58%, oklch(0.94 0.08 230 / 0.56) 0 0.8px, transparent 1.6px),
+      radial-gradient(circle at 77% 24%, oklch(0.93 0.09 315 / 0.5) 0 0.7px, transparent 1.5px);
+    background-position:
+      14px 18px,
+      60px 96px,
+      144px 34px;
+    background-size:
+      360px 360px,
+      480px 480px,
+      620px 620px;
     mask-image: radial-gradient(ellipse 82% 70% at 50% 38%, black 0%, transparent 86%);
   }
 
   .nythera-cosmic-veil {
     background:
-      radial-gradient(ellipse 86% 48% at 50% -4%, oklch(var(--color-accent-primary) / .11), transparent 64%),
-      radial-gradient(ellipse 92% 46% at 50% 100%, oklch(0 0 0 / .5), transparent 74%),
-      linear-gradient(90deg, oklch(0 0 0 / .28), transparent 18% 82%, oklch(0 0 0 / .28));
+      radial-gradient(ellipse 86% 48% at 50% -4%, oklch(var(--color-accent-primary) / 0.11), transparent 64%),
+      radial-gradient(ellipse 92% 46% at 50% 100%, oklch(0 0 0 / 0.5), transparent 74%),
+      linear-gradient(90deg, oklch(0 0 0 / 0.28), transparent 18% 82%, oklch(0 0 0 / 0.28));
   }
 
   .glass-grain {
     display: block;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.86' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
     background-size: 256px 256px;
-    opacity: .03;
+    opacity: 0.03;
     mix-blend-mode: soft-light;
   }
 
@@ -694,7 +760,10 @@
     overflow-wrap: break-word;
     word-break: break-word;
     white-space: pre-wrap;
-    transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+    transition:
+      border-color 180ms ease,
+      box-shadow 180ms ease,
+      transform 180ms ease;
   }
 
   .bubble-user {
@@ -702,7 +771,7 @@
     min-width: 0;
     align-self: flex-end;
     border-radius: var(--radius-md) 4px var(--radius-md) var(--radius-md);
-    border: 1px solid oklch(var(--color-accent-primary) / .36);
+    border: 1px solid oklch(var(--color-accent-primary) / 0.36);
     background: var(--accent-purple);
     box-shadow: none;
     padding: 12px 16px;
@@ -712,19 +781,22 @@
     overflow-wrap: break-word;
     word-break: break-word;
     white-space: pre-wrap;
-    transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+    transition:
+      border-color 180ms ease,
+      box-shadow 180ms ease,
+      transform 180ms ease;
   }
 
   @media (hover: hover) and (pointer: fine) {
     .group:hover .bubble-char {
       transform: translateY(-1px);
-      border-color: oklch(var(--color-accent-secondary) / .3);
+      border-color: oklch(var(--color-accent-secondary) / 0.3);
       box-shadow: none;
     }
 
     .group:hover .bubble-user {
       transform: translateY(-1px);
-      border-color: oklch(var(--color-accent-secondary) / .38);
+      border-color: oklch(var(--color-accent-secondary) / 0.38);
       box-shadow: none;
     }
   }
@@ -737,7 +809,7 @@
 
     .group:active .bubble-char,
     .group:active .bubble-user {
-      transform: scale(.992);
+      transform: scale(0.992);
     }
   }
 
@@ -797,13 +869,13 @@
     border: 1px solid var(--border-default);
     background: var(--bg-elevated);
     box-shadow: var(--shadow-card);
-    animation: modal-panel-in 220ms cubic-bezier(.4, 0, .2, 1) both;
+    animation: modal-panel-in 220ms cubic-bezier(0.4, 0, 0.2, 1) both;
   }
 
   .brand-mark-shell {
     @apply grid shrink-0 place-items-center overflow-hidden rounded-full;
     background: var(--bg-elevated);
-    border: 1px solid oklch(var(--color-border-default) / .16);
+    border: 1px solid oklch(var(--color-border-default) / 0.16);
   }
 
   .composer-glass {
@@ -812,7 +884,10 @@
   }
 
   .composer-dock {
-    transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+    transition:
+      border-color 180ms ease,
+      box-shadow 180ms ease,
+      transform 180ms ease;
   }
 
   .composer-dock:focus-within {
@@ -827,14 +902,14 @@
   }
 
   .chat-scene-art {
-    filter: blur(2px) saturate(.92) brightness(.78);
+    filter: blur(2px) saturate(0.92) brightness(0.78);
     transform: scale(1.035);
     transform-origin: center;
   }
 
   @media (max-width: 640px) {
     .chat-scene-art {
-      filter: blur(3px) saturate(.9) brightness(.88);
+      filter: blur(3px) saturate(0.9) brightness(0.88);
       transform: scale(1.06);
     }
   }
@@ -880,11 +955,13 @@
     inset: 8px 10px;
     z-index: -1;
     border-radius: 16px;
-    background: oklch(var(--color-accent-secondary) / .14);
+    background: oklch(var(--color-accent-secondary) / 0.14);
     content: "";
     opacity: 0;
-    transform: scale(.84);
-    transition: opacity 160ms ease, transform 160ms ease;
+    transform: scale(0.84);
+    transition:
+      opacity 160ms ease,
+      transform 160ms ease;
   }
 
   .mobile-nav-item:active::after {
@@ -912,9 +989,8 @@
 
   .portrait-guard-veil {
     background:
-      radial-gradient(circle at 50% 46%, oklch(var(--color-accent-secondary) / .08), transparent 32%),
-      linear-gradient(155deg, oklch(var(--color-accent-primary) / .06), transparent 46%),
-      var(--codex-paper);
+      radial-gradient(circle at 50% 46%, oklch(var(--color-accent-secondary) / 0.08), transparent 32%),
+      linear-gradient(155deg, oklch(var(--color-accent-primary) / 0.06), transparent 46%), var(--codex-paper);
   }
 
   .portrait-guard-book {
@@ -924,13 +1000,13 @@
     transform: rotate(-90deg);
     border: 1px solid var(--codex-rule);
     background: var(--codex-paper-raised);
-    box-shadow: 0 1.5rem 4rem oklch(0 0 0 / .32);
+    box-shadow: 0 1.5rem 4rem oklch(0 0 0 / 0.32);
   }
 
   .portrait-guard-book::before {
     position: absolute;
-    inset-block: .4rem;
-    left: .55rem;
+    inset-block: 0.4rem;
+    left: 0.55rem;
     width: 1px;
     background: var(--codex-mint);
     content: "";
@@ -938,7 +1014,7 @@
 
   .portrait-guard-book span {
     position: absolute;
-    right: .65rem;
+    right: 0.65rem;
     width: 2.7rem;
     height: 1px;
     background: var(--codex-rule);
@@ -977,19 +1053,19 @@
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    opacity: .035;
+    opacity: 0.035;
     background-image: url("/textures/noise.svg");
     background-size: 180px 180px;
     mix-blend-mode: screen;
   }
 
   .codex-main {
-    scrollbar-color: oklch(var(--color-border-strong) / .22) transparent;
+    scrollbar-color: oklch(var(--color-border-strong) / 0.22) transparent;
   }
 
   .codex-mobile-dock {
-    padding-left: max(.5rem, env(safe-area-inset-left));
-    padding-right: max(.5rem, env(safe-area-inset-right));
+    padding-left: max(0.5rem, env(safe-area-inset-left));
+    padding-right: max(0.5rem, env(safe-area-inset-right));
     transform: translateZ(0);
     backface-visibility: hidden;
     contain: layout paint;
@@ -1012,23 +1088,26 @@
   }
 
   .codex-rail-link {
-    border-radius: 0;
-    transition: color 160ms ease, background 160ms ease;
+    border-radius: 8px;
+    transition:
+      color 160ms ease,
+      background 160ms ease;
   }
 
   .codex-rail-link::after {
     content: "";
     position: absolute;
-    right: -14px;
+    left: -4px;
     top: 50%;
-    width: 14px;
-    height: 1px;
+    width: 2px;
+    height: 18px;
+    transform: translateY(-50%);
     background: transparent;
   }
 
   .codex-rail-link:hover,
   .codex-rail-link.is-active {
-    background: oklch(var(--color-accent-secondary) / .055);
+    background: oklch(var(--color-accent-secondary) / 0.055);
   }
 
   .codex-rail-link.is-active::after {
@@ -1036,7 +1115,74 @@
   }
 
   .codex-mobile-dock {
-    box-shadow: 0 -18px 48px color-mix(in oklch, var(--codex-ivory) 16%, transparent);
+    box-shadow: 0 -8px 32px rgb(0 0 0 / 0.18);
+  }
+
+  .codex-nav-label {
+    display: none;
+  }
+
+  .living-codex-shell[data-navigation="compact"] {
+    --codex-rail-width: 72px;
+  }
+
+  .codex-rail-nav {
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .codex-skip-link {
+    position: fixed;
+    left: 1rem;
+    top: 1rem;
+    z-index: 100;
+    padding: 0.75rem 1rem;
+    transform: translateY(-200%);
+    background: var(--codex-mint);
+    color: var(--codex-paper);
+    border-radius: 8px;
+  }
+
+  .codex-skip-link:focus {
+    transform: translateY(0);
+  }
+
+  .codex-theme-chip {
+    display: inline-flex;
+    min-height: 40px;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--codex-rule);
+    border-radius: 999px;
+    background: var(--codex-paper-raised);
+    color: var(--text-secondary);
+    font-size: 12px;
+    text-decoration: none;
+    transition:
+      background 160ms ease,
+      border-color 160ms ease,
+      color 160ms ease;
+  }
+
+  .codex-theme-chip:hover {
+    border-color: var(--codex-mint);
+    color: var(--codex-mint);
+    background: color-mix(in oklch, var(--codex-mint) 6%, var(--codex-paper));
+  }
+
+  @media (min-width: 1200px) {
+    .living-codex-shell[data-navigation="expanded"] {
+      --codex-rail-width: 208px;
+    }
+
+    [data-navigation="expanded"] .codex-nav-label {
+      display: block;
+    }
+
+    [data-navigation="expanded"] .codex-rail-link {
+      justify-content: flex-start;
+      padding-inline: 12px;
+    }
   }
 
   .codex-page {
@@ -1083,7 +1229,7 @@
   }
 
   .glass-input:focus {
-    border-color: oklch(var(--color-accent-secondary) / .55);
+    border-color: oklch(var(--color-accent-secondary) / 0.55);
   }
 
   @media (max-width: 767px) {
@@ -1108,7 +1254,7 @@
     align-items: flex-start;
     font-size: 9px;
     line-height: 1.6;
-    letter-spacing: .24em;
+    letter-spacing: 0.24em;
     text-transform: uppercase;
     color: var(--text-muted);
   }
@@ -1145,7 +1291,12 @@
   .codex-dossier-portrait-veil {
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, transparent 28%, color-mix(in oklch, var(--codex-paper) 38%, transparent) 58%, var(--codex-paper) 100%);
+    background: linear-gradient(
+      180deg,
+      transparent 28%,
+      color-mix(in oklch, var(--codex-paper) 38%, transparent) 58%,
+      var(--codex-paper) 100%
+    );
   }
 
   .codex-dossier-title {
@@ -1155,17 +1306,17 @@
   }
 
   .codex-dossier-title h2 {
-    margin-top: .35rem;
+    margin-top: 0.35rem;
     font-family: var(--font-editorial);
     font-size: clamp(3rem, 4vw, 4.4rem);
     font-weight: 500;
-    line-height: .82;
-    letter-spacing: -.045em;
+    line-height: 0.82;
+    letter-spacing: -0.045em;
     color: var(--codex-ivory);
   }
 
   .codex-dossier-title > p:last-child {
-    margin-top: .8rem;
+    margin-top: 0.8rem;
     max-width: 30rem;
     font-family: var(--font-editorial);
     font-size: 1.08rem;
@@ -1216,7 +1367,7 @@
 
   .codex-dossier-index {
     display: grid;
-    padding-block: .9rem;
+    padding-block: 0.9rem;
     border-bottom: 1px solid var(--codex-rule);
   }
 
@@ -1225,7 +1376,7 @@
     min-height: 2.8rem;
     grid-template-columns: 2rem minmax(0, 1fr) 1rem;
     align-items: center;
-    gap: .6rem;
+    gap: 0.6rem;
     color: var(--text-muted);
     text-align: left;
     transition: color 160ms ease;
@@ -1233,7 +1384,7 @@
 
   .codex-dossier-index button > span:first-child {
     font-size: 9px;
-    letter-spacing: .15em;
+    letter-spacing: 0.15em;
   }
 
   .codex-dossier-index button p {
@@ -1242,7 +1393,7 @@
     white-space: nowrap;
     font-size: 10px;
     text-transform: uppercase;
-    letter-spacing: .14em;
+    letter-spacing: 0.14em;
   }
 
   .codex-dossier-index button.is-active {
@@ -1262,14 +1413,14 @@
 
   .codex-dossier-facts ul {
     display: grid;
-    gap: .7rem;
+    gap: 0.7rem;
     margin-top: 1rem;
   }
 
   .codex-dossier-facts li {
     display: grid;
-    grid-template-columns: .45rem minmax(0, 1fr);
-    gap: .75rem;
+    grid-template-columns: 0.45rem minmax(0, 1fr);
+    gap: 0.75rem;
     font-family: var(--font-editorial);
     font-size: 1.05rem;
     color: var(--text-secondary);
@@ -1277,21 +1428,21 @@
 
   .codex-dossier-facts li::before {
     content: "";
-    width: .3rem;
-    height: .3rem;
-    margin-top: .55rem;
+    width: 0.3rem;
+    height: 0.3rem;
+    margin-top: 0.55rem;
     border-radius: 50%;
     background: var(--codex-violet);
   }
 
   .codex-pinned-note {
     position: relative;
-    margin: 1.7rem .5rem 0;
+    margin: 1.7rem 0.5rem 0;
     padding: 1.3rem 1.2rem 1.5rem;
     transform: rotate(-1deg);
     border: 1px solid color-mix(in oklch, var(--codex-ivory) 18%, transparent);
     background: oklch(0.82 0.028 78);
-    box-shadow: 0 12px 32px oklch(0 0 0 / .2);
+    box-shadow: 0 12px 32px oklch(0 0 0 / 0.2);
     font-family: var(--font-editorial);
     font-size: 1.12rem;
     font-style: italic;
@@ -1301,14 +1452,14 @@
 
   .codex-pinned-note span {
     display: block;
-    margin-bottom: .6rem;
-    padding-bottom: .45rem;
-    border-bottom: 1px solid oklch(0.3 0.01 70 / .35);
+    margin-bottom: 0.6rem;
+    padding-bottom: 0.45rem;
+    border-bottom: 1px solid oklch(0.3 0.01 70 / 0.35);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 8px;
     font-style: normal;
     text-transform: uppercase;
-    letter-spacing: .2em;
+    letter-spacing: 0.2em;
   }
 
   .codex-manuscript {
@@ -1338,9 +1489,13 @@
     color: var(--text-muted);
   }
 
-  .codex-mode-index button:last-child { border-right: 0; }
+  .codex-mode-index button:last-child {
+    border-right: 0;
+  }
   .codex-mode-index button[data-active="true"],
-  .codex-mode-index button.is-active { color: var(--codex-mint); }
+  .codex-mode-index button.is-active {
+    color: var(--codex-mint);
+  }
 
   .codex-chapter-stack,
   .codex-prompt-sheet {
@@ -1379,23 +1534,23 @@
     border: 1px solid var(--codex-rule);
     border-radius: 50%;
     font-size: 9px;
-    letter-spacing: .12em;
+    letter-spacing: 0.12em;
     color: var(--codex-mint);
   }
 
   .codex-chapter-heading h2 {
-    margin-top: .3rem;
+    margin-top: 0.3rem;
     font-family: var(--font-editorial);
     font-size: clamp(2.5rem, 5vw, 4.3rem);
     font-weight: 500;
-    line-height: .9;
-    letter-spacing: -.035em;
+    line-height: 0.9;
+    letter-spacing: -0.035em;
     color: var(--codex-ivory);
   }
 
   .codex-chapter-heading > div > p:last-child {
     max-width: 42rem;
-    margin-top: .85rem;
+    margin-top: 0.85rem;
     font-family: var(--font-editorial);
     font-size: 1.15rem;
     font-style: italic;
@@ -1406,13 +1561,13 @@
   .codex-margin-assist {
     display: inline-flex;
     align-items: center;
-    gap: .5rem;
-    margin-top: .25rem;
-    padding: .65rem 0 .65rem 1rem;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+    padding: 0.65rem 0 0.65rem 1rem;
     border-left: 1px solid var(--codex-violet);
     font-size: 9px;
     text-transform: uppercase;
-    letter-spacing: .16em;
+    letter-spacing: 0.16em;
     color: var(--codex-violet);
   }
 
@@ -1449,7 +1604,7 @@
   }
 
   .codex-manuscript textarea {
-    padding-block: .8rem;
+    padding-block: 0.8rem;
     resize: vertical;
   }
 
@@ -1461,7 +1616,7 @@
 
   .codex-manuscript .codex-tag-search-input {
     --codex-field-padding-left: 2.5rem;
-    --codex-field-padding-right: .75rem;
+    --codex-field-padding-right: 0.75rem;
   }
 
   .codex-opening-preview {
@@ -1517,9 +1672,9 @@
     display: flex;
     min-height: 3.5rem;
     align-items: center;
-    gap: .8rem;
+    gap: 0.8rem;
     border-bottom: 1px solid var(--codex-rule);
-    font-size: .8rem;
+    font-size: 0.8rem;
     color: var(--text-secondary);
   }
 
@@ -1527,9 +1682,9 @@
     margin-block: 1.5rem;
     padding: 1rem 1.25rem;
     border-left: 1px solid oklch(var(--color-danger));
-    background: oklch(var(--color-danger) / .08);
-    font-size: .8rem;
-    color: oklch(.78 .12 25);
+    background: oklch(var(--color-danger) / 0.08);
+    font-size: 0.8rem;
+    color: oklch(0.78 0.12 25);
   }
 
   .codex-studio-actions {
@@ -1556,7 +1711,7 @@
   .codex-studio-primary-wrap {
     display: flex;
     align-items: center;
-    gap: .75rem;
+    gap: 0.75rem;
   }
 
   @media (max-width: 1023px) {
@@ -1607,7 +1762,7 @@
       min-height: calc(4.75rem + env(safe-area-inset-top));
       align-items: flex-end;
       gap: 1rem;
-      padding: calc(.8rem + env(safe-area-inset-top)) 1.15rem .8rem;
+      padding: calc(0.8rem + env(safe-area-inset-top)) 1.15rem 0.8rem;
       border-bottom: 1px solid var(--codex-rule);
       background: color-mix(in oklch, var(--codex-paper-raised) 96%, transparent);
       backdrop-filter: blur(18px);
@@ -1648,7 +1803,7 @@
       display: flex;
       gap: 1.25rem;
       overflow-x: auto;
-      padding-block: .8rem;
+      padding-block: 0.8rem;
       border-bottom: 0;
       scrollbar-width: none;
     }
@@ -1659,7 +1814,9 @@
       grid-template-columns: auto auto;
     }
 
-    .codex-dossier-index button > :last-child { display: none; }
+    .codex-dossier-index button > :last-child {
+      display: none;
+    }
 
     .codex-manuscript {
       height: auto;
@@ -1686,9 +1843,9 @@
 
     .codex-mode-index button {
       min-width: 0;
-      padding-inline: .35rem;
+      padding-inline: 0.35rem;
       font-size: 9px;
-      letter-spacing: .08em;
+      letter-spacing: 0.08em;
     }
 
     .codex-manuscript-chapter,
@@ -1698,7 +1855,7 @@
 
     .codex-chapter-heading {
       grid-template-columns: 2.65rem minmax(0, 1fr);
-      gap: .9rem;
+      gap: 0.9rem;
     }
 
     .codex-chapter-heading h2 {
@@ -1706,8 +1863,8 @@
     }
 
     .codex-chapter-heading > div > p:last-child {
-      margin-top: .55rem;
-      font-size: .95rem;
+      margin-top: 0.55rem;
+      font-size: 0.95rem;
     }
 
     .codex-margin-assist {
@@ -1744,9 +1901,9 @@
       display: grid;
       grid-template-columns: minmax(0, 1fr);
       margin: 1rem -1rem 0;
-      padding: .75rem 1rem;
+      padding: 0.75rem 1rem;
       background: color-mix(in oklch, var(--codex-paper-raised) 96%, transparent);
-      box-shadow: 0 -12px 32px oklch(0 0 0 / .24);
+      box-shadow: 0 -12px 32px oklch(0 0 0 / 0.24);
     }
 
     .codex-studio-secondary-actions {
@@ -1763,7 +1920,7 @@
     .codex-studio-primary-wrap {
       display: grid;
       width: 100%;
-      gap: .45rem;
+      gap: 0.45rem;
     }
 
     .codex-studio-actions .button,
@@ -1794,7 +1951,7 @@
   .codex-character-gallery {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: clamp(.65rem, 1.4vw, 1rem);
+    gap: clamp(0.65rem, 1.4vw, 1rem);
   }
 
   .codex-character-tile {
@@ -1805,16 +1962,16 @@
     display: grid;
     grid-template-rows: auto 1fr;
     border: 1px solid var(--neo-glass-border);
-    border-radius: var(--radius-card);
+    border-radius: 12px;
     background: var(--neo-glass-bg-subtle);
-    box-shadow: var(--neo-glass-border-inner), var(--glass-highlight), 0 18px 52px oklch(0 0 0 / .22);
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
     -webkit-backdrop-filter: blur(var(--neo-glass-blur-md)) saturate(var(--neo-glass-saturate));
     backdrop-filter: blur(var(--neo-glass-blur-md)) saturate(var(--neo-glass-saturate));
   }
 
   .codex-character-plate-image {
     position: relative;
-    aspect-ratio: 4 / 5;
+    aspect-ratio: 5 / 4;
     overflow: hidden;
   }
 
@@ -1822,13 +1979,18 @@
     position: absolute;
     inset: 0;
     background:
-      linear-gradient(180deg, transparent 42%, oklch(var(--color-canvas) / .24) 66%, oklch(var(--color-canvas) / .94) 100%),
-      linear-gradient(120deg, oklch(var(--color-accent-primary) / .11), transparent 48%);
+      linear-gradient(
+        180deg,
+        oklch(var(--color-canvas) / 0.18),
+        transparent 35%,
+        oklch(var(--color-canvas) / 0.3) 100%
+      ),
+      linear-gradient(120deg, oklch(var(--color-accent-primary) / 0.11), transparent 48%);
   }
 
   .codex-character-plate-copy {
     position: relative;
-    padding: .85rem .9rem 1rem;
+    padding: 0.85rem 0.9rem 1rem;
     border-top: 1px solid var(--neo-glass-border);
     background: color-mix(in oklch, var(--bg-elevated) 72%, transparent);
     -webkit-backdrop-filter: blur(var(--neo-glass-blur-md)) saturate(var(--neo-glass-saturate));
@@ -2049,7 +2211,10 @@
     border: 1px solid var(--codex-rule);
     padding: 1rem 1.1rem;
     text-align: left;
-    transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+    transition:
+      border-color 160ms ease,
+      background-color 160ms ease,
+      transform 160ms ease;
   }
 
   .nythera-tutorial-choice:hover {
@@ -2260,19 +2425,39 @@
 
 @keyframes ambient-drift {
   from {
-    background-position: 0% 0%, 0% 0%, 0% 0%;
+    background-position:
+      0% 0%,
+      0% 0%,
+      0% 0%;
   }
   to {
-    background-position: 3% 4%, -2% -3%, 0% 0%;
+    background-position:
+      3% 4%,
+      -2% -3%,
+      0% 0%;
   }
 }
 
 @keyframes nythera-cosmic-drift {
   from {
-    background-position: 0 0, 24px 42px, 90px 12px, 120px 28px, 32px 138px, 0 0, 0 0;
+    background-position:
+      0 0,
+      24px 42px,
+      90px 12px,
+      120px 28px,
+      32px 138px,
+      0 0,
+      0 0;
   }
   to {
-    background-position: 168px 168px, 272px 290px, 418px 340px, 540px 448px, 552px 658px, 0 0, 0 0;
+    background-position:
+      168px 168px,
+      272px 290px,
+      418px 340px,
+      540px 448px,
+      552px 658px,
+      0 0,
+      0 0;
   }
 }
 
@@ -2297,7 +2482,7 @@
 @keyframes modal-panel-in {
   from {
     opacity: 0;
-    transform: translateY(18px) scale(.96);
+    transform: translateY(18px) scale(0.96);
   }
   to {
     opacity: 1;
@@ -2313,7 +2498,7 @@
   }
   to {
     opacity: 0;
-    transform: translateY(-6px) scale(.985);
+    transform: translateY(-6px) scale(0.985);
     max-height: 0;
   }
 }
@@ -2321,7 +2506,7 @@
 @keyframes nythera-panel-rise {
   from {
     opacity: 0;
-    transform: translateY(10px) scale(.985);
+    transform: translateY(10px) scale(0.985);
   }
   to {
     opacity: 1;
@@ -2332,7 +2517,7 @@
 @keyframes nythera-mobile-nav-in {
   from {
     opacity: 0;
-    transform: translateY(14px) scale(.985);
+    transform: translateY(14px) scale(0.985);
   }
   to {
     opacity: 1;
@@ -2517,11 +2702,13 @@
   .library-hero-panel,
   .library-chat-row,
   .library-empty-panel {
-    border: 1px solid oklch(var(--color-border-default) / .34);
+    border: 1px solid oklch(var(--color-border-default) / 0.34);
     background: color-mix(in oklch, var(--bg-surface) 58%, transparent);
     -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturation));
     backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturation));
-    box-shadow: var(--glass-highlight), 0 18px 54px oklch(0 0 0 / .22);
+    box-shadow:
+      var(--glass-highlight),
+      0 18px 54px oklch(0 0 0 / 0.22);
   }
 
   .library-hero-panel {
@@ -2534,19 +2721,22 @@
     inset: 0;
     pointer-events: none;
     background:
-      linear-gradient(120deg, oklch(var(--color-accent-primary) / .16), transparent 38%),
-      linear-gradient(24deg, transparent 42%, oklch(var(--color-accent-secondary) / .10), transparent 78%);
-    opacity: .72;
+      linear-gradient(120deg, oklch(var(--color-accent-primary) / 0.16), transparent 38%),
+      linear-gradient(24deg, transparent 42%, oklch(var(--color-accent-secondary) / 0.1), transparent 78%);
+    opacity: 0.72;
   }
 
   .library-chat-row {
     border-radius: var(--radius-card);
-    transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+    transition:
+      transform 180ms ease,
+      border-color 180ms ease,
+      background 180ms ease;
   }
 
   .library-chat-row:hover {
     transform: translateY(-2px);
-    border-color: oklch(var(--color-accent-secondary) / .26);
+    border-color: oklch(var(--color-accent-secondary) / 0.26);
     background: color-mix(in oklch, var(--bg-surface) 70%, transparent);
   }
 
@@ -2684,7 +2874,10 @@
     container-type: inline-size;
     border-color: color-mix(in oklch, var(--profile-accent) 28%, var(--neo-glass-border));
     background: color-mix(in oklch, var(--bg-surface) 70%, transparent);
-    box-shadow: var(--neo-glass-border-inner), var(--glass-highlight), 0 28px 90px oklch(0 0 0 / .34);
+    box-shadow:
+      var(--neo-glass-border-inner),
+      var(--glass-highlight),
+      0 28px 90px oklch(0 0 0 / 0.34);
   }
 
   .nythera-profile .profile-banner-art::before {
@@ -2692,15 +2885,35 @@
     inset: 0;
     z-index: 1;
     background-image:
-      linear-gradient(90deg, transparent 0, transparent calc(25% - 1px), color-mix(in oklch, white 10%, transparent) 25%, transparent calc(25% + 1px)),
-      linear-gradient(90deg, transparent 0, transparent calc(75% - 1px), color-mix(in oklch, white 10%, transparent) 75%, transparent calc(75% + 1px)),
-      linear-gradient(0deg, transparent 0, transparent calc(50% - 1px), color-mix(in oklch, white 8%, transparent) 50%, transparent calc(50% + 1px));
+      linear-gradient(
+        90deg,
+        transparent 0,
+        transparent calc(25% - 1px),
+        color-mix(in oklch, white 10%, transparent) 25%,
+        transparent calc(25% + 1px)
+      ),
+      linear-gradient(
+        90deg,
+        transparent 0,
+        transparent calc(75% - 1px),
+        color-mix(in oklch, white 10%, transparent) 75%,
+        transparent calc(75% + 1px)
+      ),
+      linear-gradient(
+        0deg,
+        transparent 0,
+        transparent calc(50% - 1px),
+        color-mix(in oklch, white 8%, transparent) 50%,
+        transparent calc(50% + 1px)
+      );
     content: "";
     pointer-events: none;
   }
 
   .nythera-profile .profile-character-artwork img {
-    transition: filter 320ms ease, transform 500ms cubic-bezier(.2, .75, .25, 1);
+    transition:
+      filter 320ms ease,
+      transform 500ms cubic-bezier(0.2, 0.75, 0.25, 1);
   }
 
   .nythera-profile .profile-character-card:hover .profile-character-artwork img {
@@ -2714,12 +2927,14 @@
       var(--neo-glass-border-inner),
       var(--glass-highlight),
       0 0 70px color-mix(in oklch, var(--profile-accent) 16%, transparent),
-      0 28px 90px oklch(0 0 0 / .34);
+      0 28px 90px oklch(0 0 0 / 0.34);
   }
 
   .nythera-profile[data-surface="editorial"] {
     background: color-mix(in oklch, var(--bg-surface) 88%, transparent);
-    box-shadow: var(--glass-highlight), 0 24px 70px oklch(0 0 0 / .28);
+    box-shadow:
+      var(--glass-highlight),
+      0 24px 70px oklch(0 0 0 / 0.28);
   }
 
   .nythera-profile[data-surface="editorial"] .profile-character-card {
@@ -2731,7 +2946,9 @@
 
   .nythera-profile[data-surface="luminous"] .profile-character-card {
     border-color: color-mix(in oklch, var(--profile-accent) 24%, var(--neo-glass-border));
-    box-shadow: var(--neo-glass-border-inner), 0 16px 44px color-mix(in oklch, var(--profile-accent) 9%, transparent);
+    box-shadow:
+      var(--neo-glass-border-inner),
+      0 16px 44px color-mix(in oklch, var(--profile-accent) 9%, transparent);
   }
 
   .neo-glass-chat-container {
@@ -2752,8 +2969,8 @@
     inset: 0;
     pointer-events: none;
     background:
-      radial-gradient(ellipse 60% 50% at 20% 30%, oklch(var(--color-accent-primary) / .08), transparent 60%),
-      radial-gradient(ellipse 50% 40% at 80% 70%, oklch(0.45 0.12 280 / .06), transparent 55%);
+      radial-gradient(ellipse 60% 50% at 20% 30%, oklch(var(--color-accent-primary) / 0.08), transparent 60%),
+      radial-gradient(ellipse 50% 40% at 80% 70%, oklch(0.45 0.12 280 / 0.06), transparent 55%);
     opacity: 0.9;
   }
 
@@ -2799,7 +3016,10 @@
 
   .neo-glass-input-dock:focus-within {
     background: rgba(255, 255, 255, 0.1);
-    box-shadow: var(--neo-glass-border-inner), var(--shadow-elevated), 0 0 24px oklch(var(--color-accent-primary) / .12);
+    box-shadow:
+      var(--neo-glass-border-inner),
+      var(--shadow-elevated),
+      0 0 24px oklch(var(--color-accent-primary) / 0.12);
   }
 
   .neo-glass-input-pill {
@@ -2814,20 +3034,27 @@
 
   .neo-glass-input-pill:focus {
     background: rgba(0, 0, 0, 0.24);
-    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    box-shadow:
+      inset 0 2px 8px rgba(0, 0, 0, 0.28),
+      0 0 0 1px rgba(255, 255, 255, 0.08);
   }
 
   .neo-glass-send-btn {
     border-radius: 50%;
     background: var(--neo-glass-bg-standard);
     border: 1px solid var(--neo-glass-border);
-    box-shadow: var(--neo-glass-border-inner), 0 0 16px oklch(var(--color-accent-primary) / .18);
+    box-shadow:
+      var(--neo-glass-border-inner),
+      0 0 16px oklch(var(--color-accent-primary) / 0.18);
     transition: var(--neo-glass-transition);
   }
 
   .neo-glass-send-btn:not(:disabled):hover {
     background: rgba(255, 255, 255, 0.14);
-    box-shadow: var(--neo-glass-border-inner), inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 0 24px oklch(var(--color-accent-primary) / .28);
+    box-shadow:
+      var(--neo-glass-border-inner),
+      inset 0 1px 0 rgba(255, 255, 255, 0.15),
+      0 0 24px oklch(var(--color-accent-primary) / 0.28);
   }
 
   .neo-glass-send-btn:not(:disabled):active {
@@ -2874,7 +3101,9 @@
     line-height: 1.25;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.2s ease, transform 0.2s ease;
+    transition:
+      opacity 0.2s ease,
+      transform 0.2s ease;
   }
 
   .neo-glass-tool-button:hover::after,
@@ -2894,7 +3123,7 @@
 
   .neo-glass-chip.is-active {
     background: rgba(255, 255, 255, 0.12);
-    border-color: oklch(var(--color-accent-primary) / .45);
+    border-color: oklch(var(--color-accent-primary) / 0.45);
     box-shadow: 0 0 16px oklch(var(--color-accent-primary) / var(--neo-glass-glow-opacity));
   }
 
@@ -2906,7 +3135,9 @@
     border-radius: var(--neo-glass-radius-pill);
     background: var(--neo-glass-bg-subtle);
     border: 1px solid var(--neo-glass-border);
-    box-shadow: var(--neo-glass-border-inner), inset 0 2px 4px rgba(0, 0, 0, 0.12);
+    box-shadow:
+      var(--neo-glass-border-inner),
+      inset 0 2px 4px rgba(0, 0, 0, 0.12);
     -webkit-backdrop-filter: blur(var(--neo-glass-blur-md)) saturate(var(--neo-glass-saturate));
     backdrop-filter: blur(var(--neo-glass-blur-md)) saturate(var(--neo-glass-saturate));
   }
@@ -2922,7 +3153,9 @@
 
   .neo-glass-patreon-btn:hover {
     background: rgba(255, 66, 77, 0.16);
-    box-shadow: var(--neo-glass-border-inner), 0 0 28px rgba(255, 66, 77, 0.22);
+    box-shadow:
+      var(--neo-glass-border-inner),
+      0 0 28px rgba(255, 66, 77, 0.22);
   }
 
   .neo-glass-status-dot {
@@ -2966,7 +3199,7 @@
     height: 8px;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.55);
-    box-shadow: 0 0 10px oklch(var(--color-accent-primary) / .35);
+    box-shadow: 0 0 10px oklch(var(--color-accent-primary) / 0.35);
     animation: neo-glass-typing 1.2s ease-in-out infinite;
   }
 
@@ -2995,7 +3228,10 @@
   }
 
   .neo-glass-profile {
-    box-shadow: var(--neo-glass-border-inner), var(--shadow-soft), 0 0 32px color-mix(in srgb, var(--profile-accent) 18%, transparent);
+    box-shadow:
+      var(--neo-glass-border-inner),
+      var(--shadow-soft),
+      0 0 32px color-mix(in srgb, var(--profile-accent) 18%, transparent);
   }
 
   .neo-glass-profile .neo-glass-card {
@@ -3004,17 +3240,36 @@
 
   .neo-glass-profile .neo-glass-card:hover {
     border-color: color-mix(in srgb, var(--profile-accent) 42%, rgba(255, 255, 255, 0.18));
-    box-shadow: var(--neo-glass-border-inner), 0 0 20px color-mix(in srgb, var(--profile-accent) 20%, transparent);
+    box-shadow:
+      var(--neo-glass-border-inner),
+      0 0 20px color-mix(in srgb, var(--profile-accent) 20%, transparent);
   }
 
   @keyframes neo-glass-pulse {
-    0%, 100% { box-shadow: var(--neo-glass-border-inner), 0 0 16px oklch(var(--color-accent-primary) / .18); }
-    50% { box-shadow: var(--neo-glass-border-inner), 0 0 28px oklch(var(--color-accent-primary) / .32); }
+    0%,
+    100% {
+      box-shadow:
+        var(--neo-glass-border-inner),
+        0 0 16px oklch(var(--color-accent-primary) / 0.18);
+    }
+    50% {
+      box-shadow:
+        var(--neo-glass-border-inner),
+        0 0 28px oklch(var(--color-accent-primary) / 0.32);
+    }
   }
 
   @keyframes neo-glass-typing {
-    0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
-    30% { transform: translateY(-4px); opacity: 1; }
+    0%,
+    60%,
+    100% {
+      transform: translateY(0);
+      opacity: 0.45;
+    }
+    30% {
+      transform: translateY(-4px);
+      opacity: 1;
+    }
   }
 
   @media (max-width: 1024px) {
@@ -3127,7 +3382,9 @@
 
   .chat-sidebar-item.is-active {
     background: rgba(255, 255, 255, 0.06);
-    box-shadow: inset 3px 0 0 oklch(var(--color-accent-primary)), 0 0 18px oklch(var(--color-accent-primary) / 0.12);
+    box-shadow:
+      inset 3px 0 0 oklch(var(--color-accent-primary)),
+      0 0 18px oklch(var(--color-accent-primary) / 0.12);
   }
 
   .chat-sidebar-mode {

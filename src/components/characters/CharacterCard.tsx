@@ -52,7 +52,7 @@ export function CharacterCard({
 
     return (
       <motion.div
-        whileHover={{ y: -6, scale: 1.015 }}
+        whileHover={{ y: -3 }}
         transition={springSoft}
         className={cn(
           "codex-character-plate group relative w-full overflow-hidden text-left",
@@ -79,11 +79,9 @@ export function CharacterCard({
         </div>
 
         <div className="absolute left-3 right-3 top-3 z-10 flex items-center justify-between gap-2">
-          <span
-            className="inline-flex items-center gap-1 border-b border-[var(--codex-rule)] px-1 py-1 text-[10px] font-medium text-[var(--codex-ivory)]"
-          >
+          <span className="inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[11px] font-medium text-[var(--codex-ivory)]">
             <Star className="h-3.5 w-3.5 text-[oklch(var(--color-accent-secondary))]" />
-            {rating.toFixed(1)}
+            {character.ratingCount ? rating.toFixed(1) : "New"}
           </span>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[9px] font-bold uppercase tracking-[.12em] text-[var(--codex-ivory)] backdrop-blur-sm">
@@ -110,11 +108,10 @@ export function CharacterCard({
         </div>
 
         <div className="codex-character-plate-copy">
-          <p className="codex-kicker hidden sm:block">Archive record</p>
-          <h3 className="font-editorial line-clamp-1 text-xl font-medium leading-none text-[var(--codex-ivory)] sm:text-2xl">
+          <h3 className="font-editorial line-clamp-2 text-xl font-medium leading-tight text-[var(--codex-ivory)] sm:text-2xl">
             {character.name}
           </h3>
-          <p className="mt-2 hidden font-editorial text-sm italic leading-5 text-[var(--text-secondary)] sm:line-clamp-2">
+          <p className="mt-2 line-clamp-2 text-xs leading-5 text-[var(--text-secondary)] sm:text-sm">
             <RichMessageText text={character.description || "A story waiting to begin."} />
           </p>
           <div className="mt-2 hidden flex-wrap gap-x-3 gap-y-1 border-t border-[var(--codex-rule)] pt-2 sm:flex">

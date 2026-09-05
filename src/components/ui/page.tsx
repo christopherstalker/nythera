@@ -38,15 +38,32 @@ export function PageHeader({
   className?: string;
 }) {
   return (
-    <header className={cn("codex-page-header grid gap-5 border-b border-[var(--codex-rule)] pb-7 md:grid-cols-[104px_minmax(0,1fr)_auto] md:items-end md:pb-9", className)}>
+    <header
+      className={cn(
+        "codex-page-header grid gap-5 border-b border-[var(--codex-rule)] pb-7 md:grid-cols-[104px_minmax(0,1fr)_auto] md:items-end md:pb-9",
+        className
+      )}
+    >
       <div className="codex-page-register hidden self-stretch border-r border-[var(--codex-rule)] pr-5 md:flex">
         {Icon ? <Icon className="h-5 w-5 text-[var(--codex-mint)]" /> : null}
-        <span>Living<br />Codex</span>
+        <span>
+          Living
+          <br />
+          Codex
+        </span>
       </div>
       <div className="min-w-0">
-        <p className="mb-3 text-[10px] font-medium uppercase tracking-[.3em] text-[var(--codex-violet)]">Nythera / Archive</p>
-        <h1 className="font-editorial max-w-4xl text-[clamp(3.1rem,7vw,6.6rem)] font-medium leading-[.78] tracking-[-.045em] text-[var(--codex-ivory)]">{title}</h1>
-        {description ? <p className="mt-5 max-w-2xl font-editorial text-lg italic leading-7 text-content-secondary sm:text-xl">{description}</p> : null}
+        <p className="mb-3 text-[10px] font-medium uppercase tracking-[.3em] text-[var(--codex-violet)]">
+          Nythera / Archive
+        </p>
+        <h1 className="font-editorial max-w-4xl text-[clamp(2.75rem,5vw,4.5rem)] font-medium leading-[1.05] tracking-[-.035em] text-[var(--codex-ivory)]">
+          {title}
+        </h1>
+        {description ? (
+          <p className="mt-5 max-w-2xl font-editorial text-lg italic leading-7 text-content-secondary sm:text-xl">
+            {description}
+          </p>
+        ) : null}
       </div>
       {actions ? <ResponsiveActions align="end">{actions}</ResponsiveActions> : null}
     </header>
@@ -67,7 +84,9 @@ export function SectionHeader({
   return (
     <div className={cn("flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-6", className)}>
       <div className="min-w-0">
-        <h2 className="font-editorial text-[clamp(1.75rem,3vw,2.7rem)] font-medium leading-none text-[var(--codex-ivory)]">{title}</h2>
+        <h2 className="font-editorial text-[clamp(1.75rem,3vw,2.7rem)] font-medium leading-none text-[var(--codex-ivory)]">
+          {title}
+        </h2>
         {description ? <p className="text-body mt-1 max-w-2xl text-content-secondary">{description}</p> : null}
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}

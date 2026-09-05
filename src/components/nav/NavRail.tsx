@@ -5,10 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useState } from "react";
-import {
-  SignIn,
-  SignOut
-} from "@phosphor-icons/react";
+import { ChatCircle, Plus, SignIn, SignOut } from "@phosphor-icons/react";
 import { BRAND_ICON_SMALL } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 import {
@@ -39,21 +36,37 @@ export function NavRail() {
   return (
     <>
       <aside className="codex-rail fixed inset-y-0 left-0 z-50 hidden w-[var(--codex-rail-width)] flex-col items-center border-r border-[var(--codex-rule)] md:flex">
-        <Link href="/" aria-label="Nythera home" className="focus-ring mt-5 grid h-11 w-11 place-items-center">
+        <Link href="/" aria-label="Nythera home" className="codex-brand focus-ring mt-5 flex h-12 items-center gap-2">
           <Image src={BRAND_ICON_SMALL} alt="" width={48} height={48} className="h-12 w-12 object-contain" priority />
+          <span className="codex-nav-label font-editorial text-3xl text-[var(--codex-ivory)]">Nythera</span>
         </Link>
 
         <div className="my-5 h-px w-8 bg-[var(--codex-rule)]" />
 
-        <nav aria-label="Primary navigation" className="flex flex-1 flex-col items-center gap-2">
+        <nav
+          aria-label="Primary navigation"
+          className="codex-rail-nav flex w-full flex-1 flex-col items-center gap-1 px-3"
+        >
           {primaryNavigationItems.map((item) => (
             <RailLink key={item.href} {...item} active={isNavigationItemActive(pathname, item.href)} />
           ))}
+          <div className="my-3 h-px w-full bg-[var(--codex-rule)]" />
+          <RailLink href="/chats" label="Chats" icon={ChatCircle} active={isNavigationItemActive(pathname, "/chats")} />
+          <RailLink
+            href="/create-character"
+            label="Create character"
+            icon={Plus}
+            active={isNavigationItemActive(pathname, "/create-character")}
+          />
         </nav>
 
-        <div className="mb-4 flex flex-col items-center gap-2">
+        <div className="mb-4 flex w-full flex-col items-center gap-1 px-3">
           {utilityNavigationItems.map((item) => (
-            <RailLink key={item.href} {...item} active={!item.external && isNavigationItemActive(pathname, item.href)} />
+            <RailLink
+              key={item.href}
+              {...item}
+              active={!item.external && isNavigationItemActive(pathname, item.href)}
+            />
           ))}
           {isAuthenticated ? (
             <button
@@ -62,35 +75,51 @@ export function NavRail() {
               title={signingOut ? "Signing out" : `Sign out ${userLabel}`}
               onClick={() => void handleSignOut()}
               disabled={signingOut}
-              className="codex-rail-link focus-ring grid h-11 w-11 place-items-center text-[var(--text-muted)] hover:text-[var(--codex-ivory)]"
+              className="codex-rail-link focus-ring flex min-h-11 w-full items-center justify-center gap-3 text-[var(--text-muted)] hover:text-[var(--codex-ivory)]"
             >
               <SignOut size={21} weight="thin" />
+              <span className="codex-nav-label text-sm">{signingOut ? "Signing out…" : "Sign out"}</span>
             </button>
           ) : (
             <RailLink href="/login" label="Sign in" icon={SignIn} active={isNavigationItemActive(pathname, "/login")} />
           )}
         </div>
       </aside>
-
     </>
   );
 }
 
-function RailLink({ href, label, icon: Icon, active, external = false, support = false }: { href: string; label: string; icon: NavigationIcon; active: boolean; external?: boolean; support?: boolean }) {
+function RailLink({
+  href,
+  label,
+  icon: Icon,
+  active,
+  external = false,
+  support = false
+}: {
+  href: string;
+  label: string;
+  icon: NavigationIcon;
+  active: boolean;
+  external?: boolean;
+  support?: boolean;
+}) {
   return (
     <Link
       href={href}
       aria-label={label}
+      aria-current={active ? "page" : undefined}
       title={label}
       target={external ? "_blank" : undefined}
       rel={external ? "noopener noreferrer" : undefined}
       className={cn(
-        "codex-rail-link focus-ring relative grid h-11 w-11 place-items-center text-[var(--text-muted)] no-underline",
+        "codex-rail-link focus-ring relative flex min-h-11 w-full items-center justify-center gap-3 text-[var(--text-secondary)] no-underline",
         active && "is-active text-[var(--codex-mint)]",
         support && "text-rose-300 hover:text-rose-200"
       )}
     >
-      <Icon size={22} weight={active ? "light" : "thin"} />
+      <Icon size={22} weight={active ? "regular" : "light"} className="shrink-0" />
+      <span className="codex-nav-label truncate text-sm">{label}</span>
     </Link>
   );
 }

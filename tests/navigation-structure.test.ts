@@ -22,11 +22,14 @@ test("primary navigation uses a desktop codex rail and mobile dock", async () =>
   assert.match(items, /\{ href: "\/rooms", label: "Rooms"/);
   assert.match(rail, /next\/image|src="\/icon\.svg"/);
   assert.doesNotMatch(styles, /\.nythera-rail|\.rail-label/);
-  assert.match(tokens, /--bottom-nav-offset:\s*calc\(var\(--codex-mobile-dock-height\) \+ env\(safe-area-inset-bottom\)\);/);
+  assert.match(
+    tokens,
+    /--bottom-nav-offset:\s*calc\(var\(--codex-mobile-dock-height\) \+ env\(safe-area-inset-bottom\)\);/
+  );
   assert.match(styles, /\.codex-main::-webkit-scrollbar\s*\{\s*display: none/);
   assert.match(styles, /padding-left: calc\(var\(--page-padding-x\) \+ env\(safe-area-inset-left\)\)/);
   assert.match(styles, /padding-right: calc\(var\(--page-padding-x\) \+ env\(safe-area-inset-right\)\)/);
-  assert.match(styles, /\.codex-mobile-dock\s*\{[\s\S]*padding-left: max\(\.5rem, env\(safe-area-inset-left\)\)/);
+  assert.match(styles, /\.codex-mobile-dock\s*\{[\s\S]*padding-left: max\(0?\.5rem, env\(safe-area-inset-left\)\)/);
   assert.match(shell, /id="app-shell"/);
   assert.match(shell, /mainRef\.current\?\.scrollTo\(\{ top: 0, left: 0, behavior: "auto" \}\)/);
   assert.match(shell, /fixed inset-0/);
@@ -76,7 +79,10 @@ test("help surfaces link to the Patreon-only support block", async () => {
     read("../src/lib/support.ts")
   ]);
 
-  assert.match(supportConfig, /PATREON_SUPPORT_URL = "https:\/\/www\.patreon\.com\/ChristopherStalker\?fan_landing=true&view_as=public"/);
+  assert.match(
+    supportConfig,
+    /PATREON_SUPPORT_URL = "https:\/\/www\.patreon\.com\/ChristopherStalker\?fan_landing=true&view_as=public"/
+  );
   assert.match(supportPage, /id="support-nythera"/);
   assert.match(supportPage, /Nythera is completely free/);
   assert.match(supportPage, /Patreon/);

@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import * as Dialog from "@radix-ui/react-dialog";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Search, ShieldCheck, SlidersHorizontal, Star, X } from "lucide-react";
 import { motion } from "motion/react";
@@ -117,11 +118,12 @@ function ExplorePageContent({
   const lastRefreshAt = useRef(0);
   const hasActiveFilters = hasDiscoveryFilters(filters);
   const showFeedSections = !hasActiveFilters;
-  const isCatalogEmpty = !loading && !loadError && (
-    showFeedSections
+  const isCatalogEmpty =
+    !loading &&
+    !loadError &&
+    (showFeedSections
       ? characters.length === 0 && trending.length === 0 && recommended.length === 0
-      : characters.length === 0
-  );
+      : characters.length === 0);
   const activeFeedTab = feedTabs.find((tab) => tab.id === activeFeed) ?? feedTabs[0];
   const activeFeedCharacters =
     activeFeed === "recommended" ? recommended : activeFeed === "for-you" ? characters.slice(0, FEED_TAKE) : trending;
@@ -130,11 +132,11 @@ function ExplorePageContent({
 
   useEffect(() => {
     const routeFilters = discoveryFiltersFromSearchParams(new URLSearchParams(routeState));
-    setFilters((current) => (
+    setFilters((current) =>
       serializeDiscoveryFilters(current).toString() === serializeDiscoveryFilters(routeFilters).toString()
         ? current
         : routeFilters
-    ));
+    );
     setQueryDraft(routeFilters.query);
   }, [routeState]);
 
@@ -216,16 +218,23 @@ function ExplorePageContent({
 
   return (
     <PageShell className="codex-explore space-y-6 sm:space-y-8">
-      <header className="neo-glass-panel relative isolate grid min-h-56 overflow-hidden p-6 sm:p-8 md:grid-cols-[minmax(0,1fr)_minmax(280px,.55fr)] md:items-end">
-        <div className="pointer-events-none absolute -left-16 -top-24 -z-10 h-72 w-72 rounded-full bg-[oklch(var(--color-accent-primary)/.22)] blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-32 right-0 -z-10 h-80 w-80 rounded-full bg-[oklch(var(--color-accent-secondary)/.14)] blur-3xl" />
-        <div className="relative">
-          <p className="mb-3 text-[10px] font-semibold uppercase tracking-[.3em] text-[var(--accent-secondary)]">The living index</p>
-          <h1 className="font-editorial text-[clamp(3.2rem,7vw,6rem)] font-medium leading-[.82] tracking-[-.05em] text-[var(--text-primary)]">Discover</h1>
+      <header className="flex flex-wrap items-end justify-between gap-5 border-b border-[var(--codex-rule)] pb-6">
+        <div>
+          <p className="mb-3 text-[10px] font-semibold uppercase tracking-[.22em] text-[var(--codex-mint)]">
+            The living index
+          </p>
+          <h1 className="font-editorial text-[clamp(3rem,5vw,4.5rem)] font-medium leading-none tracking-[-.035em] text-[var(--text-primary)]">
+            Discover your next story.
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
+            Familiar faces. Unexpected worlds. A character for every kind of story.
+          </p>
         </div>
-        <p className="relative mt-8 max-w-md text-sm leading-6 text-[var(--text-secondary)] md:mt-0 md:justify-self-end md:text-right">
-          Find a voice, enter a world, and keep the next story within reach.
-        </p>
+        <Button asChild variant="secondary">
+          <Link href="/create-character">
+            <Plus className="h-4 w-4" /> Create character
+          </Link>
+        </Button>
       </header>
 
       <DiscoveryCommandCenter
@@ -247,10 +256,59 @@ function ExplorePageContent({
         onReset={resetFilters}
       />
 
-      <div className="flex min-h-6 items-center justify-between gap-3 text-xs text-[var(--text-muted)]" aria-live="polite">
-        <span>{loading ? "Updating results…" : `${characters.length} character${characters.length === 1 ? "" : "s"} found`}</span>
+      {hasActiveFilters ? (
+        <div className="flex flex-wrap items-center gap-2" aria-label="Active filters">
+          {filters.query ? (
+            <button
+              type="button"
+              onClick={() => {
+                setQueryDraft("");
+                commitFilters({ query: "" });
+              }}
+              className="codex-theme-chip focus-ring gap-2"
+              aria-label={`Remove search ${filters.query}`}
+            >
+              “{filters.query}” <X className="h-3 w-3" />
+            </button>
+          ) : null}
+          {filters.tags.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => toggleTag(tag)}
+              className="codex-theme-chip focus-ring gap-2"
+              aria-label={`Remove ${displayTagLabel(tag)} filter`}
+            >
+              {displayTagLabel(tag)} <X className="h-3 w-3" />
+            </button>
+          ))}
+          {filters.ratingMin > 0 ? <span className="codex-theme-chip">Rating {filters.ratingMin}+</span> : null}
+          {filters.nsfw !== "safe" ? (
+            <span className="codex-theme-chip">{nsfwOptions.find((option) => option.id === filters.nsfw)?.label}</span>
+          ) : null}
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="focus-ring min-h-11 px-2 text-xs text-[var(--codex-mint)]"
+          >
+            Clear all
+          </button>
+        </div>
+      ) : null}
+
+      <div
+        className="flex min-h-6 items-center justify-between gap-3 text-xs text-[var(--text-muted)]"
+        aria-live="polite"
+      >
+        <span>
+          {loading ? "Updating results…" : `${characters.length} character${characters.length === 1 ? "" : "s"} found`}
+        </span>
         {loadError ? (
-          <button type="button" onClick={() => setRefreshVersion((version) => version + 1)} className="focus-ring text-[var(--codex-mint)] hover:underline">
+          <button
+            type="button"
+            onClick={() => setRefreshVersion((version) => version + 1)}
+            className="focus-ring text-[var(--codex-mint)] hover:underline"
+          >
             Search failed. Try again
           </button>
         ) : null}
@@ -258,15 +316,14 @@ function ExplorePageContent({
 
       {showFeedSections ? (
         <section className="space-y-4">
-          <div className="neo-glass-card scrollbar-none overflow-x-auto px-3 pb-0 sm:px-5">
-            <div
-            className="inline-flex min-w-max gap-6"
-            >
+          <div className="scrollbar-none overflow-x-auto border-b border-[var(--codex-rule)]">
+            <div className="inline-flex min-w-max gap-6">
               {feedTabs.map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveFeed(tab.id)}
+                  aria-pressed={activeFeed === tab.id}
                   className={cn(
                     "focus-ring h-11 border-b px-1 text-xs font-semibold uppercase tracking-[.16em]",
                     activeFeed === tab.id
@@ -279,7 +336,11 @@ function ExplorePageContent({
               ))}
             </div>
           </div>
-          <CharacterGallery title={activeFeedTab.label} characters={activeFeedCharacters.slice(0, FEED_TAKE)} loading={loading} />
+          <CharacterGallery
+            title={activeFeedTab.label}
+            characters={activeFeedCharacters.slice(0, FEED_TAKE)}
+            loading={loading}
+          />
         </section>
       ) : null}
 
@@ -291,9 +352,17 @@ function ExplorePageContent({
         <EmptyState
           icon={Search}
           title={hasActiveFilters ? "No characters found" : "No public characters yet"}
-          description={hasActiveFilters ? "Try another character name, mood, rating, or tag." : "The public catalog is empty right now. Create a character to start building Nythera."}
+          description={
+            hasActiveFilters
+              ? "Try another character name, mood, rating, or tag."
+              : "The public catalog is empty right now. Create a character to start building Nythera."
+          }
           action={
-            hasActiveFilters ? null : (
+            hasActiveFilters ? (
+              <Button variant="secondary" onClick={resetFilters}>
+                Clear filters
+              </Button>
+            ) : (
               <Button asChild>
                 <Link href="/create-character">
                   <Plus className="h-4 w-4" />
@@ -345,12 +414,22 @@ function DiscoveryCommandCenter({
 }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [tagQuery, setTagQuery] = useState("");
+  const [compactViewport, setCompactViewport] = useState(false);
+  const filterTriggerRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 1280px)");
+    const updateViewport = () => setCompactViewport(!desktop.matches);
+    updateViewport();
+    desktop.addEventListener("change", updateViewport);
+    return () => desktop.removeEventListener("change", updateViewport);
+  }, []);
   const visibleTags = useMemo(() => {
     const query = tagQuery.trim().toLocaleLowerCase();
     const selected = new Set(selectedTags);
-    const matching = tagOptions.filter((tag) => (
-      !query || tag.label.toLocaleLowerCase().includes(query) || tag.slug.includes(query)
-    ));
+    const matching = tagOptions.filter(
+      (tag) => !query || tag.label.toLocaleLowerCase().includes(query) || tag.slug.includes(query)
+    );
     return [
       ...matching.filter((tag) => selected.has(tag.slug)),
       ...matching.filter((tag) => !selected.has(tag.slug))
@@ -377,19 +456,21 @@ function DiscoveryCommandCenter({
   return (
     <>
       <motion.section
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={false}
         transition={springSoft}
-        className="neo-glass-panel codex-discovery-dock relative z-30 p-3 sm:p-5"
+        className="codex-discovery-dock relative z-30 rounded-xl border border-[var(--codex-rule)] bg-[var(--codex-paper-raised)] p-3 sm:p-4"
       >
-        <div className="grid gap-3 xl:grid-cols-[minmax(340px,1.7fr)_minmax(150px,.55fr)_minmax(250px,.8fr)_minmax(300px,1fr)_auto] xl:items-end">
+        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_180px_auto] xl:items-end">
           <SearchBar
             value={query}
             onChange={onQueryChange}
             onSubmit={onSearch}
             placeholder="Search characters, tags, moods..."
             showFilterIcon
-            onFilterClick={() => setFiltersOpen(true)}
+            onFilterClick={() => {
+              filterTriggerRef.current = document.activeElement as HTMLElement;
+              setFiltersOpen(true);
+            }}
             filterActive={activeFilterCount > 0}
             filterExpanded={filtersOpen}
             filterCount={activeFilterCount}
@@ -403,28 +484,12 @@ function DiscoveryCommandCenter({
               onChange={(event) => onSortChange(event.target.value as DiscoverySort)}
               className="focus-ring h-10 rounded-full border border-[var(--border-subtle)] bg-[var(--color-overlay)] px-3 text-xs font-semibold text-[var(--text-primary)]"
             >
-              {sortOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-            </select>
-          </DockGroup>
-
-          <DockGroup label="Rating" className="hidden xl:grid">
-            <div className="flex gap-1.5">
-              {[0, 3, 4, 4.5].map((value) => (
-                <FilterButton key={value} active={ratingMin === value} onClick={() => onRatingChange(value)}>
-                  {value === 0 ? "Any" : `${value}+`}
-                </FilterButton>
-              ))}
-            </div>
-          </DockGroup>
-
-          <DockGroup label="Age" className="hidden xl:grid">
-            <div className="flex gap-1.5">
-              {nsfwOptions.map((option) => (
-                <FilterButton key={option.id} active={nsfwMode === option.id} onClick={() => onNsfwChange(option.id)}>
+              {sortOptions.map((option) => (
+                <option key={option.id} value={option.id}>
                   {option.label}
-                </FilterButton>
+                </option>
               ))}
-            </div>
+            </select>
           </DockGroup>
 
           <button
@@ -449,47 +514,46 @@ function DiscoveryCommandCenter({
           transition={springSoft}
           className="neo-glass-panel mt-3 hidden gap-5 rounded-[var(--radius-surface)] p-4 xl:grid"
         >
-          <TagFilterSearch value={tagQuery} onChange={setTagQuery} />
-          <div className="flex flex-wrap gap-2">
-            {visibleTags.map((tag) => (
-              <TagButton key={tag.slug} active={selectedTags.includes(tag.slug)} onClick={() => onToggleTag(tag.slug)}>
-                {displayTagLabel(tag.slug)}
-              </TagButton>
-            ))}
-          </div>
-          {selectedTags.length > 1 ? (
-            <TagMatchControl value={tagMatch} onChange={onTagMatchChange} />
-          ) : null}
-          {hasActiveFilters ? (
-            <button type="button" onClick={onReset} className="focus-ring w-fit rounded-full border border-[var(--border-subtle)] px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-              Reset filters
-            </button>
-          ) : null}
+          <DiscoveryFilterControls
+            selectedTags={selectedTags}
+            sort={sort}
+            ratingMin={ratingMin}
+            nsfwMode={nsfwMode}
+            tagMatch={tagMatch}
+            hasActiveFilters={hasActiveFilters}
+            tagOptions={visibleTags}
+            tagQuery={tagQuery}
+            onTagQueryChange={setTagQuery}
+            onToggleTag={onToggleTag}
+            onSortChange={onSortChange}
+            onRatingChange={onRatingChange}
+            onNsfwChange={onNsfwChange}
+            onTagMatchChange={onTagMatchChange}
+            onReset={onReset}
+          />
         </motion.div>
       ) : null}
 
-      {filtersOpen ? (
-        <div className="xl:hidden">
-          <button
-            type="button"
-            aria-label="Close search filters"
-            onClick={() => setFiltersOpen(false)}
-            className="fixed inset-0 z-[70] bg-black/70"
-          />
-          <motion.aside
+      <Dialog.Root open={filtersOpen && compactViewport} onOpenChange={setFiltersOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[90] bg-black/70 backdrop-blur-sm" />
+          <Dialog.Content
             id="explore-filter-drawer"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Search filters"
-            initial={{ opacity: 0, y: 24, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={springSoft}
-            className="orbital-floating fixed inset-x-3 bottom-[calc(var(--bottom-nav-offset)_+_8px)] z-[80] mx-auto flex h-[min(72svh,680px)] max-w-[720px] flex-col overflow-hidden rounded-[28px] p-4 md:bottom-6 md:inset-x-6"
+            aria-describedby="explore-filter-description"
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              filterTriggerRef.current?.focus();
+            }}
+            className="orbital-floating fixed inset-x-3 bottom-[calc(var(--bottom-nav-offset)_+_8px)] z-[100] mx-auto flex h-[min(72svh,680px)] max-w-[720px] flex-col overflow-hidden rounded-2xl border border-[var(--codex-rule)] p-4 md:bottom-6 md:inset-x-6"
           >
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
-                <p className="text-base font-semibold text-[var(--text-primary)]">Search filters</p>
-                <p className="text-xs text-[var(--text-muted)]">Sort, rating, age, and tags</p>
+                <Dialog.Title className="text-base font-semibold text-[var(--text-primary)]">
+                  Search filters
+                </Dialog.Title>
+                <Dialog.Description id="explore-filter-description" className="text-xs text-[var(--text-muted)]">
+                  Sort, rating, age, and tags
+                </Dialog.Description>
               </div>
               <button
                 type="button"
@@ -500,7 +564,7 @@ function DiscoveryCommandCenter({
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="chat-scroll min-h-0 flex-1 overflow-y-auto pr-1">
+            <div className="chat-scroll min-h-0 flex-1 space-y-5 overflow-y-auto pr-1">
               <DiscoveryFilterControls
                 selectedTags={selectedTags}
                 sort={sort}
@@ -519,9 +583,12 @@ function DiscoveryCommandCenter({
                 onReset={onReset}
               />
             </div>
-          </motion.aside>
-        </div>
-      ) : null}
+            <Button type="button" className="mt-4 w-full shrink-0" onClick={() => setFiltersOpen(false)}>
+              Show results
+            </Button>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </>
   );
 }
@@ -590,24 +657,16 @@ function DiscoveryFilterControls({
       <div className="scrollbar-none -mx-1 overflow-x-auto px-1">
         <div className="flex w-max max-w-full flex-wrap gap-2">
           {tagOptions.map((tag) => (
-            <TagButton
-              key={tag.slug}
-              active={selectedTags.includes(tag.slug)}
-              onClick={() => onToggleTag(tag.slug)}
-            >
+            <TagButton key={tag.slug} active={selectedTags.includes(tag.slug)} onClick={() => onToggleTag(tag.slug)}>
               {displayTagLabel(tag.slug)}
             </TagButton>
           ))}
         </div>
       </div>
 
-      {tagOptions.length === 0 ? (
-        <p className="text-sm text-[var(--text-muted)]">No matching tags.</p>
-      ) : null}
+      {tagOptions.length === 0 ? <p className="text-sm text-[var(--text-muted)]">No matching tags.</p> : null}
 
-      {selectedTags.length > 1 ? (
-        <TagMatchControl value={tagMatch} onChange={onTagMatchChange} />
-      ) : null}
+      {selectedTags.length > 1 ? <TagMatchControl value={tagMatch} onChange={onTagMatchChange} /> : null}
 
       {hasActiveFilters ? (
         <button
@@ -645,18 +704,36 @@ function buildCharacterParams(filters: DiscoveryFilters, take: number) {
   return params;
 }
 
-function TagMatchControl({ value, onChange }: { value: DiscoveryTagMatch; onChange: (value: DiscoveryTagMatch) => void }) {
+function TagMatchControl({
+  value,
+  onChange
+}: {
+  value: DiscoveryTagMatch;
+  onChange: (value: DiscoveryTagMatch) => void;
+}) {
   return (
     <fieldset className="flex flex-wrap items-center gap-2">
       <legend className="sr-only">Tag matching</legend>
       <span className="mr-1 text-xs font-semibold text-[var(--text-muted)]">Selected tags:</span>
-      <FilterButton active={value === "any"} onClick={() => onChange("any")}>Match any</FilterButton>
-      <FilterButton active={value === "all"} onClick={() => onChange("all")}>Match all</FilterButton>
+      <FilterButton active={value === "any"} onClick={() => onChange("any")}>
+        Match any
+      </FilterButton>
+      <FilterButton active={value === "all"} onClick={() => onChange("all")}>
+        Match all
+      </FilterButton>
     </fieldset>
   );
 }
 
-function FilterGroup({ icon: Icon, label, children }: { icon: typeof SlidersHorizontal; label: string; children: React.ReactNode }) {
+function FilterGroup({
+  icon: Icon,
+  label,
+  children
+}: {
+  icon: typeof SlidersHorizontal;
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div
       className="rounded-[20px] border border-[var(--border-subtle)] p-3"
@@ -683,13 +760,22 @@ function DockGroup({ label, children, className }: { label: string; children: Re
   );
 }
 
-function FilterButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function FilterButton({
+  active,
+  onClick,
+  children
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={cn(
-        "focus-ring h-9 rounded-sm border px-3 font-mono text-[10px] font-medium uppercase tracking-[.12em] active:scale-[.98]",
+        "focus-ring min-h-11 rounded-lg border px-3 font-mono text-[10px] font-medium uppercase tracking-[.12em] active:scale-[.98]",
         active
           ? "border-[var(--codex-mint)]/55 bg-[color-mix(in_oklch,var(--codex-mint)_10%,transparent)] text-[var(--codex-mint)]"
           : "border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -706,17 +792,22 @@ function TagButton({ active, onClick, children }: { active: boolean; onClick: ()
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={cn(
-        "focus-ring rounded-sm border px-3 py-1.5 font-mono text-[10px] font-medium uppercase tracking-[.12em] active:scale-[.98]",
+        "focus-ring min-h-11 rounded-lg border px-3 py-1.5 font-mono text-[10px] font-medium uppercase tracking-[.12em] active:scale-[.98]",
         active
           ? "border-[var(--codex-mint)]/55 bg-[color-mix(in_oklch,var(--codex-mint)_10%,transparent)] text-[var(--codex-mint)]"
           : "border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
       )}
-      style={active ? undefined : {
-        background: "color-mix(in oklch, var(--color-surface) 44%, transparent)",
-        backdropFilter: "blur(var(--glass-blur-sm)) saturate(var(--glass-saturation))",
-        WebkitBackdropFilter: "blur(var(--glass-blur-sm)) saturate(var(--glass-saturation))"
-      }}
+      style={
+        active
+          ? undefined
+          : {
+              background: "color-mix(in oklch, var(--color-surface) 44%, transparent)",
+              backdropFilter: "blur(var(--glass-blur-sm)) saturate(var(--glass-saturation))",
+              WebkitBackdropFilter: "blur(var(--glass-blur-sm)) saturate(var(--glass-saturation))"
+            }
+      }
     >
       {children}
     </button>

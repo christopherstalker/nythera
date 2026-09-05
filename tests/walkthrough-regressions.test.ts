@@ -133,7 +133,7 @@ test("explore and public profiles use the established glass customization system
   assert.match(accountHub, /Avatar shape/);
   assert.match(accountHub, /Banner scale/);
   assert.match(publicProfile, /data-surface=\{settings\.surfaceStyle \?\? "glass"\}/);
-  assert.match(explore, /neo-glass-panel relative isolate grid/);
+  assert.match(explore, /codex-discovery-dock relative z-30/);
   assert.match(globals, /\.nythera-profile\[data-surface="luminous"\]/);
   assert.match(globals, /\.codex-character-gallery/);
 });

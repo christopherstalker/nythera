@@ -20,6 +20,8 @@ npm run dev
 
 Run `npm run typecheck` and `npm run lint` before opening a pull request. Use targeted tests when changing behavior covered by `tests/`.
 
+Pre-commit formats changed files with Prettier, runs ESLint and TypeScript, and checks for private keys, oversized files, and regressions.
+
 ## Branches
 
 Use short, descriptive branch names:
