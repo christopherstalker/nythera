@@ -24,12 +24,15 @@ export function SettingsShell({ children }: { children: React.ReactNode }) {
   }, [isOverview, router]);
 
   return (
-    <PageShell className="codex-settings">
+    <PageShell className="codex-settings codex-workspace">
       <div className="settings-layout grid min-w-0 border-y border-[var(--border-default)] lg:grid-cols-[248px_minmax(0,780px)] lg:justify-start">
         <aside className="min-w-0 lg:sticky lg:top-6 lg:self-start">
           {!isOverview ? (
             <div className="grid gap-2 border-b border-[var(--border-default)] px-1 py-3 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center lg:hidden">
-              <Link href="/settings" className="focus-ring inline-flex min-h-11 items-center gap-2 px-2 text-xs font-medium uppercase tracking-[.14em] text-[var(--text-secondary)] no-underline hover:text-[var(--accent-mint)]">
+              <Link
+                href="/settings"
+                className="focus-ring inline-flex min-h-11 items-center gap-2 px-2 text-xs font-medium uppercase tracking-[.14em] text-[var(--text-secondary)] no-underline hover:text-[var(--accent-mint)]"
+              >
                 <ArrowLeft className="h-4 w-4" />
                 All settings
               </Link>
@@ -42,13 +45,20 @@ export function SettingsShell({ children }: { children: React.ReactNode }) {
                   aria-label="Jump to settings section"
                 >
                   <option value="/settings">All settings</option>
-                  {SETTINGS_SECTIONS.map((section) => <option key={section.href} value={section.href}>{section.label}</option>)}
+                  {SETTINGS_SECTIONS.map((section) => (
+                    <option key={section.href} value={section.href}>
+                      {section.label}
+                    </option>
+                  ))}
                 </select>
               </label>
             </div>
           ) : null}
 
-          <nav className="settings-section-nav hidden border-r border-[var(--border-default)] lg:grid" aria-label="Settings sections">
+          <nav
+            className="settings-section-nav hidden border-r border-[var(--border-default)] lg:grid"
+            aria-label="Settings sections"
+          >
             {SETTINGS_SECTIONS.map((section) => {
               const Icon = section.icon;
               const active = pathname === section.href;
@@ -71,7 +81,7 @@ export function SettingsShell({ children }: { children: React.ReactNode }) {
           </nav>
         </aside>
 
-        <main className="min-w-0 py-7 sm:py-9 lg:pl-10">{children}</main>
+        <div className="min-w-0 py-6 lg:pl-8">{children}</div>
       </div>
     </PageShell>
   );
