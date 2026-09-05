@@ -43,9 +43,7 @@ const securityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(self), geolocation=()" },
   { key: "Content-Security-Policy", value: contentSecurityPolicy },
-  ...(isProduction
-    ? [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" }]
-    : [])
+  ...(isProduction ? [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" }] : [])
 ];
 
 /** @type {import('next').NextConfig} */
@@ -61,10 +59,8 @@ const nextConfig = {
   },
   async redirects() {
     if (
-      process.env.AUTH_URL ===
-        "https://nythera-ai-character-platform.vercel.app" ||
-      process.env.NEXTAUTH_URL ===
-        "https://nythera-ai-character-platform.vercel.app"
+      process.env.AUTH_URL === "https://nythera-ai-character-platform.vercel.app" ||
+      process.env.NEXTAUTH_URL === "https://nythera-ai-character-platform.vercel.app"
     ) {
       return [];
     }
@@ -78,8 +74,7 @@ const nextConfig = {
             value: "nythera-ai-character-platform.vercel.app"
           }
         ],
-        destination:
-          "https://www.nythera.art/pwa-migrate?source=legacy-pwa&next=/:path*",
+        destination: "https://www.nythera.art/pwa-migrate?source=legacy-pwa&next=/:path*",
         permanent: false
       }
     ];
@@ -95,7 +90,7 @@ const nextConfig = {
         headers: [
           {
             key: "Cache-Control",
-            value: "public, max-age=31536000, immutable"
+            value: isProduction ? "public, max-age=31536000, immutable" : "no-store"
           }
         ]
       },

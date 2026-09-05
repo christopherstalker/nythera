@@ -1,12 +1,14 @@
 "use client";
 
-import { Search, SlidersHorizontal } from "lucide-react";
+import { Search, SlidersHorizontal, X } from "lucide-react";
+import { useRef } from "react";
 import { cn } from "@/lib/utils";
 
 type SearchBarProps = {
   value?: string;
   onChange?: (value: string) => void;
   onSubmit?: (value: string) => void;
+  onClear?: () => void;
   placeholder?: string;
   className?: string;
   showFilterIcon?: boolean;
@@ -21,6 +23,7 @@ export function SearchBar({
   value,
   onChange,
   onSubmit,
+  onClear,
   placeholder = "Search characters...",
   className,
   showFilterIcon = false,
@@ -30,6 +33,7 @@ export function SearchBar({
   filterCount = 0,
   filterControls
 }: SearchBarProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
   return (
     <form
       role="search"
@@ -47,12 +51,36 @@ export function SearchBar({
         <Search className="h-4 w-4" />
       </button>
       <input
+        ref={inputRef}
+        type="search"
+        enterKeyHint="search"
         aria-label={placeholder}
         value={value}
         onChange={(event) => onChange?.(event.target.value)}
         placeholder={placeholder}
-        className="focus-ring glass-input h-12 w-full rounded-[var(--radius-pill)] px-12 text-sm focus:border-[var(--accent-purple)]"
+        className={cn(
+          "focus-ring glass-input h-12 w-full rounded-[var(--radius-pill)] pl-12 text-base sm:text-sm focus:border-[var(--accent-purple)] [&::-webkit-search-cancel-button]:appearance-none",
+          showFilterIcon ? "pr-24 xl:pr-12" : "pr-12"
+        )}
       />
+      {value ? (
+        <button
+          type="button"
+          aria-label="Clear search"
+          className={cn(
+            "focus-ring absolute top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center text-[var(--text-secondary)]",
+            showFilterIcon ? "right-11 xl:right-1" : "right-1"
+          )}
+          onClick={() => {
+            onChange?.("");
+            if (onClear) onClear();
+            else onSubmit?.("");
+            inputRef.current?.focus();
+          }}
+        >
+          <X className="h-4 w-4" />
+        </button>
+      ) : null}
       {showFilterIcon ? (
         onFilterClick ? (
           <button

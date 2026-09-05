@@ -14,6 +14,11 @@ repos:
       - id: detect-private-key
   - repo: local
     hooks:
+      - id: prettier
+        name: Prettier formatting
+        entry: node node_modules/prettier/bin/prettier.cjs --write --ignore-unknown
+        language: system
+        files: \.(css|json|ya?ml|md|[cm]?[jt]sx?)$
       - id: eslint
         name: ESLint and safe formatting
         entry: node node_modules/eslint/bin/eslint.js . --fix --max-warnings=0

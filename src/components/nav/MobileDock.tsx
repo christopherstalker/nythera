@@ -5,11 +5,7 @@ import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import {
-  isNavigationItemActive,
-  primaryNavigationItems,
-  type NavigationIcon
-} from "@/components/nav/navigation-items";
+import { isNavigationItemActive, primaryNavigationItems, type NavigationIcon } from "@/components/nav/navigation-items";
 
 export function MobileDock() {
   const pathname = usePathname();
@@ -24,9 +20,12 @@ export function MobileDock() {
         <MobileLink
           key={item.href}
           {...item}
-          active={isNavigationItemActive(pathname, item.href) || (item.href === "/account" && pathname.startsWith("/settings"))}
+          active={
+            isNavigationItemActive(pathname, item.href) ||
+            (item.href === "/account" && pathname.startsWith("/settings"))
+          }
           accountImage={item.href === "/account" ? session?.user?.image : undefined}
-          accountName={item.href === "/account" ? session?.user?.name ?? session?.user?.username : undefined}
+          accountName={item.href === "/account" ? (session?.user?.name ?? session?.user?.username) : undefined}
         />
       ))}
     </nav>
@@ -52,19 +51,23 @@ function MobileLink({
     <Link
       href={href}
       aria-label={label}
+      aria-current={active ? "page" : undefined}
       className={cn(
         "focus-ring flex min-w-0 flex-col items-center justify-center gap-0.5 text-[var(--text-muted)] no-underline",
         active && "text-[var(--codex-mint)]"
       )}
     >
       {href === "/account" && accountImage ? (
-        <Avatar name={accountName ?? "Account"} src={accountImage} size="sm" className={cn("h-7 w-7 border", active ? "border-[var(--codex-mint)]" : "border-[var(--codex-rule)]")} />
+        <Avatar
+          name={accountName ?? "Account"}
+          src={accountImage}
+          size="sm"
+          className={cn("h-7 w-7 border", active ? "border-[var(--codex-mint)]" : "border-[var(--codex-rule)]")}
+        />
       ) : (
-        <Icon size={24} weight={active ? "light" : "thin"} />
+        <Icon size={22} weight={active ? "regular" : "light"} />
       )}
-      <span className={cn("max-w-full truncate text-[9px] uppercase tracking-[.12em]", !active && "sr-only")}>
-        {label}
-      </span>
+      <span className="max-w-full truncate text-[10px] font-medium">{label}</span>
     </Link>
   );
 }

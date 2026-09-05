@@ -31,7 +31,7 @@ function parseTokenContract(css: string) {
     if (node.type === "comment") continue;
     assert.equal(node.type, "rule", `unexpected active ${node.type} inside @layer base`);
     const rule = node as Rule;
-    const selector = rule.selector.trim();
+    const selector = rule.selectors.join(", ");
     assert.ok(
       contractSelectors.includes(selector as (typeof contractSelectors)[number]),
       `unexpected selector in @layer base: ${selector}`
@@ -57,8 +57,16 @@ function parseTokenContract(css: string) {
 function assertToken(tokens: Map<string, string>, name: string, expected?: string) {
   assert.ok(tokens.has(name), `missing --${name}`);
   if (expected !== undefined) {
-    assert.equal(tokens.get(name)!.replace(/\s+/g, " "), expected, `unexpected --${name}`);
+    assert.equal(normalizeTokenValue(tokens.get(name)!), normalizeTokenValue(expected), `unexpected --${name}`);
   }
+}
+
+function normalizeTokenValue(value: string) {
+  return value
+    .replace(/\s+/g, " ")
+    .replace(/\(\s+/g, "(")
+    .replace(/\s+\)/g, ")")
+    .replace(/(^|[\s/(,])(-?\d*\.\d+)/g, (_, prefix, decimal) => `${prefix}${Number(decimal)}`);
 }
 
 function parseOklchChannels(value: string) {
@@ -100,8 +108,7 @@ function luminance(channels: [number, number, number]) {
 function contrast(first: [number, number, number], second: [number, number, number]) {
   const firstLuminance = luminance(first);
   const secondLuminance = luminance(second);
-  return (Math.max(firstLuminance, secondLuminance) + 0.05) /
-    (Math.min(firstLuminance, secondLuminance) + 0.05);
+  return (Math.max(firstLuminance, secondLuminance) + 0.05) / (Math.min(firstLuminance, secondLuminance) + 0.05);
 }
 
 function resolveChannels(name: string, ...scopes: Map<string, string>[]) {
@@ -291,7 +298,8 @@ test("Coffee Ink tokens define the complete OKLCH design-system contract", async
   const darkThemeAliases = {
     "elevation-raised": "0 16px 42px oklch(0 0 0 / .26)",
     "elevation-floating": "0 24px 72px oklch(0 0 0 / .34)",
-    "elevation-glow": "0 0 0 1px oklch(var(--color-focus-ring) / .46), 0 0 42px oklch(var(--color-accent-primary) / .24)",
+    "elevation-glow":
+      "0 0 0 1px oklch(var(--color-focus-ring) / .46), 0 0 42px oklch(var(--color-accent-primary) / .24)",
     "shadow-card": "var(--elevation-floating)",
     "shadow-elevated": "var(--elevation-floating)",
     "shadow-soft": "var(--elevation-raised)",
@@ -299,7 +307,8 @@ test("Coffee Ink tokens define the complete OKLCH design-system contract", async
     "shadow-glow-soft": "0 0 32px oklch(var(--color-accent-primary) / .18)",
     "glass-highlight": "inset 0 1px 0 oklch(1 0 0 / .08)",
     "app-body-gradient": "var(--gradient-aurora-ambient), var(--bg-base)",
-    "app-shell-gradient": "linear-gradient(180deg, oklch(var(--color-canvas)) 0%, oklch(var(--color-canvas) / .96) 100%)",
+    "app-shell-gradient":
+      "linear-gradient(180deg, oklch(var(--color-canvas)) 0%, oklch(var(--color-canvas) / .96) 100%)",
     "chat-overlay": "oklch(var(--color-canvas) / .9)"
   };
   for (const [name, value] of Object.entries(darkThemeAliases)) assertToken(dark, name, value);
@@ -344,7 +353,10 @@ test("action foregrounds maintain WCAG AA contrast against accent and danger col
     resolveChannels("destructive-foreground", themed, root),
     resolveChannels("color-danger", themed, root)
   );
-  assert.ok(dangerRatio >= 4.5, `dark --destructive-foreground is ${dangerRatio.toFixed(2)}:1 against --color-danger; expected at least 4.5:1`);
+  assert.ok(
+    dangerRatio >= 4.5,
+    `dark --destructive-foreground is ${dangerRatio.toFixed(2)}:1 against --color-danger; expected at least 4.5:1`
+  );
 });
 
 test("PostCSS contract parsing ignores comments and rejects active overrides", () => {
@@ -368,10 +380,7 @@ test("PostCSS contract parsing ignores comments and rejects active overrides", (
     () => parseTokenContract(`${fixture} :root { --theme: outer-override; }`),
     /unexpected active style rule outside @layer base/
   );
-  assert.throws(
-    () => parseTokenContract(`${fixture} @layer base {}`),
-    /expected exactly one active @layer base/
-  );
+  assert.throws(() => parseTokenContract(`${fixture} @layer base {}`), /expected exactly one active @layer base/);
 });
 
 test("contrast conversion rejects out-of-gamut OKLCH instead of clamping", () => {
@@ -392,10 +401,12 @@ test("global CSS compiles imported tokens and semantic Tailwind utilities", asyn
 
   for (const [pluginName, pluginOptions] of Object.entries(postcssConfig.plugins)) {
     if (pluginName === "tailwindcss") {
-      plugins.push(tailwindcss({
-        ...tailwindConfig,
-        content: [{ raw: contentFixture, extension: "html" }]
-      }));
+      plugins.push(
+        tailwindcss({
+          ...tailwindConfig,
+          content: [{ raw: contentFixture, extension: "html" }]
+        })
+      );
       continue;
     }
     if (pluginName === "autoprefixer") {
@@ -403,7 +414,7 @@ test("global CSS compiles imported tokens and semantic Tailwind utilities", asyn
       continue;
     }
 
-    const pluginModule = await import(pluginName) as {
+    const pluginModule = (await import(pluginName)) as {
       default: (options: unknown) => AcceptedPlugin;
     };
     plugins.push(pluginModule.default(pluginOptions));
@@ -434,8 +445,11 @@ test("global CSS compiles imported tokens and semantic Tailwind utilities", asyn
     assert.ok(compiled.includes(declaration), `missing generated declaration: ${declaration}`);
   }
   assert.match(compiled, /--color-canvas:\s*0\.08 0 0/);
-  assert.match(compiled, /--gradient-aurora-primary:\s*linear-gradient\(120deg, oklch\(var\(--color-accent-primary\)\) 0%, oklch\(var\(--color-accent-secondary\)\) 100%\)/);
-  assert.match(compiled, /--shadow-glow-soft:\s*0 0 32px oklch\(var\(--color-accent-primary\) \/ \.18\)/);
+  assert.match(
+    compiled,
+    /--gradient-aurora-primary:\s*linear-gradient\(\s*120deg,\s*oklch\(var\(--color-accent-primary\)\) 0%,\s*oklch\(var\(--color-accent-secondary\)\) 100%\s*\)/
+  );
+  assert.match(compiled, /--shadow-glow-soft:\s*0 0 32px oklch\(var\(--color-accent-primary\) \/ 0?\.18\)/);
   assert.match(compiled, /background-image:\s*var\(--gradient-aurora-primary\)/);
 });
 
@@ -482,9 +496,7 @@ test("Tailwind and global CSS consume the semantic token contract", async () => 
     assert.ok(tailwindConfig.includes(mapping), `incorrect Tailwind shadow mapping: ${mapping}`);
   }
   assert.ok(
-    tailwindConfig.includes(
-      'sans: [\'var(--font-space-grotesk, "Segoe UI")\', "Roboto", "Arial", "sans-serif"]'
-    ),
+    tailwindConfig.includes('sans: [\'var(--font-space-grotesk, "Segoe UI")\', "Roboto", "Arial", "sans-serif"]'),
     "font-sans must retain Segoe UI when the Space Grotesk variable is undefined"
   );
   assert.doesNotMatch(tailwindConfig, /hsl\(var\(--/);
