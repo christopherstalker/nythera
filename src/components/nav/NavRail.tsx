@@ -8,6 +8,7 @@ import { useState } from "react";
 import { ChatCircle, Plus, SignIn, SignOut } from "@phosphor-icons/react";
 import { BRAND_ICON_SMALL } from "@/lib/brand";
 import { cn } from "@/lib/utils";
+import { RecentCharacterChats } from "@/components/nav/recent-character-chats";
 import {
   isNavigationItemActive,
   primaryNavigationItems,
@@ -36,31 +37,38 @@ export function NavRail() {
   return (
     <>
       <aside className="codex-rail fixed inset-y-0 left-0 z-50 hidden w-[var(--codex-rail-width)] flex-col items-center border-r border-[var(--codex-rule)] md:flex">
-        <Link href="/" aria-label="Nythera home" className="codex-brand focus-ring mt-5 flex h-12 items-center gap-2">
+        <Link
+          href="/"
+          aria-label="Nythera home"
+          className="codex-brand focus-ring mt-5 flex h-12 shrink-0 items-center gap-2"
+        >
           <Image src={BRAND_ICON_SMALL} alt="" width={48} height={48} className="h-12 w-12 object-contain" priority />
-          <span className="codex-nav-label font-editorial text-3xl text-[var(--codex-ivory)]">Nythera</span>
+          <span className="codex-nav-label codex-wordmark">Nythera</span>
         </Link>
 
-        <div className="my-5 h-px w-8 bg-[var(--codex-rule)]" />
+        <div className="my-3 h-px w-8 shrink-0 bg-[var(--codex-rule)]" />
 
         <nav
           aria-label="Primary navigation"
-          className="codex-rail-nav flex w-full flex-1 flex-col items-center gap-1 px-3"
+          className="codex-rail-nav flex w-full shrink-0 flex-col items-center gap-1 px-3"
         >
           {primaryNavigationItems.map((item) => (
             <RailLink key={item.href} {...item} active={isNavigationItemActive(pathname, item.href)} />
           ))}
           <div className="my-3 h-px w-full bg-[var(--codex-rule)]" />
-          <RailLink href="/chats" label="Chats" icon={ChatCircle} active={isNavigationItemActive(pathname, "/chats")} />
           <RailLink
             href="/create-character"
             label="Create character"
             icon={Plus}
             active={isNavigationItemActive(pathname, "/create-character")}
           />
+          <RailLink href="/chats" label="Chats" icon={ChatCircle} active={isNavigationItemActive(pathname, "/chats")} />
         </nav>
-
-        <div className="mb-4 flex w-full flex-col items-center gap-1 px-3">
+        {isAuthenticated && session?.user?.id ? (
+          <RecentCharacterChats key={session.user.id} userId={session.user.id} />
+        ) : null}
+        <div className="min-h-2 flex-1" />
+        <div className="codex-rail-footer mb-3 flex w-full shrink-0 flex-col items-center gap-1 px-3">
           {utilityNavigationItems.map((item) => (
             <RailLink
               key={item.href}

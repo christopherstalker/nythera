@@ -82,6 +82,9 @@ createServer(async (request, response) => {
       case "/api/chats":
         payload = { chats };
         break;
+      case "/api/chats/recent-characters":
+        payload = { chats };
+        break;
       case "/api/library":
         payload = library;
         break;

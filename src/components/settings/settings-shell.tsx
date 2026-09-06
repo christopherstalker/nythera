@@ -25,8 +25,8 @@ export function SettingsShell({ children }: { children: React.ReactNode }) {
 
   return (
     <PageShell className="codex-settings codex-workspace">
-      <div className="settings-layout grid min-w-0 border-y border-[var(--border-default)] lg:grid-cols-[248px_minmax(0,780px)] lg:justify-start">
-        <aside className="min-w-0 lg:sticky lg:top-6 lg:self-start">
+      <div className={cn("settings-layout grid min-w-0 gap-7", !isOverview && "lg:grid-cols-[220px_minmax(0,1fr)]")}>
+        <aside className={cn("min-w-0 lg:sticky lg:top-6 lg:self-start", isOverview && "hidden")}>
           {!isOverview ? (
             <div className="grid gap-2 border-b border-[var(--border-default)] px-1 py-3 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center lg:hidden">
               <Link
@@ -56,7 +56,7 @@ export function SettingsShell({ children }: { children: React.ReactNode }) {
           ) : null}
 
           <nav
-            className="settings-section-nav hidden border-r border-[var(--border-default)] lg:grid"
+            className="settings-section-nav hidden gap-1 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-2 lg:grid"
             aria-label="Settings sections"
           >
             {SETTINGS_SECTIONS.map((section) => {
@@ -69,7 +69,7 @@ export function SettingsShell({ children }: { children: React.ReactNode }) {
                   href={section.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "focus-ring flex min-h-14 shrink-0 items-center gap-3 border-r border-[var(--border-default)] px-4 text-xs font-medium uppercase tracking-[.12em] text-[var(--text-secondary)] no-underline transition-colors duration-150 hover:text-[var(--accent-mint)] lg:border-b lg:border-r-0",
+                    "focus-ring flex min-h-12 shrink-0 items-center gap-3 rounded-lg px-3 text-sm text-[var(--text-secondary)] no-underline transition-colors duration-150 hover:bg-[var(--bg-input)] hover:text-[var(--accent-mint)]",
                     active && "bg-[color-mix(in_oklch,var(--codex-mint)_8%,transparent)] text-[var(--codex-mint)]"
                   )}
                 >
@@ -81,7 +81,14 @@ export function SettingsShell({ children }: { children: React.ReactNode }) {
           </nav>
         </aside>
 
-        <div className="min-w-0 py-6 lg:pl-8">{children}</div>
+        <div
+          className={cn(
+            "min-w-0",
+            !isOverview && "rounded-2xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-5 sm:p-7"
+          )}
+        >
+          {children}
+        </div>
       </div>
     </PageShell>
   );

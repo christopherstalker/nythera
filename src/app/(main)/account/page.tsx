@@ -3,7 +3,7 @@ import { PageShell } from "@/components/ui/page";
 
 export default function AccountPage() {
   return (
-    <PageShell className="min-w-0 max-w-[1180px] px-0 sm:px-5 lg:px-8">
+    <PageShell className="codex-workspace min-w-0 max-w-[1180px] px-0 sm:px-5 lg:px-8">
       <AccountHubClient />
     </PageShell>
   );

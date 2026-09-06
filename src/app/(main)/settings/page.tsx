@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ChevronRight, KeyRound, SlidersHorizontal } from "lucide-react";
 import { SETTINGS_SECTIONS } from "@/components/settings/settings-sections";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Button } from "@/components/ui/button";
@@ -12,54 +12,86 @@ export default function SettingsPage() {
   const matchingSections = SETTINGS_SECTIONS.filter((section) =>
     `${section.label} ${section.description}`.toLowerCase().includes(query.trim().toLowerCase())
   );
+  const groups = ["Your identity", "Conversations", "Help"] as const;
   return (
-    <div>
-      <header className="mb-7 border-b border-[var(--border-default)] pb-6 sm:mb-9 sm:pb-8">
-        <p className="text-[10px] font-semibold uppercase tracking-[.22em] text-[var(--text-muted)]">
-          Account control center
-        </p>
-        <h1 className="mt-3 font-editorial text-[clamp(2rem,4vw,3rem)] font-medium leading-none text-[var(--text-primary)]">
-          Settings
-        </h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-secondary)] sm:text-base">
-          Find the controls for your profile, conversations and privacy.
-        </p>
+    <div className="mx-auto max-w-5xl space-y-7">
+      <header>
+        <h1 className="text-3xl font-semibold tracking-tight text-[var(--text-primary)] sm:text-4xl">Settings</h1>
+        <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">Make Nythera work the way you like.</p>
       </header>
-
-      <div className="mb-6">
-        <SearchBar value={query} onChange={setQuery} placeholder="Find a setting: voice, API keys, memory…" />
-      </div>
-      {query ? (
-        <p role="status" className="mb-4 text-xs text-[var(--text-muted)]">
+      <SearchBar value={query} onChange={setQuery} placeholder="Find a setting: voice, API keys, memory…" />
+      {!query.trim() ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {[
+            {
+              href: "/settings/providers",
+              icon: KeyRound,
+              title: "Connect a model",
+              text: "Manage API keys and choose your provider."
+            },
+            {
+              href: "/settings/interface",
+              icon: SlidersHorizontal,
+              title: "Make reading comfortable",
+              text: "Adjust message spacing and chat density."
+            }
+          ].map(({ href, icon: Icon, title, text }) => (
+            <Link
+              key={href}
+              href={href}
+              className="focus-ring flex items-center gap-4 rounded-2xl border border-[var(--codex-rule)] bg-[var(--bg-elevated)] p-5 no-underline hover:border-[var(--codex-mint)]"
+            >
+              <Icon className="h-5 w-5 shrink-0 text-[var(--codex-mint)]" />
+              <span>
+                <span className="block text-sm font-semibold">{title}</span>
+                <span className="mt-1 block text-xs leading-5 text-[var(--text-secondary)]">{text}</span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <p role="status" className="text-xs text-[var(--text-muted)]">
           {matchingSections.length} {matchingSections.length === 1 ? "section" : "sections"} found
         </p>
-      ) : null}
-
-      <div className="grid gap-px border border-[var(--border-default)] bg-[var(--border-default)] sm:grid-cols-2">
-        {matchingSections.map((section) => {
-          const Icon = section.icon;
+      )}
+      <div className="space-y-6">
+        {groups.map((group) => {
+          const groupSections = matchingSections.filter((section) => section.group === group);
+          if (!groupSections.length) return null;
           return (
-            <Link
-              key={section.href}
-              href={section.href}
-              className="focus-ring group min-w-0 bg-[var(--bg-base)] p-5 no-underline transition-colors hover:bg-[color-mix(in_oklch,var(--codex-mint)_6%,var(--bg-base))] sm:p-6"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <span className="grid h-10 w-10 shrink-0 place-items-center border border-[var(--border-default)] text-[var(--accent-violet)] group-hover:text-[var(--codex-mint)]">
-                  <Icon className="h-5 w-5" />
-                </span>
-                <ArrowUpRight className="h-4 w-4 shrink-0 text-[var(--text-muted)] transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[var(--codex-mint)]" />
+            <section key={group} aria-label={group}>
+              <h2 className="mb-3 text-sm font-semibold text-[var(--text-secondary)]">{group}</h2>
+              <div className="divide-y divide-[var(--codex-rule)] overflow-hidden rounded-2xl border border-[var(--codex-rule)] bg-[var(--bg-elevated)]">
+                {groupSections.map((section) => {
+                  const Icon = section.icon;
+                  return (
+                    <Link
+                      key={section.href}
+                      href={section.href}
+                      className="focus-ring flex items-center gap-4 px-4 py-4 no-underline hover:bg-[var(--bg-input)] sm:px-5"
+                    >
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--bg-input)] text-[var(--codex-mint)]">
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium">{section.label}</span>
+                        <span className="mt-1 block text-xs leading-5 text-[var(--text-secondary)]">
+                          {section.description}
+                        </span>
+                      </span>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+                    </Link>
+                  );
+                })}
               </div>
-              <h3 className="mt-5 font-editorial text-2xl font-medium text-[var(--text-primary)]">{section.label}</h3>
-              <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{section.description}</p>
-            </Link>
+            </section>
           );
         })}
       </div>
       {!matchingSections.length ? (
-        <div className="py-8 text-sm text-[var(--text-secondary)]">
+        <div className="rounded-2xl border border-dashed border-[var(--codex-rule)] p-8 text-center text-sm">
           <p>No settings match your search.</p>
-          <Button variant="ghost" onClick={() => setQuery("")}>
+          <Button className="mt-3" variant="outline" onClick={() => setQuery("")}>
             Show all settings
           </Button>
         </div>

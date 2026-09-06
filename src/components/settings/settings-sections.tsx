@@ -5,6 +5,7 @@ export type SettingsSection = {
   label: string;
   description: string;
   icon: LucideIcon;
+  group: "Your identity" | "Conversations" | "Help";
   legacyHash?: string;
 };
 
@@ -13,13 +14,15 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     href: "/account",
     label: "Account",
     description: "Profile, avatar, bio, and age-gated access.",
-    icon: UserCog
+    icon: UserCog,
+    group: "Your identity"
   },
   {
     href: "/settings/personas",
     label: "Personas",
     description: "Choose how you appear inside character chats.",
     icon: UserRound,
+    group: "Your identity",
     legacyHash: "persona"
   },
   {
@@ -27,19 +30,22 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     label: "Model providers",
     description: "API keys, OpenRouter, custom endpoints, and fallback order.",
     icon: KeyRound,
+    group: "Conversations",
     legacyHash: "api-keys"
   },
   {
     href: "/settings/voice",
     label: "Voice",
     description: "Text-to-speech providers and default voices.",
-    icon: Mic2
+    icon: Mic2,
+    group: "Conversations"
   },
   {
     href: "/settings/interface",
     label: "Interface",
     description: "Message spacing, chat density and reading preferences.",
     icon: Eye,
+    group: "Conversations",
     legacyHash: "interface"
   },
   {
@@ -47,6 +53,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     label: "Memory & privacy",
     description: "Control saved memories and what chats may remember.",
     icon: Brain,
+    group: "Conversations",
     legacyHash: "privacy"
   },
   {
@@ -54,6 +61,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     label: "Help & support",
     description: "Manuals, API guidance, and contact options.",
     icon: BookOpen,
+    group: "Help",
     legacyHash: "help"
   }
 ];

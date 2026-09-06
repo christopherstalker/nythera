@@ -75,7 +75,7 @@ const PROFILE_SURFACES = [
 ] as const;
 const PROFILE_AVATAR_SHAPES = ["circle", "soft", "square"] as const;
 const PROFILE_BANNER_HEIGHTS = ["compact", "cinematic", "immersive"] as const;
-const fieldLabelClass = "grid gap-2 text-[10px] font-medium uppercase tracking-[.14em] text-[var(--text-muted)]";
+const fieldLabelClass = "grid gap-2 text-sm font-medium text-[var(--text-secondary)]";
 type AccountTabId = "profile" | "studio" | "settings";
 
 export function AccountHubClient() {
@@ -302,12 +302,12 @@ export function AccountHubClient() {
 
   return (
     <div className="min-w-0 max-w-full overflow-x-clip pb-8">
-      <header className="border-b border-[var(--codex-rule)] px-5 pb-6 pt-4 sm:px-0 sm:pt-0">
+      <header className="rounded-2xl border border-[var(--codex-rule)] bg-[var(--bg-elevated)] p-5 sm:p-6">
         <p className="codex-kicker">Your account</p>
         <div className="mt-3 flex items-start gap-5 sm:items-end">
-          <Avatar name={username || "N"} src={avatarValue} size="xl" className="h-28 w-28 sm:h-32 sm:w-32" />
+          <Avatar name={username || "N"} src={avatarValue} size="xl" className="h-16 w-16 sm:h-20 sm:w-20" />
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-3xl font-semibold text-[var(--text-primary)] sm:text-4xl">
+            <h1 className="truncate text-2xl font-semibold tracking-tight text-[var(--text-primary)] sm:text-3xl">
               {username || "Complete your profile"}
             </h1>
             <p className="mt-2 line-clamp-2 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
@@ -316,7 +316,7 @@ export function AccountHubClient() {
           </div>
         </div>
 
-        <dl className="mt-6 grid max-w-sm grid-cols-2 gap-4">
+        <dl className="mt-5 flex gap-8 border-t border-[var(--codex-rule)] pt-4">
           <AccountStat value={characters.length} label="characters" />
           <AccountStat value={publicCharacters.length} label="public" />
         </dl>
@@ -347,7 +347,7 @@ export function AccountHubClient() {
       </header>
 
       <div
-        className="sticky top-0 z-30 grid grid-cols-3 border-b border-[var(--codex-rule)] bg-[color:var(--codex-paper)]/95 px-5 backdrop-blur-sm sm:px-0"
+        className="sticky top-0 z-30 mt-5 grid grid-cols-3 gap-1 rounded-xl border border-[var(--codex-rule)] bg-[var(--codex-paper)] p-1"
         role="tablist"
         aria-label="Account sections"
       >
@@ -790,17 +790,64 @@ export function AccountHubClient() {
             </div>
           </div>
         ) : (
-          <div className="px-0 pt-7 sm:px-0">
-            <PublicProfileView
-              username={username || "username"}
-              bio={bio}
-              avatarUrl={avatarValue}
-              accentColor={accentColor}
-              settings={settings}
-              characters={publicCharacters}
-              isOwner
-              previewMode="owner"
-            />
+          <div className="space-y-6 pt-6">
+            <section aria-label="Account shortcuts" className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-2xl border border-[var(--codex-rule)] bg-[var(--bg-elevated)] p-5">
+                <UserRound className="h-5 w-5 text-[var(--codex-mint)]" />
+                <h2 className="mt-4 text-lg font-semibold">Your public profile</h2>
+                <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
+                  Update your name, bio, cover and links. Preview changes before saving.
+                </p>
+                <Button className="mt-4" variant="secondary" onClick={() => selectTab("profile", true)}>
+                  Customize profile
+                </Button>
+              </div>
+              <div className="rounded-2xl border border-[var(--codex-rule)] bg-[var(--bg-elevated)] p-5">
+                <Wand2 className="h-5 w-5 text-[var(--codex-mint)]" />
+                <h2 className="mt-4 text-lg font-semibold">Your characters</h2>
+                <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
+                  {characters.length} characters · {publicCharacters.length} public. Edit a character or start something
+                  new.
+                </p>
+                <Button className="mt-4" variant="secondary" onClick={() => selectTab("studio")}>
+                  Manage characters
+                </Button>
+              </div>
+            </section>
+            <section className="rounded-2xl border border-[var(--codex-rule)] bg-[var(--bg-elevated)] p-5">
+              <h2 className="text-lg font-semibold">Account & preferences</h2>
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                {[
+                  { href: "/settings/providers", label: "Model providers" },
+                  { href: "/settings/personas", label: "Chat personas" },
+                  { href: "/settings", label: "All settings" }
+                ].map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="focus-ring flex min-h-12 items-center justify-between gap-3 rounded-xl border border-[var(--codex-rule)] px-4 text-sm no-underline hover:bg-[var(--bg-input)]"
+                  >
+                    {item.label}
+                    <ArrowUpRight className="h-4 w-4 shrink-0" />
+                  </Link>
+                ))}
+              </div>
+            </section>
+            <details className="overflow-hidden rounded-2xl border border-[var(--codex-rule)]">
+              <summary className="focus-ring cursor-pointer bg-[var(--bg-elevated)] p-5 text-sm font-medium">
+                Preview public page
+              </summary>
+              <PublicProfileView
+                username={username || "username"}
+                bio={bio}
+                avatarUrl={avatarValue}
+                accentColor={accentColor}
+                settings={settings}
+                characters={publicCharacters}
+                isOwner
+                previewMode="owner"
+              />
+            </details>
           </div>
         )
       ) : tab === "studio" ? (
@@ -837,12 +884,29 @@ function AccountTab({
       type="button"
       role="tab"
       aria-selected={active}
+      tabIndex={active ? 0 : -1}
+      onKeyDown={(event) => {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+        event.preventDefault();
+        const tabs = Array.from(
+          event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? []
+        );
+        const index = tabs.indexOf(event.currentTarget);
+        const next =
+          event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? tabs.length - 1
+              : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+        tabs[next]?.focus();
+        tabs[next]?.click();
+      }}
       onClick={onClick}
       className={cn(
-        "focus-ring flex h-14 items-center justify-center gap-2 border-b-2 text-xs font-medium uppercase tracking-[.12em]",
+        "focus-ring flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-medium",
         active
-          ? "border-[var(--codex-mint)] text-[var(--text-primary)]"
-          : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+          ? "bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-sm"
+          : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
       )}
     >
       {children}
@@ -869,7 +933,7 @@ function EditorSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-4 border-b border-[var(--codex-rule)] pb-7">
+    <section className="space-y-4 rounded-2xl border border-[var(--codex-rule)] bg-[var(--bg-elevated)] p-5">
       <div>
         <h2 className="text-lg font-semibold text-[var(--text-primary)]">{title}</h2>
         <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{description}</p>
