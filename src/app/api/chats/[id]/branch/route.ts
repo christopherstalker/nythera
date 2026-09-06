@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { syncChatTurns } from "@/lib/stories/story-foundation";
 import { conversationBranchThroughMessage } from "@/lib/message-actions";
+import { normalizeChatAppearance } from "@/lib/chat-appearance";
 
 export const dynamic = "force-dynamic";
 
@@ -60,7 +61,9 @@ export async function POST(request: Request, context: Context) {
       prisma.storyArc.count({ where: { storyId: foundation.storyId, timelineId: foundation.timelineId } }),
       prisma.storyBeat.count({ where: { storyId: foundation.storyId, timelineId: foundation.timelineId } }),
       prisma.storyHook.count({ where: { storyId: foundation.storyId, timelineId: foundation.timelineId } }),
-      prisma.storyRelationshipState.count({ where: { storyId: foundation.storyId, timelineId: foundation.timelineId } }),
+      prisma.storyRelationshipState.count({
+        where: { storyId: foundation.storyId, timelineId: foundation.timelineId }
+      }),
       prisma.storyProactiveEvent.count({ where: { storyId: foundation.storyId, timelineId: foundation.timelineId } }),
       prisma.storyVisualReference.count({ where: { storyId: foundation.storyId, timelineId: foundation.timelineId } })
     ]);
@@ -92,6 +95,7 @@ export async function POST(request: Request, context: Context) {
           userId: user.id,
           characterId: source.characterId,
           personaId: source.personaId,
+          appearance: { ...normalizeChatAppearance(source.appearance) },
           storyId: foundation.storyId,
           timelineId: timeline.id,
           title: input.title?.trim() || `${source.title || "Untitled chat"} · Branch`,
@@ -233,11 +237,11 @@ export async function POST(request: Request, context: Context) {
             return {
               storyId: foundation.storyId,
               timelineId: timeline.id,
-              arcId: beat.arcId ? arcIdMap.get(beat.arcId) ?? null : null,
+              arcId: beat.arcId ? (arcIdMap.get(beat.arcId) ?? null) : null,
               resolvedByTurnId: resolvedAfterFork ? null : beat.resolvedByTurnId,
               title: beat.title,
               description: beat.description,
-              status: resolvedAfterFork ? "PLANNED" as const : beat.status,
+              status: resolvedAfterFork ? ("PLANNED" as const) : beat.status,
               position: beat.position,
               priority: beat.priority,
               trigger: beat.trigger ?? undefined,
@@ -258,13 +262,13 @@ export async function POST(request: Request, context: Context) {
             return {
               storyId: foundation.storyId,
               timelineId: timeline.id,
-              arcId: hook.arcId ? arcIdMap.get(hook.arcId) ?? null : null,
+              arcId: hook.arcId ? (arcIdMap.get(hook.arcId) ?? null) : null,
               openedByTurnId: hook.openedByTurnId,
               resolvedByTurnId: resolvedAfterFork ? null : hook.resolvedByTurnId,
               title: hook.title,
               description: hook.description,
               payoff: hook.payoff,
-              status: resolvedAfterFork ? "OPEN" as const : hook.status,
+              status: resolvedAfterFork ? ("OPEN" as const) : hook.status,
               urgency: hook.urgency,
               directorOnly: hook.directorOnly,
               dueSequence: hook.dueSequence,

@@ -23,7 +23,7 @@ test("chat appearance persists per conversation and supports image, GIF, and vid
   assert.match(panel, /fontFamily/);
   assert.match(panel, /textColor/);
   assert.match(client, /appearance\.backgroundMode === "default"/);
-  assert.match(client, /<video[\s\S]*autoPlay loop muted playsInline/);
+  assert.match(client, /<video[\s\S]*autoPlay\s+loop\s+muted\s+playsInline/);
   assert.match(client, /--chat-font-family/);
   assert.match(uploadRoute, /userId: user\.id/);
   assert.match(uploadRoute, /pathname\.startsWith\(`chat-backgrounds\/\$\{chatId\}\//);
@@ -87,7 +87,10 @@ test("chat chapter follows the conversation order for the active character", asy
   assert.match(route, /const chapterNumber = await prisma\.chat\.count/);
   assert.match(route, /characterId: chat\.characterId/);
   assert.match(route, /createdAt: \{ lt: chat\.createdAt \}/);
-  assert.match(route, /chat: \{ \.\.\.serializedChat, messages, chapterNumber, inputLimits: getChatInputLimits\(user\.id\) \}/);
+  assert.match(
+    route,
+    /chat: \{ \.\.\.serializedChat, messages, chapterNumber, inputLimits: getChatInputLimits\(user\.id\) \}/
+  );
   assert.match(page, /chapterNumber=\{chat\.chapterNumber\}/);
   assert.match(client, /Chapter \{chapterNumber\}/);
   assert.match(header, /Chapter \{chapterNumber\}/);

@@ -6,6 +6,7 @@ export type ChatBackgroundFit = "cover" | "contain";
 export type ChatBackgroundPosition = "center" | "top" | "bottom";
 
 export type ChatAppearance = {
+  scenePalette: "character" | "moss" | "midnight" | "ember";
   backgroundMode: ChatBackgroundMode;
   backgroundUrl: string;
   backgroundType: ChatBackgroundType;
@@ -24,6 +25,7 @@ export type ChatAppearance = {
 };
 
 export const DEFAULT_CHAT_APPEARANCE: ChatAppearance = {
+  scenePalette: "character",
   backgroundMode: "default",
   backgroundUrl: "",
   backgroundType: "auto",
@@ -54,6 +56,7 @@ export function normalizeChatAppearance(value: unknown): ChatAppearance {
   const input = value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 
   return {
+    scenePalette: oneOf(input.scenePalette, ["character", "moss", "midnight", "ember"], "character"),
     backgroundMode: oneOf(input.backgroundMode, ["default", "custom", "none"], DEFAULT_CHAT_APPEARANCE.backgroundMode),
     backgroundUrl: stringValue(input.backgroundUrl, DEFAULT_CHAT_APPEARANCE.backgroundUrl),
     backgroundType: oneOf(input.backgroundType, ["auto", "image", "video"], DEFAULT_CHAT_APPEARANCE.backgroundType),
@@ -76,6 +79,20 @@ export function normalizeChatAppearance(value: unknown): ChatAppearance {
       : DEFAULT_CHAT_APPEARANCE.textColor,
     music: normalizeMusicSettings(input.music)
   };
+}
+
+export const CHAT_SCENE_BACKGROUNDS = {
+  character: "var(--codex-paper, #100d09)",
+  moss: "radial-gradient(ellipse at 80% 0%, #485139 0, transparent 65%), #171f18",
+  midnight: "radial-gradient(ellipse at 80% 0%, #343e56 0, transparent 65%), #141b27",
+  ember: "radial-gradient(ellipse at 80% 0%, #674534 0, transparent 65%), #281e19"
+} as const;
+
+export function chatFontFamily(fontFamily: string) {
+  if (fontFamily === "Space Grotesk" || fontFamily === "Inter") return "var(--font-space-grotesk), sans-serif";
+  if (fontFamily === "system-ui") return "system-ui, sans-serif";
+  if (fontFamily === "ui-monospace") return "ui-monospace, monospace";
+  return `'${fontFamily.replaceAll("'", "")}', serif`;
 }
 
 export function resolveBackgroundType(url: string, selected: ChatBackgroundType): Exclude<ChatBackgroundType, "auto"> {

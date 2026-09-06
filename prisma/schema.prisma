@@ -35,6 +35,7 @@ model User {
   preferredTheme        String    @default("dark")
   accentColor           String    @default("#8F81F7")
   profileSettings       Json?
+  chatAppearance        Json?
   preferredProvider     String?
   preferredModel        String    @default("gpt-4o-mini")
   defaultTemperature    Float     @default(0.7)

@@ -1,4 +1,4 @@
-import { BookOpen, Brain, Eye, KeyRound, Mic2, UserCog, UserRound, type LucideIcon } from "lucide-react";
+import { BookOpen, Brain, Eye, KeyRound, Mic2, Palette, UserCog, UserRound, type LucideIcon } from "lucide-react";
 
 export type SettingsSection = {
   href: string;
@@ -42,11 +42,18 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   },
   {
     href: "/settings/interface",
-    label: "Interface",
-    description: "Message spacing, chat density and reading preferences.",
+    label: "Reading",
+    description: "Reading styles, fonts, text size and spacing with a live preview.",
     icon: Eye,
     group: "Conversations",
     legacyHash: "interface"
+  },
+  {
+    href: "/settings/atmosphere",
+    label: "Atmosphere",
+    description: "Scene palettes, backgrounds and dimming for your stories.",
+    icon: Palette,
+    group: "Conversations"
   },
   {
     href: "/settings/memory",

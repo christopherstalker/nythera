@@ -15,20 +15,19 @@ test("account settings are split into dedicated routes behind one shared shell",
   assert.match(layout, /<SettingsShell>\{children\}<\/SettingsShell>/);
   assert.match(shell, /aria-label="Settings sections"/);
   assert.match(shell, /aria-label="Jump to settings section"/);
-  assert.match(shell, /settings-section-nav hidden[^\n]*lg:grid/);
+  assert.match(shell, /studio-navigation/);
   assert.match(shell, /aria-current=\{active \? "page" : undefined\}/);
   assert.match(shell, /router\.replace\(legacySection\.href\)/);
   assert.doesNotMatch(shell, /PageHeader/);
-  assert.match(overview, /<h1[^>]*>\s*Settings\s*<\/h1>/);
-  assert.match(overview, /SETTINGS_SECTIONS\.filter/);
-  assert.match(overview, /matchingSections\.filter/);
-  assert.match(overview, /groupSections\.map/);
+  assert.match(shell, /<h1>Story Studio<\/h1>/);
+  assert.match(overview, /StoryAppearanceSettings/);
 
   assert.match(sections, /href: "\/account"/);
   for (const route of ["personas", "providers", "voice", "interface", "memory", "help"]) {
     assert.match(sections, new RegExp(`href: "\\/settings\\/${route}"`));
     const page = await read(`../src/app/(main)/settings/${route}/page.tsx`);
-    assert.match(page, /SettingsPageHeader/);
+    if (route === "interface") assert.match(page, /export \{ default \} from "\.\.\/page"/);
+    else assert.match(page, /SettingsPageHeader/);
   }
 });
 
@@ -87,7 +86,7 @@ test("the mobile account hub exposes every desktop settings section", async () =
   assert.match(accountHub, /parseAccountTab\(searchParams\.get\("tab"\)\)/);
   assert.match(accountHub, /router\.replace\(params\.size > 0 \? `\/account\?\$\{params\}` : "\/account"/);
   assert.match(mobileDock, /pathname\.startsWith\("\/settings"\)/);
-  assert.equal((sections.match(/href: "\/(?:account|settings\/[^\"]+)"/g) ?? []).length, 7);
+  assert.equal((sections.match(/href: "\/(?:account|settings\/[^\"]+)"/g) ?? []).length, 8);
 });
 
 test("provider recovery controls appear before provider forms and connected providers sort first", async () => {

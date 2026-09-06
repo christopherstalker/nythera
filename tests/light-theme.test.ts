@@ -11,7 +11,7 @@ test("Living Codex is a single permanent dark theme", async () => {
     read("../src/app/layout.tsx"),
     read("../src/components/providers/session-provider.tsx"),
     read("../src/components/nav/NavRail.tsx"),
-    read("../src/app/(main)/settings/interface/page.tsx")
+    read("../src/components/settings/story-appearance-settings.tsx")
   ]);
 
   assert.doesNotMatch(tokens, /\.light\s*\{/);
@@ -21,11 +21,12 @@ test("Living Codex is a single permanent dark theme", async () => {
   assert.doesNotMatch(sessionProvider, /ThemeProvider|next-themes|AppearanceProvider/);
   assert.doesNotMatch(navRail, /ThemeToggle|mobile-theme-toggle|Use light theme/);
   assert.doesNotMatch(settings, /Accent color|Choose accent color|\["dark", "light"\]/);
-  assert.match(settings, /one permanent ink-dark theme and a fixed editorial palette/);
 
   await assert.rejects(() => access(new URL("../src/components/layout/theme-toggle.tsx", import.meta.url)));
   await assert.rejects(() => access(new URL("../src/components/providers/appearance-provider.tsx", import.meta.url)));
-  await assert.rejects(() => access(new URL("../src/components/settings/appearance-settings-client.tsx", import.meta.url)));
+  await assert.rejects(() =>
+    access(new URL("../src/components/settings/appearance-settings-client.tsx", import.meta.url))
+  );
 });
 
 test("profile APIs keep the app theme fixed while allowing a profile-only accent", async () => {

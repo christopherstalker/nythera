@@ -1,94 +1,91 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
-import { ArrowLeft } from "lucide-react";
 import { PageShell } from "@/components/ui/page";
-import { cn } from "@/lib/utils";
 import { SETTINGS_SECTIONS } from "@/components/settings/settings-sections";
+
+const sectionOrder = [
+  "/settings/interface",
+  "/settings/atmosphere",
+  "/settings/personas",
+  "/settings/memory",
+  "/settings/providers",
+  "/settings/voice",
+  "/account",
+  "/settings/help"
+];
 
 export function SettingsShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const isOverview = pathname === "/settings";
+  const searchParams = useSearchParams();
+  const chatId = searchParams.get("chatId");
+  const activePath = pathname === "/settings" ? "/settings/interface" : pathname;
+  const sections = sectionOrder.map((href) => SETTINGS_SECTIONS.find((section) => section.href === href)!);
+
+  function sectionUrl(href: string) {
+    return chatId && ["/settings/interface", "/settings/atmosphere"].includes(href)
+      ? `${href}?${new URLSearchParams({ chatId })}`
+      : href;
+  }
 
   useEffect(() => {
-    if (!isOverview) return;
-
-    const hash = window.location.hash.slice(1);
-    const legacySection = SETTINGS_SECTIONS.find((section) => section.legacyHash === hash);
-    if (legacySection) {
-      router.replace(legacySection.href);
-    }
-  }, [isOverview, router]);
+    if (pathname !== "/settings") return;
+    const legacySection = SETTINGS_SECTIONS.find((section) => section.legacyHash === window.location.hash.slice(1));
+    if (legacySection) router.replace(legacySection.href);
+  }, [pathname, router]);
 
   return (
-    <PageShell className="codex-settings codex-workspace">
-      <div className={cn("settings-layout grid min-w-0 gap-7", !isOverview && "lg:grid-cols-[220px_minmax(0,1fr)]")}>
-        <aside className={cn("min-w-0 lg:sticky lg:top-6 lg:self-start", isOverview && "hidden")}>
-          {!isOverview ? (
-            <div className="grid gap-2 border-b border-[var(--border-default)] px-1 py-3 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center lg:hidden">
-              <Link
-                href="/settings"
-                className="focus-ring inline-flex min-h-11 items-center gap-2 px-2 text-xs font-medium uppercase tracking-[.14em] text-[var(--text-secondary)] no-underline hover:text-[var(--accent-mint)]"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                All settings
-              </Link>
-              <label className="grid gap-1 px-2 text-[10px] font-medium uppercase tracking-[.14em] text-[var(--text-muted)]">
-                Jump to
-                <select
-                  value={SETTINGS_SECTIONS.some((section) => section.href === pathname) ? pathname : "/settings"}
-                  onChange={(event) => router.push(event.target.value)}
-                  className="focus-ring h-11 min-w-0 border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-sm normal-case tracking-normal text-[var(--text-primary)]"
-                  aria-label="Jump to settings section"
-                >
-                  <option value="/settings">All settings</option>
-                  {SETTINGS_SECTIONS.map((section) => (
-                    <option key={section.href} value={section.href}>
-                      {section.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          ) : null}
-
-          <nav
-            className="settings-section-nav hidden gap-1 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-2 lg:grid"
-            aria-label="Settings sections"
+    <PageShell className="story-studio">
+      <header className="studio-heading">
+        <div>
+          <p className="studio-eyebrow">Nythera / Settings</p>
+          <h1>Story Studio</h1>
+          <p className="studio-heading-copy">A little less setup. A little more immersion.</p>
+        </div>
+        <Link href={chatId ? `/chat/${encodeURIComponent(chatId)}` : "/chats"} className="studio-back">
+          ← Return to {chatId ? "your story" : "chats"}
+        </Link>
+      </header>
+      <div className="studio-body">
+        <label className="studio-mobile-nav">
+          Section
+          <select
+            value={sections.some((section) => section.href === activePath) ? activePath : "/settings/interface"}
+            aria-label="Jump to settings section"
+            onChange={(event) => {
+              document.querySelector<HTMLAnchorElement>(`[data-studio-href="${event.target.value}"]`)?.click();
+            }}
           >
-            {SETTINGS_SECTIONS.map((section) => {
-              const Icon = section.icon;
-              const active = pathname === section.href;
-
-              return (
+            {sections.map((section) => (
+              <option key={section.href} value={section.href}>
+                {section.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <nav className="studio-navigation" aria-label="Settings sections">
+          <p className="studio-nav-label">The experience</p>
+          {sections.map((section, index) => {
+            const active = activePath === section.href;
+            return (
+              <div key={section.href}>
+                {index === 4 ? <p className="studio-nav-label studio-nav-divider">Behind the scenes</p> : null}
                 <Link
-                  key={section.href}
-                  href={section.href}
+                  href={sectionUrl(section.href)}
+                  data-studio-href={section.href}
                   aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "focus-ring flex min-h-12 shrink-0 items-center gap-3 rounded-lg px-3 text-sm text-[var(--text-secondary)] no-underline transition-colors duration-150 hover:bg-[var(--bg-input)] hover:text-[var(--accent-mint)]",
-                    active && "bg-[color-mix(in_oklch,var(--codex-mint)_8%,transparent)] text-[var(--codex-mint)]"
-                  )}
                 >
-                  <Icon className="h-4 w-4 shrink-0" />
+                  <span>{String(index + 1).padStart(2, "0")}</span>
                   {section.label}
                 </Link>
-              );
-            })}
-          </nav>
-        </aside>
-
-        <div
-          className={cn(
-            "min-w-0",
-            !isOverview && "rounded-2xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-5 sm:p-7"
-          )}
-        >
-          {children}
-        </div>
+              </div>
+            );
+          })}
+        </nav>
+        <div className="studio-content">{children}</div>
       </div>
     </PageShell>
   );

@@ -59,6 +59,7 @@ let profile = {
   accentColor: "#A9795A",
   profileSettings: {}
 };
+const appearances = new Map();
 
 createServer(async (request, response) => {
   const url = new URL(request.url, "http://127.0.0.1:3100");
@@ -73,6 +74,24 @@ createServer(async (request, response) => {
     }
     let payload = {};
     switch (url.pathname) {
+      case "/api/settings/appearance": {
+        let scope = url.searchParams.get("chatId") || "defaults";
+        if (request.method === "PATCH") {
+          let body = "";
+          for await (const chunk of request) body += chunk;
+          const changes = JSON.parse(body);
+          scope = changes.chatId || "defaults";
+          appearances.set(scope, changes.appearance);
+        }
+        const selectedChat = chats.find((chat) => chat.id === scope);
+        payload = {
+          appearance: appearances.get(scope) || null,
+          story: selectedChat
+            ? { id: selectedChat.id, title: selectedChat.title, character: selectedChat.character.name }
+            : null
+        };
+        break;
+      }
       case "/api/auth/session":
         payload = {
           user: { id: "fixture-user", name: "Storykeeper", email: "fixture@example.test", role: "USER" },
