@@ -1122,6 +1122,35 @@
     display: none;
   }
 
+  .codex-wordmark {
+    font-family: var(--font-space-grotesk), sans-serif;
+    font-size: 25px;
+    font-weight: 600;
+    letter-spacing: -0.055em;
+    color: var(--codex-ivory);
+  }
+
+  .codex-recent-chats {
+    display: none;
+  }
+
+  .codex-rail-footer .codex-rail-link {
+    min-height: 36px;
+  }
+
+  @media (max-height: 800px) {
+    .codex-rail-nav {
+      gap: 2px;
+    }
+    .codex-rail-nav .codex-rail-link {
+      min-height: 40px;
+    }
+  }
+
+  .codex-rail {
+    overflow-y: auto;
+  }
+
   .living-codex-shell[data-navigation="compact"] {
     --codex-rail-width: 72px;
   }
@@ -1171,6 +1200,13 @@
   }
 
   @media (min-width: 1200px) {
+    [data-navigation="expanded"] .codex-recent-chats {
+      display: block;
+      flex-basis: 200px;
+    }
+    [data-navigation="expanded"] .codex-recent-chats + div {
+      flex: 0;
+    }
     .living-codex-shell[data-navigation="expanded"] {
       --codex-rail-width: 208px;
     }

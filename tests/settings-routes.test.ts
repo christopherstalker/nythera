@@ -21,7 +21,8 @@ test("account settings are split into dedicated routes behind one shared shell",
   assert.doesNotMatch(shell, /PageHeader/);
   assert.match(overview, /<h1[^>]*>\s*Settings\s*<\/h1>/);
   assert.match(overview, /SETTINGS_SECTIONS\.filter/);
-  assert.match(overview, /matchingSections\.map/);
+  assert.match(overview, /matchingSections\.filter/);
+  assert.match(overview, /groupSections\.map/);
 
   assert.match(sections, /href: "\/account"/);
   for (const route of ["personas", "providers", "voice", "interface", "memory", "help"]) {

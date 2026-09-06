@@ -4,7 +4,7 @@ import test from "node:test";
 
 test("help center exposes platform, API, formatting, and support routes", async () => {
   const [guide, navigation] = await Promise.all([
-    readFile(new URL("../src/app/guide/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/guide/help-center.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/components/guide/guide-navigation.tsx", import.meta.url), "utf8")
   ]);
 

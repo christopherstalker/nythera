@@ -12,7 +12,7 @@ const guideLinks = [
 
 export function GuideNavigation({ current }: { current: string }) {
   return (
-    <nav aria-label="Help center" className="scrollbar-none mb-10 flex gap-2 overflow-x-auto border-y border-[var(--codex-rule)] py-3">
+    <nav aria-label="Help center" className="scrollbar-none mb-6 flex gap-2 overflow-x-auto py-2">
       {guideLinks.map((item) => {
         const Icon = item.icon;
         return (
@@ -21,7 +21,7 @@ export function GuideNavigation({ current }: { current: string }) {
             href={item.href}
             aria-current={current === item.href ? "page" : undefined}
             className={cn(
-              "focus-ring inline-flex shrink-0 items-center gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-[.14em] text-[var(--text-muted)] no-underline transition-colors hover:text-[var(--codex-ivory)]",
+              "focus-ring inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm text-[var(--text-secondary)] no-underline transition-colors hover:bg-[var(--bg-input)] hover:text-[var(--codex-ivory)]",
               current === item.href && "bg-[var(--color-overlay)] text-[var(--codex-mint)]"
             )}
           >
