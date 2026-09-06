@@ -17,9 +17,20 @@ import { ChatHeader } from "@/components/chat/ChatHeader";
 import { MessageList } from "@/components/chat/MessageList";
 import { useChat, type ChatMessage } from "@/hooks/useChat";
 import { shouldBypassNextImageOptimization } from "@/lib/image-cache";
-import { buildProviderModelGroups, inferProviderModelValue, type ProviderModelCatalog, type ProviderModelGroup, type SavedProviderSummary } from "@/lib/provider-model-options";
+import {
+  buildProviderModelGroups,
+  inferProviderModelValue,
+  type ProviderModelCatalog,
+  type ProviderModelGroup,
+  type SavedProviderSummary
+} from "@/lib/provider-model-options";
 import { CHAT_MODE_STORAGE_KEY, normalizeChatMode } from "@/lib/chat-mode";
-import { normalizeChatAppearance, resolveBackgroundType } from "@/lib/chat-appearance";
+import {
+  CHAT_SCENE_BACKGROUNDS,
+  chatFontFamily,
+  normalizeChatAppearance,
+  resolveBackgroundType
+} from "@/lib/chat-appearance";
 import { useUiStore } from "@/stores/use-ui-store";
 import { CHAT_CUSTOM_FONT_FAMILY, useCustomFontFace } from "@/hooks/use-custom-font";
 import { latestAssistantVariantGroup } from "@/lib/message-actions";
@@ -53,7 +64,25 @@ const ACTIVE_VARIANT_SAVE_DEBOUNCE_MS = 500;
 const DOUBLE_TAP_MAX_DELAY_MS = 350;
 const DOUBLE_TAP_MAX_DISTANCE_PX = 24;
 
-export function ChatClient({ chatId, chapterNumber, characterId, characterName, characterAvatarUrl, characterBackgroundUrl, characterLorebook, summary, model: initialModel, temperature: initialTemperature, responsePrompt: initialResponsePrompt, chatMode: initialChatMode, translationLanguage: initialTranslationLanguage, appearance: initialAppearance, initialMessages, initialActiveAssistantMessageId, inputLimits }: ChatClientProps) {
+export function ChatClient({
+  chatId,
+  chapterNumber,
+  characterId,
+  characterName,
+  characterAvatarUrl,
+  characterBackgroundUrl,
+  characterLorebook,
+  summary,
+  model: initialModel,
+  temperature: initialTemperature,
+  responsePrompt: initialResponsePrompt,
+  chatMode: initialChatMode,
+  translationLanguage: initialTranslationLanguage,
+  appearance: initialAppearance,
+  initialMessages,
+  initialActiveAssistantMessageId,
+  inputLimits
+}: ChatClientProps) {
   const [draft, setDraft] = useState("");
   const [model, setModel] = useState(initialModel || "gpt-4o-mini");
   const [temperature, setTemperature] = useState(initialTemperature ?? 0.7);
@@ -70,13 +99,36 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
   const [rejectedProviderIds, setRejectedProviderIds] = useState<string[]>([]);
   const [providerKeysLoading, setProviderKeysLoading] = useState(true);
   const [modelCatalogStatus, setModelCatalogStatus] = useState<string | null>(null);
-  const persistedApiRef = useRef({ model: initialModel || "gpt-4o-mini", temperature: initialTemperature ?? 0.7, responsePrompt: initialResponsePrompt ?? "", translationLanguage: initialTranslationLanguage ?? "" });
-  const { messages, summary: activeSummary, send, retryUserMessage, editMessage, deleteMessage, rewindToMessage, refreshMessages, branchFromMessage, pinMessage, unpinMessage, isStreaming, refreshing, error, providerNotice } = useChat(chatId, initialMessages, summary);
+  const persistedApiRef = useRef({
+    model: initialModel || "gpt-4o-mini",
+    temperature: initialTemperature ?? 0.7,
+    responsePrompt: initialResponsePrompt ?? "",
+    translationLanguage: initialTranslationLanguage ?? ""
+  });
+  const {
+    messages,
+    summary: activeSummary,
+    send,
+    retryUserMessage,
+    editMessage,
+    deleteMessage,
+    rewindToMessage,
+    refreshMessages,
+    branchFromMessage,
+    pinMessage,
+    unpinMessage,
+    isStreaming,
+    refreshing,
+    error,
+    providerNotice
+  } = useChat(chatId, initialMessages, summary);
   const messagesRef = useRef(messages);
   const isStreamingRef = useRef(isStreaming);
   const chatSettingsRef = useRef({ model, temperature, responsePrompt });
   const activeAssistantMessageIdRef = useRef(activeAssistantMessageId);
-  const persistedActiveAssistantMessageIdRef = useRef(initialActiveAssistantMessageId ?? latestAssistantMessageId(initialMessages));
+  const persistedActiveAssistantMessageIdRef = useRef(
+    initialActiveAssistantMessageId ?? latestAssistantMessageId(initialMessages)
+  );
   const activeVariantSaveTimeoutRef = useRef<number | null>(null);
   const activeVariantSaveAbortRef = useRef<AbortController | null>(null);
   const lastTouchRef = useRef({ time: 0, x: 0, y: 0 });
@@ -91,7 +143,11 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
   const toggleSidePanel = useUiStore((state) => state.toggleSidePanel);
   const activePersona = useUiStore((state) => state.activePersona);
   const providerModelGroups: ProviderModelGroup[] = useMemo(
-    () => buildProviderModelGroups(providerKeys.filter((key) => key.credentialStatus !== "INVALID" && !rejectedProviderIds.includes(key.provider)), providerModels),
+    () =>
+      buildProviderModelGroups(
+        providerKeys.filter((key) => key.credentialStatus !== "INVALID" && !rejectedProviderIds.includes(key.provider)),
+        providerModels
+      ),
     [providerKeys, providerModels, rejectedProviderIds]
   );
   const latestAssistantId = useMemo(() => latestAssistantMessageId(messages), [messages]);
@@ -124,12 +180,15 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
     }
   }, [latestAssistantId]);
 
-  useEffect(() => () => {
-    if (activeVariantSaveTimeoutRef.current) {
-      window.clearTimeout(activeVariantSaveTimeoutRef.current);
-    }
-    activeVariantSaveAbortRef.current?.abort();
-  }, []);
+  useEffect(
+    () => () => {
+      if (activeVariantSaveTimeoutRef.current) {
+        window.clearTimeout(activeVariantSaveTimeoutRef.current);
+      }
+      activeVariantSaveAbortRef.current?.abort();
+    },
+    []
+  );
 
   useEffect(() => {
     isStreamingRef.current = isStreaming;
@@ -222,7 +281,10 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
   useEffect(() => {
     const flushOfflineQueue = async () => {
       const queueKey = `nythera:offline-queue:${chatId}`;
-      const queued = JSON.parse(window.localStorage.getItem(queueKey) || "[]") as Array<{ content: string; attachments: ChatImageAttachment[] }>;
+      const queued = JSON.parse(window.localStorage.getItem(queueKey) || "[]") as Array<{
+        content: string;
+        attachments: ChatImageAttachment[];
+      }>;
       if (!queued.length || isStreamingRef.current) return;
       setApiSaveStatus(`Sending ${queued.length} queued message${queued.length === 1 ? "" : "s"}...`);
       const remaining = [...queued];
@@ -253,7 +315,12 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
     setResponsePrompt(initialResponsePrompt ?? "");
     setApiSaveStatus(null);
     setTranslationLanguage(initialTranslationLanguage ?? "");
-    persistedApiRef.current = { model: initialModel || "gpt-4o-mini", temperature: initialTemperature ?? 0.7, responsePrompt: initialResponsePrompt ?? "", translationLanguage: initialTranslationLanguage ?? "" };
+    persistedApiRef.current = {
+      model: initialModel || "gpt-4o-mini",
+      temperature: initialTemperature ?? 0.7,
+      responsePrompt: initialResponsePrompt ?? "",
+      translationLanguage: initialTranslationLanguage ?? ""
+    };
   }, [chatId, initialModel, initialResponsePrompt, initialTemperature, initialTranslationLanguage]);
 
   useEffect(() => {
@@ -271,7 +338,12 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
     const nextResponsePrompt = responsePrompt.trim();
     const nextTranslationLanguage = translationLanguage.trim();
     const persisted = persistedApiRef.current;
-    if (persisted.model === nextModel && persisted.temperature === nextTemperature && persisted.responsePrompt === nextResponsePrompt && persisted.translationLanguage === nextTranslationLanguage) {
+    if (
+      persisted.model === nextModel &&
+      persisted.temperature === nextTemperature &&
+      persisted.responsePrompt === nextResponsePrompt &&
+      persisted.translationLanguage === nextTranslationLanguage
+    ) {
       return;
     }
 
@@ -286,7 +358,12 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
         const response = await fetch(`/api/chats/${chatId}`, {
           method: "PATCH",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ model: nextModel, temperature: nextTemperature, responsePrompt: nextResponsePrompt, translationLanguage: nextTranslationLanguage || null }),
+          body: JSON.stringify({
+            model: nextModel,
+            temperature: nextTemperature,
+            responsePrompt: nextResponsePrompt,
+            translationLanguage: nextTranslationLanguage || null
+          }),
           signal: activeController.signal
         });
 
@@ -295,7 +372,12 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
           throw new Error(typeof body?.error === "string" ? body.error : "Could not save API settings.");
         }
 
-        persistedApiRef.current = { model: nextModel, temperature: nextTemperature, responsePrompt: nextResponsePrompt, translationLanguage: nextTranslationLanguage };
+        persistedApiRef.current = {
+          model: nextModel,
+          temperature: nextTemperature,
+          responsePrompt: nextResponsePrompt,
+          translationLanguage: nextTranslationLanguage
+        };
         setApiSaveStatus("Saved for this chat and future chats.");
       } catch (error) {
         if (!(error instanceof DOMException && error.name === "AbortError")) {
@@ -312,7 +394,9 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
 
   useEffect(() => {
     // Streaming state is still emitted for favicon compatibility without UI glow.
-    window.dispatchEvent(new CustomEvent("nythera:brand-state", { detail: { glowIntensity: isStreaming ? 0.84 : 0.56 } }));
+    window.dispatchEvent(
+      new CustomEvent("nythera:brand-state", { detail: { glowIntensity: isStreaming ? 0.84 : 0.56 } })
+    );
     return () => {
       window.dispatchEvent(new CustomEvent("nythera:brand-state", { detail: { glowIntensity: 0.56 } }));
     };
@@ -349,7 +433,8 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
         if (!catalogResponse.ok) {
           throw new Error("Live model refresh is unavailable; bundled models remain available.");
         }
-        const catalogBody: { providers?: Array<{ provider: string; models: string[]; warning?: string }> } = await catalogResponse.json();
+        const catalogBody: { providers?: Array<{ provider: string; models: string[]; warning?: string }> } =
+          await catalogResponse.json();
         if (!cancelled) {
           const providers = Array.isArray(catalogBody.providers) ? catalogBody.providers : [];
           const providersById = new Map<string, typeof providers>();
@@ -358,22 +443,32 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
             entries.push(provider);
             providersById.set(provider.provider, entries);
           }
-          setProviderModels(Object.fromEntries(Array.from(providersById, ([provider, entries]) => [
-            provider,
-            Array.from(new Set(entries.flatMap((entry) => entry.models)))
-          ])));
-          setRejectedProviderIds(Array.from(providersById)
-            .filter(([, entries]) => entries.every((entry) => isRejectedCredential(entry.warning)))
-            .map(([provider]) => provider));
-          const warning = Array.from(providersById.values())
-            .find((entries) => entries.every((entry) => Boolean(entry.warning)))?.[0]?.warning;
+          setProviderModels(
+            Object.fromEntries(
+              Array.from(providersById, ([provider, entries]) => [
+                provider,
+                Array.from(new Set(entries.flatMap((entry) => entry.models)))
+              ])
+            )
+          );
+          setRejectedProviderIds(
+            Array.from(providersById)
+              .filter(([, entries]) => entries.every((entry) => isRejectedCredential(entry.warning)))
+              .map(([provider]) => provider)
+          );
+          const warning = Array.from(providersById.values()).find((entries) =>
+            entries.every((entry) => Boolean(entry.warning))
+          )?.[0]?.warning;
           setModelCatalogStatus(warning ?? "Provider models refreshed automatically.");
 
           const verifiedKeysResponse = await fetch("/api/keys", { signal: controller.signal });
           if (verifiedKeysResponse.ok && !cancelled) {
-            const verifiedKeysBody: { keys?: SavedProviderSummary[]; maxOutputTokens?: number | null } = await verifiedKeysResponse.json();
+            const verifiedKeysBody: { keys?: SavedProviderSummary[]; maxOutputTokens?: number | null } =
+              await verifiedKeysResponse.json();
             setProviderKeys(Array.isArray(verifiedKeysBody.keys) ? verifiedKeysBody.keys : []);
-            setMaxOutputTokens(typeof verifiedKeysBody.maxOutputTokens === "number" ? verifiedKeysBody.maxOutputTokens : null);
+            setMaxOutputTokens(
+              typeof verifiedKeysBody.maxOutputTokens === "number" ? verifiedKeysBody.maxOutputTokens : null
+            );
           }
         }
       } catch (error) {
@@ -411,7 +506,8 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
     }
 
     if (!inferredSelection) {
-      const fallback = providerModelGroups.find((group) => group.isDefault)?.options[0] ?? providerModelGroups[0]?.options[0];
+      const fallback =
+        providerModelGroups.find((group) => group.isDefault)?.options[0] ?? providerModelGroups[0]?.options[0];
       if (fallback) {
         setModel(fallback.value);
       }
@@ -437,7 +533,9 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
 
       const savedLimit = typeof body?.maxOutputTokens === "number" ? body.maxOutputTokens : null;
       setMaxOutputTokens(savedLimit);
-      setApiSaveStatus(savedLimit === null ? "Automatic response limits restored." : `Maximum output saved at ${savedLimit} tokens.`);
+      setApiSaveStatus(
+        savedLimit === null ? "Automatic response limits restored." : `Maximum output saved at ${savedLimit} tokens.`
+      );
       return true;
     } catch (error) {
       setApiSaveStatus(error instanceof Error ? error.message : "Could not save the token limit.");
@@ -445,165 +543,203 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
     }
   }, []);
 
-  const submitMessage = useCallback(async (
-    attachments: ChatImageAttachment[],
-    contentOverride?: string
-  ) => {
-    const content = contentOverride?.trim() || draft.trim();
-    if ((!content && !attachments.length) || isStreaming) {
-      return false;
-    }
+  const submitMessage = useCallback(
+    async (attachments: ChatImageAttachment[], contentOverride?: string) => {
+      const content = contentOverride?.trim() || draft.trim();
+      if ((!content && !attachments.length) || isStreaming) {
+        return false;
+      }
 
-    setDraft("");
-    if (!navigator.onLine) {
-      const queueKey = `nythera:offline-queue:${chatId}`;
-      const queued = JSON.parse(window.localStorage.getItem(queueKey) || "[]") as Array<{ content: string; attachments: ChatImageAttachment[] }>;
-      queued.push({ content, attachments });
-      window.localStorage.setItem(queueKey, JSON.stringify(queued));
-      setApiSaveStatus("Offline: message queued and will send automatically when you reconnect.");
-      return true;
-    }
-    const branchMessageId = activeAssistantMessageIdRef.current;
-    const accepted = await send(content, {
-      model,
-      temperature,
-      responsePrompt,
-      attachments,
-      branchMessageId: branchMessageId?.startsWith("local-") ? undefined : branchMessageId ?? undefined
-    });
-    if (!accepted) {
-      setDraft((current) => current || content);
-    }
-    return accepted;
-  }, [chatId, draft, isStreaming, model, responsePrompt, send, temperature]);
-
-  const selectActiveVariant = useCallback((messageId: string) => {
-    if (activeAssistantMessageIdRef.current === messageId) return;
-    activeAssistantMessageIdRef.current = messageId;
-    setActiveAssistantMessageId(messageId);
-    if (messageId.startsWith("local-") || persistedActiveAssistantMessageIdRef.current === messageId) return;
-
-    if (activeVariantSaveTimeoutRef.current) {
-      window.clearTimeout(activeVariantSaveTimeoutRef.current);
-    }
-    activeVariantSaveAbortRef.current?.abort();
-
-    const controller = new AbortController();
-    activeVariantSaveAbortRef.current = controller;
-    activeVariantSaveTimeoutRef.current = window.setTimeout(() => {
-      activeVariantSaveTimeoutRef.current = null;
-      void fetch(`/api/chats/${chatId}`, {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ activeAssistantMessageId: messageId }),
-        signal: controller.signal
-      }).then(async (response) => {
-        if (!response.ok) {
-          const body = await response.json().catch(() => null);
-          setApiSaveStatus(body?.error ?? "Could not save the selected response version.");
-          return;
-        }
-        if (activeAssistantMessageIdRef.current === messageId) {
-          persistedActiveAssistantMessageIdRef.current = messageId;
-        }
-      }).catch((error) => {
-        if (!(error instanceof DOMException && error.name === "AbortError")) {
-          setApiSaveStatus("Could not save the selected response version.");
-        }
+      setDraft("");
+      if (!navigator.onLine) {
+        const queueKey = `nythera:offline-queue:${chatId}`;
+        const queued = JSON.parse(window.localStorage.getItem(queueKey) || "[]") as Array<{
+          content: string;
+          attachments: ChatImageAttachment[];
+        }>;
+        queued.push({ content, attachments });
+        window.localStorage.setItem(queueKey, JSON.stringify(queued));
+        setApiSaveStatus("Offline: message queued and will send automatically when you reconnect.");
+        return true;
+      }
+      const branchMessageId = activeAssistantMessageIdRef.current;
+      const accepted = await send(content, {
+        model,
+        temperature,
+        responsePrompt,
+        attachments,
+        branchMessageId: branchMessageId?.startsWith("local-") ? undefined : (branchMessageId ?? undefined)
       });
-    }, ACTIVE_VARIANT_SAVE_DEBOUNCE_MS);
-  }, [chatId]);
+      if (!accepted) {
+        setDraft((current) => current || content);
+      }
+      return accepted;
+    },
+    [chatId, draft, isStreaming, model, responsePrompt, send, temperature]
+  );
 
-  const continueChat = useCallback((assistantMessageId: string) => {
-    if (isStreamingRef.current) {
-      return;
-    }
+  const selectActiveVariant = useCallback(
+    (messageId: string) => {
+      if (activeAssistantMessageIdRef.current === messageId) return;
+      activeAssistantMessageIdRef.current = messageId;
+      setActiveAssistantMessageId(messageId);
+      if (messageId.startsWith("local-") || persistedActiveAssistantMessageIdRef.current === messageId) return;
 
-    void send("", { ...chatSettingsRef.current, continueChat: true, continueMessageId: assistantMessageId });
-  }, [send]);
+      if (activeVariantSaveTimeoutRef.current) {
+        window.clearTimeout(activeVariantSaveTimeoutRef.current);
+      }
+      activeVariantSaveAbortRef.current?.abort();
 
-  const skipTime = useCallback((assistantMessageId: string, duration: SkipTimeDuration) => {
-    if (isStreamingRef.current) {
-      return;
-    }
+      const controller = new AbortController();
+      activeVariantSaveAbortRef.current = controller;
+      activeVariantSaveTimeoutRef.current = window.setTimeout(() => {
+        activeVariantSaveTimeoutRef.current = null;
+        void fetch(`/api/chats/${chatId}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ activeAssistantMessageId: messageId }),
+          signal: controller.signal
+        })
+          .then(async (response) => {
+            if (!response.ok) {
+              const body = await response.json().catch(() => null);
+              setApiSaveStatus(body?.error ?? "Could not save the selected response version.");
+              return;
+            }
+            if (activeAssistantMessageIdRef.current === messageId) {
+              persistedActiveAssistantMessageIdRef.current = messageId;
+            }
+          })
+          .catch((error) => {
+            if (!(error instanceof DOMException && error.name === "AbortError")) {
+              setApiSaveStatus("Could not save the selected response version.");
+            }
+          });
+      }, ACTIVE_VARIANT_SAVE_DEBOUNCE_MS);
+    },
+    [chatId]
+  );
 
-    void send("", { ...chatSettingsRef.current, skipTime: true, skipTimeDuration: duration, continueMessageId: assistantMessageId });
-  }, [send]);
+  const continueChat = useCallback(
+    (assistantMessageId: string) => {
+      if (isStreamingRef.current) {
+        return;
+      }
 
-  const regenerate = useCallback((assistantMessageId: string) => {
-    const currentMessages = messagesRef.current;
-    const index = currentMessages.findIndex((message) => message.id === assistantMessageId);
-    if (index < 0 || isStreamingRef.current) {
-      return;
-    }
+      void send("", { ...chatSettingsRef.current, continueChat: true, continueMessageId: assistantMessageId });
+    },
+    [send]
+  );
 
-    const previousUser = currentMessages
-      .slice(0, index)
-      .reverse()
-      .find((message) => message.role === "USER");
+  const skipTime = useCallback(
+    (assistantMessageId: string, duration: SkipTimeDuration) => {
+      if (isStreamingRef.current) {
+        return;
+      }
 
-    void send(previousUser?.content ?? "", {
-      ...chatSettingsRef.current,
-      attachments: previousUser?.attachments,
-      regenerate: true,
-      regenerateMessageId: assistantMessageId
-    });
-  }, [send]);
+      void send("", {
+        ...chatSettingsRef.current,
+        skipTime: true,
+        skipTimeDuration: duration,
+        continueMessageId: assistantMessageId
+      });
+    },
+    [send]
+  );
 
-  const retryMessage = useCallback((messageId: string) => {
-    if (isStreamingRef.current) {
-      return;
-    }
+  const regenerate = useCallback(
+    (assistantMessageId: string) => {
+      const currentMessages = messagesRef.current;
+      const index = currentMessages.findIndex((message) => message.id === assistantMessageId);
+      if (index < 0 || isStreamingRef.current) {
+        return;
+      }
 
-    void retryUserMessage(messageId, chatSettingsRef.current);
-  }, [retryUserMessage]);
+      const previousUser = currentMessages
+        .slice(0, index)
+        .reverse()
+        .find((message) => message.role === "USER");
 
-  const branch = useCallback(async (messageId: string) => {
-    const branchId = await branchFromMessage(messageId);
-    if (branchId) {
-      window.location.href = `/chat/${branchId}`;
-    }
-  }, [branchFromMessage]);
+      void send(previousUser?.content ?? "", {
+        ...chatSettingsRef.current,
+        attachments: previousUser?.attachments,
+        regenerate: true,
+        regenerateMessageId: assistantMessageId
+      });
+    },
+    [send]
+  );
 
-  const togglePin = useCallback(async (messageId: string) => {
-    const message = messagesRef.current.find((m) => m.id === messageId);
-    if (!message) return;
-    if (message.pinned) {
-      await unpinMessage(messageId);
-    } else {
-      await pinMessage(messageId);
-    }
-  }, [pinMessage, unpinMessage]);
+  const retryMessage = useCallback(
+    (messageId: string) => {
+      if (isStreamingRef.current) {
+        return;
+      }
+
+      void retryUserMessage(messageId, chatSettingsRef.current);
+    },
+    [retryUserMessage]
+  );
+
+  const branch = useCallback(
+    async (messageId: string) => {
+      const branchId = await branchFromMessage(messageId);
+      if (branchId) {
+        window.location.href = `/chat/${branchId}`;
+      }
+    },
+    [branchFromMessage]
+  );
+
+  const togglePin = useCallback(
+    async (messageId: string) => {
+      const message = messagesRef.current.find((m) => m.id === messageId);
+      if (!message) return;
+      if (message.pinned) {
+        await unpinMessage(messageId);
+      } else {
+        await pinMessage(messageId);
+      }
+    },
+    [pinMessage, unpinMessage]
+  );
 
   const toggleReadingMode = useCallback(() => {
     window.getSelection()?.removeAllRanges();
     setReadingMode((current) => !current);
   }, []);
 
-  const handleDoubleClick = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
-    if (Date.now() < suppressDoubleClickUntilRef.current || isInteractiveTarget(event.target)) return;
-    event.preventDefault();
-    toggleReadingMode();
-  }, [toggleReadingMode]);
-
-  const handlePointerUp = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.pointerType === "mouse" || isInteractiveTarget(event.target)) return;
-
-    const now = Date.now();
-    const previous = lastTouchRef.current;
-    const closeInTime = now - previous.time <= DOUBLE_TAP_MAX_DELAY_MS;
-    const closeInSpace = Math.hypot(event.clientX - previous.x, event.clientY - previous.y) <= DOUBLE_TAP_MAX_DISTANCE_PX;
-
-    if (closeInTime && closeInSpace) {
+  const handleDoubleClick = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>) => {
+      if (Date.now() < suppressDoubleClickUntilRef.current || isInteractiveTarget(event.target)) return;
       event.preventDefault();
-      lastTouchRef.current = { time: 0, x: 0, y: 0 };
-      suppressDoubleClickUntilRef.current = now + DOUBLE_TAP_MAX_DELAY_MS;
       toggleReadingMode();
-      return;
-    }
+    },
+    [toggleReadingMode]
+  );
 
-    lastTouchRef.current = { time: now, x: event.clientX, y: event.clientY };
-  }, [toggleReadingMode]);
+  const handlePointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (event.pointerType === "mouse" || isInteractiveTarget(event.target)) return;
+
+      const now = Date.now();
+      const previous = lastTouchRef.current;
+      const closeInTime = now - previous.time <= DOUBLE_TAP_MAX_DELAY_MS;
+      const closeInSpace =
+        Math.hypot(event.clientX - previous.x, event.clientY - previous.y) <= DOUBLE_TAP_MAX_DISTANCE_PX;
+
+      if (closeInTime && closeInSpace) {
+        event.preventDefault();
+        lastTouchRef.current = { time: 0, x: 0, y: 0 };
+        suppressDoubleClickUntilRef.current = now + DOUBLE_TAP_MAX_DELAY_MS;
+        toggleReadingMode();
+        return;
+      }
+
+      lastTouchRef.current = { time: now, x: event.clientX, y: event.clientY };
+    },
+    [toggleReadingMode]
+  );
 
   return (
     <div
@@ -617,30 +753,51 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
           {characterAvatarUrl && usePlainSceneImage ? (
             <img src={characterAvatarUrl} alt="" className="absolute inset-0 h-full w-full object-cover object-top" />
           ) : characterAvatarUrl ? (
-            <Image src={characterAvatarUrl} alt="" fill priority sizes="300px" className="absolute inset-0 h-full w-full object-cover object-top" />
+            <Image
+              src={characterAvatarUrl}
+              alt=""
+              fill
+              priority
+              sizes="300px"
+              className="absolute inset-0 h-full w-full object-cover object-top"
+            />
           ) : null}
           <div className="absolute inset-0 bg-gradient-to-t from-[var(--codex-paper-raised)] via-transparent to-transparent" />
           <div className="absolute inset-x-0 bottom-0 p-7">
-            <p className="mb-2 text-[10px] uppercase tracking-[.25em] text-[var(--codex-mint)]">Chapter {chapterNumber}</p>
-            <h1 className="font-editorial text-6xl font-medium leading-[.75] text-[var(--codex-ivory)]">{characterName}</h1>
-            <p className="mt-5 line-clamp-4 font-editorial text-lg leading-7 text-[var(--text-secondary)]">{activeSummary || "A living story shaped by memory, character, and every choice you make."}</p>
+            <p className="mb-2 text-[10px] uppercase tracking-[.25em] text-[var(--codex-mint)]">
+              Chapter {chapterNumber}
+            </p>
+            <h1 className="font-editorial text-6xl font-medium leading-[.75] text-[var(--codex-ivory)]">
+              {characterName}
+            </h1>
+            <p className="mt-5 line-clamp-4 font-editorial text-lg leading-7 text-[var(--text-secondary)]">
+              {activeSummary || "A living story shaped by memory, character, and every choice you make."}
+            </p>
           </div>
         </div>
-        <button type="button" onClick={toggleSidePanel} className="focus-ring flex h-16 items-center justify-between border-t border-[var(--codex-rule)] px-7 text-[10px] uppercase tracking-[.2em] text-[var(--text-secondary)] hover:text-[var(--codex-mint)]">
+        <button
+          type="button"
+          onClick={toggleSidePanel}
+          className="focus-ring flex h-16 items-center justify-between border-t border-[var(--codex-rule)] px-7 text-[10px] uppercase tracking-[.2em] text-[var(--text-secondary)] hover:text-[var(--codex-mint)]"
+        >
           Story dossier <span aria-hidden>{sidePanelOpen ? "−" : "+"}</span>
         </button>
       </aside>
 
       <section
         className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-transparent"
-        style={{
-          "--chat-font-family": `'${(activeChatAppearance.fontUrl ? CHAT_CUSTOM_FONT_FAMILY : activeChatAppearance.fontFamily).replaceAll("'", "")}', serif`,
-          "--chat-font-size": `${activeChatAppearance.fontSize}px`,
-          "--chat-font-weight": activeChatAppearance.fontWeight,
-          "--chat-line-height": activeChatAppearance.lineHeight,
-          "--chat-content-width": `${activeChatAppearance.contentWidth}px`,
-          "--chat-text-color": activeChatAppearance.textColor
-        } as CSSProperties}
+        style={
+          {
+            "--chat-font-family": chatFontFamily(
+              activeChatAppearance.fontUrl ? CHAT_CUSTOM_FONT_FAMILY : activeChatAppearance.fontFamily
+            ),
+            "--chat-font-size": `${activeChatAppearance.fontSize}px`,
+            "--chat-font-weight": activeChatAppearance.fontWeight,
+            "--chat-line-height": activeChatAppearance.lineHeight,
+            "--chat-content-width": `${activeChatAppearance.contentWidth}px`,
+            "--chat-text-color": activeChatAppearance.textColor
+          } as CSSProperties
+        }
       >
         <ChatBackdrop appearance={activeChatAppearance} defaultUrl={characterBackgroundUrl || characterAvatarUrl} />
         <div className="relative z-10 flex min-h-0 flex-1 flex-col">
@@ -659,10 +816,18 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
             />
           </div>
           {activeChatAppearance.music.enabled ? (
-            <div className={readingMode
-              ? "relative z-20 shrink-0 px-4 pt-4 sm:px-7 lg:px-10"
-              : "relative z-20 shrink-0 px-4 pt-[calc(78px+env(safe-area-inset-top))] sm:px-7 sm:pt-[calc(86px+env(safe-area-inset-top))] lg:px-10"}>
-              <MusicEmbedPlayer music={activeChatAppearance.music} compact className="mx-auto w-full max-w-[var(--chat-content-width,1000px)]" />
+            <div
+              className={
+                readingMode
+                  ? "relative z-20 shrink-0 px-4 pt-4 sm:px-7 lg:px-10"
+                  : "relative z-20 shrink-0 px-4 pt-[calc(78px+env(safe-area-inset-top))] sm:px-7 sm:pt-[calc(86px+env(safe-area-inset-top))] lg:px-10"
+              }
+            >
+              <MusicEmbedPlayer
+                music={activeChatAppearance.music}
+                compact
+                className="mx-auto w-full max-w-[var(--chat-content-width,1000px)]"
+              />
             </div>
           ) : null}
           <MessageList
@@ -722,12 +887,19 @@ export function ChatClient({ chatId, chapterNumber, characterId, characterName, 
   );
 }
 
-function ChatBackdrop({ appearance, defaultUrl }: { appearance: ReturnType<typeof normalizeChatAppearance>; defaultUrl?: string | null }) {
-  const mediaUrl = appearance.backgroundMode === "default"
-    ? defaultUrl ?? ""
-    : appearance.backgroundMode === "custom"
-      ? appearance.backgroundUrl
-      : "";
+function ChatBackdrop({
+  appearance,
+  defaultUrl
+}: {
+  appearance: ReturnType<typeof normalizeChatAppearance>;
+  defaultUrl?: string | null;
+}) {
+  const mediaUrl =
+    appearance.backgroundMode === "default"
+      ? (defaultUrl ?? "")
+      : appearance.backgroundMode === "custom"
+        ? appearance.backgroundUrl
+        : "";
   const mediaType = resolveBackgroundType(mediaUrl, appearance.backgroundType);
   const mediaStyle = {
     objectFit: appearance.backgroundFit,
@@ -737,9 +909,22 @@ function ChatBackdrop({ appearance, defaultUrl }: { appearance: ReturnType<typeo
   } satisfies CSSProperties;
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden bg-[var(--codex-paper)]" aria-hidden>
+    <div
+      className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
+      style={{ background: CHAT_SCENE_BACKGROUNDS[appearance.scenePalette] }}
+      aria-hidden
+    >
       {mediaUrl && mediaType === "video" ? (
-        <video src={mediaUrl} autoPlay loop muted playsInline preload="metadata" className="h-full w-full" style={mediaStyle} />
+        <video
+          src={mediaUrl}
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="metadata"
+          className="h-full w-full"
+          style={mediaStyle}
+        />
       ) : mediaUrl ? (
         <img src={mediaUrl} alt="" className="h-full w-full" style={mediaStyle} />
       ) : null}
@@ -755,8 +940,9 @@ function isRejectedCredential(warning?: string | null) {
 }
 
 function isInteractiveTarget(target: EventTarget | null) {
-  return target instanceof Element && Boolean(
-    target.closest("a, button, input, textarea, select, option, [contenteditable='true'], [role='button']")
+  return (
+    target instanceof Element &&
+    Boolean(target.closest("a, button, input, textarea, select, option, [contenteditable='true'], [role='button']"))
   );
 }
 

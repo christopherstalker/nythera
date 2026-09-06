@@ -38,7 +38,7 @@ test("skip time is an assistant-only message action", async () => {
   assert.match(messageActions, />\s*Skip time\s*</);
   assert.match(messageActions, /How much time should pass\?/);
   assert.match(messageActions, /Choose from one minute to any custom interval/);
-  assert.match(client, /skipTime: true, skipTimeDuration: duration, continueMessageId: assistantMessageId/);
+  assert.match(client, /skipTime: true,\s+skipTimeDuration: duration,\s+continueMessageId: assistantMessageId/);
   assert.match(hook, /const isAssistantAction = isContinuation \|\| isTimeSkip/);
   assert.match(hook, /skipTimeValue: options\?\.skipTimeDuration\?\.value/);
   assert.match(hook, /if \(isRegeneration \|\| isAssistantAction\)/);

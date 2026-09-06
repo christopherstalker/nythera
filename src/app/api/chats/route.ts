@@ -13,6 +13,7 @@ import { getPreferredPersona } from "@/lib/user-persona-store";
 import { formatUserPersonaForPrompt } from "@/lib/user-persona";
 import { renderCharacterGreeting } from "@/lib/character-prompt-contract";
 import { renderCharacterPrologue } from "@/lib/prologue-pov";
+import { normalizeChatAppearance } from "@/lib/chat-appearance";
 
 export async function GET(request: Request) {
   try {
@@ -59,8 +60,11 @@ export async function POST(request: Request) {
       throw new HttpError(404, "Character not found.");
     }
 
-    const providerKeys = await getEffectiveProviderKeys(user.id);
-    const preferredPersona = await getPreferredPersona(user.id, character.id);
+    const [providerKeys, preferredPersona, preferences] = await Promise.all([
+      getEffectiveProviderKeys(user.id),
+      getPreferredPersona(user.id, character.id),
+      prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { chatAppearance: true } })
+    ]);
     const greeting = renderCharacterPrologue({
       greeting: renderCharacterGreeting(character, formatUserPersonaForPrompt(preferredPersona)),
       characterName: character.name,
@@ -81,6 +85,7 @@ export async function POST(request: Request) {
           userId: user.id,
           characterId: character.id,
           personaId: preferredPersona?.id ?? null,
+          appearance: { ...normalizeChatAppearance(preferences.chatAppearance) },
           title: input.title ?? null,
           temperature: initialTemperature,
           model,

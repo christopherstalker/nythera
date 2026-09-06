@@ -37,7 +37,17 @@ function decodeBase64ImageBytes(value: string) {
 
 function hasImageMagicBytes(format: string, bytes: Uint8Array) {
   if (format === "png") {
-    return bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a;
+    return (
+      bytes.length >= 8 &&
+      bytes[0] === 0x89 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x4e &&
+      bytes[3] === 0x47 &&
+      bytes[4] === 0x0d &&
+      bytes[5] === 0x0a &&
+      bytes[6] === 0x1a &&
+      bytes[7] === 0x0a
+    );
   }
 
   if (format === "jpg" || format === "jpeg") {
@@ -45,11 +55,29 @@ function hasImageMagicBytes(format: string, bytes: Uint8Array) {
   }
 
   if (format === "webp") {
-    return bytes.length >= 12 && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50;
+    return (
+      bytes.length >= 12 &&
+      bytes[0] === 0x52 &&
+      bytes[1] === 0x49 &&
+      bytes[2] === 0x46 &&
+      bytes[3] === 0x46 &&
+      bytes[8] === 0x57 &&
+      bytes[9] === 0x45 &&
+      bytes[10] === 0x42 &&
+      bytes[11] === 0x50
+    );
   }
 
   if (format === "gif") {
-    return bytes.length >= 6 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38 && (bytes[4] === 0x37 || bytes[4] === 0x39) && bytes[5] === 0x61;
+    return (
+      bytes.length >= 6 &&
+      bytes[0] === 0x47 &&
+      bytes[1] === 0x49 &&
+      bytes[2] === 0x46 &&
+      bytes[3] === 0x38 &&
+      (bytes[4] === 0x37 || bytes[4] === 0x39) &&
+      bytes[5] === 0x61
+    );
   }
 
   return false;
@@ -62,7 +90,9 @@ function isValidImageDataUrl(value: string) {
   }
 
   const bytes = decodeBase64ImageBytes(match[2]);
-  return Boolean(bytes && bytes.byteLength <= MAX_IMAGE_DATA_URL_BYTES && hasImageMagicBytes(match[1].toLowerCase(), bytes));
+  return Boolean(
+    bytes && bytes.byteLength <= MAX_IMAGE_DATA_URL_BYTES && hasImageMagicBytes(match[1].toLowerCase(), bytes)
+  );
 }
 
 function isAllowedRemoteImageUrl(value: string) {
@@ -72,7 +102,11 @@ function isAllowedRemoteImageUrl(value: string) {
       return true;
     }
 
-    return process.env.NODE_ENV !== "production" && url.protocol === "http:" && (url.hostname === "localhost" || url.hostname === "127.0.0.1");
+    return (
+      process.env.NODE_ENV !== "production" &&
+      url.protocol === "http:" &&
+      (url.hostname === "localhost" || url.hostname === "127.0.0.1")
+    );
   } catch {
     return false;
   }
@@ -107,7 +141,10 @@ export const communicationStyleSchema = z.object({
 
 const personaListSchema = z.array(z.string().trim().min(1).max(160)).max(16);
 
-const hexColorSchema = z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Use a 6-digit hex color.");
+const hexColorSchema = z
+  .string()
+  .trim()
+  .regex(/^#[0-9a-fA-F]{6}$/, "Use a 6-digit hex color.");
 
 export const characterLorebookSchema = z.object({
   entries: z
@@ -237,14 +274,18 @@ const unlimitedCharacterCreateSchema = characterCreateSchema.extend({
   personality: z.string().min(20),
   scenario: z.string().optional(),
   greeting: z.string().min(2),
-  communicationStyle: communicationStyleSchema.extend({
-    tone: z.string().optional()
-  }).optional(),
+  communicationStyle: communicationStyleSchema
+    .extend({
+      tone: z.string().optional()
+    })
+    .optional(),
   persona: unlimitedCharacterPersonaSchema.optional(),
   lorebook: unlimitedCharacterLorebookSchema.optional(),
-  visualIdentity: characterVisualIdentitySchema.extend({
-    chatBackground: z.string().trim().optional()
-  }).optional(),
+  visualIdentity: characterVisualIdentitySchema
+    .extend({
+      chatBackground: z.string().trim().optional()
+    })
+    .optional(),
   systemPromptOverride: z.string().trim().nullable().optional()
 });
 
@@ -267,6 +308,7 @@ export const chatCreateSchema = z.object({
 });
 
 export const chatAppearanceSchema = z.object({
+  scenePalette: z.enum(["character", "moss", "midnight", "ember"]).default("character"),
   backgroundMode: z.enum(["default", "custom", "none"]),
   backgroundUrl: z.string().trim().max(1000),
   backgroundType: z.enum(["auto", "image", "video"]),
@@ -274,8 +316,17 @@ export const chatAppearanceSchema = z.object({
   backgroundPosition: z.enum(["center", "top", "bottom"]),
   backgroundDim: z.coerce.number().min(0).max(0.92),
   backgroundBlur: z.coerce.number().min(0).max(24),
-  fontFamily: z.string().trim().min(1).max(120).regex(/^[\p{L}\p{N}\s._-]+$/u),
-  fontUrl: z.string().trim().max(1000).refine((value) => !value || isHttpsUrl(value), "Custom fonts must use HTTPS."),
+  fontFamily: z
+    .string()
+    .trim()
+    .min(1)
+    .max(120)
+    .regex(/^[\p{L}\p{N}\s._-]+$/u),
+  fontUrl: z
+    .string()
+    .trim()
+    .max(1000)
+    .refine((value) => !value || isHttpsUrl(value), "Custom fonts must use HTTPS."),
   fontSize: z.coerce.number().min(14).max(38),
   fontWeight: z.coerce.number().min(300).max(800),
   lineHeight: z.coerce.number().min(1.15).max(2.2),
@@ -283,7 +334,11 @@ export const chatAppearanceSchema = z.object({
   textColor: hexColorSchema,
   music: z.object({
     enabled: z.boolean(),
-    url: z.string().trim().max(500).refine((value) => !value || Boolean(resolveMusicEmbed(value)), "Use a supported HTTPS music link."),
+    url: z
+      .string()
+      .trim()
+      .max(500)
+      .refine((value) => !value || Boolean(resolveMusicEmbed(value)), "Use a supported HTTPS music link."),
     title: z.string().trim().max(100)
   })
 });
@@ -328,10 +383,19 @@ export const streamMessageSchema = z
     message: "Skip time value and unit must be provided together.",
     path: ["skipTimeValue"]
   })
-  .refine((input) => input.continueChat || input.skipTime || input.regenerate || input.retryUserMessageId || input.message.trim().length > 0 || input.attachmentIds.length > 0, {
-    message: "Message is required.",
-    path: ["message"]
-  });
+  .refine(
+    (input) =>
+      input.continueChat ||
+      input.skipTime ||
+      input.regenerate ||
+      input.retryUserMessageId ||
+      input.message.trim().length > 0 ||
+      input.attachmentIds.length > 0,
+    {
+      message: "Message is required.",
+      path: ["message"]
+    }
+  );
 
 export const mobileStreamMessageSchema = streamMessageSchema.superRefine((input, context) => {
   const unsupported = [
@@ -378,10 +442,7 @@ export const ratingSchema = z.object({
   review: z.string().trim().max(1200).optional().or(z.literal(""))
 });
 
-const listFromTextSchema = z
-  .array(z.string().trim().min(1).max(160))
-  .max(24)
-  .default([]);
+const listFromTextSchema = z.array(z.string().trim().min(1).max(160)).max(24).default([]);
 
 export const userPersonaSchema = z.object({
   displayName: z.string().trim().min(2).max(80),
@@ -430,7 +491,11 @@ export const storyFactCreateSchema = z.object({
   objectEntityId: z.string().trim().min(1).optional().nullable(),
   sourceMessageId: z.string().trim().min(1).optional().nullable(),
   predicate: z.string().trim().min(1, "Choose whether the fact is true now.").max(120, "Truth state is too long."),
-  objectText: z.string().trim().min(1, "Write the canonical fact.").max(6000, "Canonical facts can be up to 6,000 characters."),
+  objectText: z
+    .string()
+    .trim()
+    .min(1, "Write the canonical fact.")
+    .max(6000, "Canonical facts can be up to 6,000 characters."),
   kind: z.enum(["PERMANENT", "STATE", "EVENT"]).default("PERMANENT"),
   worldTime: z.string().trim().max(200).optional().nullable(),
   validFromSequence: z.coerce.number().int().min(0).optional().nullable(),
@@ -607,20 +672,22 @@ export const storySafetySchema = z.object({
   notes: z.string().trim().max(2000).optional().nullable()
 });
 
-export const storyVisualReferenceSchema = z.object({
-  kind: z.literal("visual"),
-  timelineId: z.string().trim().min(1).optional().nullable(),
-  participantId: z.string().trim().min(1).optional().nullable(),
-  entityId: z.string().trim().min(1).optional().nullable(),
-  visualKind: z.enum(["PORTRAIT", "OUTFIT", "LOCATION", "ITEM", "MOODBOARD", "OTHER"]),
-  title: z.string().trim().min(1).max(160),
-  imageUrl: z.string().trim().url().max(2048).optional().nullable(),
-  prompt: z.string().trim().max(2400).optional().nullable(),
-  notes: z.string().trim().max(1600).optional().nullable(),
-  locked: z.boolean().default(false)
-}).refine((input) => Boolean(input.imageUrl || input.prompt), {
-  message: "A visual reference needs an image or prompt."
-});
+export const storyVisualReferenceSchema = z
+  .object({
+    kind: z.literal("visual"),
+    timelineId: z.string().trim().min(1).optional().nullable(),
+    participantId: z.string().trim().min(1).optional().nullable(),
+    entityId: z.string().trim().min(1).optional().nullable(),
+    visualKind: z.enum(["PORTRAIT", "OUTFIT", "LOCATION", "ITEM", "MOODBOARD", "OTHER"]),
+    title: z.string().trim().min(1).max(160),
+    imageUrl: z.string().trim().url().max(2048).optional().nullable(),
+    prompt: z.string().trim().max(2400).optional().nullable(),
+    notes: z.string().trim().max(1600).optional().nullable(),
+    locked: z.boolean().default(false)
+  })
+  .refine((input) => Boolean(input.imageUrl || input.prompt), {
+    message: "A visual reference needs an image or prompt."
+  });
 
 export const storyCheckpointSchema = z.object({
   kind: z.literal("checkpoint"),

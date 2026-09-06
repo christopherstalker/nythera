@@ -31,7 +31,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div
       id="app-shell"
       data-route-family={isImmersiveSurface ? "story" : "codex"}
-      data-navigation={isImmersiveSurface ? "compact" : "expanded"}
+      data-navigation={isImmersiveSurface || pathname.startsWith("/settings") ? "compact" : "expanded"}
       className="living-codex-shell fixed inset-0 isolate grid h-dvh min-h-0 w-full max-w-full grid-rows-[minmax(0,1fr)_auto] overflow-hidden bg-[var(--bg-base)] md:block"
     >
       <a href="#main-content" className="codex-skip-link focus-ring">

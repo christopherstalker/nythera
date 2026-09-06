@@ -19,7 +19,10 @@ test("users can save a global maximum output-token limit in provider settings an
   assert.match(route, /maxOutputTokens: z\.number\(\)\.int\(\)\.min\(128\)\.max\(4096\)\.nullable\(\)/);
   assert.match(route, /export async function PATCH/);
   assert.match(settings, /Maximum output tokens/);
-  assert.match(settings, /Leave it empty to use Nythera&apos;s automatic Short, Medium, and Long limits/);
+  assert.match(
+    settings.replace(/\s+/g, " "),
+    /Leave it empty to use Nythera&apos;s automatic Short, Medium, and Long limits/
+  );
   assert.match(settings, /method: "PATCH"/);
   assert.match(chatInput, /Maximum output tokens/);
   assert.match(chatInput, /onMaxOutputTokensChange/);
@@ -27,19 +30,24 @@ test("users can save a global maximum output-token limit in provider settings an
 });
 
 test("temperature persists as the user's default and seeds future web and mobile chats", async () => {
-  const [schema, migration, validation, webCreate, mobileCreate, webUpdate, mobileUpdate, resolver] = await Promise.all([
-    read("../prisma/schema.prisma"),
-    read("../prisma/migrations/20260824201500_user_default_temperature/migration.sql"),
-    read("../src/lib/validation.ts"),
-    read("../src/app/api/chats/route.ts"),
-    read("../src/app/api/mobile/chats/route.ts"),
-    read("../src/app/api/chats/[id]/route.ts"),
-    read("../src/app/api/mobile/chats/[id]/route.ts"),
-    read("../src/lib/character-model-settings.ts")
-  ]);
+  const [schema, migration, validation, webCreate, mobileCreate, webUpdate, mobileUpdate, resolver] = await Promise.all(
+    [
+      read("../prisma/schema.prisma"),
+      read("../prisma/migrations/20260824201500_user_default_temperature/migration.sql"),
+      read("../src/lib/validation.ts"),
+      read("../src/app/api/chats/route.ts"),
+      read("../src/app/api/mobile/chats/route.ts"),
+      read("../src/app/api/chats/[id]/route.ts"),
+      read("../src/app/api/mobile/chats/[id]/route.ts"),
+      read("../src/lib/character-model-settings.ts")
+    ]
+  );
 
   assert.match(schema, /defaultTemperature\s+Float\s+@default\(0\.7\)/);
-  assert.match(migration, /ALTER TABLE "User"\s+ADD COLUMN "defaultTemperature" DOUBLE PRECISION NOT NULL DEFAULT 0\.7/);
+  assert.match(
+    migration,
+    /ALTER TABLE "User"\s+ADD COLUMN "defaultTemperature" DOUBLE PRECISION NOT NULL DEFAULT 0\.7/
+  );
   assert.match(migration, /SELECT DISTINCT ON \("userId"\)/);
   assert.match(validation, /temperature: z\.coerce\.number\(\)\.min\(0\)\.max\(2\)\.optional\(\)/);
   assert.match(webCreate, /input\.temperature \?\? character\.temperature \?\? user\.defaultTemperature/);
