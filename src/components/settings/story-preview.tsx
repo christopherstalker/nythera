@@ -10,7 +10,7 @@ export function StoryPreview({ appearance }: { appearance: ChatAppearance }) {
     <div
       className="studio-scene"
       style={{
-        background: CHAT_SCENE_BACKGROUNDS[appearance.scenePalette === "character" ? "moss" : appearance.scenePalette]
+        background: CHAT_SCENE_BACKGROUNDS[appearance.scenePalette]
       }}
     >
       <div className="studio-scene-art" data-quiet={appearance.backgroundMode === "none"}>
