@@ -27,7 +27,7 @@ test("production builds fail closed when Prisma migrations cannot be deployed", 
   assert.match(buildRunner, /result\.status !== 0/);
   assert.match(buildRunner, /process\.exit\(result\.status \?\? 1\)/);
   assert.doesNotMatch(buildRunner, /allowFailure|isTemporaryDatabaseFailure|P1001/);
-  assert.ok(buildRunner.indexOf("migrate\", \"deploy") < buildRunner.indexOf("generate"));
+  assert.ok(buildRunner.indexOf('migrate", "deploy') < buildRunner.indexOf("generate"));
 });
 
 test("character cards open the most recently active chat for that character", () => {
@@ -35,8 +35,18 @@ test("character cards open the most recently active chat for that character", ()
     mine: [],
     liked: [],
     chats: [
-      { id: "latest", lastActiveAt: "2026-08-06T10:00:00.000Z", character: { id: "character-1", name: "Nyx" }, messages: [{ content: "Latest" }] },
-      { id: "older", lastActiveAt: "2026-08-05T10:00:00.000Z", character: { id: "character-1", name: "Nyx" }, messages: [{ content: "Older" }] }
+      {
+        id: "latest",
+        lastActiveAt: "2026-08-06T10:00:00.000Z",
+        character: { id: "character-1", name: "Nyx" },
+        messages: [{ content: "Latest" }]
+      },
+      {
+        id: "older",
+        lastActiveAt: "2026-08-05T10:00:00.000Z",
+        character: { id: "character-1", name: "Nyx" },
+        messages: [{ content: "Older" }]
+      }
     ]
   });
 
@@ -49,12 +59,25 @@ test("library roster sorts characters by their latest chat activity", () => {
     mine: [],
     liked: [],
     chats: [
-      { id: "older", lastActiveAt: "2026-08-18T10:00:00.000Z", character: { id: "popular", name: "A popular bot" }, messages: [{ content: "Old chat" }] },
-      { id: "recent", lastActiveAt: "2026-08-24T10:56:00.000Z", character: { id: "recent-bot", name: "Z recent bot" }, messages: [{ content: "Four minutes ago" }] }
+      {
+        id: "older",
+        lastActiveAt: "2026-08-18T10:00:00.000Z",
+        character: { id: "popular", name: "A popular bot" },
+        messages: [{ content: "Old chat" }]
+      },
+      {
+        id: "recent",
+        lastActiveAt: "2026-08-24T10:56:00.000Z",
+        character: { id: "recent-bot", name: "Z recent bot" },
+        messages: [{ content: "Four minutes ago" }]
+      }
     ]
   });
 
-  assert.deepEqual(roster.map((character) => character.chatId), ["recent", "older"]);
+  assert.deepEqual(
+    roster.map((character) => character.chatId),
+    ["recent", "older"]
+  );
 });
 
 test("library list previews wrap onto a second line", async () => {
@@ -82,5 +105,5 @@ test("account character cards keep their content and actions inside mobile width
 
   assert.match(source, /grid-cols-\[4rem_minmax\(0,1fr\)\]/);
   assert.match(source, /grid-cols-\[minmax\(0,1fr\)_auto_auto\]/);
-  assert.match(source, /overflow-x-clip/);
+  assert.match(source, /account-character-entry min-w-0 max-w-full/);
 });
