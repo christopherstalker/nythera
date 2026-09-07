@@ -14,12 +14,11 @@ test("account settings are split into dedicated routes behind one shared shell",
 
   assert.match(layout, /<SettingsShell>\{children\}<\/SettingsShell>/);
   assert.match(shell, /aria-label="Settings sections"/);
-  assert.match(shell, /aria-label="Jump to settings section"/);
   assert.match(shell, /studio-navigation/);
   assert.match(shell, /aria-current=\{active \? "page" : undefined\}/);
   assert.match(shell, /router\.replace\(legacySection\.href\)/);
-  assert.doesNotMatch(shell, /PageHeader/);
-  assert.match(shell, /<h1>Story Studio<\/h1>/);
+  assert.match(shell, /PageHeader/);
+  assert.match(shell, /title="Settings"/);
   assert.match(overview, /StoryAppearanceSettings/);
 
   assert.match(sections, /href: "\/account"/);
