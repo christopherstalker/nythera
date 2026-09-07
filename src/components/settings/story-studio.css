@@ -8,37 +8,7 @@
   color: var(--studio-text);
 }
 .story-studio.nythera-page-shell {
-  min-height: 100%;
-  padding: 28px clamp(20px, 3vw, 48px) 0;
   overflow: visible;
-  background: var(--studio-ink);
-}
-.studio-heading {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20px;
-  padding-bottom: 25px;
-}
-.studio-heading h1 {
-  margin: 0;
-  font:
-    38px/1.2 Lora,
-    Georgia,
-    serif;
-  letter-spacing: -1.3px;
-}
-.studio-eyebrow {
-  margin: 0 0 12px;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 1.7px;
-  color: var(--studio-accent);
-}
-.studio-heading-copy {
-  margin: 12px 0 0;
-  color: var(--studio-muted);
-  font-size: 13px;
 }
 .studio-back {
   display: inline-flex;
@@ -48,58 +18,32 @@
   font-size: 12px;
   text-decoration: none;
 }
-.studio-body {
-  display: grid;
-  grid-template-columns: 174px minmax(0, 1fr);
-  border-top: 1px solid var(--studio-line);
-}
 .studio-navigation {
-  padding: 26px 20px 30px 0;
-  position: sticky;
-  top: 0;
-  align-self: start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 22px;
+  border-bottom: 1px solid var(--studio-line);
 }
 .studio-navigation a {
   display: flex;
-  gap: 12px;
   align-items: center;
-  padding: 12px;
-  min-height: 46px;
-  font-size: 12px;
+  min-height: 52px;
+  padding: 10px 0;
+  border-bottom: 2px solid transparent;
+  font-size: 13px;
   color: var(--studio-muted);
   text-decoration: none;
-  border-radius: 7px;
-}
-.studio-navigation a span {
-  font-size: 10px;
-  color: var(--text-muted);
 }
 .studio-navigation a:hover {
-  background: var(--codex-paper-raised);
+  color: var(--studio-text);
 }
 .studio-navigation a[aria-current="page"] {
-  background: var(--codex-paper-soft);
+  border-bottom-color: var(--studio-accent);
   color: var(--studio-accent);
-}
-.studio-nav-label {
-  color: var(--text-muted);
-  font-size: 9px;
-  letter-spacing: 1.3px;
-  text-transform: uppercase;
-  margin: 0 0 12px 12px;
-}
-.studio-nav-divider {
-  padding-top: 22px;
-  margin-top: 18px;
-  border-top: 1px solid var(--studio-line);
-}
-.studio-mobile-nav {
-  display: none;
 }
 .studio-content {
   min-width: 0;
-  border-left: 1px solid var(--studio-line);
-  padding: 26px 0 0 28px;
+  padding-top: 28px;
 }
 .studio-content > div:not(.studio-appearance) {
   max-width: 1100px;
@@ -176,6 +120,12 @@
   align-items: start;
   gap: 20px;
 }
+.studio-scope-row {
+  margin-bottom: 28px;
+}
+.studio-scope-row .studio-scope-note {
+  margin-bottom: 0;
+}
 .studio-scope-label {
   font-size: 11px;
   color: var(--studio-muted);
@@ -224,7 +174,7 @@
   border-bottom: 1px solid var(--studio-line);
   padding: 20px 0;
 }
-.studio-setting:first-child {
+.studio-controls fieldset > legend + .studio-setting {
   padding-top: 0;
 }
 .studio-control-heading {
@@ -388,8 +338,10 @@
 }
 .studio-desktop-preview {
   min-width: 0;
-  border-left: 1px solid var(--studio-line);
-  padding-left: 28px;
+  position: sticky;
+  top: 24px;
+  align-self: start;
+  padding-left: 12px;
 }
 .studio-preview-heading {
   display: flex;
@@ -406,17 +358,12 @@
   color: var(--studio-accent);
 }
 .studio-scene {
-  border: 1px solid var(--studio-line);
-  border-radius: 13px;
-  overflow: hidden;
-  box-shadow: 0 20px 45px #0002;
-}
-.studio-scene-art {
   position: relative;
-  height: 120px;
+  border: 1px solid var(--studio-line);
+  border-radius: 10px;
   overflow: hidden;
 }
-.studio-scene-landscape {
+.studio-scene-backdrop {
   position: absolute;
   inset: 0;
   background: radial-gradient(
@@ -424,51 +371,10 @@
     color-mix(in oklch, var(--studio-accent) 44%, transparent),
     transparent 65%
   );
-}
-.studio-scene-landscape::before {
-  content: "";
-  position: absolute;
-  width: 60px;
-  height: 60px;
-  border: 1px solid color-mix(in oklch, var(--studio-accent) 56%, transparent);
-  border-radius: 50%;
-  top: 12px;
-  right: 32px;
-}
-.studio-scene-landscape::after {
-  content: "";
-  position: absolute;
-  inset: 40px -20px -40px;
-  background: color-mix(in oklch, var(--studio-ink) 44%, transparent);
-  clip-path: polygon(0 60%, 28% 25%, 48% 51%, 68% 0, 100% 54%, 100% 100%, 0 100%);
-}
-.studio-scene-art > div:last-child {
-  position: absolute;
-  bottom: 22px;
-  left: 22px;
-  right: 20px;
-}
-.studio-scene-art small {
-  color: var(--text-secondary);
-  font-size: 8px;
-  letter-spacing: 1.5px;
-}
-.studio-scene-art h3 {
-  font:
-    22px/1.3 Lora,
-    Georgia,
-    serif;
-  margin: 8px 0 0;
-  color: var(--studio-text);
-}
-.studio-scene-art[data-quiet="true"] {
-  height: 68px;
-}
-.studio-scene-art[data-quiet="true"] small,
-.studio-scene-art[data-quiet="true"] .studio-scene-landscape {
-  display: none;
+  pointer-events: none;
 }
 .studio-scene-text {
+  position: relative;
   max-width: var(--studio-reading-width, 100%);
   padding: 18px 20px 25px;
   margin: auto;
@@ -505,17 +411,6 @@
   font:
     14px Georgia,
     serif;
-}
-.studio-scene-reply {
-  border-top: 1px solid var(--studio-line);
-  padding: 15px 20px;
-  display: flex;
-  justify-content: space-between;
-  font:
-    italic 13px Lora,
-    Georgia,
-    serif;
-  color: var(--text-secondary);
 }
 .studio-savebar {
   position: sticky;
@@ -634,43 +529,15 @@
   }
 }
 @media (max-width: 767px) {
-  .story-studio.nythera-page-shell {
-    padding: 20px 18px 0;
-  }
-  .studio-heading {
-    padding-bottom: 19px;
-    gap: 12px;
-  }
-  .studio-heading h1 {
-    font-size: 30px;
-  }
-  .studio-heading-copy {
-    display: none;
-  }
-  .studio-heading .studio-back {
-    font-size: 10px;
-  }
-  .studio-eyebrow {
-    font-size: 9px;
-    margin-bottom: 9px;
-  }
-  .studio-body {
-    display: block;
-  }
   .studio-navigation {
-    display: none;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0 8px;
+    padding: 8px 0;
   }
-  .studio-mobile-nav {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    padding: 12px 0;
+  .studio-navigation a {
+    min-height: 44px;
     font-size: 11px;
-    color: var(--studio-muted);
-    border-bottom: 1px solid var(--studio-line);
-  }
-  .studio-mobile-nav select {
-    flex: 1;
   }
   .studio-content {
     border: 0;

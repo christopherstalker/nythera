@@ -13,17 +13,14 @@ export function StoryPreview({ appearance }: { appearance: ChatAppearance }) {
         background: CHAT_SCENE_BACKGROUNDS[appearance.scenePalette]
       }}
     >
-      <div className="studio-scene-art" data-quiet={appearance.backgroundMode === "none"}>
-        <div
-          className="studio-scene-landscape"
-          style={{ opacity: 1 - appearance.backgroundDim, filter: `blur(${appearance.backgroundBlur}px)` }}
-          aria-hidden
-        />
-        <div>
-          <small>CHAPTER ONE / AN UNEXPECTED MEETING</small>
-          <h3>The last train home</h3>
-        </div>
-      </div>
+      <div
+        className="studio-scene-backdrop"
+        style={{
+          opacity: appearance.backgroundMode === "none" ? 0 : 1 - appearance.backgroundDim,
+          filter: `blur(${appearance.backgroundBlur}px)`
+        }}
+        aria-hidden
+      />
       <div
         className="studio-scene-text"
         style={
@@ -48,9 +45,6 @@ export function StoryPreview({ appearance }: { appearance: ChatAppearance }) {
           <span>A</span> Your persona
         </p>
         <p>“Some stories deserve another chapter.”</p>
-      </div>
-      <div className="studio-scene-reply">
-        Write what happens next… <span aria-hidden>↗</span>
       </div>
     </div>
   );

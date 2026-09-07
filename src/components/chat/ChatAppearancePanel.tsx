@@ -158,7 +158,7 @@ export function ChatAppearancePanel() {
           href={`/settings/interface?chatId=${encodeURIComponent(activeChatId)}`}
           className="focus-ring rounded-lg border border-[var(--codex-rule)] p-4 text-sm text-[var(--codex-mint)]"
         >
-          Open Story Studio · preview and refine this chat ↗
+          Appearance settings · preview this chat ↗
         </Link>
       ) : null}
       <section className="grid gap-3">

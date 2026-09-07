@@ -65,8 +65,13 @@ export function StoryAppearanceSettings({ chatId, section }: { chatId?: string; 
     <div className="studio-appearance">
       <div className="studio-scope-row">
         <div>
-          <p className="studio-eyebrow">{section === "reading" ? "01 / Reading" : "02 / Atmosphere"}</p>
-          <h2>{section === "reading" ? "Find your reading rhythm." : "Give the scene a feeling."}</h2>
+          <h2>{section === "reading" ? "Reading" : "Atmosphere"}</h2>
+          <p className="studio-scope-note">
+            {chatId
+              ? `Only ${story ? `“${story.title}”` : "this conversation"}. Your defaults stay as they are.`
+              : "Your defaults. Existing stories stay as they are."}{" "}
+            {storiesUnavailable ? "Open appearance settings from a chat to edit that conversation." : null}
+          </p>
         </div>
         <label className="studio-scope-label">
           Apply changes to
@@ -88,12 +93,6 @@ export function StoryAppearanceSettings({ chatId, section }: { chatId?: string; 
           </select>
         </label>
       </div>
-      <p className="studio-scope-note">
-        {chatId
-          ? `Only ${story ? `“${story.title}”` : "this conversation"}. Your defaults stay as they are.`
-          : "Your defaults. Existing stories stay as they are."}{" "}
-        {storiesUnavailable ? "Open Story Studio from a chat to edit that conversation." : null}
-      </p>
       {loading ? (
         <p className="studio-notice" role="status">
           Loading your appearance…
@@ -281,7 +280,7 @@ export function StoryAppearanceSettings({ chatId, section }: { chatId?: string; 
                 />
                 <p className="studio-notice">
                   {draft.backgroundMode === "none" ? "Choose a background to adjust dimming and blur. " : null}
-                  Character portraits vary by story. The preview uses a sample landscape.{" "}
+                  Character portraits vary by story. The preview uses a sample gradient.{" "}
                   {chatId
                     ? "Upload backgrounds, fonts and music from the Appearance panel inside your chat."
                     : "Set custom backgrounds and music inside individual chats."}
@@ -304,10 +303,10 @@ export function StoryAppearanceSettings({ chatId, section }: { chatId?: string; 
         </div>
         <aside className="studio-desktop-preview">
           <p className="studio-preview-heading">
-            <span>● Live preview</span>Sample scene
+            <span>Preview</span>Sample conversation
           </p>
           <StoryPreview appearance={draft} />
-          <p className="studio-scope-note">A sample conversation. Your real messages stay private.</p>
+          <p className="studio-scope-note">Changes appear here before you save.</p>
         </aside>
       </div>
       <div className="studio-savebar">

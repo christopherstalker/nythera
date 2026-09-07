@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
-import { PageShell } from "@/components/ui/page";
+import { PageHeader, PageShell } from "@/components/ui/page";
 import { SETTINGS_SECTIONS } from "@/components/settings/settings-sections";
 
 const sectionOrder = [
@@ -16,6 +16,12 @@ const sectionOrder = [
   "/account",
   "/settings/help"
 ];
+
+const navigationLabels: Record<string, string> = {
+  "/settings/memory": "Memory",
+  "/settings/providers": "Models",
+  "/settings/help": "Help"
+};
 
 export function SettingsShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -38,55 +44,35 @@ export function SettingsShell({ children }: { children: React.ReactNode }) {
   }, [pathname, router]);
 
   return (
-    <PageShell className="story-studio">
-      <header className="studio-heading">
-        <div>
-          <p className="studio-eyebrow">Nythera / Settings</p>
-          <h1>Story Studio</h1>
-          <p className="studio-heading-copy">A little less setup. A little more immersion.</p>
-        </div>
-        <Link href={chatId ? `/chat/${encodeURIComponent(chatId)}` : "/chats"} className="studio-back">
-          ← Return to {chatId ? "your story" : "chats"}
-        </Link>
-      </header>
-      <div className="studio-body">
-        <label className="studio-mobile-nav">
-          Section
-          <select
-            value={sections.some((section) => section.href === activePath) ? activePath : "/settings/interface"}
-            aria-label="Jump to settings section"
-            onChange={(event) => {
-              document.querySelector<HTMLAnchorElement>(`[data-studio-href="${event.target.value}"]`)?.click();
-            }}
-          >
-            {sections.map((section) => (
-              <option key={section.href} value={section.href}>
-                {section.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <nav className="studio-navigation" aria-label="Settings sections">
-          <p className="studio-nav-label">The experience</p>
-          {sections.map((section, index) => {
-            const active = activePath === section.href;
-            return (
-              <div key={section.href}>
-                {index === 4 ? <p className="studio-nav-label studio-nav-divider">Behind the scenes</p> : null}
-                <Link
-                  href={sectionUrl(section.href)}
-                  data-studio-href={section.href}
-                  aria-current={active ? "page" : undefined}
-                >
-                  <span>{String(index + 1).padStart(2, "0")}</span>
-                  {section.label}
-                </Link>
-              </div>
-            );
-          })}
-        </nav>
-        <div className="studio-content">{children}</div>
-      </div>
+    <PageShell className="codex-workspace story-studio">
+      <PageHeader
+        compact
+        title="Settings"
+        description="Make room for your kind of story."
+        actions={
+          chatId ? (
+            <Link href={`/chat/${encodeURIComponent(chatId)}`} className="studio-back">
+              ← Back to your chat
+            </Link>
+          ) : undefined
+        }
+      />
+      <nav className="studio-navigation" aria-label="Settings sections">
+        {sections.map((section) => {
+          const active = activePath === section.href;
+          return (
+            <Link
+              key={section.href}
+              href={sectionUrl(section.href)}
+              aria-label={section.label}
+              aria-current={active ? "page" : undefined}
+            >
+              {navigationLabels[section.href] || section.label}
+            </Link>
+          );
+        })}
+      </nav>
+      <div className="studio-content">{children}</div>
     </PageShell>
   );
 }
