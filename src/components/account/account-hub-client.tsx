@@ -378,7 +378,14 @@ export function AccountHubClient() {
         {tab === "profile" ? (
           profileEditing ? (
             <div className="account-editor">
-              <form onSubmit={onSubmit} className="account-editor-form">
+              <form
+                onSubmit={onSubmit}
+                onInvalidCapture={(event) => {
+                  const section = (event.target as HTMLElement).closest("details");
+                  if (section) section.open = true;
+                }}
+                className="account-editor-form"
+              >
                 <fieldset disabled={saving || uploadingFont} className="min-w-0">
                   <div className="account-section-title">
                     <div>
