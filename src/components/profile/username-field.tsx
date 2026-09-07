@@ -16,17 +16,31 @@ type UsernameFieldProps = {
   id?: string;
 };
 
-export function UsernameField({ value, onChange, onAvailabilityChange, currentUsername, id = "username" }: UsernameFieldProps) {
+export function UsernameField({
+  value,
+  onChange,
+  onAvailabilityChange,
+  currentUsername,
+  id = "username"
+}: UsernameFieldProps) {
   const [availability, setAvailability] = useState<Availability>("idle");
   const [message, setMessage] = useState("Your permanent public address.");
   const normalized = normalizeUsername(value);
   const localError = value ? usernameValidationMessage(value) : null;
+  const isCurrent = Boolean(currentUsername && normalizeUsername(currentUsername) === normalized);
 
   useEffect(() => {
     if (!value || localError) {
       setAvailability(value ? "unavailable" : "idle");
       setMessage(localError ?? "Your permanent public address.");
       onAvailabilityChange?.(value ? false : null);
+      return;
+    }
+
+    if (isCurrent) {
+      setAvailability("available");
+      setMessage("This is your current public address.");
+      onAvailabilityChange?.(true);
       return;
     }
 
@@ -45,7 +59,11 @@ export function UsernameField({ value, onChange, onAvailabilityChange, currentUs
         if (!response.ok) throw new Error(body?.error ?? "Could not check this username.");
 
         setAvailability(body.available ? "available" : "unavailable");
-        setMessage(body.available ? `nythera.com/u/${body.username} is available.` : body.reason ?? "That username is already taken.");
+        setMessage(
+          body.available
+            ? `${window.location.host}/u/${body.username} is available.`
+            : (body.reason ?? "That username is already taken.")
+        );
         onAvailabilityChange?.(Boolean(body.available));
       } catch (error) {
         if (controller.signal.aborted) return;
@@ -59,15 +77,16 @@ export function UsernameField({ value, onChange, onAvailabilityChange, currentUs
       controller.abort();
       window.clearTimeout(timeout);
     };
-  }, [localError, normalized, onAvailabilityChange, value]);
+  }, [isCurrent, localError, normalized, onAvailabilityChange, value]);
 
-  const isCurrent = Boolean(currentUsername && normalizeUsername(currentUsername) === normalized);
   const invalid = availability === "unavailable" || availability === "error";
 
   return (
     <div className="grid gap-2">
       <div className="relative">
-        <span className="pointer-events-none absolute inset-y-0 left-4 z-10 flex items-center text-sm text-[var(--text-muted)]">@</span>
+        <span className="pointer-events-none absolute inset-y-0 left-4 z-10 flex items-center text-sm text-[var(--text-muted)]">
+          @
+        </span>
         <Input
           id={id}
           name="username"
@@ -83,7 +102,9 @@ export function UsernameField({ value, onChange, onAvailabilityChange, currentUs
           placeholder="creator_name"
         />
         <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center" aria-hidden>
-          {availability === "checking" ? <LoaderCircle className="h-4 w-4 animate-spin text-[var(--text-muted)]" /> : null}
+          {availability === "checking" ? (
+            <LoaderCircle className="h-4 w-4 animate-spin text-[var(--text-muted)]" />
+          ) : null}
           {availability === "available" ? <Check className="h-4 w-4 text-emerald-400" /> : null}
           {invalid ? <X className="h-4 w-4 text-rose-400" /> : null}
         </span>
