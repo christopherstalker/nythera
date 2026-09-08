@@ -5,9 +5,16 @@ import { assertSafeOutboundUrl } from "@/lib/safe-outbound-url";
 import { enforceFirstClassProviderConfig } from "@/lib/provider-presets";
 import { validateProviderCredentials } from "@/lib/provider-model-catalog";
 import { prisma } from "@/lib/prisma";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { isTextChatModel } from "@/lib/chat-model-capabilities";
 
 const saveKeySchema = z.object({
-  provider: z.string().trim().min(2).max(48).regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/, "Provider IDs may contain letters, numbers, hyphens, and underscores only."),
+  provider: z
+    .string()
+    .trim()
+    .min(2)
+    .max(48)
+    .regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/, "Provider IDs may contain letters, numbers, hyphens, and underscores only."),
   displayName: z.string().trim().min(2).max(80).optional(),
   apiFormat: z.enum(["OPENAI", "ANTHROPIC", "GEMINI", "OPENAI_COMPATIBLE"]).default("OPENAI_COMPATIBLE"),
   baseUrl: z.string().url().max(240).optional().or(z.literal("")),
@@ -49,6 +56,7 @@ export async function PATCH(request: Request) {
 export async function POST(request: Request) {
   try {
     const user = await requireUser();
+    await enforceRateLimit({ userId: user.id, route: "keys:validate" });
     const input = await parseJson(request, saveKeySchema);
     const provider = normalizeProviderId(input.provider);
     if (!provider) {
@@ -62,6 +70,9 @@ export async function POST(request: Request) {
       defaultModel: input.defaultModel?.trim() || ""
     });
     const baseUrl = config.baseUrl ? await assertSafeOutboundUrl(config.baseUrl) : "";
+    if (config.defaultModel && !isTextChatModel(config.defaultModel)) {
+      throw new HttpError(400, "Choose a text chat model for this provider.");
+    }
     const validation = await validateProviderCredentials({
       provider: config.provider,
       displayName: config.displayName,

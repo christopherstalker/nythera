@@ -30,6 +30,7 @@ import { toChatPreview } from "@/lib/chat-preview";
 import { shouldBypassNextImageOptimization } from "@/lib/image-cache";
 import { springSoft } from "@/lib/motion";
 import { PATREON_SUPPORT_URL } from "@/lib/support";
+import { loginUrl } from "@/lib/auth-routes";
 
 type RecentChat = {
   id: string;
@@ -75,14 +76,14 @@ export default function HomePageClient({
       });
 
       if (response.status === 401) {
-        router.push("/login");
+        router.push(loginUrl(`/character/${featured.id}`));
         return;
       }
 
       if (response.status === 403) {
         const body = await response.json().catch(() => null);
         if (typeof body?.error === "string" && body.error.includes("Adult consent")) {
-          router.push("/auth/new-user?callbackUrl=/");
+          router.push(`/auth/new-user?callbackUrl=${encodeURIComponent(`/character/${featured.id}`)}`);
           return;
         }
       }
@@ -142,7 +143,7 @@ export default function HomePageClient({
           startingChat={startingChat}
           chatError={chatError}
         />
-        <BrowseRoleplayThemes />
+        <BrowseRoleplayThemes characters={characters} />
         <motion.section
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -334,6 +335,9 @@ function HomeSeoIntro() {
           <p className="mt-3 max-w-lg text-sm leading-6 text-[var(--text-secondary)]">
             Discover AI characters, build a world of your own, and pick up right where you left off.
           </p>
+          <p className="mt-2 max-w-lg text-xs leading-5 text-[var(--text-secondary)]">
+            Bring your own AI provider key to chat. Provider usage charges may apply.
+          </p>
         </div>
         <div className="space-y-3">
           <SearchBar
@@ -371,12 +375,14 @@ function HomeSeoIntro() {
   );
 }
 
-function BrowseRoleplayThemes() {
+function BrowseRoleplayThemes({ characters }: { characters: CharacterSummary[] }) {
+  const availableTags = new Set(characters.flatMap((character) => character.tags ?? []));
+  const themes = DISCOVERY_TAGS.filter((tag) => availableTags.has(tag.slug));
   return (
     <nav aria-label="Browse roleplay themes" className="space-y-3">
       <p className="text-xs text-[var(--text-secondary)]">Where will your imagination take you?</p>
       <div className="flex flex-wrap gap-2">
-        {DISCOVERY_TAGS.slice(0, 8).map((tag) => (
+        {themes.slice(0, 8).map((tag) => (
           <Link key={tag.slug} href={`/tags/${tag.slug}`} className="codex-theme-chip focus-ring">
             {tag.label}
           </Link>

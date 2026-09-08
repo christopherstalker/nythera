@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import type { ChatMessage } from "@/hooks/useChat";
@@ -32,14 +32,45 @@ type MessageListProps = {
   onActiveVariantChange?: (messageId: string) => void;
   hasSoundtrack?: boolean;
   readingMode?: boolean;
+  hasEarlierMessages?: boolean;
+  loadingEarlier?: boolean;
+  onLoadEarlier?: () => Promise<boolean>;
 };
 
-export function MessageList({ messages, characterName, characterAvatarUrl, personaName, personaAvatarUrl, summary, error, notice, onEdit, onDelete, onRegenerate, onRetry, onContinue, onSkipTime, onRewind, onBranch, onPin, activeAssistantMessageId, onActiveVariantChange, hasSoundtrack = false, readingMode = false }: MessageListProps) {
+export function MessageList({
+  messages,
+  characterName,
+  characterAvatarUrl,
+  personaName,
+  personaAvatarUrl,
+  summary,
+  error,
+  notice,
+  onEdit,
+  onDelete,
+  onRegenerate,
+  onRetry,
+  onContinue,
+  onSkipTime,
+  onRewind,
+  onBranch,
+  onPin,
+  activeAssistantMessageId,
+  onActiveVariantChange,
+  hasSoundtrack = false,
+  readingMode = false,
+  hasEarlierMessages = false,
+  loadingEarlier = false,
+  onLoadEarlier
+}: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const nearBottomRef = useRef(true);
-  const previousRowCountRef = useRef(0);
+  const historyAnchorRef = useRef<{ key: string; offset: number; firstId: string } | null>(null);
   const displayItems = useMemo(() => buildDisplayItems(messages), [messages]);
-  const rows = useMemo(() => buildVirtualRows({ displayItems, summary, error, notice, isEmpty: messages.length === 0 }), [displayItems, error, messages.length, notice, summary]);
+  const rows = useMemo(
+    () => buildVirtualRows({ displayItems, summary, error, notice, isEmpty: messages.length === 0 }),
+    [displayItems, error, messages.length, notice, summary]
+  );
   const latestAssistantId = useMemo(() => {
     for (let index = messages.length - 1; index >= 0; index -= 1) {
       if (messages[index].role === "ASSISTANT") {
@@ -57,27 +88,54 @@ export function MessageList({ messages, characterName, characterAvatarUrl, perso
     getScrollElement: () => scrollRef.current,
     getItemKey: (index) => rows[index]?.key ?? index,
     estimateSize: (index) => estimateRowSize(rows[index]),
-    overscan: 8
+    overscan: 8,
+    useFlushSync: false
   });
   const virtualItems = virtualizer.getVirtualItems();
   const totalSize = virtualizer.getTotalSize();
   const bottomOffset = Math.max(0, (scrollRef.current?.clientHeight ?? 0) - totalSize);
+
+  useLayoutEffect(() => {
+    const anchor = historyAnchorRef.current;
+    if (!anchor || anchor.firstId === messages[0]?.id) return;
+    const index = rows.findIndex((row) => row.key === anchor.key);
+    if (index >= 0) {
+      virtualizer.scrollToIndex(index, { align: "start", behavior: "auto" });
+      if (scrollRef.current) scrollRef.current.scrollTop += anchor.offset;
+    }
+    historyAnchorRef.current = null;
+  }, [messages, rows, virtualizer]);
+
+  async function loadEarlier() {
+    if (!onLoadEarlier || loadingEarlier) return;
+    const scrollTop = scrollRef.current?.scrollTop ?? 0;
+    const firstVisible = virtualItems.find((item) => item.end > scrollTop);
+    if (firstVisible && messages[0]) {
+      historyAnchorRef.current = {
+        key: rows[firstVisible.index].key,
+        offset: scrollTop - firstVisible.start,
+        firstId: messages[0].id
+      };
+    }
+    nearBottomRef.current = false;
+    if (!(await onLoadEarlier())) historyAnchorRef.current = null;
+  }
 
   useEffect(() => {
     if (!nearBottomRef.current) {
       return;
     }
 
-    const behavior = rows.length === previousRowCountRef.current ? "auto" : "smooth";
-    previousRowCountRef.current = rows.length;
-    virtualizer.scrollToIndex(Math.max(0, rows.length - 1), { align: "end", behavior });
+    virtualizer.scrollToIndex(Math.max(0, rows.length - 1), { align: "end", behavior: "auto" });
   }, [messages, rows.length, virtualizer]);
 
   useEffect(() => {
     const previousCounts = variantCountByGroupRef.current;
     const nextCounts = Object.fromEntries(
       displayItems
-        .filter((item): item is Extract<DisplayItem, { type: "assistant-variants" }> => item.type === "assistant-variants")
+        .filter(
+          (item): item is Extract<DisplayItem, { type: "assistant-variants" }> => item.type === "assistant-variants"
+        )
         .map((item) => [item.key, item.variants.length])
     );
 
@@ -96,7 +154,8 @@ export function MessageList({ messages, characterName, characterAvatarUrl, perso
 
       const currentKeys = Object.keys(current);
       const nextKeys = Object.keys(next);
-      const selectionChanged = currentKeys.length !== nextKeys.length || nextKeys.some((key) => current[key] !== next[key]);
+      const selectionChanged =
+        currentKeys.length !== nextKeys.length || nextKeys.some((key) => current[key] !== next[key]);
       return selectionChanged ? next : current;
     });
 
@@ -113,42 +172,65 @@ export function MessageList({ messages, characterName, characterAvatarUrl, perso
     nearBottomRef.current = distance < NEAR_BOTTOM_THRESHOLD_PX;
   }, []);
 
-  const selectPreviousVariant = useCallback((groupKey: string, selectedIndex: number, isLatestGroup: boolean) => {
-    const nextIndex = Math.max(0, selectedIndex - 1);
-    setVariantByGroup((current) => ({
-      ...current,
-      [groupKey]: nextIndex
-    }));
-    if (isLatestGroup) {
-      const group = displayItems.find((item) => item.type === "assistant-variants" && item.key === groupKey);
-      if (group?.type === "assistant-variants") onActiveVariantChange?.(group.variants[nextIndex].id);
-    }
-  }, [displayItems, onActiveVariantChange]);
+  const selectPreviousVariant = useCallback(
+    (groupKey: string, selectedIndex: number, isLatestGroup: boolean) => {
+      const nextIndex = Math.max(0, selectedIndex - 1);
+      setVariantByGroup((current) => ({
+        ...current,
+        [groupKey]: nextIndex
+      }));
+      if (isLatestGroup) {
+        const group = displayItems.find((item) => item.type === "assistant-variants" && item.key === groupKey);
+        if (group?.type === "assistant-variants") onActiveVariantChange?.(group.variants[nextIndex].id);
+      }
+    },
+    [displayItems, onActiveVariantChange]
+  );
 
-  const selectNextVariant = useCallback((groupKey: string, selectedIndex: number, variantCount: number, isLatestGroup: boolean) => {
-    const nextIndex = Math.min(variantCount - 1, selectedIndex + 1);
-    setVariantByGroup((current) => ({
-      ...current,
-      [groupKey]: nextIndex
-    }));
-    if (isLatestGroup) {
-      const group = displayItems.find((item) => item.type === "assistant-variants" && item.key === groupKey);
-      if (group?.type === "assistant-variants") onActiveVariantChange?.(group.variants[nextIndex].id);
-    }
-  }, [displayItems, onActiveVariantChange]);
+  const selectNextVariant = useCallback(
+    (groupKey: string, selectedIndex: number, variantCount: number, isLatestGroup: boolean) => {
+      const nextIndex = Math.min(variantCount - 1, selectedIndex + 1);
+      setVariantByGroup((current) => ({
+        ...current,
+        [groupKey]: nextIndex
+      }));
+      if (isLatestGroup) {
+        const group = displayItems.find((item) => item.type === "assistant-variants" && item.key === groupKey);
+        if (group?.type === "assistant-variants") onActiveVariantChange?.(group.variants[nextIndex].id);
+      }
+    },
+    [displayItems, onActiveVariantChange]
+  );
 
   return (
     <div
       ref={scrollRef}
       onScroll={handleScroll}
-      className={hasSoundtrack || readingMode
-        ? "chat-scroll relative z-10 flex-1 overflow-y-auto px-4 pb-10 pt-4 sm:px-7 sm:pb-12 lg:px-10"
-        : "chat-scroll relative z-10 flex-1 overflow-y-auto px-4 pb-10 pt-[calc(84px+env(safe-area-inset-top))] sm:px-7 sm:pb-12 sm:pt-[calc(92px+env(safe-area-inset-top))] lg:px-10"}
+      className={
+        hasSoundtrack || readingMode
+          ? "chat-scroll relative z-10 flex-1 overflow-y-auto px-4 pb-10 pt-4 sm:px-7 sm:pb-12 lg:px-10"
+          : "chat-scroll relative z-10 flex-1 overflow-y-auto px-4 pb-10 pt-[calc(84px+env(safe-area-inset-top))] sm:px-7 sm:pb-12 sm:pt-[calc(92px+env(safe-area-inset-top))] lg:px-10"
+      }
       aria-live="polite"
     >
+      {hasEarlierMessages ? (
+        <div className="relative z-20 mx-auto mb-4 flex justify-center">
+          <button
+            type="button"
+            disabled={loadingEarlier}
+            onClick={() => void loadEarlier()}
+            className="focus-ring glass-input rounded-[var(--radius-control)] px-4 py-2 text-sm text-[var(--text-primary)] disabled:opacity-60"
+          >
+            {loadingEarlier ? "Loading history…" : "Load earlier messages"}
+          </button>
+        </div>
+      ) : null}
       <div
         className="relative mx-auto w-full"
-        style={{ height: Math.max(totalSize, scrollRef.current?.clientHeight ?? 0), maxWidth: "var(--chat-content-width, 1000px)" }}
+        style={{
+          height: Math.max(totalSize, scrollRef.current?.clientHeight ?? 0),
+          maxWidth: "var(--chat-content-width, 1000px)"
+        }}
       >
         {virtualItems.map((virtualRow) => {
           const row = rows[virtualRow.index];
@@ -196,8 +278,7 @@ export function MessageList({ messages, characterName, characterAvatarUrl, perso
 }
 
 type DisplayItem =
-  | { type: "single"; message: ChatMessage }
-  | { type: "assistant-variants"; key: string; variants: ChatMessage[] };
+  { type: "single"; message: ChatMessage } | { type: "assistant-variants"; key: string; variants: ChatMessage[] };
 
 type VirtualRow =
   | { type: "summary"; key: "summary"; summary: string }
@@ -259,8 +340,12 @@ function MessageRow({
   if (row.type === "empty") {
     return (
       <div className="mx-auto max-w-sm rounded-sm border border-white/10 bg-black/65 px-7 py-8 text-center">
-        <p className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">Start a chat with {characterName}</p>
-        <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">Send a first message or continue from the character greeting.</p>
+        <p className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">
+          Start a chat with {characterName}
+        </p>
+        <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
+          Send a first message or continue from the character greeting.
+        </p>
       </div>
     );
   }
@@ -270,7 +355,11 @@ function MessageRow({
   }
 
   if (row.type === "notice") {
-    return <p className="rounded-lg border border-[var(--codex-mint)]/30 bg-[color-mix(in_oklch,var(--codex-mint)_8%,transparent)] p-3 text-sm text-[var(--text-secondary)]">{row.notice}</p>;
+    return (
+      <p className="rounded-lg border border-[var(--codex-mint)]/30 bg-[color-mix(in_oklch,var(--codex-mint)_8%,transparent)] p-3 text-sm text-[var(--text-secondary)]">
+        {row.notice}
+      </p>
+    );
   }
 
   if (row.type === "single") {
@@ -439,7 +528,8 @@ function persistedVariantIndex(
   const variantIds = new Set(item.variants.map((variant) => variant.id));
   const persistedId = variantIds.has(activeAssistantMessageId ?? "")
     ? activeAssistantMessageId
-    : messages.find((message) => message.branchSourceMessageId && variantIds.has(message.branchSourceMessageId))?.branchSourceMessageId;
+    : messages.find((message) => message.branchSourceMessageId && variantIds.has(message.branchSourceMessageId))
+        ?.branchSourceMessageId;
   const index = item.variants.findIndex((variant) => variant.id === persistedId);
   return index >= 0 ? index : undefined;
 }

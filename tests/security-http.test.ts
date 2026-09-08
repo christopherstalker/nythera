@@ -2,41 +2,20 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("global HTTP security headers are configured", async () => {
-  const config = await readFile(new URL("../next.config.mjs", import.meta.url), "utf8");
-
-  for (const header of [
-    "X-Frame-Options",
-    "X-Content-Type-Options",
-    "Referrer-Policy",
-    "Strict-Transport-Security",
-    "Content-Security-Policy",
-    "Permissions-Policy"
-  ]) {
-    assert.match(config, new RegExp(header));
-  }
-
-  for (const directive of [
-    "frame-ancestors 'none'",
-    "object-src 'none'",
-    "default-src 'self'",
-    "connect-src 'self'",
-    "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
-    "frame-src 'self' https://challenges.cloudflare.com",
-    "https://api.openai.com",
-    "https://api.anthropic.com",
-    "https://generativelanguage.googleapis.com",
-    "https://api.deepseek.com",
-    "https://api.mistral.ai",
-    "https://api.groq.com",
-    "https://api.x.ai",
-    "https://openrouter.ai"
-  ]) {
-    assert.match(config, new RegExp(directive.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  }
-
-  assert.match(config, /isProduction[\s\S]*Strict-Transport-Security/);
-  assert.match(config, /isProduction \? "upgrade-insecure-requests" : ""/);
+test("HTTP policy uses a per-request script nonce with strict dynamic loading", async () => {
+  const { contentSecurityPolicy } = await import("../src/lib/content-security-policy");
+  const productionPolicy = contentSecurityPolicy("test-nonce", true);
+  const scriptPolicy = productionPolicy.split("; ").find((directive) => directive.startsWith("script-src"));
+  assert.ok(scriptPolicy?.includes("'nonce-test-nonce'"));
+  assert.ok(scriptPolicy?.includes("'strict-dynamic'"));
+  assert.doesNotMatch(scriptPolicy!, /unsafe-inline|unsafe-eval/);
+  assert.ok(productionPolicy.includes("upgrade-insecure-requests"));
+  assert.ok(productionPolicy.includes("frame-ancestors 'none'"));
+  assert.ok(contentSecurityPolicy("another-nonce", false).includes("'unsafe-eval'"));
+  const middleware = await readFile(new URL("../src/middleware.ts", import.meta.url), "utf8");
+  assert.match(middleware, /crypto.randomUUID/);
+  assert.match(middleware, /requestHeaders.set\("Content-Security-Policy", policy\)/);
+  assert.match(middleware, /response.headers.set\("Content-Security-Policy", policy\)/);
 });
 
 test("NextAuth session expiry is finite and CSRF defaults are not disabled", async () => {

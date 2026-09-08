@@ -19,8 +19,14 @@ test("mobile story context reserves the dock and safe-area height below its scro
   ]);
 
   assert.match(panel, /className="[^"]*side-panel-scroll/);
-  assert.match(styles, /\.side-panel-scroll\s*\{[\s\S]*?padding-bottom: calc\(var\(--codex-mobile-dock-height\) \+ env\(safe-area-inset-bottom\) \+ 1rem\) !important;/);
-  assert.match(styles, /@media \(min-width: 768px\)\s*\{[\s\S]*?\.side-panel-scroll\s*\{[\s\S]*?padding-bottom: max\(1rem, env\(safe-area-inset-bottom\)\) !important;/);
+  assert.match(
+    styles,
+    /\.side-panel-scroll\s*\{[\s\S]*?padding-bottom: calc\(var\(--codex-mobile-dock-height\) \+ env\(safe-area-inset-bottom\) \+ 1rem\) !important;/
+  );
+  assert.match(
+    styles,
+    /@media \(min-width: 768px\)\s*\{[\s\S]*?\.side-panel-scroll\s*\{[\s\S]*?padding-bottom: max\(1rem, env\(safe-area-inset-bottom\)\) !important;/
+  );
 });
 
 const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
@@ -83,7 +89,10 @@ test("Lookbook explains that saved images attach to one message and stay separat
 
   assert.match(composer, /Lookbook · reusable images/);
   assert.match(composer, /attach it as visual context for your next message/);
-  assert.match(composer, /Lookbook never changes the character automatically; Lorebook is the separate keyword-based facts system/);
+  assert.match(
+    composer,
+    /Lookbook never changes the\s+character automatically; Lorebook is the separate keyword-based\s+facts system/
+  );
   assert.match(composer, /Attach next/);
   assert.match(tools, /Reusable images/);
 });

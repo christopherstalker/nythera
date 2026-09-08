@@ -4,7 +4,10 @@ import test from "node:test";
 
 test("chat images are proxied, user-owned, and persisted with messages", async () => {
   const schema = await readFile(new URL("../prisma/schema.prisma", import.meta.url), "utf8");
-  const migration = await readFile(new URL("../prisma/migrations/20260813133000_multimodal_chat_lookbook/migration.sql", import.meta.url), "utf8");
+  const migration = await readFile(
+    new URL("../prisma/migrations/20260813133000_multimodal_chat_lookbook/migration.sql", import.meta.url),
+    "utf8"
+  );
   const uploadRoute = await readFile(new URL("../src/app/api/chat-images/upload/route.ts", import.meta.url), "utf8");
   const mediaRoute = await readFile(new URL("../src/app/api/media/[id]/route.ts", import.meta.url), "utf8");
   const streamRoute = await readFile(new URL("../src/app/api/chats/[id]/stream/route.ts", import.meta.url), "utf8");
@@ -68,8 +71,8 @@ test("chat image preparation cannot hang indefinitely in a mobile webview", asyn
 test("Lookbook uses an opaque surface above the chat composer", async () => {
   const input = await readFile(new URL("../src/components/chat/ChatInput.tsx", import.meta.url), "utf8");
 
-  assert.match(input, /z-\[60\][^\"]*bg-\[#090909\]/);
-  assert.doesNotMatch(input, /bg-\[#090909\]\/98/);
+  assert.match(input, /z-\[60\][^\"]*bg-\[var\(--bg-elevated\)\]/);
+  assert.doesNotMatch(input, /bg-\[var\(--bg-elevated\)\]\/98/);
 });
 
 test("mobile chat tools collapse into one accessible folder menu", async () => {

@@ -1,14 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import "@fontsource/cormorant-garamond/400.css";
-import "@fontsource/cormorant-garamond/400-italic.css";
-import "@fontsource/cormorant-garamond/500.css";
-import "@fontsource/cormorant-garamond/600.css";
+import { headers } from "next/headers";
 import "@/app/globals.css";
 import { AppShell } from "@/components/layout/AppShell";
 import { SessionProvider } from "@/components/providers/session-provider";
-import { OrientationLock } from "@/components/pwa/orientation-lock";
 import { BRAND_ICON_APPLE, BRAND_ICON_LARGE, BRAND_ICON_SMALL, BRAND_OG_IMAGE, BRAND_THEME_COLOR } from "@/lib/brand";
 import { resolveSiteOrigin } from "@/lib/site-origin";
 
@@ -29,7 +25,8 @@ export const metadata: Metadata = {
     default: "Nythera — AI Roleplay & Character Chat",
     template: "%s | Nythera"
   },
-  description: "Create and discover AI roleplay characters with persistent persona, story memory, and immersive character chat.",
+  description:
+    "Create and discover AI roleplay characters with persistent persona, story memory, and immersive character chat.",
   applicationName: "Nythera",
   creator: "Nythera",
   publisher: "Nythera",
@@ -56,7 +53,8 @@ export const metadata: Metadata = {
     url: siteUrl,
     siteName: "Nythera",
     title: "Nythera — AI Roleplay & Character Chat",
-    description: "Create and discover AI roleplay characters with persistent persona, story memory, and immersive character chat.",
+    description:
+      "Create and discover AI roleplay characters with persistent persona, story memory, and immersive character chat.",
     images: [
       {
         url: BRAND_OG_IMAGE,
@@ -69,7 +67,8 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Nythera — AI Roleplay & Character Chat",
-    description: "Create and discover AI roleplay characters with persistent persona, story memory, and immersive character chat.",
+    description:
+      "Create and discover AI roleplay characters with persistent persona, story memory, and immersive character chat.",
     images: [BRAND_OG_IMAGE]
   }
 };
@@ -83,7 +82,8 @@ export const viewport: Viewport = {
   themeColor: BRAND_THEME_COLOR
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   const organizationJsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
@@ -108,17 +108,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
+      <head>
+        <link
+          rel="preload"
+          href="/fonts/lora/Lora-Variable.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body className={`${spaceGrotesk.className} ${spaceGrotesk.variable} min-h-screen overflow-hidden`}>
         <script
+          nonce={nonce}
+          suppressHydrationWarning
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd).replace(/</g, "\\u003c") }}
         />
         <script
+          nonce={nonce}
+          suppressHydrationWarning
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd).replace(/</g, "\\u003c") }}
         />
         <SessionProvider>
-          <OrientationLock />
           <AppShell>{children}</AppShell>
         </SessionProvider>
         <SpeedInsights />

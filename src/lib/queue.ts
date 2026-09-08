@@ -3,24 +3,29 @@ import "server-only";
 import { Queue } from "bullmq";
 import IORedis from "ioredis";
 import { env } from "@/lib/env";
+import { logSafeError } from "@/lib/secret-redaction";
 
 export type JobName = "extract-memories" | "summarize-chat" | "process-report";
 
 const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+const useWorkerQueue =
+  process.env.BACKGROUND_JOBS_MODE === "queue" ||
+  (!process.env.VERCEL && process.env.BACKGROUND_JOBS_MODE !== "after-response");
 
-const connection = env.REDIS_URL && !isProductionBuild
-  ? new IORedis(env.REDIS_URL, {
-      connectTimeout: 2_000,
-      maxRetriesPerRequest: 1,
-      retryStrategy: (attempt) => attempt <= 1 ? 250 : null
-    })
-  : null;
+const connection =
+  env.REDIS_URL && useWorkerQueue && !isProductionBuild
+    ? new IORedis(env.REDIS_URL, {
+        connectTimeout: 2_000,
+        maxRetriesPerRequest: 1,
+        retryStrategy: (attempt) => (attempt <= 1 ? 250 : null)
+      })
+    : null;
 
 let connectionErrorReported = false;
 function reportConnectionError(error: Error) {
   if (connectionErrorReported) return;
   connectionErrorReported = true;
-  console.warn("Redis background queue connection failed.", error.message);
+  logSafeError("Redis background queue connection failed.", error);
 }
 
 connection?.on("error", reportConnectionError);
@@ -49,7 +54,7 @@ export async function enqueueJob(name: JobName, data: Record<string, unknown>) {
       }
     });
   } catch (error) {
-    console.warn("Background queue unavailable; running inline fallback.", error);
+    logSafeError("Background queue unavailable; running post-response fallback.", error);
     return false;
   }
 

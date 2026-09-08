@@ -1,6 +1,15 @@
 "use client";
 
-import { KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FocusEvent } from "react";
+import {
+  KeyboardEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type FocusEvent
+} from "react";
 import { ArrowUp, BookmarkPlus, LoaderCircle, X } from "lucide-react";
 import { motion } from "motion/react";
 import { Avatar } from "@/components/ui/avatar";
@@ -80,7 +89,9 @@ export function ChatInput({
   const [apiOpen, setApiOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [modelSearch, setModelSearch] = useState("");
-  const [maxOutputTokensDraft, setMaxOutputTokensDraft] = useState(maxOutputTokens == null ? "" : String(maxOutputTokens));
+  const [maxOutputTokensDraft, setMaxOutputTokensDraft] = useState(
+    maxOutputTokens == null ? "" : String(maxOutputTokens)
+  );
   const [maxOutputTokensSaving, setMaxOutputTokensSaving] = useState(false);
   const [maxOutputTokensError, setMaxOutputTokensError] = useState<string | null>(null);
   const [attachmentStatus, setAttachmentStatus] = useState<string | null>(null);
@@ -156,7 +167,11 @@ export function ChatInput({
     };
   }, [apiOpen, lookbookOpen]);
 
-  useEffect(() => { void fetch("/api/chat-macros").then((response) => response.ok ? response.json() : null).then((body) => setMacros(Array.isArray(body?.macros) ? body.macros : [])); }, []);
+  useEffect(() => {
+    void fetch("/api/chat-macros")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body) => setMacros(Array.isArray(body?.macros) ? body.macros : []));
+  }, []);
 
   function collapseComposer(event: FocusEvent<HTMLTextAreaElement>) {
     const nextTarget = event.relatedTarget as Node | null;
@@ -214,7 +229,9 @@ export function ChatInput({
   async function submit() {
     if (disabled || imageUploading) return;
     const normalized = value.trim();
-    const macro = normalized.startsWith("/") ? macros.find((entry) => normalized.split(/\s/, 1)[0].slice(1).toLowerCase() === entry.name) : undefined;
+    const macro = normalized.startsWith("/")
+      ? macros.find((entry) => normalized.split(/\s/, 1)[0].slice(1).toLowerCase() === entry.name)
+      : undefined;
     const expanded = normalized.toLowerCase().startsWith("/ooc ")
       ? `[OOC — answer out of character]\n${normalized.slice(5).trim()}`
       : macro
@@ -235,11 +252,21 @@ export function ChatInput({
 
   async function saveMacro() {
     if (!macroName.trim() || !macroContent.trim()) return;
-    const response = await fetch("/api/chat-macros", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: macroName.trim(), content: macroContent.trim() }) });
+    const response = await fetch("/api/chat-macros", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: macroName.trim(), content: macroContent.trim() })
+    });
     const body = await response.json().catch(() => null);
     if (!response.ok) return setAttachmentStatus(body?.error ?? "Could not save macro.");
-    setMacros((current) => [...current.filter((entry) => entry.id !== body.macro.id), body.macro].sort((a, b) => a.name.localeCompare(b.name)));
-    setMacroName(""); setMacroContent(""); setAttachmentStatus(`/${body.macro.name} saved.`);
+    setMacros((current) =>
+      [...current.filter((entry) => entry.id !== body.macro.id), body.macro].sort((a, b) =>
+        a.name.localeCompare(b.name)
+      )
+    );
+    setMacroName("");
+    setMacroContent("");
+    setAttachmentStatus(`/${body.macro.name} saved.`);
   }
 
   async function toggleRecording() {
@@ -258,7 +285,9 @@ export function ChatInput({
       const activeStream = stream;
       const chunks: BlobPart[] = [];
       const recorder = new MediaRecorder(activeStream);
-      recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
+      recorder.ondataavailable = (event) => {
+        if (event.data.size) chunks.push(event.data);
+      };
       recorder.onstop = async () => {
         setRecording(false);
         activeStream.getTracks().forEach((track) => track.stop());
@@ -300,13 +329,26 @@ export function ChatInput({
     setGeneratingScene(true);
     setAttachmentStatus("Illustrating the current scene...");
     try {
-      const response = await fetch(`/api/chats/${chatId}/scene-image`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ direction: value.trim().slice(0, 500) }) });
+      const response = await fetch(`/api/chats/${chatId}/scene-image`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ direction: value.trim().slice(0, 500) })
+      });
       const body = await response.json().catch(() => null);
       if (!response.ok) throw new Error(body?.error ?? "Scene illustration failed.");
-      setAttachments((current) => [...current.filter((item) => item.assetId !== body.attachment.assetId), body.attachment].slice(-MAX_CHAT_IMAGE_ATTACHMENTS));
-      setAttachmentStatus(`Scene illustration attached via ${body.provider ?? "your image provider"}. Send it or save it to Lookbook.`);
-    } catch (error) { setAttachmentStatus(error instanceof Error ? error.message : "Scene illustration failed."); }
-    finally { setGeneratingScene(false); }
+      setAttachments((current) =>
+        [...current.filter((item) => item.assetId !== body.attachment.assetId), body.attachment].slice(
+          -MAX_CHAT_IMAGE_ATTACHMENTS
+        )
+      );
+      setAttachmentStatus(
+        `Scene illustration attached via ${body.provider ?? "your image provider"}. Send it or save it to Lookbook.`
+      );
+    } catch (error) {
+      setAttachmentStatus(error instanceof Error ? error.message : "Scene illustration failed.");
+    } finally {
+      setGeneratingScene(false);
+    }
   }
 
   async function attachImages(event: React.ChangeEvent<HTMLInputElement>) {
@@ -382,13 +424,14 @@ export function ChatInput({
       body: JSON.stringify({ assetId: attachment.assetId, title })
     });
     const body = await response.json().catch(() => null);
-    setAttachmentStatus(response.ok ? `${title} saved to Lookbook.` : body?.error ?? "Could not save this look.");
+    setAttachmentStatus(response.ok ? `${title} saved to Lookbook.` : (body?.error ?? "Could not save this look."));
   }
 
   const messageLimit = inputLimits?.message ?? MAX_CHAT_MESSAGE_LENGTH;
   const responsePromptLimit = inputLimits?.responsePrompt ?? MAX_RESPONSE_PROMPT_LENGTH;
   const elevatedLimits = inputLimits?.elevated === true;
-  const canSend = !disabled && !imageUploading && Boolean(value.trim() || attachments.length) && value.length <= messageLimit;
+  const canSend =
+    !disabled && !imageUploading && Boolean(value.trim() || attachments.length) && value.length <= messageLimit;
   async function saveMaxOutputTokens() {
     if (!onMaxOutputTokensChange || maxOutputTokensSaving) return;
 
@@ -408,36 +451,46 @@ export function ChatInput({
     }
   }
 
-  const hasApiControls = Boolean(onModelChange || onTemperatureChange || onMaxOutputTokensChange || onResponsePromptChange || onTranslationLanguageChange);
+  const hasApiControls = Boolean(
+    onModelChange ||
+    onTemperatureChange ||
+    onMaxOutputTokensChange ||
+    onResponsePromptChange ||
+    onTranslationLanguageChange
+  );
   const currentTemperature = temperature ?? 0.7;
   const modelOptions = modelGroups.flatMap((group) => group.options);
   const hasModelOptions = modelOptions.length > 0;
   const currentModelIsKnown = Boolean(model && modelOptions.some((option) => option.value === model));
-  const visibleModelGroups = useMemo(
-    () => filterModelGroups(modelGroups, modelSearch),
-    [modelGroups, modelSearch]
-  );
+  const visibleModelGroups = useMemo(() => filterModelGroups(modelGroups, modelSearch), [modelGroups, modelSearch]);
   const visibleModelCount = visibleModelGroups.reduce((count, group) => count + group.options.length, 0);
   const modelLabel = modelLoading ? "Loading" : formatModelLabel(model ?? "Model");
 
   return (
-    <div className="pointer-events-none sticky bottom-0 z-40 shrink-0 border-t border-white/10 bg-gradient-to-t from-black/75 via-black/55 to-transparent px-4 pb-[calc(.75rem+env(safe-area-inset-bottom))] pt-3 sm:px-7 md:px-10 md:pb-4">
+    <div className="pointer-events-none sticky bottom-0 z-40 shrink-0 border-t border-[var(--border-default)] bg-gradient-to-t from-black/75 via-black/55 to-transparent px-4 pb-[calc(.75rem+env(safe-area-inset-bottom))] pt-3 sm:px-7 md:px-10 md:pb-4">
       {hasApiControls && apiOpen ? (
         <motion.div
           ref={apiPanelRef}
           role="dialog"
           aria-label="Model and style"
-          className="api-panel-enter pointer-events-auto mx-auto mb-3 grid max-h-[min(56dvh,36rem)] w-full min-w-0 max-w-[var(--chat-max-width)] gap-4 overflow-x-hidden overflow-y-auto overscroll-contain rounded-sm border border-white/10 bg-[#090909]/95 p-4 shadow-2xl sm:max-h-[min(68dvh,40rem)] sm:grid-cols-[minmax(0,1fr)_minmax(220px,280px)]"
+          className="api-panel-enter pointer-events-auto mx-auto mb-3 grid max-h-[min(56dvh,36rem)] w-full min-w-0 max-w-[var(--chat-max-width)] gap-4 overflow-x-hidden overflow-y-auto overscroll-contain rounded-sm border border-[var(--border-default)] bg-[var(--bg-elevated)] p-4 shadow-2xl sm:max-h-[min(68dvh,40rem)] sm:grid-cols-[minmax(0,1fr)_minmax(220px,280px)]"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={springSoft}
         >
-          <div className="sticky top-0 z-10 -mx-1 -mt-1 flex min-w-0 items-center justify-between gap-3 border-b border-white/10 bg-[#090909]/95 px-1 pb-3 sm:col-span-2">
+          <div className="sticky top-0 z-10 -mx-1 -mt-1 flex min-w-0 items-center justify-between gap-3 border-b border-[var(--border-default)] bg-[var(--bg-elevated)] px-1 pb-3 sm:col-span-2">
             <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[.18em] text-[var(--codex-mint)]">Story controls</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[.18em] text-[var(--codex-mint)]">
+                Story controls
+              </p>
               <p className="mt-1 text-xs text-[var(--text-muted)]">Model, language, and response style for this chat</p>
             </div>
-            <button type="button" onClick={() => setApiOpen(false)} className="focus-ring grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/10 text-[var(--text-secondary)]" aria-label="Close story controls">
+            <button
+              type="button"
+              onClick={() => setApiOpen(false)}
+              className="focus-ring grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--border-default)] text-[var(--text-secondary)]"
+              aria-label="Close story controls"
+            >
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -451,13 +504,13 @@ export function ChatInput({
                 placeholder="Search provider or model"
                 aria-label="Search provider models"
                 disabled={modelLoading || !hasModelOptions}
-                className="focus-ring h-10 w-full min-w-0 rounded-sm border border-white/15 bg-[#111] px-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent-purple)] disabled:cursor-not-allowed disabled:opacity-60"
+                className="focus-ring h-10 w-full min-w-0 rounded-sm border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent-purple)] disabled:cursor-not-allowed disabled:opacity-60"
               />
               <select
                 value={model ?? ""}
                 onChange={(event) => onModelChange(event.target.value)}
                 disabled={modelLoading || !hasModelOptions}
-                className="focus-ring h-11 w-full min-w-0 rounded-sm border border-white/15 bg-[#111] px-3 text-xs text-[var(--text-primary)] focus:border-[var(--accent-purple)] disabled:cursor-not-allowed disabled:opacity-60"
+                className="focus-ring h-11 w-full min-w-0 rounded-sm border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-xs text-[var(--text-primary)] focus:border-[var(--accent-purple)] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {modelLoading ? <option value="">Loading saved providers...</option> : null}
                 {!modelLoading && !hasModelOptions ? <option value="">No saved providers</option> : null}
@@ -466,7 +519,9 @@ export function ChatInput({
                     Current model unavailable: {model}
                   </option>
                 ) : null}
-                {!modelLoading && hasModelOptions && visibleModelCount === 0 ? <option value="">No matching models</option> : null}
+                {!modelLoading && hasModelOptions && visibleModelCount === 0 ? (
+                  <option value="">No matching models</option>
+                ) : null}
                 {visibleModelGroups.map((group) => (
                   <optgroup
                     key={group.provider}
@@ -481,7 +536,10 @@ export function ChatInput({
                 ))}
               </select>
               {!modelLoading && !hasModelOptions ? (
-                <a href="/settings/providers" className="px-1 text-xs font-medium text-[var(--accent-purple)] hover:underline">
+                <a
+                  href="/settings/providers"
+                  className="px-1 text-xs font-medium text-[var(--accent-purple)] hover:underline"
+                >
                   Add a provider key in Settings
                 </a>
               ) : (
@@ -496,7 +554,7 @@ export function ChatInput({
           {onTemperatureChange ? (
             <label className="grid min-w-0 gap-1.5">
               <span className="px-1 text-[11px] font-medium uppercase text-[var(--text-muted)]">Temperature</span>
-              <span className="flex h-10 items-center gap-2 rounded-sm border border-white/15 bg-[#111] px-3 text-xs text-[var(--text-secondary)]">
+              <span className="flex h-10 items-center gap-2 rounded-sm border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-xs text-[var(--text-secondary)]">
                 <input
                   type="range"
                   min={0}
@@ -520,7 +578,10 @@ export function ChatInput({
           ) : null}
           {onMaxOutputTokensChange ? (
             <div className="grid min-w-0 gap-1.5">
-              <label htmlFor={`max-output-tokens-${chatId}`} className="px-1 text-[11px] font-medium uppercase text-[var(--text-muted)]">
+              <label
+                htmlFor={`max-output-tokens-${chatId}`}
+                className="px-1 text-[11px] font-medium uppercase text-[var(--text-muted)]"
+              >
                 Maximum output tokens
               </label>
               <span className="flex min-w-0 items-center gap-2">
@@ -544,26 +605,35 @@ export function ChatInput({
                   }}
                   placeholder="Automatic"
                   aria-describedby={`max-output-tokens-help-${chatId}`}
-                  className="focus-ring h-10 min-w-0 flex-1 rounded-sm border border-white/15 bg-[#111] px-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent-purple)]"
+                  className="focus-ring h-10 min-w-0 flex-1 rounded-sm border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent-purple)]"
                 />
                 <button
                   type="button"
                   onClick={() => void saveMaxOutputTokens()}
                   disabled={maxOutputTokensSaving}
-                  className="focus-ring h-10 shrink-0 rounded-sm border border-white/15 px-3 text-[11px] font-semibold uppercase tracking-[.12em] text-[var(--text-primary)] transition-colors hover:border-[var(--accent-purple)] disabled:cursor-wait disabled:opacity-60"
+                  className="focus-ring h-10 shrink-0 rounded-sm border border-[var(--border-default)] px-3 text-[11px] font-semibold uppercase tracking-[.12em] text-[var(--text-primary)] transition-colors hover:border-[var(--accent-purple)] disabled:cursor-wait disabled:opacity-60"
                 >
                   {maxOutputTokensSaving ? "Saving" : "Save"}
                 </button>
               </span>
-              <span id={`max-output-tokens-help-${chatId}`} className={`px-1 text-[11px] ${maxOutputTokensError ? "text-red-300" : "text-[var(--text-muted)]"}`}>
+              <span
+                id={`max-output-tokens-help-${chatId}`}
+                className={`px-1 text-[11px] ${maxOutputTokensError ? "text-red-300" : "text-[var(--text-muted)]"}`}
+              >
                 {maxOutputTokensError ?? "Global response ceiling. Leave empty to use automatic model limits."}
               </span>
             </div>
           ) : null}
           {onTranslationLanguageChange ? (
             <label className="grid min-w-0 gap-1.5 sm:col-span-2">
-              <span className="px-1 text-[11px] font-medium uppercase text-[var(--text-muted)]">Automatic translation</span>
-              <select value={translationLanguage ?? ""} onChange={(event) => onTranslationLanguageChange(event.target.value)} className="focus-ring h-10 rounded-sm border border-white/15 bg-[#111] px-3 text-xs text-[var(--text-primary)] focus:border-[var(--accent-purple)]">
+              <span className="px-1 text-[11px] font-medium uppercase text-[var(--text-muted)]">
+                Automatic translation
+              </span>
+              <select
+                value={translationLanguage ?? ""}
+                onChange={(event) => onTranslationLanguageChange(event.target.value)}
+                className="focus-ring h-10 rounded-sm border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-xs text-[var(--text-primary)] focus:border-[var(--accent-purple)]"
+              >
                 <option value="">Character&apos;s natural language</option>
                 <option value="English">English</option>
                 <option value="Ukrainian">Ukrainian</option>
@@ -580,7 +650,9 @@ export function ChatInput({
               <span className="grid min-w-0 gap-1 px-1 text-[11px] font-medium uppercase text-[var(--text-muted)] sm:flex sm:items-center sm:justify-between sm:gap-3">
                 <span>Custom system prompt</span>
                 <span className="min-w-0 normal-case tracking-normal sm:text-right">
-                  {elevatedLimits ? `Extended prompt · ${(responsePrompt ?? "").length.toLocaleString()} characters` : `Overrides built-in prompt · ${(responsePrompt ?? "").length}/${responsePromptLimit}`}
+                  {elevatedLimits
+                    ? `Extended prompt · ${(responsePrompt ?? "").length.toLocaleString()} characters`
+                    : `Overrides built-in prompt · ${(responsePrompt ?? "").length}/${responsePromptLimit}`}
                 </span>
               </span>
               <textarea
@@ -589,10 +661,11 @@ export function ChatInput({
                 onChange={(event) => onResponsePromptChange(event.target.value.slice(0, responsePromptLimit))}
                 placeholder="Leave blank to use Nythera's built-in roleplay prompt, or paste a complete system prompt to replace it."
                 rows={3}
-                className="focus-ring min-h-20 resize-y rounded-sm border border-white/15 bg-[#111] px-3 py-2 text-xs leading-5 text-[var(--text-primary)] focus:border-[var(--accent-purple)]"
+                className="focus-ring min-h-20 resize-y rounded-sm border border-[var(--border-default)] bg-[var(--bg-input)] px-3 py-2 text-xs leading-5 text-[var(--text-primary)] focus:border-[var(--accent-purple)]"
               />
               <p className="px-1 text-xs leading-5 text-[var(--text-muted)]">
-                Tip: specify reply length, point of view, pacing, dialogue/action balance, or formatting. Character and safety rules always stay in control.
+                Tip: specify reply length, point of view, pacing, dialogue/action balance, or formatting. Character and
+                safety rules always stay in control.
               </p>
               <span className="flex flex-wrap gap-1.5 px-1">
                 {RESPONSE_PROMPT_EXAMPLES.map((example) => (
@@ -609,9 +682,46 @@ export function ChatInput({
             </label>
           ) : null}
           <div className="grid min-w-0 gap-2 sm:col-span-2">
-            <span className="px-1 text-[11px] font-medium uppercase text-[var(--text-muted)]">Slash commands & macros</span>
-            <div className="grid min-w-0 gap-2 sm:grid-cols-[140px_minmax(0,1fr)_auto]"><input value={macroName} onChange={(event) => setMacroName(event.target.value.replace(/[^a-z0-9_-]/gi, ""))} placeholder="command" className="focus-ring h-10 min-w-0 border border-white/15 bg-[#111] px-3 text-xs" /><input value={macroContent} onChange={(event) => setMacroContent(event.target.value)} placeholder="Text inserted by /command" className="focus-ring h-10 min-w-0 border border-white/15 bg-[#111] px-3 text-xs" /><button type="button" onClick={() => void saveMacro()} className="focus-ring h-10 border border-white/15 px-3 text-xs text-[var(--accent-mint)]">Save macro</button></div>
-            <p className="px-1 text-xs text-[var(--text-muted)]">Built in: <button type="button" onClick={() => onChange("/ooc ")} className="text-[var(--accent-purple)]">/ooc</button>{macros.map((macro) => <button key={macro.id} type="button" onClick={() => onChange(`/${macro.name} `)} className="ml-2 text-[var(--accent-purple)]">/{macro.name}</button>)}</p>
+            <span className="px-1 text-[11px] font-medium uppercase text-[var(--text-muted)]">
+              Slash commands & macros
+            </span>
+            <div className="grid min-w-0 gap-2 sm:grid-cols-[140px_minmax(0,1fr)_auto]">
+              <input
+                value={macroName}
+                onChange={(event) => setMacroName(event.target.value.replace(/[^a-z0-9_-]/gi, ""))}
+                placeholder="command"
+                className="focus-ring h-10 min-w-0 border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-xs"
+              />
+              <input
+                value={macroContent}
+                onChange={(event) => setMacroContent(event.target.value)}
+                placeholder="Text inserted by /command"
+                className="focus-ring h-10 min-w-0 border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-xs"
+              />
+              <button
+                type="button"
+                onClick={() => void saveMacro()}
+                className="focus-ring h-10 border border-[var(--border-default)] px-3 text-xs text-[var(--accent-mint)]"
+              >
+                Save macro
+              </button>
+            </div>
+            <p className="px-1 text-xs text-[var(--text-muted)]">
+              Built in:{" "}
+              <button type="button" onClick={() => onChange("/ooc ")} className="text-[var(--accent-purple)]">
+                /ooc
+              </button>
+              {macros.map((macro) => (
+                <button
+                  key={macro.id}
+                  type="button"
+                  onClick={() => onChange(`/${macro.name} `)}
+                  className="ml-2 text-[var(--accent-purple)]"
+                >
+                  /{macro.name}
+                </button>
+              ))}
+            </p>
           </div>
           {apiStatus ? <p className="px-1 text-xs text-[var(--text-muted)] sm:col-span-2">{apiStatus}</p> : null}
         </motion.div>
@@ -620,7 +730,7 @@ export function ChatInput({
         ref={composerRef}
         data-expanded={showExpandedComposer}
         className={cn(
-          "composer-dock pointer-events-auto relative mx-auto flex w-full max-w-[var(--chat-content-width,1000px)] flex-col border border-white/15 bg-black/75 px-4 transition-[padding] sm:px-5",
+          "composer-dock pointer-events-auto relative mx-auto flex w-full max-w-[var(--chat-content-width,1000px)] flex-col border border-[var(--border-default)] bg-[var(--bg-elevated)] px-4 transition-[padding] sm:px-5",
           showExpandedComposer ? "gap-2 py-3" : "gap-0 py-2"
         )}
         initial={{ opacity: 0, y: 12 }}
@@ -628,15 +738,37 @@ export function ChatInput({
         transition={springSoft}
       >
         {showExpandedComposer && attachments.length ? (
-          <div className="flex gap-2 overflow-x-auto border-b border-[var(--border-subtle)] pb-2" aria-label="Attached images">
+          <div
+            className="flex gap-2 overflow-x-auto border-b border-[var(--border-subtle)] pb-2"
+            aria-label="Attached images"
+          >
             {attachments.map((attachment) => (
-              <div key={attachment.assetId} className="group relative h-20 w-20 shrink-0 overflow-hidden rounded-sm border border-white/15 bg-black/50">
-                <img src={attachment.url} alt={attachment.name || "Attached image"} className="h-full w-full object-cover" />
+              <div
+                key={attachment.assetId}
+                className="group relative h-20 w-20 shrink-0 overflow-hidden rounded-sm border border-[var(--border-default)] bg-black/50"
+              >
+                <img
+                  src={attachment.url}
+                  alt={attachment.name || "Attached image"}
+                  className="h-full w-full object-cover"
+                />
                 <div className="absolute inset-x-1 bottom-1 flex justify-between gap-1 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
-                  <button type="button" onClick={() => void saveToLookbook(attachment)} className="focus-ring grid h-7 w-7 place-items-center rounded-full bg-black/80 text-white" aria-label="Save to Lookbook">
+                  <button
+                    type="button"
+                    onClick={() => void saveToLookbook(attachment)}
+                    className="focus-ring grid h-7 w-7 place-items-center rounded-full bg-black/80 text-white"
+                    aria-label="Save to Lookbook"
+                  >
                     <BookmarkPlus className="h-3.5 w-3.5" />
                   </button>
-                  <button type="button" onClick={() => setAttachments((current) => current.filter((item) => item.assetId !== attachment.assetId))} className="focus-ring grid h-7 w-7 place-items-center rounded-full bg-black/80 text-white" aria-label="Remove image">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setAttachments((current) => current.filter((item) => item.assetId !== attachment.assetId))
+                    }
+                    className="focus-ring grid h-7 w-7 place-items-center rounded-full bg-black/80 text-white"
+                    aria-label="Remove image"
+                  >
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -646,45 +778,77 @@ export function ChatInput({
         ) : null}
 
         {lookbookOpen ? (
-          <div ref={lookbookPanelRef} className="absolute inset-x-0 bottom-full z-[60] mb-2 max-h-72 overflow-y-auto rounded-sm border border-white/15 bg-[#090909] p-3 shadow-2xl">
+          <div
+            ref={lookbookPanelRef}
+            className="absolute inset-x-0 bottom-full z-[60] mb-2 max-h-72 overflow-y-auto rounded-sm border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 shadow-2xl"
+          >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[.16em] text-[var(--codex-mint)]">Lookbook · reusable images</p>
+                <p className="text-xs font-semibold uppercase tracking-[.16em] text-[var(--codex-mint)]">
+                  Lookbook · reusable images
+                </p>
                 <p className="mt-1 max-w-2xl text-[11px] leading-4 text-[var(--text-secondary)]">
-                  Choose an image to attach it as visual context for your next message. Lookbook never changes the character automatically; Lorebook is the separate keyword-based facts system.
+                  Choose an image to attach it as visual context for your next message. Lookbook never changes the
+                  character automatically; Lorebook is the separate keyword-based facts system.
                 </p>
               </div>
-              <button type="button" onClick={() => setLookbookOpen(false)} className="focus-ring grid h-8 w-8 place-items-center text-[var(--text-secondary)]" aria-label="Close Lookbook"><X className="h-4 w-4" /></button>
+              <button
+                type="button"
+                onClick={() => setLookbookOpen(false)}
+                className="focus-ring grid h-8 w-8 place-items-center text-[var(--text-secondary)]"
+                aria-label="Close Lookbook"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
-            <div className="my-3 rounded-sm border border-white/10 bg-white/[.035] px-3 py-2 text-[10px] leading-4 text-[var(--text-muted)]">
-              Save: attach or generate an image, then press its bookmark icon. Reuse: open Lookbook and select the saved image before sending.
+            <div className="my-3 rounded-sm border border-[var(--border-default)] bg-white/[.035] px-3 py-2 text-[10px] leading-4 text-[var(--text-muted)]">
+              Save: attach or generate an image, then press its bookmark icon. Reuse: open Lookbook and select the saved
+              image before sending.
             </div>
             {lookbookLoading ? (
               <p className="py-8 text-center text-xs text-[var(--text-muted)]">Loading saved looks…</p>
             ) : lookbook.length ? (
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
                 {lookbook.map((image) => (
-                  <button key={image.lookbookId} type="button" onClick={() => attachLookbookImage(image)} className="focus-ring group overflow-hidden rounded-sm border border-white/10 bg-white/5 text-left hover:border-[var(--codex-mint)]" aria-label={`Attach ${image.title} to the next message`}>
+                  <button
+                    key={image.lookbookId}
+                    type="button"
+                    onClick={() => attachLookbookImage(image)}
+                    className="focus-ring group overflow-hidden rounded-sm border border-[var(--border-default)] bg-white/5 text-left hover:border-[var(--codex-mint)]"
+                    aria-label={`Attach ${image.title} to the next message`}
+                  >
                     <img src={image.url} alt={image.title} className="aspect-square w-full object-cover" />
-                    <span className="block truncate px-2 py-1.5 text-[11px] text-[var(--text-secondary)]">{image.title}</span>
-                    <span className="block px-2 pb-1.5 text-[9px] uppercase tracking-[.12em] text-[var(--text-muted)] group-hover:text-[var(--codex-mint)]">Attach next</span>
+                    <span className="block truncate px-2 py-1.5 text-[11px] text-[var(--text-secondary)]">
+                      {image.title}
+                    </span>
+                    <span className="block px-2 pb-1.5 text-[9px] uppercase tracking-[.12em] text-[var(--text-muted)] group-hover:text-[var(--codex-mint)]">
+                      Attach next
+                    </span>
                   </button>
                 ))}
               </div>
             ) : (
-              <p className="py-6 text-center text-xs text-[var(--text-muted)]">No saved images yet. Attach a photo or use Illustrate, then press the bookmark icon on its preview.</p>
+              <p className="py-6 text-center text-xs text-[var(--text-muted)]">
+                No saved images yet. Attach a photo or use Illustrate, then press the bookmark icon on its preview.
+              </p>
             )}
           </div>
         ) : null}
 
         {showExpandedComposer && activeLorebookEntries.length ? (
-          <div className="rounded-sm border border-[var(--codex-mint)]/35 bg-[var(--codex-mint)]/[.06] px-3 py-2" role="status">
+          <div
+            className="rounded-sm border border-[var(--codex-mint)]/35 bg-[var(--codex-mint)]/[.06] px-3 py-2"
+            role="status"
+          >
             <p className="text-[10px] font-semibold uppercase tracking-[.16em] text-[var(--codex-mint)]">
               Lorebook active · {activeLorebookEntries.length}
             </p>
             <div className="mt-1.5 grid gap-1">
               {activeLorebookEntries.map((entry, index) => (
-                <p key={entry.id ?? `${entry.matchedKeywords.join("-")}-${index}`} className="line-clamp-2 text-[11px] leading-4 text-[var(--text-secondary)]">
+                <p
+                  key={entry.id ?? `${entry.matchedKeywords.join("-")}-${index}`}
+                  className="line-clamp-2 text-[11px] leading-4 text-[var(--text-secondary)]"
+                >
                   <span className="font-semibold text-[var(--text-primary)]">{entry.matchedKeywords.join(", ")}</span>
                   {` → ${entry.text}`}
                 </p>
@@ -703,7 +867,12 @@ export function ChatInput({
           />
         ) : null}
 
-        <div className={cn("relative flex gap-3", showExpandedComposer ? "flex-col sm:flex-row sm:items-end" : "flex-row items-center")}>
+        <div
+          className={cn(
+            "relative flex gap-3",
+            showExpandedComposer ? "flex-col sm:flex-row sm:items-end" : "flex-row items-center"
+          )}
+        >
           <textarea
             ref={textareaRef}
             value={value}
@@ -723,7 +892,12 @@ export function ChatInput({
             disabled={disabled}
           />
 
-          <div className={cn("relative flex items-center justify-between gap-3", showExpandedComposer ? "w-full sm:w-auto sm:justify-end" : "w-auto shrink-0 justify-end")}>
+          <div
+            className={cn(
+              "relative flex items-center justify-between gap-3",
+              showExpandedComposer ? "w-full sm:w-auto sm:justify-end" : "w-auto shrink-0 justify-end"
+            )}
+          >
             <div className={cn("min-w-0 items-center sm:hidden", showExpandedComposer ? "flex" : "hidden")}>
               {onOpenComposer ? (
                 <motion.button
@@ -734,7 +908,12 @@ export function ChatInput({
                   transition={springSnappy}
                   className="focus-ring flex h-10 min-w-0 items-center gap-2 rounded-sm border border-[var(--codex-rule)] bg-transparent px-2.5 pr-3 text-sm font-semibold text-[var(--text-secondary)]"
                 >
-                  <Avatar name={personaName ?? "You"} src={personaAvatarUrl} size="xs" className="h-7 w-7 border-0 bg-transparent" />
+                  <Avatar
+                    name={personaName ?? "You"}
+                    src={personaAvatarUrl}
+                    size="xs"
+                    className="h-7 w-7 border-0 bg-transparent"
+                  />
                   <span className="max-w-[116px] truncate">{personaName ?? "You"}</span>
                 </motion.button>
               ) : null}
@@ -777,7 +956,11 @@ export function ChatInput({
                 whileTap={canSend ? { scale: 0.92 } : undefined}
                 transition={springSnappy}
                 className="focus-ring relative grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[var(--codex-mint)] text-[var(--codex-mint)] disabled:cursor-not-allowed disabled:opacity-45"
-                style={{ background: canSend ? "oklch(var(--color-accent-secondary) / .08)" : "transparent" } as CSSProperties}
+                style={
+                  {
+                    background: canSend ? "oklch(var(--color-accent-secondary) / .08)" : "transparent"
+                  } as CSSProperties
+                }
               >
                 <ArrowUp className="h-4 w-4" />
               </motion.button>
@@ -787,7 +970,9 @@ export function ChatInput({
         <div className="relative flex items-center justify-between gap-3 px-1 text-xs text-[var(--text-muted)]">
           <p role="status">{attachmentStatus}</p>
           <span className={value.length >= messageLimit ? "text-amber-300" : undefined}>
-            {elevatedLimits ? `${value.length.toLocaleString()} characters · extended` : `${value.length.toLocaleString()}/${messageLimit.toLocaleString()}`}
+            {elevatedLimits
+              ? `${value.length.toLocaleString()} characters · extended`
+              : `${value.length.toLocaleString()}/${messageLimit.toLocaleString()}`}
           </span>
         </div>
       </motion.div>
@@ -799,7 +984,9 @@ function filterModelGroups(groups: ProviderModelGroup[], query: string) {
   const normalizedQuery = query.trim().toLowerCase();
 
   return groups.flatMap((group) => {
-    const providerMatches = group.displayName.toLowerCase().includes(normalizedQuery) || group.provider.toLowerCase().includes(normalizedQuery);
+    const providerMatches =
+      group.displayName.toLowerCase().includes(normalizedQuery) ||
+      group.provider.toLowerCase().includes(normalizedQuery);
     const options = normalizedQuery
       ? group.options.filter((option) => providerMatches || option.model.toLowerCase().includes(normalizedQuery))
       : group.options;

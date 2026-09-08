@@ -55,6 +55,7 @@ type ChatClientProps = {
   characterBackgroundUrl?: string | null;
   characterLorebook?: unknown;
   initialMessages: ChatMessage[];
+  initialHasEarlierMessages?: boolean;
   initialActiveAssistantMessageId?: string | null;
   inputLimits?: ChatInputLimits;
 };
@@ -80,6 +81,7 @@ export function ChatClient({
   translationLanguage: initialTranslationLanguage,
   appearance: initialAppearance,
   initialMessages,
+  initialHasEarlierMessages,
   initialActiveAssistantMessageId,
   inputLimits
 }: ChatClientProps) {
@@ -119,9 +121,12 @@ export function ChatClient({
     unpinMessage,
     isStreaming,
     refreshing,
+    loadingEarlier,
+    hasEarlierMessages,
+    loadEarlierMessages,
     error,
     providerNotice
-  } = useChat(chatId, initialMessages, summary);
+  } = useChat(chatId, initialMessages, summary, initialHasEarlierMessages);
   const messagesRef = useRef(messages);
   const isStreamingRef = useRef(isStreaming);
   const chatSettingsRef = useRef({ model, temperature, responsePrompt });
@@ -831,6 +836,9 @@ export function ChatClient({
             </div>
           ) : null}
           <MessageList
+            hasEarlierMessages={hasEarlierMessages}
+            loadingEarlier={loadingEarlier || isStreaming || refreshing}
+            onLoadEarlier={loadEarlierMessages}
             messages={messages}
             characterName={characterName}
             characterAvatarUrl={characterAvatarUrl}

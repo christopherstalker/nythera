@@ -21,6 +21,16 @@ export async function GET(request: Request, context: Context) {
     const user = await requireUser();
     requireAdultConsent(user);
     await enforceRateLimit({ userId: user.id, ip: getRequestIp(request), route: "chats:read" });
+    const before = new URL(request.url).searchParams.get("before");
+    if (
+      before &&
+      !(await prisma.message.findFirst({
+        where: { id: before, chatId, chat: { userId: user.id } },
+        select: { id: true }
+      }))
+    ) {
+      throw new HttpError(404, "Message history not found.");
+    }
     const chat = await measurePrismaOperation(
       {
         route: "chat:get",
@@ -59,7 +69,8 @@ export async function GET(request: Request, context: Context) {
             },
             messages: {
               orderBy: [{ createdAt: "desc" }, { sequence: "desc" }, { id: "desc" }],
-              take: 200,
+              take: 201,
+              ...(before ? { cursor: { id: before }, skip: 1 } : {}),
               select: {
                 id: true,
                 role: true,
@@ -93,23 +104,37 @@ export async function GET(request: Request, context: Context) {
       where: {
         userId: user.id,
         characterId: chat.characterId,
-        OR: [
-          { createdAt: { lt: chat.createdAt } },
-          { createdAt: chat.createdAt, id: { lte: chat.id } }
-        ]
+        OR: [{ createdAt: { lt: chat.createdAt } }, { createdAt: chat.createdAt, id: { lte: chat.id } }]
       }
     });
 
-    const persona = chat.persona ?? await prisma.userPersona.findFirst({
-      where: { userId: user.id, isDefault: true },
-      select: { displayName: true, surname: true }
-    });
-    const messages = chat.messages.reverse().map((message) => ({
-      ...renderInitialChatGreeting(message, chat.character.name, persona),
-      attachments: message.attachments.map(serializeChatAttachment)
-    }));
+    const persona =
+      chat.persona ??
+      (await prisma.userPersona.findFirst({
+        where: { userId: user.id, isDefault: true },
+        select: { displayName: true, surname: true }
+      }));
+    const hasEarlierMessages = chat.messages.length > 200;
+    const messages = chat.messages
+      .slice(0, 200)
+      .reverse()
+      .map((message) => ({
+        ...renderInitialChatGreeting(message, chat.character.name, persona),
+        attachments: message.attachments.map(serializeChatAttachment)
+      }));
     const { persona: _persona, ...serializedChat } = chat;
-    return json({ chat: { ...serializedChat, messages, chapterNumber, inputLimits: getChatInputLimits(user.id) } }, { headers: { "Cache-Control": "private, no-store" } });
+    return json(
+      {
+        chat: {
+          ...serializedChat,
+          messages,
+          hasEarlierMessages,
+          chapterNumber,
+          inputLimits: getChatInputLimits(user.id)
+        }
+      },
+      { headers: { "Cache-Control": "private, no-store" } }
+    );
   } catch (error) {
     return routeError(error);
   }
@@ -121,7 +146,10 @@ export async function PATCH(request: Request, context: Context) {
     const input = await parseJson(request, chatUpdateSchema);
     const inputLimits = getChatInputLimits(user.id);
     if ((input.responsePrompt?.length ?? 0) > inputLimits.responsePrompt) {
-      throw new HttpError(400, `Custom system prompt must be ${inputLimits.responsePrompt.toLocaleString()} characters or fewer.`);
+      throw new HttpError(
+        400,
+        `Custom system prompt must be ${inputLimits.responsePrompt.toLocaleString()} characters or fewer.`
+      );
     }
     const chat = await prisma.chat.findFirst({
       where: {
@@ -168,12 +196,13 @@ export async function PATCH(request: Request, context: Context) {
 
     const selectedModel = input.model?.trim();
     const selectedProviderModel = splitProviderModelValue(selectedModel);
-    const userModelPreferences = selectedModel === undefined
-      ? {}
-      : {
-          preferredProvider: selectedProviderModel?.provider ?? null,
-          preferredModel: selectedProviderModel?.model ?? selectedModel
-        };
+    const userModelPreferences =
+      selectedModel === undefined
+        ? {}
+        : {
+            preferredProvider: selectedProviderModel?.provider ?? null,
+            preferredModel: selectedProviderModel?.model ?? selectedModel
+          };
     const chatUpdate = prisma.chat.update({
       where: { id: chat.id },
       data: {
@@ -185,31 +214,35 @@ export async function PATCH(request: Request, context: Context) {
         chatMode: input.chatMode,
         translationLanguage: input.translationLanguage === undefined ? undefined : input.translationLanguage || null,
         activeAssistantMessageId: input.activeAssistantMessageId,
-        appearance: input.appearance === undefined
-          ? undefined
-          : input.appearance === null
-            ? Prisma.DbNull
-            : input.appearance as Prisma.InputJsonValue,
+        appearance:
+          input.appearance === undefined
+            ? undefined
+            : input.appearance === null
+              ? Prisma.DbNull
+              : (input.appearance as Prisma.InputJsonValue),
         lastActiveAt: new Date()
       }
     });
 
-    const shouldUpdateUser = selectedModel !== undefined || input.temperature !== undefined || input.responsePrompt !== undefined || input.chatMode !== undefined;
-    const [updated] =
-      !shouldUpdateUser
-        ? [await chatUpdate]
-        : await prisma.$transaction([
-            chatUpdate,
-            prisma.user.update({
-              where: { id: user.id },
-              data: {
-                ...userModelPreferences,
-                defaultTemperature: input.temperature,
-                defaultResponsePrompt: input.responsePrompt === undefined ? undefined : input.responsePrompt || null,
-                preferredChatMode: input.chatMode
-              }
-            })
-          ]);
+    const shouldUpdateUser =
+      selectedModel !== undefined ||
+      input.temperature !== undefined ||
+      input.responsePrompt !== undefined ||
+      input.chatMode !== undefined;
+    const [updated] = !shouldUpdateUser
+      ? [await chatUpdate]
+      : await prisma.$transaction([
+          chatUpdate,
+          prisma.user.update({
+            where: { id: user.id },
+            data: {
+              ...userModelPreferences,
+              defaultTemperature: input.temperature,
+              defaultResponsePrompt: input.responsePrompt === undefined ? undefined : input.responsePrompt || null,
+              preferredChatMode: input.chatMode
+            }
+          })
+        ]);
 
     return json({ chat: updated });
   } catch (error) {

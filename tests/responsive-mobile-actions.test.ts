@@ -60,26 +60,17 @@ test("story controls stay inside the phone viewport and scroll independently", a
   assert.match(input, /aria-label="Close story controls"/);
 });
 
-test("phones stay portrait while tablets and larger devices keep their natural orientation", async () => {
-  const [layout, manifest, nativeConfig, styles, orientationGuard] = await Promise.all([
+test("phones and tablets support either orientation without a blocking overlay", async () => {
+  const [layout, manifest, nativeConfig, styles] = await Promise.all([
     read("../src/app/layout.tsx"),
     read("../src/app/manifest.ts"),
     read("../mobile/app.json"),
-    read("../src/app/globals.css"),
-    read("../src/components/pwa/orientation-lock.tsx")
+    read("../src/app/globals.css")
   ]);
-
   assert.doesNotMatch(manifest, /orientation:/);
   assert.match(nativeConfig, /"orientation": "default"/);
-  assert.match(layout, /<OrientationLock \/>/);
-  assert.match(styles, /\.portrait-guard\.is-blocked/);
-  assert.match(orientationGuard, /shorterSide <= 540 && longerSide <= 932/);
-  assert.doesNotMatch(orientationGuard, /navigator\.maxTouchPoints|pointer: coarse/);
-  assert.match(orientationGuard, /if \(!isPhoneDevice\(\)\)/);
-  assert.match(orientationGuard, /orientation\?\.unlock\?\.\(\)/);
-  assert.match(orientationGuard, /orientation\.lock\("portrait-primary"\)/);
-  assert.doesNotMatch(layout, /LivingCodexIntro|living-codex-intro/);
-  assert.doesNotMatch(styles, /\.living-codex-intro|@keyframes living-codex-copy/);
+  assert.doesNotMatch(layout, /OrientationLock/);
+  assert.doesNotMatch(styles, /\.portrait-guard/);
 });
 
 test("character creation stays usable above the mobile dock without horizontal overflow", async () => {

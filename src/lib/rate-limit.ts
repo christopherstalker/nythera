@@ -84,6 +84,7 @@ const AUTH_HANDOFF_STATUS_LIMIT: RateLimitRule = {
 };
 
 const ROUTE_LIMITS: Record<string, RateLimitRule> = {
+  "keys:validate": AI_CREATION_LIMIT,
   "auth:nextauth": AUTH_LIMIT,
   "auth:register": AUTH_LIMIT,
   "auth:forgot-password": AUTH_LIMIT,
@@ -150,12 +151,7 @@ const RATE_LIMIT_BYPASS_USER_IDS = new Set(
     .filter(Boolean)
 );
 
-export async function enforceRateLimit(input: {
-  userId?: string;
-  ip?: string | null;
-  route: string;
-  cost?: number;
-}) {
+export async function enforceRateLimit(input: { userId?: string; ip?: string | null; route: string; cost?: number }) {
   if (input.userId && RATE_LIMIT_BYPASS_USER_IDS.has(input.userId)) {
     return;
   }
@@ -181,7 +177,11 @@ export async function enforceRateLimit(input: {
   }
 
   if (dayCount > limits.perDay) {
-    throw new RateLimitError("Daily platform limit exceeded. Please try again tomorrow.", 429, secondsUntilNextUtcDay(now));
+    throw new RateLimitError(
+      "Daily platform limit exceeded. Please try again tomorrow.",
+      429,
+      secondsUntilNextUtcDay(now)
+    );
   }
 }
 
@@ -197,7 +197,7 @@ function requiresDistributedRateLimit() {
 }
 
 function secondsUntilNextMinute(now: number) {
-  return Math.max(1, Math.ceil((60_000 - now % 60_000) / 1000));
+  return Math.max(1, Math.ceil((60_000 - (now % 60_000)) / 1000));
 }
 
 function secondsUntilNextUtcDay(now: number) {

@@ -33,8 +33,8 @@ test("character mutations persist tags in a cross-device user library", async ()
   assert.match(input, /Saved tags/);
   assert.match(input, /Search or create a tag/);
   assert.match(input, /className="codex-tag-search-input w-full"/);
-  assert.match(styles, /padding-left:\s*var\(--codex-field-padding-left, 0\);/);
-  assert.match(styles, /padding-right:\s*var\(--codex-field-padding-right, 0\);/);
+  assert.match(styles, /padding-left:\s*var\(--codex-field-padding-left, 1rem\);/);
+  assert.match(styles, /padding-right:\s*var\(--codex-field-padding-right, 1rem\);/);
   assert.match(
     styles,
     /\.codex-manuscript \.codex-tag-search-input\s*\{[\s\S]*?--codex-field-padding-left:\s*2\.5rem;[\s\S]*?--codex-field-padding-right:\s*0?\.75rem;/

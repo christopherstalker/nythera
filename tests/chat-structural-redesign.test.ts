@@ -64,9 +64,9 @@ test("chat uses an editorial dossier workspace, manuscript messages, and a refer
   assert.doesNotMatch(client, /<ChatSidebar/);
   assert.match(composer, /composer-dock/);
   assert.match(composer, /sticky bottom-0/);
-  assert.match(composer, /border border-white\/15/);
+  assert.match(composer, /border border-\[var\(--border-default\)\]/);
   assert.doesNotMatch(composer, /shadow-\[var\(--shadow-elevated\)\]/);
-  assert.match(composer, /bg-black\/75/);
+  assert.match(composer, /bg-\[var\(--bg-elevated\)\]/);
   assert.match(composer, /ArrowUp/);
   assert.match(composer, /border border-\[var\(--codex-mint\)\]/);
   assert.match(composer, /Write what happens next/);

@@ -14,7 +14,7 @@ test("new accounts play the tutorial before verified BYOK onboarding", async () 
     read("../src/app/api/keys/route.ts")
   ]);
 
-  assert.match(register, /\/auth\/new-user\?callbackUrl=\/explore/);
+  assert.match(register, /encodeURIComponent\(callbackUrl\)/);
   assert.match(register, /password\.length >= 8/);
   assert.match(register, /normalizeUsername\(username\)/);
   assert.match(register, /usernameValidationMessage\(normalizedUsername\)/);

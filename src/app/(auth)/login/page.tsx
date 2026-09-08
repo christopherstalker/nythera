@@ -79,19 +79,29 @@ function LoginPageContent() {
       footer={
         <>
           Need an account?{" "}
-          <Link href="/register" className="font-semibold text-primary no-underline hover:underline">
+          <Link
+            href={`/register?callbackUrl=${encodeURIComponent(callbackUrl)}`}
+            className="font-semibold text-primary no-underline hover:underline"
+          >
             Begin your chronicle
           </Link>
         </>
       }
     >
-      <h2 className="text-xl font-semibold tracking-tight text-[var(--text-primary)]">Sign in to Nythera</h2>
+      <h1 className="text-xl font-semibold tracking-tight text-[var(--text-primary)]">Sign in to Nythera</h1>
       <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
         Your characters, memories, and worlds are waiting on the other side.
       </p>
       <OAuthButtons intent="login" callbackUrl={callbackUrl} />
       <form onSubmit={onSubmit} className="mt-6 space-y-4">
-        <Input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" type="email" autoComplete="email" required />
+        <Input
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="Email"
+          type="email"
+          autoComplete="email"
+          required
+        />
         <Input
           value={password}
           onChange={(event) => setPassword(event.target.value)}
@@ -101,11 +111,16 @@ function LoginPageContent() {
           required
         />
         <div className="text-right">
-          <Link href="/forgot-password" className="text-xs font-medium text-[var(--accent-mint)] no-underline hover:underline">
+          <Link
+            href="/forgot-password"
+            className="text-xs font-medium text-[var(--accent-mint)] no-underline hover:underline"
+          >
             Forgot password?
           </Link>
         </div>
-        {error ? <p className="border-l border-destructive bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
+        {error ? (
+          <p className="border-l border-destructive bg-destructive/10 p-3 text-sm text-destructive">{error}</p>
+        ) : null}
         <Button className="w-full" type="submit" size="lg" disabled={submitting}>
           <Mail className="h-4 w-4" />
           {submitting ? "Opening your chronicle…" : "Enter the story"}

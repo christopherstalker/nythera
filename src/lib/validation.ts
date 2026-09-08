@@ -4,6 +4,7 @@ import { resolveMusicEmbed } from "@/lib/music-embed";
 import { isRussianLanguageLabel, RUSSIAN_LANGUAGE_ERROR } from "@/lib/language-policy";
 import { MAX_CHARACTER_SYSTEM_PROMPT_CHARACTERS } from "@/lib/prompt-limits";
 import { usernameSchema } from "@/lib/username";
+import { isTextChatModel } from "@/lib/chat-model-capabilities";
 
 const MAX_IMAGE_DATA_URL_BYTES = 140_000;
 const MAX_IMAGE_DATA_URL_LENGTH = 190_000;
@@ -303,7 +304,7 @@ export const chatCreateSchema = z.object({
   characterId: z.string().min(1),
   title: z.string().max(120).optional(),
   temperature: z.coerce.number().min(0).max(2).optional(),
-  model: z.string().trim().min(1).max(160).optional(),
+  model: z.string().trim().min(1).max(160).refine(isTextChatModel, "Choose a text chat model.").optional(),
   chatMode: z.enum(["realism", "fantasy"]).optional()
 });
 
@@ -347,7 +348,7 @@ export const chatUpdateSchema = z.object({
   title: z.string().max(120).optional(),
   archived: z.boolean().optional(),
   temperature: z.coerce.number().min(0).max(2).optional(),
-  model: z.string().trim().min(1).max(160).optional(),
+  model: z.string().trim().min(1).max(160).refine(isTextChatModel, "Choose a text chat model.").optional(),
   responsePrompt: z.string().trim().max(ELEVATED_RESPONSE_PROMPT_LENGTH).optional(),
   chatMode: z.enum(["realism", "fantasy"]).optional(),
   translationLanguage: z
@@ -366,7 +367,7 @@ export const streamMessageSchema = z
     message: z.string().max(ELEVATED_CHAT_MESSAGE_LENGTH).optional().default(""),
     attachmentIds: z.array(z.string().cuid()).max(2).optional().default([]),
     temperature: z.coerce.number().min(0).max(2).optional(),
-    model: z.string().trim().min(1).max(160).optional(),
+    model: z.string().trim().min(1).max(160).refine(isTextChatModel, "Choose a text chat model.").optional(),
     responsePrompt: z.string().trim().max(ELEVATED_RESPONSE_PROMPT_LENGTH).optional(),
     requestId: z.string().min(8).max(120).optional(),
     regenerate: z.boolean().optional(),

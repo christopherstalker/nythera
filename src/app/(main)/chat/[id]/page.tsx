@@ -29,6 +29,7 @@ type Chat = {
     lorebook?: unknown;
   };
   messages: ChatMessage[];
+  hasEarlierMessages: boolean;
 };
 
 export default function ChatPage() {
@@ -114,6 +115,7 @@ export default function ChatPage() {
       characterBackgroundUrl={getCharacterBackgroundUrl(chat.character.visualIdentity)}
       characterLorebook={chat.character.lorebook}
       initialMessages={chat.messages}
+      initialHasEarlierMessages={chat.hasEarlierMessages}
       initialActiveAssistantMessageId={chat.activeAssistantMessageId}
       inputLimits={chat.inputLimits}
     />

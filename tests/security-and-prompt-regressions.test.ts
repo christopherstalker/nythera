@@ -32,7 +32,7 @@ test("password registration stays unverified and duplicate identities return a c
 });
 
 test("CSP permits direct Blob uploads and custom Blob fonts", async () => {
-  const config = await read("../next.config.mjs");
+  const config = await read("../src/lib/content-security-policy.ts");
 
   assert.match(config, /font-src 'self' data: https:\/\/\*\.blob\.vercel-storage\.com/);
   assert.match(config, /connect-src 'self'[\s\S]*https:\/\/\*\.blob\.vercel-storage\.com/);
@@ -49,9 +49,15 @@ test("custom prompts receive facts but no built-in behavioral contracts", async 
   assert.match(assembly, /const factsOnly = Boolean\(customPromptLayer\)/);
   assert.match(assembly, /factsOnly \? null : buildAdultRoleplayPolicyLayer/);
   assert.match(assembly, /factsOnly \? input\.factualStoryContext : input\.storyContext/);
-  assert.match(assembly, /const behaviorLayers = customPromptLayer\s*\? \[customPromptLayer\]\s*: \[roleplayEngineLayer, modeLayer\]/);
+  assert.match(
+    assembly,
+    /const behaviorLayers = customPromptLayer\s*\? \[customPromptLayer\]\s*: \[roleplayEngineLayer, modeLayer\]/
+  );
   assert.match(assembly, /if \(factsOnly\) \{\s*return \["PLAYER PERSONA \(FACTUAL CONTEXT\)"/);
-  assert.match(assembly, /return \[\s*"PLAYER PERSONA — AUTHORITATIVE IDENTITY AND BOUNDARIES"[\s\S]*Preserve the profile's facts, never its prose/);
+  assert.match(
+    assembly,
+    /return \[\s*"PLAYER PERSONA — AUTHORITATIVE IDENTITY AND BOUNDARIES"[\s\S]*Preserve the profile's facts, never its prose/
+  );
   assert.match(assembly, /if \(factsOnly\) \{\s*return \["STRUCTURED STORY FACTS"/);
   assert.doesNotMatch(memoryPrompt, /ADULT INTIMACY|guide style|preserves continuity/i);
   assert.match(physicalContinuity, /factsOnly/);
