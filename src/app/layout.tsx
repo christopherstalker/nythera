@@ -111,7 +111,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <head>
         <link
           rel="preload"
-          href="/fonts/lora/Lora-Variable.woff2"
+          href="/fonts/lora/lora-latin-wght-normal.woff2"
           as="font"
           type="font/woff2"
           crossOrigin="anonymous"
