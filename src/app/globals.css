@@ -103,6 +103,50 @@
 
 /* Living Codex composition */
 @layer components {
+  .studio-provider-card > summary {
+    display: flex;
+    min-height: var(--touch-target);
+    cursor: pointer;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem;
+    list-style: none;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  .studio-provider-card > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .studio-provider-card > summary span:last-child {
+    margin-left: auto;
+    text-align: right;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 400;
+  }
+
+  .studio-provider-card > summary::after {
+    content: "+";
+  }
+
+  .studio-provider-card[open] > summary::after {
+    content: "−";
+  }
+
+  .studio-provider-card > summary:focus-visible {
+    outline: 2px solid var(--brand-primary);
+    outline-offset: -3px;
+    border-radius: var(--radius-card);
+  }
+
+  .studio-provider-card[open] > summary {
+    border-bottom: 1px solid var(--border-default);
+  }
+
   .codex-kicker {
     font-size: 0.68rem;
     font-weight: 600;
