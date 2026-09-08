@@ -382,6 +382,9 @@ export function useChat(
       return false;
     }
     refreshInFlightRef.current = true;
+    historyAbortRef.current?.abort();
+    historyAbortRef.current = null;
+    setLoadingEarlier(false);
     abortRef.current?.abort();
     abortRef.current = null;
     inFlightRef.current = false;
