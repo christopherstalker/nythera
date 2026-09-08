@@ -5,10 +5,7 @@ import test from "node:test";
 const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
 test("crawler endpoints publish the canonical public archive", async () => {
-  const [robots, sitemap] = await Promise.all([
-    read("../src/app/robots.ts"),
-    read("../src/app/sitemap.ts")
-  ]);
+  const [robots, sitemap] = await Promise.all([read("../src/app/robots.ts"), read("../src/app/sitemap.ts")]);
 
   assert.match(robots, /sitemap: `\$\{CANONICAL_SITE_ORIGIN\}\/sitemap\.xml`/);
   assert.match(robots, /"\/api\/"/);
@@ -70,5 +67,5 @@ test("SEO landings extend the shared character tag catalog", async () => {
   assert.match(collection, /catch\s*\{[\s\S]*return \[\]/);
   assert.match(home, /Stories that remember you\./);
   assert.match(home, /href="\/ai-roleplay"/);
-  assert.match(home, /DISCOVERY_TAGS\.slice/);
+  assert.match(home, /DISCOVERY_TAGS\.filter/);
 });

@@ -101,168 +101,7 @@
   }
 }
 
-@layer components {
-  .neo-glass-base,
-  .neo-glass-panel,
-  .neo-glass-card,
-  .neo-glass-chat-container,
-  .neo-glass-chat-header,
-  .neo-glass-input-dock,
-  .neo-glass-input-pill,
-  .neo-glass-icon-btn,
-  .neo-glass-chip,
-  .neo-glass-search,
-  .neo-glass-patreon-btn,
-  .chat-sidebar-panel,
-  .chat-sidebar-search,
-  .chat-sidebar-mode {
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-    text-shadow: none;
-    box-shadow: none;
-  }
-
-  .neo-glass-panel,
-  .neo-glass-card {
-    border: 1px solid var(--codex-rule);
-    border-radius: 0;
-    background: var(--codex-paper-raised);
-  }
-
-  .neo-glass-card:hover {
-    border-color: var(--codex-violet);
-    background: var(--codex-paper-raised);
-    transform: none;
-    box-shadow: none;
-  }
-
-  .neo-glass-chat-container {
-    border: 0;
-    border-radius: 0;
-    background: var(--codex-paper);
-  }
-
-  .neo-glass-chat-container::before,
-  .neo-glass-profile-banner::after {
-    display: none;
-  }
-
-  .neo-glass-chat-header {
-    border-bottom: 1px solid var(--codex-rule);
-    background: color-mix(in oklch, var(--codex-paper) 92%, transparent);
-  }
-
-  .neo-glass-bubble-user,
-  .neo-glass-bubble-ai {
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-    box-shadow: none;
-    text-shadow: none;
-  }
-
-  .neo-glass-input-dock {
-    border: 1px solid var(--codex-rule);
-    border-radius: 0;
-    background: var(--codex-paper-raised);
-  }
-
-  .neo-glass-input-dock:focus-within {
-    background: var(--codex-paper-raised);
-    box-shadow: none;
-  }
-
-  .neo-glass-input-pill {
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
-  }
-
-  .neo-glass-send-btn,
-  .neo-glass-icon-btn {
-    border: 1px solid var(--codex-rule);
-    background: transparent;
-    box-shadow: none;
-  }
-
-  .neo-glass-send-btn:not(:disabled):hover,
-  .neo-glass-icon-btn:hover {
-    border-color: var(--codex-mint);
-    background: transparent;
-    box-shadow: none;
-  }
-
-  .neo-glass-send-btn.is-active {
-    animation: none;
-  }
-
-  .neo-glass-chip,
-  .neo-glass-search,
-  .chat-sidebar-search,
-  .chat-sidebar-mode {
-    border: 1px solid var(--codex-rule);
-    border-radius: 2px;
-    background: var(--codex-paper-raised);
-  }
-
-  .neo-glass-chip.is-active {
-    border-color: var(--codex-violet);
-    background: var(--codex-paper-raised);
-    box-shadow: none;
-  }
-
-  .neo-glass-patreon-btn {
-    border: 1px solid color-mix(in srgb, #ff424d 55%, transparent);
-    background: transparent;
-    color: #ff9da3;
-  }
-
-  .neo-glass-patreon-btn:hover {
-    border-color: #ff7a82;
-    background: rgba(255, 66, 77, 0.06);
-    box-shadow: none;
-  }
-
-  .neo-glass-status-dot {
-    box-shadow: none;
-  }
-
-  .neo-glass-unread {
-    border: 1px solid var(--codex-violet);
-    background: transparent;
-    box-shadow: none;
-  }
-
-  .neo-glass-typing-dot {
-    box-shadow: none;
-  }
-
-  .neo-glass-profile,
-  .neo-glass-profile .neo-glass-card,
-  .neo-glass-profile .neo-glass-card:hover {
-    box-shadow: none;
-  }
-
-  .chat-sidebar-panel {
-    border-right: 1px solid var(--codex-rule);
-    background: var(--codex-paper-raised);
-  }
-
-  .chat-sidebar-item:hover {
-    background: var(--color-overlay);
-    transform: none;
-  }
-
-  .chat-sidebar-item.is-active {
-    background: var(--color-overlay);
-    box-shadow: inset 3px 0 0 var(--codex-mint);
-  }
-}
-
-/* Final Living Codex composition overrides. Kept last so legacy glass rules cannot win. */
+/* Living Codex composition */
 @layer components {
   .codex-kicker {
     font-size: 0.68rem;
@@ -284,12 +123,12 @@
   .codex-workshop,
   .settings-orbital-nav,
   .settings-orbital-section {
-    border-radius: 0;
-    border-color: var(--codex-rule);
-    background: transparent;
-    box-shadow: none;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
+    border-radius: var(--radius-card);
+    border-color: var(--border-default);
+    background: var(--neo-glass-bg-standard);
+    box-shadow: var(--glass-highlight);
+    -webkit-backdrop-filter: blur(var(--glass-blur-sm));
+    backdrop-filter: blur(var(--glass-blur-sm));
   }
 
   .settings-orbital-nav,
@@ -320,7 +159,7 @@
   .codex-settings textarea,
   .codex-settings select,
   .codex-auth input {
-    border-radius: 2px;
+    border-radius: var(--radius-control);
   }
 
   @media (max-width: 767px) {
@@ -978,61 +817,6 @@
     animation: nythera-loader-pulse 1.4s ease-in-out infinite;
     box-shadow: none;
   }
-
-  .portrait-guard {
-    display: none;
-  }
-
-  .portrait-guard.is-blocked {
-    display: grid;
-  }
-
-  .portrait-guard-veil {
-    background:
-      radial-gradient(circle at 50% 46%, oklch(var(--color-accent-secondary) / 0.08), transparent 32%),
-      linear-gradient(155deg, oklch(var(--color-accent-primary) / 0.06), transparent 46%), var(--codex-paper);
-  }
-
-  .portrait-guard-book {
-    position: relative;
-    width: 4.8rem;
-    height: 5.8rem;
-    transform: rotate(-90deg);
-    border: 1px solid var(--codex-rule);
-    background: var(--codex-paper-raised);
-    box-shadow: 0 1.5rem 4rem oklch(0 0 0 / 0.32);
-  }
-
-  .portrait-guard-book::before {
-    position: absolute;
-    inset-block: 0.4rem;
-    left: 0.55rem;
-    width: 1px;
-    background: var(--codex-mint);
-    content: "";
-  }
-
-  .portrait-guard-book span {
-    position: absolute;
-    right: 0.65rem;
-    width: 2.7rem;
-    height: 1px;
-    background: var(--codex-rule);
-  }
-
-  .portrait-guard-book span:first-child {
-    top: 2rem;
-  }
-
-  .portrait-guard-book span:last-child {
-    top: 3rem;
-  }
-
-  @media (orientation: landscape) and (max-height: 540px) and (pointer: coarse) {
-    .portrait-guard {
-      display: grid;
-    }
-  }
 }
 
 /* Living Codex visual system */
@@ -1280,9 +1064,10 @@
   .settings-orbital-nav,
   .settings-orbital-section {
     border-color: var(--codex-rule);
-    background: color-mix(in oklch, var(--codex-paper-raised) 88%, transparent);
-    box-shadow: none;
-    backdrop-filter: none;
+    background: var(--neo-glass-bg-standard);
+    box-shadow: var(--glass-highlight);
+    -webkit-backdrop-filter: blur(var(--glass-blur-sm));
+    backdrop-filter: blur(var(--glass-blur-sm));
   }
 
   .codex-surface {
@@ -1293,7 +1078,7 @@
   .glass-input {
     border-color: var(--codex-rule);
     background: color-mix(in oklch, var(--codex-paper-raised) 92%, transparent);
-    border-radius: 2px;
+    border-radius: var(--radius-control);
   }
 
   .glass-input:focus {
@@ -1658,13 +1443,12 @@
   .codex-manuscript input:not([type="checkbox"]):not([type="range"]),
   .codex-manuscript textarea,
   .codex-manuscript select {
-    border: 0;
-    border-bottom: 1px solid var(--codex-rule);
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    padding-left: var(--codex-field-padding-left, 0);
-    padding-right: var(--codex-field-padding-right, 0);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-control);
+    background: var(--bg-input);
+    box-shadow: var(--glass-highlight);
+    padding-left: var(--codex-field-padding-left, 1rem);
+    padding-right: var(--codex-field-padding-right, 1rem);
     font-family: var(--font-editorial);
     font-size: 1.2rem;
     line-height: 1.55;
@@ -2881,12 +2665,12 @@
   .codex-workshop,
   .settings-orbital-nav,
   .settings-orbital-section {
-    border-radius: 0;
-    border-color: var(--codex-rule);
-    background: transparent;
-    box-shadow: none;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
+    border-radius: var(--radius-card);
+    border-color: var(--border-default);
+    background: var(--neo-glass-bg-standard);
+    box-shadow: var(--glass-highlight);
+    -webkit-backdrop-filter: blur(var(--glass-blur-sm));
+    backdrop-filter: blur(var(--glass-blur-sm));
   }
 
   .settings-orbital-nav,
@@ -3466,156 +3250,5 @@
       -webkit-backdrop-filter: none;
       backdrop-filter: none;
     }
-  }
-}
-
-@layer components {
-  .neo-glass-base,
-  .neo-glass-panel,
-  .neo-glass-card,
-  .neo-glass-chat-container,
-  .neo-glass-chat-header,
-  .neo-glass-input-dock,
-  .neo-glass-input-pill,
-  .neo-glass-icon-btn,
-  .neo-glass-chip,
-  .neo-glass-search,
-  .neo-glass-patreon-btn,
-  .chat-sidebar-panel,
-  .chat-sidebar-search,
-  .chat-sidebar-mode {
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-    text-shadow: none;
-    box-shadow: none;
-  }
-
-  .neo-glass-panel,
-  .neo-glass-card {
-    border: 1px solid var(--codex-rule);
-    border-radius: 0;
-    background: var(--codex-paper-raised);
-  }
-
-  .neo-glass-card:hover {
-    border-color: var(--codex-violet);
-    background: var(--codex-paper-raised);
-    transform: none;
-    box-shadow: none;
-  }
-
-  .neo-glass-chat-container {
-    border: 0;
-    border-radius: 0;
-    background: var(--codex-paper);
-  }
-
-  .neo-glass-chat-container::before,
-  .neo-glass-profile-banner::after {
-    display: none;
-  }
-
-  .neo-glass-chat-header {
-    border-bottom: 1px solid var(--codex-rule);
-    background: color-mix(in oklch, var(--codex-paper) 92%, transparent);
-  }
-
-  .neo-glass-bubble-user,
-  .neo-glass-bubble-ai {
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-    box-shadow: none;
-    text-shadow: none;
-  }
-
-  .neo-glass-input-dock {
-    border: 1px solid var(--codex-rule);
-    border-radius: 0;
-    background: var(--codex-paper-raised);
-  }
-
-  .neo-glass-input-dock:focus-within {
-    background: var(--codex-paper-raised);
-    box-shadow: none;
-  }
-
-  .neo-glass-input-pill {
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
-  }
-
-  .neo-glass-send-btn,
-  .neo-glass-icon-btn {
-    border: 1px solid var(--codex-rule);
-    background: transparent;
-    box-shadow: none;
-  }
-
-  .neo-glass-send-btn:not(:disabled):hover,
-  .neo-glass-icon-btn:hover {
-    border-color: var(--codex-mint);
-    background: transparent;
-    box-shadow: none;
-  }
-
-  .neo-glass-send-btn.is-active {
-    animation: none;
-  }
-
-  .neo-glass-chip,
-  .neo-glass-search,
-  .chat-sidebar-search,
-  .chat-sidebar-mode {
-    border: 1px solid var(--codex-rule);
-    border-radius: 2px;
-    background: var(--codex-paper-raised);
-  }
-
-  .neo-glass-chip.is-active,
-  .neo-glass-chip:hover:not(.is-active) {
-    border-color: var(--codex-violet);
-    background: var(--codex-paper-raised);
-    box-shadow: none;
-  }
-
-  .neo-glass-patreon-btn {
-    border: 1px solid color-mix(in srgb, #ff424d 55%, transparent);
-    background: transparent;
-    color: #ff9da3;
-  }
-
-  .neo-glass-patreon-btn:hover {
-    border-color: #ff7a82;
-    background: rgba(255, 66, 77, 0.06);
-    box-shadow: none;
-  }
-
-  .neo-glass-status-dot,
-  .neo-glass-unread,
-  .neo-glass-typing-dot,
-  .neo-glass-profile,
-  .neo-glass-profile .neo-glass-card,
-  .neo-glass-profile .neo-glass-card:hover {
-    box-shadow: none;
-  }
-
-  .chat-sidebar-panel {
-    border-right: 1px solid var(--codex-rule);
-    background: var(--codex-paper-raised);
-  }
-
-  .chat-sidebar-item:hover {
-    background: var(--color-overlay);
-    transform: none;
-  }
-
-  .chat-sidebar-item.is-active {
-    background: var(--color-overlay);
-    box-shadow: inset 3px 0 0 var(--codex-mint);
   }
 }

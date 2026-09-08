@@ -42,7 +42,6 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
     "@auth/prisma-adapter": "2.11.3",
-    "@fontsource/cormorant-garamond": "^5.2.11",
     "@google/generative-ai": "^0.21.0",
     "@phosphor-icons/react": "^2.1.10",
     "@prisma/client": "^6.1.0",

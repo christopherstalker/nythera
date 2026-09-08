@@ -51,6 +51,25 @@
     --glass-saturation: 115%;
     --glass-noise-opacity: 3.5%;
     --glass-noise-size: 128px;
+    --neo-glass-bg-subtle: color-mix(in oklch, var(--bg-surface) var(--glass-surface-subtle), transparent);
+    --neo-glass-bg-standard: color-mix(in oklch, var(--bg-surface) var(--glass-surface-standard), transparent);
+    --neo-glass-border: var(--border-default);
+    --neo-glass-border-inner: var(--glass-highlight);
+    --neo-glass-blur-sm: var(--glass-blur-sm);
+    --neo-glass-blur-md: var(--glass-blur-md);
+    --neo-glass-blur-lg: var(--glass-blur-lg);
+    --neo-glass-blur-chat: var(--glass-blur-sm);
+    --neo-glass-saturate: var(--glass-saturation);
+    --neo-glass-radius-panel: var(--radius-panel);
+    --neo-glass-radius-bubble: var(--radius-card);
+    --neo-glass-radius-pill: var(--radius-full);
+    --neo-glass-transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+    --neo-glass-scrim: oklch(var(--color-canvas) / 0.88);
+    --neo-glass-text-shadow: none;
+    --neo-glass-chat-ai-glow: oklch(var(--color-accent-secondary) / 0.08);
+    --neo-glass-chat-user-glow: oklch(var(--color-accent-primary) / 0.08);
+    --neo-glass-glow-opacity: 0.08;
+    --neo-glass-patreon-glow: transparent;
     --focus-ring-opacity: 54%;
 
     /* Shared responsive layout */

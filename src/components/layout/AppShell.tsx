@@ -4,9 +4,11 @@ import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { NavRail } from "@/components/nav/NavRail";
 import { MobileDock } from "@/components/nav/MobileDock";
-import { SidePanel } from "@/components/panel/SidePanel";
+import dynamic from "next/dynamic";
 import { isAuthExperiencePath } from "@/lib/auth-routes";
 import { cn } from "@/lib/utils";
+
+const SidePanel = dynamic(() => import("@/components/panel/SidePanel").then((module) => module.SidePanel));
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

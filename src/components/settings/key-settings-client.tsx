@@ -66,6 +66,7 @@ export function KeySettingsClient({
   const [labels, setLabels] = useState<Record<string, string>>({});
   const [visible, setVisible] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [custom, setCustom] = useState(blankCustomProvider);
   const [status, setStatus] = useState<string | null>(null);
   const [modelCatalog, setModelCatalog] = useState<ModelCatalogEntry[]>([]);
@@ -122,7 +123,7 @@ export function KeySettingsClient({
 
   useEffect(() => {
     if (sessionStatus === "authenticated") {
-      void refresh();
+      void refresh().catch(() => setStatus("Could not load saved keys. Check your connection and reload."));
       return;
     }
 
@@ -208,72 +209,102 @@ export function KeySettingsClient({
     }
 
     setSaving((current) => ({ ...current, [providerName]: true }));
+    setFormErrors((current) => ({ ...current, [providerName]: "" }));
     setStatus(null);
 
-    const response = await fetch("/api/keys", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        provider: config.provider,
-        displayName: config.displayName,
-        apiFormat: config.apiFormat,
-        baseUrl: config.baseUrl,
-        defaultModel: config.defaultModel,
-        apiKey,
-        label: labels[providerName]?.trim() || undefined
-      })
-    });
+    try {
+      const response = await fetch("/api/keys", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          provider: config.provider,
+          displayName: config.displayName,
+          apiFormat: config.apiFormat,
+          baseUrl: config.baseUrl,
+          defaultModel: config.defaultModel,
+          apiKey,
+          label: labels[providerName]?.trim() || undefined
+        })
+      });
 
-    setSaving((current) => ({ ...current, [providerName]: false }));
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        setFormErrors((current) => ({
+          ...current,
+          [providerName]: body?.error ?? `Could not save ${config.displayName} key.`
+        }));
+        return;
+      }
 
-    if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      setStatus(body?.error ?? `Could not save ${config.displayName} key.`);
-      return;
+      setValues((current) => ({ ...current, [providerName]: "" }));
+      setLabels((current) => ({ ...current, [providerName]: "" }));
+      setStatus(`${config.displayName} key verified and added to its failover pool.`);
+      await refresh();
+    } catch {
+      setFormErrors((current) => ({
+        ...current,
+        [providerName]: "Connection interrupted. Check your saved keys before retrying."
+      }));
+    } finally {
+      setSaving((current) => ({ ...current, [providerName]: false }));
     }
-
-    setValues((current) => ({ ...current, [providerName]: "" }));
-    setLabels((current) => ({ ...current, [providerName]: "" }));
-    setStatus(`${config.displayName} key verified and added to its failover pool.`);
-    await refresh();
   }
 
   async function remove(keyId: string) {
-    await fetch(`/api/keys?id=${encodeURIComponent(keyId)}`, { method: "DELETE" });
-    await refresh();
+    try {
+      const response = await fetch(`/api/keys?id=${encodeURIComponent(keyId)}`, { method: "DELETE" });
+      if (!response.ok) {
+        setStatus("Could not remove this key. Try again.");
+        return;
+      }
+      await refresh();
+    } catch {
+      setStatus("Connection interrupted. Reload your saved keys before retrying.");
+    }
   }
 
   async function saveCustom(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (customError) {
-      setStatus(customError);
+      setFormErrors((current) => ({ ...current, custom: customError }));
       return;
     }
 
     setStatus(null);
-    const response = await fetch("/api/keys", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        provider: custom.provider,
-        displayName: custom.displayName || custom.provider,
-        apiFormat: custom.apiFormat,
-        baseUrl: custom.baseUrl,
-        defaultModel: custom.defaultModel,
-        apiKey: custom.apiKey,
-        label: custom.label.trim() || undefined
-      })
-    });
+    setFormErrors((current) => ({ ...current, custom: "" }));
+    setSaving((current) => ({ ...current, custom: true }));
+    try {
+      const response = await fetch("/api/keys", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          provider: custom.provider,
+          displayName: custom.displayName || custom.provider,
+          apiFormat: custom.apiFormat,
+          baseUrl: custom.baseUrl,
+          defaultModel: custom.defaultModel,
+          apiKey: custom.apiKey,
+          label: custom.label.trim() || undefined
+        })
+      });
 
-    if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      setStatus(body?.error ?? "Could not save custom provider.");
-      return;
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        setFormErrors((current) => ({ ...current, custom: body?.error ?? "Could not save custom provider." }));
+        return;
+      }
+
+      setCustom(blankCustomProvider);
+      setStatus("Custom provider endpoint saved.");
+      await refresh();
+    } catch {
+      setFormErrors((current) => ({
+        ...current,
+        custom: "Connection interrupted. Check your saved endpoints before retrying."
+      }));
+    } finally {
+      setSaving((current) => ({ ...current, custom: false }));
     }
-
-    setCustom(blankCustomProvider);
-    setStatus("Custom provider endpoint saved.");
-    await refresh();
   }
 
   async function copy(providerName: string) {
@@ -319,24 +350,28 @@ export function KeySettingsClient({
 
   async function saveFallbackChain() {
     setStatus(null);
-    const response = await fetch("/api/keys/fallback", {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        providers: fallbackKeys.map((key) => ({
-          provider: key.provider,
-          model: key.defaultModel?.trim() || defaultModelForProvider(key.provider),
-          enabled: key.isDefault || key.fallbackEnabled
-        }))
-      })
-    });
-    const body = await response.json().catch(() => null);
-    if (!response.ok) {
-      setStatus(body?.error ?? "Could not save the fallback chain.");
-      return;
+    try {
+      const response = await fetch("/api/keys/fallback", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          providers: fallbackKeys.map((key) => ({
+            provider: key.provider,
+            model: key.defaultModel?.trim() || defaultModelForProvider(key.provider),
+            enabled: key.isDefault || key.fallbackEnabled
+          }))
+        })
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) {
+        setStatus(body?.error ?? "Could not save the fallback chain.");
+        return;
+      }
+      setKeys(body?.keys ?? keys);
+      setStatus("Fallback chain saved.");
+    } catch {
+      setStatus("Connection interrupted. Reload your provider settings before retrying.");
     }
-    setKeys(body?.keys ?? keys);
-    setStatus("Fallback chain saved.");
   }
 
   async function saveOutputTokenLimit(event: FormEvent<HTMLFormElement>) {
@@ -641,7 +676,7 @@ export function KeySettingsClient({
                 maxLength={80}
                 className="mt-4 sm:max-w-sm"
               />
-              <div className="mt-2 grid grid-cols-[repeat(3,2.5rem)] gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
+              <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
                 <Input
                   value={value}
                   onChange={(event) =>
@@ -650,6 +685,8 @@ export function KeySettingsClient({
                   type={isVisible ? "text" : "password"}
                   placeholder={provider.placeholder}
                   aria-label={`${provider.displayName} API key`}
+                  aria-invalid={Boolean(formErrors[provider.provider])}
+                  aria-describedby={formErrors[provider.provider] ? `${provider.provider}-key-error` : undefined}
                   autoComplete="off"
                   className="col-span-3 sm:col-span-1"
                 />
@@ -692,6 +729,15 @@ export function KeySettingsClient({
                     ? "Verify and add backup key"
                     : "Verify and add key"}
               </Button>
+              {formErrors[provider.provider] ? (
+                <p
+                  id={`${provider.provider}-key-error`}
+                  role="alert"
+                  className="mt-3 text-sm text-[var(--text-primary)]"
+                >
+                  {formErrors[provider.provider]}
+                </p>
+              ) : null}
             </form>
           </details>
         );
@@ -732,28 +778,31 @@ export function KeySettingsClient({
 
       <details className="studio-provider-card glass-card">
         <summary>
-          Custom connection <span>Ollama, LM Studio, and more</span>
+          Custom connection <span>Public HTTPS endpoints</span>
         </summary>
         <form onSubmit={saveCustom} className="p-4">
           <h3 className="text-sm font-semibold text-[var(--text-primary)]">Add custom provider endpoint</h3>
           <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
-            Save multiple named endpoints such as My Ollama, LM Studio, or vLLM. OpenRouter has a dedicated key-only
-            card above. After setup, chats pick providers from the model switcher without raw URL typing.
+            Connect a provider hosted at a public HTTPS address. Requests run on Nythera&apos;s servers, so localhost
+            and private network addresses cannot be reached. OpenRouter has a dedicated card above.
           </p>
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             <Input
               value={custom.provider}
               onChange={(event) => setCustom((current) => ({ ...current, provider: event.target.value }))}
               placeholder="Unique provider ID, e.g. my-ollama"
+              aria-label="Custom provider ID"
               aria-invalid={Boolean(custom.provider) && !/^[a-zA-Z0-9][a-zA-Z0-9_-]{1,47}$/.test(custom.provider)}
             />
             <Input
               value={custom.displayName}
               onChange={(event) => setCustom((current) => ({ ...current, displayName: event.target.value }))}
               placeholder="Display name, e.g. My Ollama"
+              aria-label="Custom provider display name"
             />
             <select
               value={custom.apiFormat}
+              aria-label="Custom provider API format"
               onChange={(event) => setCustom((current) => ({ ...current, apiFormat: event.target.value as ApiFormat }))}
               className="focus-ring glass-input h-12 rounded-[var(--radius-md)] px-4 text-sm focus:border-[var(--accent-purple)]"
             >
@@ -766,18 +815,21 @@ export function KeySettingsClient({
               value={custom.defaultModel}
               onChange={(event) => setCustom((current) => ({ ...current, defaultModel: event.target.value }))}
               placeholder="Default model, e.g. llama3.1"
+              aria-label="Custom provider default model"
             />
             <Input
               value={custom.baseUrl}
               onChange={(event) => setCustom((current) => ({ ...current, baseUrl: event.target.value }))}
-              placeholder="Base URL, e.g. http://localhost:11434/v1"
+              placeholder="https://api.example.com/v1"
+              aria-label="Custom provider HTTPS base URL"
               className="sm:col-span-2"
-              aria-invalid={Boolean(custom.baseUrl) && !isHttpUrl(custom.baseUrl)}
+              aria-invalid={Boolean(custom.baseUrl) && !isPublicHttpsUrl(custom.baseUrl)}
             />
             <Input
               value={custom.label}
               onChange={(event) => setCustom((current) => ({ ...current, label: event.target.value }))}
               placeholder="Key label, e.g. Backup account"
+              aria-label="Custom provider key label"
               className="sm:col-span-2"
               maxLength={80}
             />
@@ -786,6 +838,7 @@ export function KeySettingsClient({
               onChange={(event) => setCustom((current) => ({ ...current, apiKey: event.target.value }))}
               type="password"
               placeholder="API key"
+              aria-label="Custom provider API key"
               className="sm:col-span-2"
               autoComplete="off"
             />
@@ -795,15 +848,23 @@ export function KeySettingsClient({
               {customError}
             </p>
           ) : null}
-          <Button type="submit" className="mt-3" disabled={Boolean(customError)}>
+          {formErrors.custom ? (
+            <p role="alert" className="mt-3 text-sm text-[var(--text-primary)]">
+              {formErrors.custom}
+            </p>
+          ) : null}
+          <Button type="submit" className="mt-3" disabled={Boolean(customError) || saving.custom}>
             <Save className="h-4 w-4" />
-            Verify and save custom endpoint
+            {saving.custom ? "Verifying..." : "Verify and save custom endpoint"}
           </Button>
         </form>
       </details>
 
       {status ? (
-        <p className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 text-sm text-[var(--text-secondary)] shadow-[var(--glass-highlight)]">
+        <p
+          role="status"
+          className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 text-sm text-[var(--text-secondary)] shadow-[var(--glass-highlight)]"
+        >
           {status}
         </p>
       ) : null}
@@ -822,7 +883,8 @@ function validateCustomProvider(provider: typeof blankCustomProvider) {
   }
   if (!provider.displayName.trim()) return "Enter a display name.";
   if (!provider.defaultModel.trim()) return "Enter the provider's default model.";
-  if (!provider.baseUrl.trim() || !isHttpUrl(provider.baseUrl)) return "Enter a valid HTTP or HTTPS base URL.";
+  if (!isPublicHttpsUrl(provider.baseUrl))
+    return "Enter a public HTTPS base URL. Localhost and private network endpoints are not supported.";
   if (provider.apiKey.trim().length < 6) return "Enter an API key with at least 6 characters.";
   return null;
 }
@@ -833,10 +895,17 @@ function formatCatalogRefresh(value: string) {
   return `updated ${refreshedAt.toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}`;
 }
 
-function isHttpUrl(value: string) {
+function isPublicHttpsUrl(value: string) {
   try {
     const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
+    return (
+      url.protocol === "https:" &&
+      !url.username &&
+      !url.password &&
+      !/^(localhost|127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|\[)/i.test(url.hostname) &&
+      url.hostname.includes(".") &&
+      !url.hostname.endsWith(".local")
+    );
   } catch {
     return false;
   }

@@ -40,12 +40,20 @@ type SendOptions = {
 const CHAT_STREAM_INACTIVITY_TIMEOUT_MS = 55_000;
 const CHAT_STREAM_RENDER_INTERVAL_MS = 40;
 
-export function useChat(chatId: string, initialMessages: ChatMessage[], initialSummary?: string | null) {
+export function useChat(
+  chatId: string,
+  initialMessages: ChatMessage[],
+  initialSummary?: string | null,
+  initialHasEarlierMessages = initialMessages.length === 200
+) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [providerNotice, setProviderNotice] = useState<string | null>(() => interruptedResponseNotice(initialMessages));
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingEarlier, setLoadingEarlier] = useState(false);
+  const [hasEarlierMessages, setHasEarlierMessages] = useState(initialHasEarlierMessages);
+  const historyAbortRef = useRef<AbortController | null>(null);
   const [summary, setSummary] = useState(initialSummary ?? null);
   const abortRef = useRef<AbortController | null>(null);
   const inFlightRef = useRef(false);
@@ -64,12 +72,51 @@ export function useChat(chatId: string, initialMessages: ChatMessage[], initialS
     setProviderNotice(interruptedResponseNotice(initialMessages));
     setIsStreaming(false);
     setRefreshing(false);
+    setHasEarlierMessages(initialHasEarlierMessages);
+    setLoadingEarlier(false);
     setSummary(initialSummary ?? null);
 
     return () => {
       abortRef.current?.abort();
+      historyAbortRef.current?.abort();
+      historyAbortRef.current = null;
     };
-  }, [chatId, initialMessages, initialSummary]);
+  }, [chatId, initialMessages, initialSummary, initialHasEarlierMessages]);
+
+  const loadEarlierMessages = useCallback(async () => {
+    const before = messagesRef.current[0]?.id;
+    if (!before || historyAbortRef.current || inFlightRef.current || refreshInFlightRef.current) return false;
+    const controller = new AbortController();
+    historyAbortRef.current = controller;
+    setLoadingEarlier(true);
+    try {
+      const response = await fetch(`/api/chats/${chatId}?before=${encodeURIComponent(before)}`, {
+        signal: controller.signal,
+        cache: "no-store"
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body?.error ?? "Could not load earlier messages.");
+      if (controller.signal.aborted) return false;
+      setHasEarlierMessages(body.chat.hasEarlierMessages === true);
+      setMessages((current) => {
+        const existingIds = new Set(current.map((message) => message.id));
+        const earlier = (body.chat.messages as ChatMessage[]).filter((message) => !existingIds.has(message.id));
+        const combined = [...earlier, ...current];
+        messagesRef.current = combined;
+        return combined;
+      });
+      return true;
+    } catch (caught) {
+      if (!controller.signal.aborted)
+        setError(caught instanceof Error ? caught.message : "Could not load earlier messages.");
+      return false;
+    } finally {
+      if (historyAbortRef.current === controller) {
+        historyAbortRef.current = null;
+        setLoadingEarlier(false);
+      }
+    }
+  }, [chatId]);
 
   const send = useCallback(
     async (content: string, options?: SendOptions) => {
@@ -113,11 +160,7 @@ export function useChat(chatId: string, initialMessages: ChatMessage[], initialS
         id: `local-assistant-${requestId}`,
         role: "ASSISTANT",
         content: "",
-        clientRequestId: isTimeSkip
-          ? `skip-time-${requestId}`
-          : isContinuation
-            ? `continue-${requestId}`
-            : undefined
+        clientRequestId: isTimeSkip ? `skip-time-${requestId}` : isContinuation ? `continue-${requestId}` : undefined
       };
       let pendingAssistantText = "";
       let renderTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -130,9 +173,7 @@ export function useChat(chatId: string, initialMessages: ChatMessage[], initialS
 
         setMessages((current) =>
           current.map((message) =>
-            message.id === assistantMessage.id
-              ? { ...message, content: `${message.content}${nextText}` }
-              : message
+            message.id === assistantMessage.id ? { ...message, content: `${message.content}${nextText}` } : message
           )
         );
       };
@@ -208,7 +249,12 @@ export function useChat(chatId: string, initialMessages: ChatMessage[], initialS
             return;
           }
 
-          const payload = JSON.parse(data) as { type: string; text?: string; message?: ChatMessage | string; error?: string };
+          const payload = JSON.parse(data) as {
+            type: string;
+            text?: string;
+            message?: ChatMessage | string;
+            error?: string;
+          };
 
           if (payload.type === "provider_notice" && typeof payload.message === "string") {
             setProviderNotice(payload.message);
@@ -223,7 +269,7 @@ export function useChat(chatId: string, initialMessages: ChatMessage[], initialS
             setMessages((current) =>
               current.map((message) =>
                 message.id === userMessage.id || message.clientRequestId === requestId
-                  ? payload.message as ChatMessage
+                  ? (payload.message as ChatMessage)
                   : message
               )
             );
@@ -237,7 +283,9 @@ export function useChat(chatId: string, initialMessages: ChatMessage[], initialS
             }
             pendingAssistantText = "";
             setMessages((current) =>
-              current.map((message) => (message.id === assistantMessage.id ? payload.message as ChatMessage : message))
+              current.map((message) =>
+                message.id === assistantMessage.id ? (payload.message as ChatMessage) : message
+              )
             );
             notifyChatContextChanged(chatId);
           }
@@ -247,7 +295,11 @@ export function useChat(chatId: string, initialMessages: ChatMessage[], initialS
               setProviderNotice("The reply may have ended early, but the delivered text was saved.");
               return;
             }
-            throw new Error(payload.error ?? (typeof payload.message === "string" ? payload.message : undefined) ?? "The model stream failed.");
+            throw new Error(
+              payload.error ??
+                (typeof payload.message === "string" ? payload.message : undefined) ??
+                "The model stream failed."
+            );
           }
         };
 
@@ -281,16 +333,22 @@ export function useChat(chatId: string, initialMessages: ChatMessage[], initialS
         flushAssistantText();
         if (streamTimedOut) {
           if (assistantContentReceived) {
-            setProviderNotice("The connection paused after the reply began. The delivered text is kept; refresh the chat to confirm the saved version.");
+            setProviderNotice(
+              "The connection paused after the reply began. The delivered text is kept; refresh the chat to confirm the saved version."
+            );
             return requestAccepted;
           }
           setError("The model stopped responding. Your message is still here. Send it again.");
-          setMessages((current) => current.filter((item) => item.id !== assistantMessage.id || item.content.length > 0));
+          setMessages((current) =>
+            current.filter((item) => item.id !== assistantMessage.id || item.content.length > 0)
+          );
           return requestAccepted;
         }
 
         if (assistantMessageReceived || (requestAccepted && assistantContentReceived)) {
-          setProviderNotice("The connection ended after the reply began. The delivered text is kept; refresh the chat to confirm the saved version.");
+          setProviderNotice(
+            "The connection ended after the reply began. The delivered text is kept; refresh the chat to confirm the saved version."
+          );
           return requestAccepted;
         }
 
@@ -338,9 +396,10 @@ export function useChat(chatId: string, initialMessages: ChatMessage[], initialS
         throw new Error(body?.error ?? "Could not refresh the chat.");
       }
       const body = await response.json();
-      const refreshedMessages = Array.isArray(body.chat?.messages) ? body.chat.messages as ChatMessage[] : [];
+      const refreshedMessages = Array.isArray(body.chat?.messages) ? (body.chat.messages as ChatMessage[]) : [];
       messagesRef.current = refreshedMessages;
       setMessages(refreshedMessages);
+      setHasEarlierMessages(body.chat?.hasEarlierMessages === true);
       setProviderNotice(interruptedResponseNotice(refreshedMessages) ?? "Chat refreshed.");
       return true;
     } catch (caught) {
@@ -352,129 +411,139 @@ export function useChat(chatId: string, initialMessages: ChatMessage[], initialS
     }
   }, [chatId]);
 
-  const retryUserMessage = useCallback(async (messageId: string, options?: SendOptions) => {
-    if (inFlightRef.current) {
-      return;
-    }
+  const retryUserMessage = useCallback(
+    async (messageId: string, options?: SendOptions) => {
+      if (inFlightRef.current) {
+        return;
+      }
 
-    const original = messagesRef.current.find((message) => message.id === messageId && message.role === "USER");
-    if (!original) {
-      return;
-    }
+      const original = messagesRef.current.find((message) => message.id === messageId && message.role === "USER");
+      if (!original) {
+        return;
+      }
 
-    const refreshed = await refreshMessages();
-    if (!refreshed) {
-      return;
-    }
+      const refreshed = await refreshMessages();
+      if (!refreshed) {
+        return;
+      }
 
-    const persisted = messagesRef.current.find((message) =>
-      message.role === "USER" && (
-        message.id === original.id ||
-        message.clientRequestId === original.clientRequestId ||
-        message === messagesRef.current.at(-1) && message.content === original.content
-      )
-    ) ?? null;
+      const persisted =
+        messagesRef.current.find(
+          (message) =>
+            message.role === "USER" &&
+            (message.id === original.id ||
+              message.clientRequestId === original.clientRequestId ||
+              (message === messagesRef.current.at(-1) && message.content === original.content))
+        ) ?? null;
 
-    if (persisted && messagesRef.current.at(-1)?.id === persisted.id) {
-      await send(persisted.content, {
-        ...options,
-        attachments: persisted.attachments,
-        regenerate: undefined,
-        regenerateMessageId: undefined,
-        retryUserMessageId: persisted.id
+      if (persisted && messagesRef.current.at(-1)?.id === persisted.id) {
+        await send(persisted.content, {
+          ...options,
+          attachments: persisted.attachments,
+          regenerate: undefined,
+          regenerateMessageId: undefined,
+          retryUserMessageId: persisted.id
+        });
+        return;
+      }
+
+      if (persisted) {
+        return;
+      }
+
+      await send(original.content, { ...options, attachments: original.attachments });
+    },
+    [refreshMessages, send]
+  );
+
+  const editMessage = useCallback(
+    async (messageId: string, content: string) => {
+      const trimmed = content.trim();
+      if (!trimmed) {
+        return;
+      }
+
+      const response = await fetch(`/api/messages?id=${encodeURIComponent(messageId)}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ content: trimmed })
       });
-      return;
-    }
 
-    if (persisted) {
-      return;
-    }
-
-    await send(original.content, { ...options, attachments: original.attachments });
-  }, [refreshMessages, send]);
-
-  const editMessage = useCallback(async (messageId: string, content: string) => {
-    const trimmed = content.trim();
-    if (!trimmed) {
-      return;
-    }
-
-    const response = await fetch(`/api/messages?id=${encodeURIComponent(messageId)}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ content: trimmed })
-    });
-
-    if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      if (response.status === 404) {
-        if (messageId.startsWith("local-")) {
-          setError("Message is still syncing. Try again in a moment.");
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        if (response.status === 404) {
+          if (messageId.startsWith("local-")) {
+            setError("Message is still syncing. Try again in a moment.");
+            return;
+          }
+          setMessages((current) => current.filter((message) => message.id !== messageId));
+          setError(null);
           return;
         }
-        setMessages((current) => current.filter((message) => message.id !== messageId));
-        setError(null);
-        return;
-      }
-      setError(body?.error ?? "Could not edit message.");
-      return;
-    }
-
-    const body = await response.json();
-    const deletedIds = new Set<string>(Array.isArray(body.deletedMessageIds) ? body.deletedMessageIds : []);
-    setMessages((current) =>
-      current
-        .filter((message) => !deletedIds.has(message.id))
-        .map((message) => (message.id === messageId ? body.message : message))
-    );
-    notifyChatContextChanged(chatId);
-    if (shouldRegenerateAfterMessageEdit(body.message.role)) {
-      await send(trimmed, { regenerate: true });
-    }
-  }, [chatId, send]);
-
-  const deleteMessage = useCallback(async (messageId: string) => {
-    let removedMessage: ChatMessage | null = null;
-    let removedIndex = -1;
-
-    setError(null);
-    setMessages((current) => {
-      removedIndex = current.findIndex((message) => message.id === messageId);
-      if (removedIndex === -1) {
-        return current;
-      }
-
-      removedMessage = current[removedIndex];
-      return current.filter((message) => message.id !== messageId);
-    });
-
-    if (!removedMessage || messageId.startsWith("local-")) {
-      return;
-    }
-
-    const response = await fetch(`/api/messages?id=${encodeURIComponent(messageId)}`, { method: "DELETE" });
-    if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      if (response.status === 404) {
+        setError(body?.error ?? "Could not edit message.");
         return;
       }
 
-      const messageToRestore = removedMessage;
-      const indexToRestore = removedIndex;
+      const body = await response.json();
+      const deletedIds = new Set<string>(Array.isArray(body.deletedMessageIds) ? body.deletedMessageIds : []);
+      setMessages((current) =>
+        current
+          .filter((message) => !deletedIds.has(message.id))
+          .map((message) => (message.id === messageId ? body.message : message))
+      );
+      notifyChatContextChanged(chatId);
+      if (shouldRegenerateAfterMessageEdit(body.message.role)) {
+        await send(trimmed, { regenerate: true });
+      }
+    },
+    [chatId, send]
+  );
+
+  const deleteMessage = useCallback(
+    async (messageId: string) => {
+      let removedMessage: ChatMessage | null = null;
+      let removedIndex = -1;
+
+      setError(null);
       setMessages((current) => {
-        if (current.some((message) => message.id === messageId)) {
+        removedIndex = current.findIndex((message) => message.id === messageId);
+        if (removedIndex === -1) {
           return current;
         }
 
-        const next = [...current];
-        next.splice(Math.max(0, Math.min(indexToRestore, next.length)), 0, messageToRestore);
-        return next;
+        removedMessage = current[removedIndex];
+        return current.filter((message) => message.id !== messageId);
       });
-      setError(body?.error ?? "Could not delete message.");
-      return;
-    }
-    notifyChatContextChanged(chatId);
-  }, [chatId]);
+
+      if (!removedMessage || messageId.startsWith("local-")) {
+        return;
+      }
+
+      const response = await fetch(`/api/messages?id=${encodeURIComponent(messageId)}`, { method: "DELETE" });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        if (response.status === 404) {
+          return;
+        }
+
+        const messageToRestore = removedMessage;
+        const indexToRestore = removedIndex;
+        setMessages((current) => {
+          if (current.some((message) => message.id === messageId)) {
+            return current;
+          }
+
+          const next = [...current];
+          next.splice(Math.max(0, Math.min(indexToRestore, next.length)), 0, messageToRestore);
+          return next;
+        });
+        setError(body?.error ?? "Could not delete message.");
+        return;
+      }
+      notifyChatContextChanged(chatId);
+    },
+    [chatId]
+  );
 
   const rewindToMessage = useCallback(
     async (messageId: string) => {
@@ -580,17 +649,40 @@ export function useChat(chatId: string, initialMessages: ChatMessage[], initialS
     setMessages((current) => current.map((message) => (message.id === messageId ? body.message : message)));
   }, []);
 
-  const togglePin = useCallback(async (messageId: string) => {
-    const message = messages.find((m) => m.id === messageId);
-    if (!message) return;
-    if (message.pinned) {
-      await unpinMessage(messageId);
-    } else {
-      await pinMessage(messageId);
-    }
-  }, [messages, pinMessage, unpinMessage]);
+  const togglePin = useCallback(
+    async (messageId: string) => {
+      const message = messages.find((m) => m.id === messageId);
+      if (!message) return;
+      if (message.pinned) {
+        await unpinMessage(messageId);
+      } else {
+        await pinMessage(messageId);
+      }
+    },
+    [messages, pinMessage, unpinMessage]
+  );
 
-  return { messages, summary, isStreaming, refreshing, error, providerNotice, send, retryUserMessage, editMessage, deleteMessage, rewindToMessage, refreshMessages, branchFromMessage, pinMessage, unpinMessage, togglePin };
+  return {
+    messages,
+    summary,
+    isStreaming,
+    refreshing,
+    loadingEarlier,
+    hasEarlierMessages,
+    loadEarlierMessages,
+    error,
+    providerNotice,
+    send,
+    retryUserMessage,
+    editMessage,
+    deleteMessage,
+    rewindToMessage,
+    refreshMessages,
+    branchFromMessage,
+    pinMessage,
+    unpinMessage,
+    togglePin
+  };
 }
 
 function notifyChatContextChanged(chatId: string) {

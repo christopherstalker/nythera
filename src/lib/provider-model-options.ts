@@ -1,3 +1,5 @@
+import { isTextChatModel } from "@/lib/chat-model-capabilities";
+
 export type SavedProviderSummary = {
   id?: string;
   provider: string;
@@ -29,7 +31,13 @@ export type ProviderModelGroup = {
 export const MODEL_SUGGESTIONS: Record<string, string[]> = {
   openai: ["gpt-4o-mini", "gpt-4o", "gpt-4.1-mini"],
   anthropic: ["claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-sonnet-4-20250514"],
-  gemini: ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.5-flash"],
+  gemini: [
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+    "gemini-2.5-flash"
+  ],
   deepseek: ["deepseek-v4-flash", "deepseek-v4-pro"],
   openrouter: ["openrouter/auto", "~openai/gpt-latest", "~anthropic/claude-sonnet-latest", "~google/gemini-pro-latest"],
   groq: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"],
@@ -89,10 +97,7 @@ export function splitProviderModelValue(value?: string | null) {
   return { provider, model };
 }
 
-export function userPreferredModelValue(user: {
-  preferredProvider?: string | null;
-  preferredModel?: string | null;
-}) {
+export function userPreferredModelValue(user: { preferredProvider?: string | null; preferredModel?: string | null }) {
   const model = user.preferredModel?.trim() || "gpt-4o-mini";
   const explicit = splitProviderModelValue(model);
   if (explicit) {
@@ -103,16 +108,27 @@ export function userPreferredModelValue(user: {
   return provider ? providerModelValue(provider, model) : model;
 }
 
-export function modelSuggestionsForProvider(provider: string, defaultModel?: string | null, discoveredModels: string[] = []) {
+export function modelSuggestionsForProvider(
+  provider: string,
+  defaultModel?: string | null,
+  discoveredModels: string[] = []
+) {
   const normalizedProvider = provider.trim().toLowerCase();
-  return Array.from(new Set([
-    ...discoveredModels.map((model) => model.trim()),
-    defaultModel?.trim(),
-    ...(MODEL_SUGGESTIONS[normalizedProvider] ?? [])
-  ].filter(Boolean) as string[]));
+  return Array.from(
+    new Set(
+      [
+        ...discoveredModels.map((model) => model.trim()),
+        defaultModel?.trim(),
+        ...(MODEL_SUGGESTIONS[normalizedProvider] ?? [])
+      ].filter((model): model is string => typeof model === "string" && isTextChatModel(model))
+    )
+  );
 }
 
-export function buildProviderModelGroups(keys: SavedProviderSummary[], catalog: ProviderModelCatalog = {}): ProviderModelGroup[] {
+export function buildProviderModelGroups(
+  keys: SavedProviderSummary[],
+  catalog: ProviderModelCatalog = {}
+): ProviderModelGroup[] {
   const providers = new Map<string, SavedProviderSummary[]>();
   for (const key of keys) {
     const providerKeys = providers.get(key.provider) ?? [];
@@ -121,12 +137,14 @@ export function buildProviderModelGroups(keys: SavedProviderSummary[], catalog: 
   }
 
   return Array.from(providers.values()).map((providerKeys) => {
-    const key = providerKeys.sort((left, right) =>
-      Number(Boolean(right.isDefault)) - Number(Boolean(left.isDefault)) ||
-      (left.providerPriority ?? 0) - (right.providerPriority ?? 0)
+    const key = providerKeys.sort(
+      (left, right) =>
+        Number(Boolean(right.isDefault)) - Number(Boolean(left.isDefault)) ||
+        (left.providerPriority ?? 0) - (right.providerPriority ?? 0)
     )[0];
-    const models = modelSuggestionsForProvider(key.provider, key.defaultModel, catalog[key.provider] ?? [])
-      .sort((left, right) => Number(right === key.defaultModel) - Number(left === key.defaultModel));
+    const models = modelSuggestionsForProvider(key.provider, key.defaultModel, catalog[key.provider] ?? []).sort(
+      (left, right) => Number(right === key.defaultModel) - Number(left === key.defaultModel)
+    );
     return {
       provider: key.provider,
       displayName: key.displayName,

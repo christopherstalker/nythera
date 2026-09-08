@@ -1,13 +1,14 @@
 import { z } from "zod";
 import { json, parseJson, requireUser, routeError } from "@/lib/api";
 import { updateUserProviderFallbacks } from "@/lib/user-keys";
+import { isTextChatModel } from "@/lib/chat-model-capabilities";
 
 const fallbackSchema = z.object({
   providers: z
     .array(
       z.object({
         provider: z.string().min(1).max(48),
-        model: z.string().trim().min(1).max(160),
+        model: z.string().trim().min(1).max(160).refine(isTextChatModel, "Choose a text chat model."),
         enabled: z.boolean()
       })
     )

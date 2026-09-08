@@ -89,7 +89,7 @@ test("chat chapter follows the conversation order for the active character", asy
   assert.match(route, /createdAt: \{ lt: chat\.createdAt \}/);
   assert.match(
     route,
-    /chat: \{ \.\.\.serializedChat, messages, chapterNumber, inputLimits: getChatInputLimits\(user\.id\) \}/
+    /chat:\s*\{\s*\.\.\.serializedChat,\s*messages,\s*hasEarlierMessages,\s*chapterNumber,\s*inputLimits: getChatInputLimits\(user\.id\)\s*\}/
   );
   assert.match(page, /chapterNumber=\{chat\.chapterNumber\}/);
   assert.match(client, /Chapter \{chapterNumber\}/);

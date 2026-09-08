@@ -1,7 +1,8 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, Suspense, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { ShieldCheck, UserPlus } from "lucide-react";
 import { AuthExperience, TravelerNameSuggestions } from "@/components/auth/auth-experience";
@@ -12,8 +13,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { hasAuthenticatedSession } from "@/lib/auth-client";
 import { normalizeUsername, usernameValidationMessage } from "@/lib/username";
+import { loginUrl, normalizeCallbackPath } from "@/lib/auth-routes";
 
 export default function RegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegistrationForm />
+    </Suspense>
+  );
+}
+
+function RegistrationForm() {
+  const callbackUrl = normalizeCallbackPath(useSearchParams().get("callbackUrl"));
+  const onboardingUrl = `/auth/new-user?callbackUrl=${encodeURIComponent(callbackUrl)}`;
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
@@ -29,7 +41,8 @@ export default function RegisterPage() {
   const usernameValid = !usernameValidationMessage(normalizedUsername);
   const passwordValid = password.length >= 8 && password.length <= 128;
   const passwordsMatch = password === confirmPassword;
-  const formValid = adultAcknowledged && emailValid && usernameValid && usernameAvailable === true && passwordValid && passwordsMatch;
+  const formValid =
+    adultAcknowledged && emailValid && usernameValid && usernameAvailable === true && passwordValid && passwordsMatch;
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -38,9 +51,11 @@ export default function RegisterPage() {
     }
 
     if (!formValid) {
-      setError(passwordsMatch
-        ? "Use a valid email, a 3–24 character traveler name, and a password of at least 8 characters."
-        : "Passwords do not match.");
+      setError(
+        passwordsMatch
+          ? "Use a valid email, a 3–24 character traveler name, and a password of at least 8 characters."
+          : "Passwords do not match."
+      );
       return;
     }
 
@@ -52,7 +67,13 @@ export default function RegisterPage() {
       response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email: normalizedEmail, username: normalizedUsername, password, adultAcknowledged, turnstileToken })
+        body: JSON.stringify({
+          email: normalizedEmail,
+          username: normalizedUsername,
+          password,
+          adultAcknowledged,
+          turnstileToken
+        })
       });
     } catch {
       setError("Registration service is temporarily unavailable.");
@@ -71,7 +92,7 @@ export default function RegisterPage() {
       const result = await signIn("credentials", {
         email: normalizedEmail,
         password,
-        callbackUrl: "/auth/new-user?callbackUrl=/explore",
+        callbackUrl: onboardingUrl,
         redirect: false
       });
 
@@ -81,7 +102,7 @@ export default function RegisterPage() {
         return;
       }
 
-      window.location.assign("/auth/new-user?callbackUrl=/explore");
+      window.location.assign(onboardingUrl);
     } catch {
       setError("Account created, but sign-in is temporarily unavailable.");
       setSubmitting(false);
@@ -94,13 +115,13 @@ export default function RegisterPage() {
       footer={
         <>
           Already have a chronicle?{" "}
-          <Link href="/login" className="font-semibold text-primary no-underline hover:underline">
+          <Link href={loginUrl(callbackUrl)} className="font-semibold text-primary no-underline hover:underline">
             Sign in
           </Link>
         </>
       }
     >
-      <h2 className="text-xl font-semibold tracking-tight text-[var(--text-primary)]">Create your Nythera account</h2>
+      <h1 className="text-xl font-semibold tracking-tight text-[var(--text-primary)]">Create your Nythera account</h1>
       <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
         Choose a traveler name, claim your profile, and step into worlds built for roleplay.
       </p>
@@ -110,7 +131,8 @@ export default function RegisterPage() {
           <div>
             <p className="text-sm font-semibold text-[var(--text-primary)]">Adults only — 18+</p>
             <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">
-              Nythera is an adult-oriented roleplay platform and is not intended for children. You must confirm your age and accept the rules before chatting.
+              Nythera is an adult-oriented roleplay platform and is not intended for children. You must confirm your age
+              and accept the rules before chatting.
             </p>
           </div>
         </div>
@@ -123,15 +145,36 @@ export default function RegisterPage() {
             required
           />
           <span>
-            I confirm I am 18 or older and agree to the <Link href="/terms" className="text-[var(--accent-mint)]">Terms</Link> and <Link href="/privacy" className="text-[var(--accent-mint)]">Privacy Policy</Link>.
+            I confirm I am 18 or older and agree to the{" "}
+            <Link href="/terms" className="text-[var(--accent-mint)]">
+              Terms
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" className="text-[var(--accent-mint)]">
+              Privacy Policy
+            </Link>
+            .
           </span>
         </label>
       </div>
-      <OAuthButtons intent="register" disabled={!adultAcknowledged} />
+      <OAuthButtons intent="register" callbackUrl={callbackUrl} disabled={!adultAcknowledged} />
       <form onSubmit={onSubmit} className="mt-6 space-y-4">
-        <Input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" type="email" autoComplete="email" required aria-invalid={Boolean(email) && !emailValid} />
+        <Input
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="Email"
+          type="email"
+          autoComplete="email"
+          required
+          aria-invalid={Boolean(email) && !emailValid}
+        />
         <div className="space-y-3">
-          <UsernameField id="registration-username" value={username} onChange={setUsername} onAvailabilityChange={setUsernameAvailable} />
+          <UsernameField
+            id="registration-username"
+            value={username}
+            onChange={setUsername}
+            onAvailabilityChange={setUsernameAvailable}
+          />
           <TravelerNameSuggestions onSelect={setUsername} />
         </div>
         <Input
@@ -158,7 +201,11 @@ export default function RegisterPage() {
         />
         <p className="text-xs leading-5 text-[var(--text-muted)]">At least 8 characters.</p>
         <TurnstileWidget action="register" onTokenChange={setTurnstileToken} />
-        {error ? <p className="rounded-2xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
+        {error ? (
+          <p className="rounded-2xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+            {error}
+          </p>
+        ) : null}
         <Button className="w-full" type="submit" size="lg" disabled={submitting || !formValid}>
           <UserPlus className="h-4 w-4" />
           {submitting ? "Creating your chronicle…" : "Begin your chronicle"}

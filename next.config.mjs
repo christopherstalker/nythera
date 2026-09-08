@@ -1,54 +1,16 @@
 const isProduction = process.env.NODE_ENV === "production";
 
-const contentSecurityPolicy = [
-  "default-src 'self'",
-  "base-uri 'self'",
-  "object-src 'none'",
-  "frame-ancestors 'none'",
-  "form-action 'self'",
-  `script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com${isProduction ? "" : " 'unsafe-eval'"}`,
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https:",
-  "font-src 'self' data: https://*.blob.vercel-storage.com",
-  [
-    "connect-src 'self'",
-    "https://challenges.cloudflare.com",
-    "https://api.openai.com",
-    "https://api.anthropic.com",
-    "https://generativelanguage.googleapis.com",
-    "https://api.deepseek.com",
-    "https://api.mistral.ai",
-    "https://api.groq.com",
-    "https://api.x.ai",
-    "https://openrouter.ai",
-    "https://*.upstash.io",
-    "https://*.blob.vercel-storage.com",
-    "https://*.vercel.app",
-    isProduction ? "" : "ws://localhost:* http://localhost:* ws://127.0.0.1:* http://127.0.0.1:*"
-  ]
-    .filter(Boolean)
-    .join(" "),
-  "media-src 'self' data: blob: https:",
-  "frame-src 'self' https://challenges.cloudflare.com",
-  "worker-src 'self' blob:",
-  "manifest-src 'self'",
-  isProduction ? "upgrade-insecure-requests" : ""
-]
-  .filter(Boolean)
-  .join("; ");
-
 const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(self), geolocation=()" },
-  { key: "Content-Security-Policy", value: contentSecurityPolicy },
   ...(isProduction ? [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" }] : [])
 ];
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ["mammoth", "unpdf"],
+  serverExternalPackages: ["mammoth", "unpdf", "bullmq", "ioredis"],
   experimental: {
     serverActions: {
       bodySizeLimit: "2mb"
