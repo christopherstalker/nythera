@@ -10,6 +10,7 @@ const securityHeaders = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  htmlLimitedBots: /.*/,
   serverExternalPackages: ["mammoth", "unpdf", "bullmq", "ioredis"],
   experimental: {
     serverActions: {

@@ -7,6 +7,10 @@ test("catalog excludes non-chat endpoints while retaining instruction-tuned chat
   for (const model of [
     "whisper-1",
     "sora-2",
+    "nano-banana-pro-preview",
+    "meta-llama/llama-guard-4-12b",
+    "openai/gpt-oss-safeguard-20b",
+    "nvidia/nemotron-3.5-content-safety:free",
     "omni-moderation-latest",
     "text-embedding-3-small",
     "gpt-4o-realtime-preview",

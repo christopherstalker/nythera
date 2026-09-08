@@ -13,7 +13,7 @@ This record separates implementation from observed runtime behavior. Deployment 
 - Middleware supplies a fresh CSP nonce to Next.js and response headers. Production script policy omits `unsafe-inline` and `unsafe-eval`; styles retain inline support for React layout values. Nonce-dependent documents render dynamically.
 - Homepage discloses BYOK and possible provider charges. Featured theme links are limited to tags represented by the visible catalog.
 - Shared glass aliases resolve to OKLCH design tokens. Duplicate rules that disabled glass surfaces were removed. Provider/chat controls use semantic surfaces and border tokens.
-- The chat side panel loads only on immersive routes. Lora is preloaded; unused Cormorant imports and dependency were removed.
+- The chat side panel loads only on immersive routes. Lora is preloaded. Cormorant is self-hosted with its license and Unicode subsets for the existing reading preset; its files load only when that font is used.
 - On Vercel, memory work uses the existing `after()` lifecycle by default. An external BullMQ worker remains opt-in with `BACKGROUND_JOBS_MODE=queue`. This avoids trying to reach a development Redis instance from a serverless function.
 
 ## Local evidence
