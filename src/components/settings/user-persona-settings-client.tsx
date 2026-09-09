@@ -6,11 +6,10 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ImageFilePicker } from "@/components/ui/image-file-picker";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { PersonaFields } from "@/components/persona/persona-fields";
 import {
   emptyPersonaDraft,
   personaDraftPayload,
-  personaEditorLines,
   personaProfileFromApi,
   type PersonaDraft,
   type PersonaProfile
@@ -20,8 +19,6 @@ import "./user-persona-settings.css";
 import { cn } from "@/lib/utils";
 
 type PersonaRevision = { id: string; version: number; createdAt: string };
-
-const suggestedTraits = ["Curious", "Reserved", "Loyal", "Witty", "Stubborn", "Empathetic"];
 
 export function UserPersonaSettingsClient() {
   const [draft, setDraft] = useState<PersonaDraft>(emptyPersonaDraft);
@@ -34,9 +31,7 @@ export function UserPersonaSettingsClient() {
   const [changingDefault, setChangingDefault] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [revisions, setRevisions] = useState<PersonaRevision[]>([]);
-  const traits = personaEditorLines(draft.traits);
   const canSave = userPersonaSchema.safeParse(personaDraftPayload(draft)).success;
-  const invalidTraits = traits.length > 24 || traits.some((trait) => trait.length > 160);
   const activeProfile = profiles.find((profile) => profile.id === activeProfileId) ?? null;
 
   useEffect(() => {
@@ -431,168 +426,7 @@ export function UserPersonaSettingsClient() {
           </div>
         </div>
 
-        <div className="persona-blocks">
-          <section className="persona-block" aria-labelledby="persona-appearance-title">
-            <header>
-              <span className="persona-block-number" aria-hidden>
-                01
-              </span>
-              <div>
-                <h3 id="persona-appearance-title">Appearance</h3>
-                <p>The details that make your persona recognizable.</p>
-              </div>
-              <span className="persona-optional">Optional</span>
-            </header>
-            <label className="sr-only" htmlFor="persona-appearance">
-              Appearance
-            </label>
-            <Textarea
-              id="persona-appearance"
-              value={draft.appearance}
-              maxLength={8000}
-              onChange={(event) => update("appearance", event.target.value)}
-              placeholder="Describe their build, hair, eyes, clothing, voice or distinctive features.
-
-A weathered coat, dark curls and ink-stained fingers. Their voice is soft, with a hint of the coast."
-              aria-describedby="persona-appearance-hint"
-            />
-            <div className="persona-field-note" id="persona-appearance-hint">
-              <span>Write only the details that matter to you.</span>
-              <span>{draft.appearance.length.toLocaleString()} / 8,000</span>
-            </div>
-          </section>
-
-          <section className="persona-block" aria-labelledby="persona-personality-title">
-            <header>
-              <span className="persona-block-number" aria-hidden>
-                02
-              </span>
-              <div>
-                <h3 id="persona-personality-title">Personality</h3>
-                <p>How they think, speak and connect with others.</p>
-              </div>
-            </header>
-            <label className="sr-only" htmlFor="persona-personality">
-              Personality
-            </label>
-            <Textarea
-              id="persona-personality"
-              value={draft.summary}
-              minLength={10}
-              maxLength={8000}
-              onChange={(event) => update("summary", event.target.value)}
-              placeholder="What drives them? How do they react under pressure? What does it take to earn their trust?
-
-Quiet at first, quick with dry humor once comfortable. They listen closely and rarely make promises they cannot keep."
-              aria-describedby="persona-personality-hint"
-              required
-            />
-            <div className="persona-field-note" id="persona-personality-hint">
-              <span>At least 10 characters. A few sentences are enough.</span>
-              <span>{draft.summary.length.toLocaleString()} / 8,000</span>
-            </div>
-            <details className="persona-context">
-              <summary>Backstory, preferences & boundaries</summary>
-              <div className="persona-context-fields">
-                <label>
-                  Backstory
-                  <Textarea
-                    value={draft.background}
-                    maxLength={3000}
-                    onChange={(event) => update("background", event.target.value)}
-                    placeholder="History or context you want to keep."
-                  />
-                </label>
-                <label>
-                  Likes
-                  <Textarea
-                    value={draft.likes}
-                    onChange={(event) => update("likes", event.target.value)}
-                    placeholder="One preference per line"
-                  />
-                </label>
-                <label>
-                  Dislikes
-                  <Textarea
-                    value={draft.dislikes}
-                    onChange={(event) => update("dislikes", event.target.value)}
-                    placeholder="One preference per line"
-                  />
-                </label>
-                <label>
-                  Boundaries
-                  <Textarea
-                    value={draft.boundaries}
-                    onChange={(event) => update("boundaries", event.target.value)}
-                    placeholder="How they should be addressed or treated. One boundary per line."
-                  />
-                </label>
-                <p>
-                  Lists support up to 24 entries, each up to 160 characters. Existing details are kept when you save.
-                </p>
-              </div>
-            </details>
-          </section>
-
-          <section className="persona-block" aria-labelledby="persona-traits-title">
-            <header>
-              <span className="persona-block-number" aria-hidden>
-                03
-              </span>
-              <div>
-                <h3 id="persona-traits-title">Traits</h3>
-                <p>The small qualities that shape their choices.</p>
-              </div>
-              <span className="persona-optional">Optional</span>
-            </header>
-            <label className="sr-only" htmlFor="persona-traits">
-              Traits
-            </label>
-            <Textarea
-              id="persona-traits"
-              value={draft.traits}
-              onChange={(event) => update("traits", event.target.value)}
-              placeholder="Observant
-Slow to trust
-Protective of friends"
-              aria-invalid={invalidTraits}
-              aria-describedby="persona-traits-hint"
-            />
-            <div className="persona-field-note" id="persona-traits-hint">
-              <span>
-                {invalidTraits
-                  ? "Use up to 24 traits, each no longer than 160 characters."
-                  : "One trait per line. Short phrases work too."}
-              </span>
-              <span>{traits.length} / 24</span>
-            </div>
-            <div className="persona-trait-suggestions" role="group" aria-label="Suggested traits">
-              {suggestedTraits.map((trait) => {
-                const selected = traits.some((entry) => entry.toLowerCase() === trait.toLowerCase());
-                return (
-                  <button
-                    type="button"
-                    key={trait}
-                    aria-pressed={selected}
-                    disabled={!selected && traits.length >= 24}
-                    onClick={() =>
-                      update(
-                        "traits",
-                        (selected
-                          ? traits.filter((entry) => entry.toLowerCase() !== trait.toLowerCase())
-                          : [...traits, trait]
-                        ).join("\n")
-                      )
-                    }
-                  >
-                    {selected ? <Check size={13} aria-hidden /> : <Plus size={13} aria-hidden />}
-                    {trait}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        </div>
+        <PersonaFields draft={draft} update={update} />
 
         <div className="flex flex-wrap gap-2">
           <Button type="submit" disabled={saving || avatarUploading || !canSave}>
