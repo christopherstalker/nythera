@@ -2,6 +2,14 @@
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { SCHEDULED_EVENTS_CHANGED_EVENT } from "@/lib/scheduled-messages";
+import {
+  emptyPersonaDraft,
+  personaDraftPayload,
+  personaProfileFromApi,
+  type PersonaDraft
+} from "@/lib/user-persona-editor";
+import { userPersonaSchema } from "@/lib/validation";
+export { emptyPersonaDraft, type PersonaDraft } from "@/lib/user-persona-editor";
 import { parsePersonaLines } from "@/lib/user-persona-profiles";
 
 export type PersonaProfile = {
@@ -11,6 +19,7 @@ export type PersonaProfile = {
   surname: string;
   avatarUrl?: string | null;
   summary: string;
+  appearance: string;
   background?: string | null;
   traits: string[];
   likes: string[];
@@ -18,20 +27,6 @@ export type PersonaProfile = {
   boundaries: string[];
   isDefault: boolean;
   visibility: "PRIVATE" | "PUBLIC" | "UNLISTED";
-};
-
-export type PersonaDraft = {
-  profileId?: string;
-  label: string;
-  displayName: string;
-  surname: string;
-  avatarUrl: string;
-  summary: string;
-  background: string;
-  traits: string;
-  likes: string;
-  dislikes: string;
-  boundaries: string;
 };
 
 export type MemoryRow = {
@@ -175,7 +170,14 @@ export type StoryRelationshipRow = {
   notes?: string | null;
   fromParticipant: StoryParticipantRow;
   toParticipant: StoryParticipantRow;
-  revisions?: Array<{ id: string; trust: number; affection: number; tension: number; respect: number; createdAt: string }>;
+  revisions?: Array<{
+    id: string;
+    trust: number;
+    affection: number;
+    tension: number;
+    respect: number;
+    createdAt: string;
+  }>;
 };
 
 export type StoryProactiveEventRow = {
@@ -191,9 +193,31 @@ export type StoryProactiveEventRow = {
 
 export type StoryArcDraft = { title: string; premise: string };
 export type StoryBeatDraft = { arcId: string; title: string; description: string; status: "PLANNED" | "READY" };
-export type StoryHookDraft = { arcId: string; title: string; description: string; urgency: number; directorOnly: boolean };
-export type StoryRelationshipDraft = { fromParticipantId: string; toParticipantId: string; label: string; trust: number; affection: number; tension: number; respect: number; notes: string };
-export type StoryEventDraft = { actorParticipantId: string; title: string; instruction: string; channel: StoryProactiveEventRow["channel"]; afterTurns: number; triggerAt: string };
+export type StoryHookDraft = {
+  arcId: string;
+  title: string;
+  description: string;
+  urgency: number;
+  directorOnly: boolean;
+};
+export type StoryRelationshipDraft = {
+  fromParticipantId: string;
+  toParticipantId: string;
+  label: string;
+  trust: number;
+  affection: number;
+  tension: number;
+  respect: number;
+  notes: string;
+};
+export type StoryEventDraft = {
+  actorParticipantId: string;
+  title: string;
+  instruction: string;
+  channel: StoryProactiveEventRow["channel"];
+  afterTurns: number;
+  triggerAt: string;
+};
 
 export type StoryParticipantStateRow = {
   id: string;
@@ -243,23 +267,43 @@ export type StoryCheckpointRow = {
   createdAt: string;
 };
 
-export type StoryCastStateDraft = { displayNameOverride: string; pronouns: string; currentMood: string; appearance: string; currentGoal: string; innerConflict: string; voiceStyle: string; speakingStyle: string };
-export type StoryVoiceDraft = { provider: "elevenlabs" | "playht"; voiceId: string; style: string; speed: number; pitch: number; autoPlay: boolean };
-export type StoryVisualDraft = { participantId: string; entityId: string; visualKind: StoryVisualReferenceRow["kind"]; title: string; imageUrl: string; prompt: string; notes: string; locked: boolean };
+export type StoryCastStateDraft = {
+  displayNameOverride: string;
+  pronouns: string;
+  currentMood: string;
+  appearance: string;
+  currentGoal: string;
+  innerConflict: string;
+  voiceStyle: string;
+  speakingStyle: string;
+};
+export type StoryVoiceDraft = {
+  provider: "elevenlabs" | "playht";
+  voiceId: string;
+  style: string;
+  speed: number;
+  pitch: number;
+  autoPlay: boolean;
+};
+export type StoryVisualDraft = {
+  participantId: string;
+  entityId: string;
+  visualKind: StoryVisualReferenceRow["kind"];
+  title: string;
+  imageUrl: string;
+  prompt: string;
+  notes: string;
+  locked: boolean;
+};
 export type StoryCheckpointDraft = { title: string; summary: string; openThreads: string };
-export type StorySafetyDraft = { contentRating: "GENERAL" | "TEEN" | "MATURE"; hardLimits: string; softLimits: string; fadeToBlack: string; checkInInterval: number; paused: boolean; notes: string };
-
-export const emptyPersonaDraft: PersonaDraft = {
-  label: "",
-  displayName: "",
-  surname: "",
-  avatarUrl: "",
-  summary: "",
-  background: "",
-  traits: "",
-  likes: "",
-  dislikes: "",
-  boundaries: ""
+export type StorySafetyDraft = {
+  contentRating: "GENERAL" | "TEEN" | "MATURE";
+  hardLimits: string;
+  softLimits: string;
+  fadeToBlack: string;
+  checkInInterval: number;
+  paused: boolean;
+  notes: string;
 };
 
 export const emptyStoryStateDraft: StoryStateDraft = {
@@ -298,14 +342,69 @@ export const defaultStoryDirectorDraft: StoryDirectorDraft = {
 
 export const emptyStoryArcDraft: StoryArcDraft = { title: "", premise: "" };
 export const emptyStoryBeatDraft: StoryBeatDraft = { arcId: "", title: "", description: "", status: "PLANNED" };
-export const emptyStoryHookDraft: StoryHookDraft = { arcId: "", title: "", description: "", urgency: 3, directorOnly: false };
-export const emptyStoryRelationshipDraft: StoryRelationshipDraft = { fromParticipantId: "", toParticipantId: "", label: "", trust: 0, affection: 0, tension: 0, respect: 0, notes: "" };
-export const emptyStoryEventDraft: StoryEventDraft = { actorParticipantId: "", title: "", instruction: "", channel: "ACTION", afterTurns: 0, triggerAt: "" };
-export const emptyStoryCastStateDraft: StoryCastStateDraft = { displayNameOverride: "", pronouns: "", currentMood: "", appearance: "", currentGoal: "", innerConflict: "", voiceStyle: "", speakingStyle: "" };
-export const emptyStoryVoiceDraft: StoryVoiceDraft = { provider: "elevenlabs", voiceId: "", style: "", speed: 1, pitch: 0, autoPlay: false };
-export const emptyStoryVisualDraft: StoryVisualDraft = { participantId: "", entityId: "", visualKind: "PORTRAIT", title: "", imageUrl: "", prompt: "", notes: "", locked: true };
+export const emptyStoryHookDraft: StoryHookDraft = {
+  arcId: "",
+  title: "",
+  description: "",
+  urgency: 3,
+  directorOnly: false
+};
+export const emptyStoryRelationshipDraft: StoryRelationshipDraft = {
+  fromParticipantId: "",
+  toParticipantId: "",
+  label: "",
+  trust: 0,
+  affection: 0,
+  tension: 0,
+  respect: 0,
+  notes: ""
+};
+export const emptyStoryEventDraft: StoryEventDraft = {
+  actorParticipantId: "",
+  title: "",
+  instruction: "",
+  channel: "ACTION",
+  afterTurns: 0,
+  triggerAt: ""
+};
+export const emptyStoryCastStateDraft: StoryCastStateDraft = {
+  displayNameOverride: "",
+  pronouns: "",
+  currentMood: "",
+  appearance: "",
+  currentGoal: "",
+  innerConflict: "",
+  voiceStyle: "",
+  speakingStyle: ""
+};
+export const emptyStoryVoiceDraft: StoryVoiceDraft = {
+  provider: "elevenlabs",
+  voiceId: "",
+  style: "",
+  speed: 1,
+  pitch: 0,
+  autoPlay: false
+};
+export const emptyStoryVisualDraft: StoryVisualDraft = {
+  participantId: "",
+  entityId: "",
+  visualKind: "PORTRAIT",
+  title: "",
+  imageUrl: "",
+  prompt: "",
+  notes: "",
+  locked: true
+};
 export const emptyStoryCheckpointDraft: StoryCheckpointDraft = { title: "", summary: "", openThreads: "" };
-export const defaultStorySafetyDraft: StorySafetyDraft = { contentRating: "MATURE", hardLimits: "", softLimits: "", fadeToBlack: "", checkInInterval: 0, paused: false, notes: "" };
+export const defaultStorySafetyDraft: StorySafetyDraft = {
+  contentRating: "MATURE",
+  hardLimits: "",
+  softLimits: "",
+  fadeToBlack: "",
+  checkInInterval: 0,
+  paused: false,
+  notes: ""
+};
 
 type UseChatQuickPanelOptions = {
   chatId?: string | null;
@@ -351,7 +450,8 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
   const [storyArcDraft, setStoryArcDraft] = useState<StoryArcDraft>(emptyStoryArcDraft);
   const [storyBeatDraft, setStoryBeatDraft] = useState<StoryBeatDraft>(emptyStoryBeatDraft);
   const [storyHookDraft, setStoryHookDraft] = useState<StoryHookDraft>(emptyStoryHookDraft);
-  const [storyRelationshipDraft, setStoryRelationshipDraft] = useState<StoryRelationshipDraft>(emptyStoryRelationshipDraft);
+  const [storyRelationshipDraft, setStoryRelationshipDraft] =
+    useState<StoryRelationshipDraft>(emptyStoryRelationshipDraft);
   const [storyEventDraft, setStoryEventDraft] = useState<StoryEventDraft>(emptyStoryEventDraft);
   const [storyNarrativeStatus, setStoryNarrativeStatus] = useState<string | null>(null);
   const [storyParticipantStates, setStoryParticipantStates] = useState<StoryParticipantStateRow[]>([]);
@@ -407,11 +507,13 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
   }
 
   const applyStoryNarrative = useCallback((body: Record<string, unknown>) => {
-    const director = body.director && typeof body.director === "object" ? body.director as Record<string, unknown> : {};
+    const director =
+      body.director && typeof body.director === "object" ? (body.director as Record<string, unknown>) : {};
     setStoryDirectorDraft({
       tone: typeof director.tone === "string" ? director.tone : "",
       pacing: director.pacing === "SLOW" || director.pacing === "FAST" ? director.pacing : "BALANCED",
-      initiative: director.initiative === "REACTIVE" || director.initiative === "PROACTIVE" ? director.initiative : "BALANCED",
+      initiative:
+        director.initiative === "REACTIVE" || director.initiative === "PROACTIVE" ? director.initiative : "BALANCED",
       conflictLevel: numberOr(director.conflictLevel, 5),
       romanceLevel: numberOr(director.romanceLevel, 3),
       mysteryLevel: numberOr(director.mysteryLevel, 5),
@@ -422,33 +524,44 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     if (Array.isArray(body.participants) && body.participants.length > 0) {
       setStoryParticipants(body.participants as StoryParticipantRow[]);
     }
-    setStoryArcs(Array.isArray(body.arcs) ? body.arcs as StoryArcRow[] : []);
-    setStoryBeats(Array.isArray(body.beats) ? body.beats as StoryBeatRow[] : []);
-    setStoryHooks(Array.isArray(body.hooks) ? body.hooks as StoryHookRow[] : []);
-    setStoryRelationships(Array.isArray(body.relationships) ? body.relationships as StoryRelationshipRow[] : []);
-    setStoryProactiveEvents(Array.isArray(body.proactiveEvents) ? body.proactiveEvents as StoryProactiveEventRow[] : []);
+    setStoryArcs(Array.isArray(body.arcs) ? (body.arcs as StoryArcRow[]) : []);
+    setStoryBeats(Array.isArray(body.beats) ? (body.beats as StoryBeatRow[]) : []);
+    setStoryHooks(Array.isArray(body.hooks) ? (body.hooks as StoryHookRow[]) : []);
+    setStoryRelationships(Array.isArray(body.relationships) ? (body.relationships as StoryRelationshipRow[]) : []);
+    setStoryProactiveEvents(
+      Array.isArray(body.proactiveEvents) ? (body.proactiveEvents as StoryProactiveEventRow[]) : []
+    );
   }, []);
 
-  const loadStoryNarrative = useCallback(async (storyIdValue: string, timelineIdValue?: string | null, signal?: AbortSignal) => {
-    const timelineQuery = timelineIdValue ? `?timelineId=${encodeURIComponent(timelineIdValue)}` : "";
-    const response = await fetch(`/api/stories/${storyIdValue}/narrative${timelineQuery}`, { cache: "no-store", signal });
-    if (!response.ok) {
-      throw new Error(await safeResponseError(response, "Could not load story direction."));
-    }
-    applyStoryNarrative(await response.json());
-  }, [applyStoryNarrative]);
+  const loadStoryNarrative = useCallback(
+    async (storyIdValue: string, timelineIdValue?: string | null, signal?: AbortSignal) => {
+      const timelineQuery = timelineIdValue ? `?timelineId=${encodeURIComponent(timelineIdValue)}` : "";
+      const response = await fetch(`/api/stories/${storyIdValue}/narrative${timelineQuery}`, {
+        cache: "no-store",
+        signal
+      });
+      if (!response.ok) {
+        throw new Error(await safeResponseError(response, "Could not load story direction."));
+      }
+      applyStoryNarrative(await response.json());
+    },
+    [applyStoryNarrative]
+  );
 
   const applyStoryContinuity = useCallback((body: Record<string, unknown>) => {
-    const participants = Array.isArray(body.participants) ? body.participants as StoryParticipantRow[] : [];
-    const states = Array.isArray(body.states) ? body.states as StoryParticipantStateRow[] : [];
-    const bindings = Array.isArray(body.voiceBindings) ? body.voiceBindings as StoryVoiceBindingRow[] : [];
+    const participants = Array.isArray(body.participants) ? (body.participants as StoryParticipantRow[]) : [];
+    const states = Array.isArray(body.states) ? (body.states as StoryParticipantStateRow[]) : [];
+    const bindings = Array.isArray(body.voiceBindings) ? (body.voiceBindings as StoryVoiceBindingRow[]) : [];
     setStoryParticipantStates(states);
     setStoryVoiceBindings(bindings);
-    setStoryVisualReferences(Array.isArray(body.visualReferences) ? body.visualReferences as StoryVisualReferenceRow[] : []);
-    setStoryCheckpoints(Array.isArray(body.checkpoints) ? body.checkpoints as StoryCheckpointRow[] : []);
-    const selected = participants.find((participant) => participant.id === castParticipantIdRef.current)
-      ?? participants.find((participant) => participant.role === "CHARACTER" || participant.role === "NPC")
-      ?? participants[0];
+    setStoryVisualReferences(
+      Array.isArray(body.visualReferences) ? (body.visualReferences as StoryVisualReferenceRow[]) : []
+    );
+    setStoryCheckpoints(Array.isArray(body.checkpoints) ? (body.checkpoints as StoryCheckpointRow[]) : []);
+    const selected =
+      participants.find((participant) => participant.id === castParticipantIdRef.current) ??
+      participants.find((participant) => participant.role === "CHARACTER" || participant.role === "NPC") ??
+      participants[0];
     if (selected) {
       castParticipantIdRef.current = selected.id;
       setCastParticipantId(selected.id);
@@ -460,14 +573,20 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     }
   }, []);
 
-  const loadStoryContinuity = useCallback(async (storyIdValue: string, timelineIdValue?: string | null, signal?: AbortSignal) => {
-    const timelineQuery = timelineIdValue ? `?timelineId=${encodeURIComponent(timelineIdValue)}` : "";
-    const response = await fetch(`/api/stories/${storyIdValue}/continuity${timelineQuery}`, { cache: "no-store", signal });
-    if (!response.ok) {
-      throw new Error(await safeResponseError(response, "Could not load story continuity."));
-    }
-    applyStoryContinuity(await response.json());
-  }, [applyStoryContinuity]);
+  const loadStoryContinuity = useCallback(
+    async (storyIdValue: string, timelineIdValue?: string | null, signal?: AbortSignal) => {
+      const timelineQuery = timelineIdValue ? `?timelineId=${encodeURIComponent(timelineIdValue)}` : "";
+      const response = await fetch(`/api/stories/${storyIdValue}/continuity${timelineQuery}`, {
+        cache: "no-store",
+        signal
+      });
+      if (!response.ok) {
+        throw new Error(await safeResponseError(response, "Could not load story continuity."));
+      }
+      applyStoryContinuity(await response.json());
+    },
+    [applyStoryContinuity]
+  );
 
   const loadStorySafety = useCallback(async (storyIdValue: string, signal?: AbortSignal) => {
     const response = await fetch(`/api/stories/${storyIdValue}/safety`, { cache: "no-store", signal });
@@ -475,16 +594,21 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
       throw new Error(await safeResponseError(response, "Could not load session safety."));
     }
     const body = await response.json();
-    const safety = body.safety && typeof body.safety === "object" ? body.safety as Record<string, unknown> : null;
-    setStorySafetyDraft(safety ? {
-      contentRating: safety.contentRating === "GENERAL" || safety.contentRating === "TEEN" ? safety.contentRating : "MATURE",
-      hardLimits: listToText(safety.hardLimits),
-      softLimits: listToText(safety.softLimits),
-      fadeToBlack: listToText(safety.fadeToBlack),
-      checkInInterval: numberOr(safety.checkInInterval, 0),
-      paused: safety.paused === true,
-      notes: typeof safety.notes === "string" ? safety.notes : ""
-    } : defaultStorySafetyDraft);
+    const safety = body.safety && typeof body.safety === "object" ? (body.safety as Record<string, unknown>) : null;
+    setStorySafetyDraft(
+      safety
+        ? {
+            contentRating:
+              safety.contentRating === "GENERAL" || safety.contentRating === "TEEN" ? safety.contentRating : "MATURE",
+            hardLimits: listToText(safety.hardLimits),
+            softLimits: listToText(safety.softLimits),
+            fadeToBlack: listToText(safety.fadeToBlack),
+            checkInInterval: numberOr(safety.checkInInterval, 0),
+            paused: safety.paused === true,
+            notes: typeof safety.notes === "string" ? safety.notes : ""
+          }
+        : defaultStorySafetyDraft
+    );
   }, []);
 
   useEffect(() => {
@@ -510,7 +634,10 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
       const [personaResponse, memoriesResponse, chatsResponse, storyResponse] = await Promise.allSettled([
         fetch(`/api/user-persona?${personaParams.toString()}`, { cache: "no-store", signal }),
         fetch(`/api/memories?${memoryParams.toString()}`, { cache: "no-store", signal }),
-        fetch(characterId ? `/api/chats?characterId=${encodeURIComponent(characterId)}` : "/api/chats", { cache: "no-store", signal }),
+        fetch(characterId ? `/api/chats?characterId=${encodeURIComponent(characterId)}` : "/api/chats", {
+          cache: "no-store",
+          signal
+        }),
         chatId
           ? fetch("/api/stories/resolve", {
               method: "POST",
@@ -524,7 +651,7 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
       if (personaResponse.status === "fulfilled" && personaResponse.value.ok) {
         const body = await personaResponse.value.json();
         const nextProfiles = Array.isArray(body.profiles) ? body.profiles.map(profileFromApi) : [];
-        const active = body.activeProfile ? profileFromApi(body.activeProfile) : nextProfiles[0] ?? null;
+        const active = body.activeProfile ? profileFromApi(body.activeProfile) : (nextProfiles[0] ?? null);
         setProfiles(nextProfiles);
         setActiveProfileId(body.activeProfileId ?? nextProfiles[0]?.id ?? null);
         setTemporaryProfileId(body.temporaryProfileId ?? null);
@@ -548,7 +675,8 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
       if (storyResponse.status === "fulfilled" && storyResponse.value?.ok) {
         const body = await storyResponse.value.json();
         applyStoryCodex(body);
-        const foundation = body.foundation && typeof body.foundation === "object" ? body.foundation as Record<string, unknown> : null;
+        const foundation =
+          body.foundation && typeof body.foundation === "object" ? (body.foundation as Record<string, unknown>) : null;
         const resolvedStoryId = String(foundation?.storyId ?? "");
         const resolvedTimelineId = String(foundation?.timelineId ?? "");
         if (resolvedStoryId) {
@@ -567,7 +695,9 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
         if (failedResponse.status === "rejected") {
           throw failedResponse.reason;
         }
-        throw new Error(await safeResponseError(failedResponse.value as Response, "Could not load part of Story context."));
+        throw new Error(
+          await safeResponseError(failedResponse.value as Response, "Could not load part of Story context.")
+        );
       }
     }
 
@@ -596,19 +726,24 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
   }
 
   function applyStoryCodex(body: Record<string, unknown>) {
-    const foundation = body.foundation && typeof body.foundation === "object" ? body.foundation as Record<string, unknown> : null;
-    const story = body.story && typeof body.story === "object" ? body.story as Record<string, unknown> : null;
-    const timeline = body.timeline && typeof body.timeline === "object" ? body.timeline as Record<string, unknown> : null;
-    const snapshot = body.snapshot && typeof body.snapshot === "object" ? body.snapshot as Record<string, unknown> : null;
-    const activeScene = body.activeScene && typeof body.activeScene === "object" ? body.activeScene as StorySceneRow : null;
+    const foundation =
+      body.foundation && typeof body.foundation === "object" ? (body.foundation as Record<string, unknown>) : null;
+    const story = body.story && typeof body.story === "object" ? (body.story as Record<string, unknown>) : null;
+    const timeline =
+      body.timeline && typeof body.timeline === "object" ? (body.timeline as Record<string, unknown>) : null;
+    const snapshot =
+      body.snapshot && typeof body.snapshot === "object" ? (body.snapshot as Record<string, unknown>) : null;
+    const activeScene =
+      body.activeScene && typeof body.activeScene === "object" ? (body.activeScene as StorySceneRow) : null;
     setStoryId(String(foundation?.storyId ?? story?.id ?? "") || null);
     setStoryTimelineId(String(foundation?.timelineId ?? timeline?.id ?? "") || null);
-    setStoryParticipants(Array.isArray(story?.participants) ? story.participants as StoryParticipantRow[] : []);
-    setStoryEntities(Array.isArray(story?.entities) ? story.entities as StoryEntityRow[] : []);
-    setStoryScenes(Array.isArray(body.scenes) ? body.scenes as StorySceneRow[] : []);
+    setStoryParticipants(Array.isArray(story?.participants) ? (story.participants as StoryParticipantRow[]) : []);
+    setStoryEntities(Array.isArray(story?.entities) ? (story.entities as StoryEntityRow[]) : []);
+    setStoryScenes(Array.isArray(body.scenes) ? (body.scenes as StorySceneRow[]) : []);
     setActiveStoryScene(activeScene);
-    setCanonFacts(Array.isArray(body.facts) ? body.facts as StoryFactRow[] : []);
-    const state = snapshot?.state && typeof snapshot.state === "object" ? snapshot.state as Record<string, unknown> : {};
+    setCanonFacts(Array.isArray(body.facts) ? (body.facts as StoryFactRow[]) : []);
+    const state =
+      snapshot?.state && typeof snapshot.state === "object" ? (snapshot.state as Record<string, unknown>) : {};
     setStoryStateDraft({
       sceneTitle: activeScene?.title ?? (typeof state.sceneTitle === "string" ? state.sceneTitle : ""),
       previousSceneSummary: "",
@@ -657,14 +792,20 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     setDraft(profileToDraft(profile));
     setPersonaStatus(null);
 
-    const response = await performWrite("persona:switch", "/api/user-persona", {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
+    const response = await performWrite(
+      "persona:switch",
+      "/api/user-persona",
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({
           activeProfileId: profile.id,
           ...(chatId ? { chatId } : {})
         })
-    }, setPersonaStatus, "Could not switch persona.");
+      },
+      setPersonaStatus,
+      "Could not switch persona."
+    );
 
     if (response) {
       setPersonaStatus("Active persona updated.");
@@ -674,11 +815,17 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
 
   async function usePersonaOnce(profile: PersonaProfile) {
     if (!chatId) return;
-    const response = await performWrite("persona:temporary", "/api/user-persona", {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ activeProfileId: profile.id, chatId, temporary: true })
-    }, setPersonaStatus, "Could not set the temporary persona.");
+    const response = await performWrite(
+      "persona:temporary",
+      "/api/user-persona",
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ activeProfileId: profile.id, chatId, temporary: true })
+      },
+      setPersonaStatus,
+      "Could not set the temporary persona."
+    );
     if (!response) return;
     setTemporaryProfileId(profile.id);
     setPersonaStatus(`${profile.displayName} will be used for the next reply only.`);
@@ -687,41 +834,46 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
   async function setCharacterDefault(profile: PersonaProfile) {
     if (!characterId) return;
     const nextProfileId = characterDefaultProfileId === profile.id ? null : profile.id;
-    const response = await performWrite("persona:character-default", "/api/user-persona", {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ characterId, characterDefaultProfileId: nextProfileId })
-    }, setPersonaStatus, "Could not update this character's default persona.");
+    const response = await performWrite(
+      "persona:character-default",
+      "/api/user-persona",
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ characterId, characterDefaultProfileId: nextProfileId })
+      },
+      setPersonaStatus,
+      "Could not update this character's default persona."
+    );
     if (!response) return;
     setCharacterDefaultProfileId(nextProfileId);
-    setPersonaStatus(nextProfileId ? `${profile.displayName} is now the default for this character.` : "Character-specific default removed.");
+    setPersonaStatus(
+      nextProfileId
+        ? `${profile.displayName} is now the default for this character.`
+        : "Character-specific default removed."
+    );
   }
 
   async function savePersona(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!draft.displayName.trim() || !draft.summary.trim()) {
+    if (!userPersonaSchema.safeParse(personaDraftPayload(draft)).success) {
       return;
     }
 
-    const response = await performWrite("persona:save", "/api/user-persona", {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        profileId: draft.profileId,
-        label: draft.label || draft.displayName,
-        displayName: draft.displayName,
-        surname: draft.surname,
-        avatarUrl: draft.avatarUrl,
-        summary: draft.summary,
-        background: draft.background,
-        traits: parsePersonaLines(draft.traits),
-        likes: parsePersonaLines(draft.likes),
-        dislikes: parsePersonaLines(draft.dislikes),
-        boundaries: parsePersonaLines(draft.boundaries),
-        visibility: "PRIVATE",
-        ...(chatId ? { chatId } : {})
-      })
-    }, setPersonaStatus, "Could not save persona.");
+    const response = await performWrite(
+      "persona:save",
+      "/api/user-persona",
+      {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ...personaDraftPayload(draft),
+          ...(chatId ? { chatId } : {})
+        })
+      },
+      setPersonaStatus,
+      "Could not save persona."
+    );
 
     if (!response) {
       return;
@@ -745,17 +897,23 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
       return;
     }
 
-    const response = await performWrite("memory:add", "/api/memories", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        content: memoryDraft,
-        characterId: characterId ?? null,
-        category: "FACT",
-        importance: 2,
-        pinned: true
-      })
-    }, setMemoryStatus, "Could not save memory.");
+    const response = await performWrite(
+      "memory:add",
+      "/api/memories",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          content: memoryDraft,
+          characterId: characterId ?? null,
+          category: "FACT",
+          importance: 2,
+          pinned: true
+        })
+      },
+      setMemoryStatus,
+      "Could not save memory."
+    );
     if (!response) {
       return;
     }
@@ -766,7 +924,9 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     }
     setMemoryDraft("");
     setMemoryStatus("Pinned memory saved for every chat with this character.");
-    await loadMemories().catch((error) => setMemoryStatus(error instanceof Error ? error.message : "Memory saved, but the list could not refresh."));
+    await loadMemories().catch((error) =>
+      setMemoryStatus(error instanceof Error ? error.message : "Memory saved, but the list could not refresh.")
+    );
   }
 
   function startEditingMemory(memory: MemoryRow) {
@@ -786,25 +946,41 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
       setMemoryStatus("Memory fact cannot be empty.");
       return;
     }
-    const response = await performWrite(`memory:edit:${memoryId}`, `/api/memories?id=${encodeURIComponent(memoryId)}`, {
+    const response = await performWrite(
+      `memory:edit:${memoryId}`,
+      `/api/memories?id=${encodeURIComponent(memoryId)}`,
+      {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ content, pinned: true })
-    }, setMemoryStatus, "Could not update memory.");
+      },
+      setMemoryStatus,
+      "Could not update memory."
+    );
     if (!response) {
       return;
     }
     const body = await response.json();
     if (body.memory?.id) {
-      setMemories((current) => current.map((memory) => memory.id === memoryId ? { ...memory, ...body.memory } : memory));
+      setMemories((current) =>
+        current.map((memory) => (memory.id === memoryId ? { ...memory, ...body.memory } : memory))
+      );
     }
     cancelEditingMemory();
     setMemoryStatus("Memory updated for every chat with this character.");
-    await loadMemories().catch((error) => setMemoryStatus(error instanceof Error ? error.message : "Memory updated, but the list could not refresh."));
+    await loadMemories().catch((error) =>
+      setMemoryStatus(error instanceof Error ? error.message : "Memory updated, but the list could not refresh.")
+    );
   }
 
   async function removeMemory(memoryId: string) {
-    const response = await performWrite(`memory:delete:${memoryId}`, `/api/memories?id=${encodeURIComponent(memoryId)}`, { method: "DELETE" }, setMemoryStatus, "Could not delete memory.");
+    const response = await performWrite(
+      `memory:delete:${memoryId}`,
+      `/api/memories?id=${encodeURIComponent(memoryId)}`,
+      { method: "DELETE" },
+      setMemoryStatus,
+      "Could not delete memory."
+    );
     if (!response) {
       return;
     }
@@ -813,26 +989,39 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     }
     setMemories((current) => current.filter((memory) => memory.id !== memoryId));
     setMemoryStatus("Memory removed from character context.");
-    await loadMemories().catch((error) => setMemoryStatus(error instanceof Error ? error.message : "Memory removed, but the list could not refresh."));
+    await loadMemories().catch((error) =>
+      setMemoryStatus(error instanceof Error ? error.message : "Memory removed, but the list could not refresh.")
+    );
   }
 
   async function reviewMemory(memoryId: string, status: "ACTIVE" | "REJECTED") {
-    const response = await performWrite(`memory:review:${memoryId}`, `/api/memories?id=${encodeURIComponent(memoryId)}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status })
-    }, setMemoryStatus, "Could not review memory.");
+    const response = await performWrite(
+      `memory:review:${memoryId}`,
+      `/api/memories?id=${encodeURIComponent(memoryId)}`,
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ status })
+      },
+      setMemoryStatus,
+      "Could not review memory."
+    );
     if (!response) return;
     if (status === "REJECTED") setMemories((current) => current.filter((memory) => memory.id !== memoryId));
-    else setMemories((current) => current.map((memory) => memory.id === memoryId ? { ...memory, status } : memory));
+    else setMemories((current) => current.map((memory) => (memory.id === memoryId ? { ...memory, status } : memory)));
     setMemoryStatus(status === "ACTIVE" ? "Memory approved and available to the character." : "Memory rejected.");
   }
 
   function updateCanonDraft<K extends keyof CanonDraft>(field: K, value: CanonDraft[K]) {
     setCanonDraft((current) => {
-      if (field === "scope" && (value === "CHARACTER" || value === "PARTICIPANT") && current.participantIds.length === 0) {
-        const activeCharacter = storyParticipants.find((participant) => participant.characterId === characterId)
-          ?? storyParticipants.find((participant) => participant.role === "CHARACTER");
+      if (
+        field === "scope" &&
+        (value === "CHARACTER" || value === "PARTICIPANT") &&
+        current.participantIds.length === 0
+      ) {
+        const activeCharacter =
+          storyParticipants.find((participant) => participant.characterId === characterId) ??
+          storyParticipants.find((participant) => participant.role === "CHARACTER");
         return { ...current, [field]: value, participantIds: activeCharacter ? [activeCharacter.id] : [] };
       }
       return { ...current, [field]: value };
@@ -854,48 +1043,68 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
       setCanonStatus("Write the canonical fact before saving.");
       return;
     }
-    if ((canonDraft.scope === "CHARACTER" || canonDraft.scope === "PARTICIPANT") && canonDraft.participantIds.length === 0) {
+    if (
+      (canonDraft.scope === "CHARACTER" || canonDraft.scope === "PARTICIPANT") &&
+      canonDraft.participantIds.length === 0
+    ) {
       setCanonStatus("Choose at least one character who knows this fact.");
       return;
     }
-    const response = await performWrite("canon:add", `/api/stories/${storyId}/canon`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        timelineId: storyTimelineId,
-        subjectEntityId: canonDraft.subjectEntityId || null,
-        predicate: canonDraft.kind === "PERMANENT" ? "is" : canonDraft.kind === "STATE" ? "currently" : "happened",
-        objectText: canonDraft.objectText,
-        kind: canonDraft.kind,
-        worldTime: canonDraft.worldTime.trim() || null,
-        scope: canonDraft.scope,
-        locked: canonDraft.locked,
-        importance: canonDraft.locked ? 3 : 1.5,
-        participantIds: canonDraft.scope === "CHARACTER" || canonDraft.scope === "PARTICIPANT" ? canonDraft.participantIds : []
-      })
-    }, setCanonStatus, "Could not save canon fact.");
+    const response = await performWrite(
+      "canon:add",
+      `/api/stories/${storyId}/canon`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          timelineId: storyTimelineId,
+          subjectEntityId: canonDraft.subjectEntityId || null,
+          predicate: canonDraft.kind === "PERMANENT" ? "is" : canonDraft.kind === "STATE" ? "currently" : "happened",
+          objectText: canonDraft.objectText,
+          kind: canonDraft.kind,
+          worldTime: canonDraft.worldTime.trim() || null,
+          scope: canonDraft.scope,
+          locked: canonDraft.locked,
+          importance: canonDraft.locked ? 3 : 1.5,
+          participantIds:
+            canonDraft.scope === "CHARACTER" || canonDraft.scope === "PARTICIPANT" ? canonDraft.participantIds : []
+        })
+      },
+      setCanonStatus,
+      "Could not save canon fact."
+    );
     if (!response) {
       return;
     }
     setCanonDraft(emptyCanonDraft);
     setCanonStatus("Canon updated for the next turn.");
-    await loadStoryCodex().catch((error) => setCanonStatus(error instanceof Error ? error.message : "Canon saved, but the section could not refresh."));
+    await loadStoryCodex().catch((error) =>
+      setCanonStatus(error instanceof Error ? error.message : "Canon saved, but the section could not refresh.")
+    );
   }
 
   async function updateCanonFact(factId: string, input: { locked?: boolean; status?: "RETRACTED" }) {
     if (!storyId) {
       return;
     }
-    const response = await performWrite(`canon:update:${factId}`, `/api/stories/${storyId}/canon?factId=${encodeURIComponent(factId)}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(input)
-    }, setCanonStatus, "Could not update canon fact.");
+    const response = await performWrite(
+      `canon:update:${factId}`,
+      `/api/stories/${storyId}/canon?factId=${encodeURIComponent(factId)}`,
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input)
+      },
+      setCanonStatus,
+      "Could not update canon fact."
+    );
     if (!response) {
       return;
     }
     setCanonStatus(input.status === "RETRACTED" ? "Fact removed from active canon." : "Canon lock updated.");
-    await loadStoryCodex().catch((error) => setCanonStatus(error instanceof Error ? error.message : "Canon updated, but the section could not refresh."));
+    await loadStoryCodex().catch((error) =>
+      setCanonStatus(error instanceof Error ? error.message : "Canon updated, but the section could not refresh.")
+    );
   }
 
   function updateStoryStateDraft<K extends keyof StoryStateDraft>(field: K, value: StoryStateDraft[K]) {
@@ -907,48 +1116,64 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     if (!storyId) {
       return;
     }
-    const response = await performWrite("scene:save", `/api/stories/${storyId}/state`, {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        sceneTitle: storyStateDraft.sceneTitle.trim() || null,
-        time: storyStateDraft.time.trim() || null,
-        location: storyStateDraft.location.trim() || null,
-        weather: storyStateDraft.weather.trim() || null,
-        inventory: parsePersonaLines(storyStateDraft.inventory),
-        conditions: parsePersonaLines(storyStateDraft.conditions),
-        threats: parsePersonaLines(storyStateDraft.threats),
-        notes: parsePersonaLines(storyStateDraft.notes)
-      })
-    }, setStoryStateStatus, "Could not update scene state.");
+    const response = await performWrite(
+      "scene:save",
+      `/api/stories/${storyId}/state`,
+      {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          sceneTitle: storyStateDraft.sceneTitle.trim() || null,
+          time: storyStateDraft.time.trim() || null,
+          location: storyStateDraft.location.trim() || null,
+          weather: storyStateDraft.weather.trim() || null,
+          inventory: parsePersonaLines(storyStateDraft.inventory),
+          conditions: parsePersonaLines(storyStateDraft.conditions),
+          threats: parsePersonaLines(storyStateDraft.threats),
+          notes: parsePersonaLines(storyStateDraft.notes)
+        })
+      },
+      setStoryStateStatus,
+      "Could not update scene state."
+    );
     if (!response) {
       return;
     }
     setStoryStateStatus("Scene state updated for the next turn.");
-    await loadStoryCodex().catch((error) => setStoryStateStatus(error instanceof Error ? error.message : "Scene saved, but the section could not refresh."));
+    await loadStoryCodex().catch((error) =>
+      setStoryStateStatus(error instanceof Error ? error.message : "Scene saved, but the section could not refresh.")
+    );
   }
 
   async function advanceStoryScene() {
     if (!storyId) return;
-    const response = await performWrite("scene:advance", `/api/stories/${storyId}/state`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        sceneTitle: storyStateDraft.sceneTitle.trim() || null,
-        previousSceneSummary: storyStateDraft.previousSceneSummary.trim() || null,
-        time: storyStateDraft.time.trim() || null,
-        location: storyStateDraft.location.trim() || null,
-        weather: storyStateDraft.weather.trim() || null,
-        inventory: parsePersonaLines(storyStateDraft.inventory),
-        conditions: parsePersonaLines(storyStateDraft.conditions),
-        threats: parsePersonaLines(storyStateDraft.threats),
-        notes: parsePersonaLines(storyStateDraft.notes),
-        carryInventory: true
-      })
-    }, setStoryStateStatus, "Could not advance the scene.");
+    const response = await performWrite(
+      "scene:advance",
+      `/api/stories/${storyId}/state`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          sceneTitle: storyStateDraft.sceneTitle.trim() || null,
+          previousSceneSummary: storyStateDraft.previousSceneSummary.trim() || null,
+          time: storyStateDraft.time.trim() || null,
+          location: storyStateDraft.location.trim() || null,
+          weather: storyStateDraft.weather.trim() || null,
+          inventory: parsePersonaLines(storyStateDraft.inventory),
+          conditions: parsePersonaLines(storyStateDraft.conditions),
+          threats: parsePersonaLines(storyStateDraft.threats),
+          notes: parsePersonaLines(storyStateDraft.notes),
+          carryInventory: true
+        })
+      },
+      setStoryStateStatus,
+      "Could not advance the scene."
+    );
     if (!response) return;
     setStoryStateStatus("New scene started. Previous temporary states were closed.");
-    await loadStoryCodex().catch((error) => setStoryStateStatus(error instanceof Error ? error.message : "Scene advanced, but the section could not refresh."));
+    await loadStoryCodex().catch((error) =>
+      setStoryStateStatus(error instanceof Error ? error.message : "Scene advanced, but the section could not refresh.")
+    );
   }
 
   function updateStorySafetyDraft<K extends keyof StorySafetyDraft>(field: K, value: StorySafetyDraft[K]) {
@@ -961,22 +1186,34 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     if (!storyId) {
       return;
     }
-    const response = await performWrite("safety:save", `/api/stories/${storyId}/safety`, {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        ...storySafetyDraft,
-        hardLimits: parsePersonaLines(storySafetyDraft.hardLimits),
-        softLimits: parsePersonaLines(storySafetyDraft.softLimits),
-        fadeToBlack: parsePersonaLines(storySafetyDraft.fadeToBlack),
-        notes: storySafetyDraft.notes.trim() || null
-      })
-    }, setStorySafetyStatus, "Could not update session safety.");
+    const response = await performWrite(
+      "safety:save",
+      `/api/stories/${storyId}/safety`,
+      {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ...storySafetyDraft,
+          hardLimits: parsePersonaLines(storySafetyDraft.hardLimits),
+          softLimits: parsePersonaLines(storySafetyDraft.softLimits),
+          fadeToBlack: parsePersonaLines(storySafetyDraft.fadeToBlack),
+          notes: storySafetyDraft.notes.trim() || null
+        })
+      },
+      setStorySafetyStatus,
+      "Could not update session safety."
+    );
     if (!response) {
       return;
     }
-    setStorySafetyStatus(storySafetyDraft.paused ? "Story paused. The model will wait out of character." : "Session safety updated for the next turn.");
-    await loadStorySafety(storyId).catch((error) => setStorySafetyStatus(error instanceof Error ? error.message : "Safety saved, but the section could not refresh."));
+    setStorySafetyStatus(
+      storySafetyDraft.paused
+        ? "Story paused. The model will wait out of character."
+        : "Session safety updated for the next turn."
+    );
+    await loadStorySafety(storyId).catch((error) =>
+      setStorySafetyStatus(error instanceof Error ? error.message : "Safety saved, but the section could not refresh.")
+    );
   }
 
   function updateStoryDirectorDraft<K extends keyof StoryDirectorDraft>(field: K, value: StoryDirectorDraft[K]) {
@@ -995,7 +1232,10 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     setStoryHookDraft((current) => ({ ...current, [field]: value }));
   }
 
-  function updateStoryRelationshipDraft<K extends keyof StoryRelationshipDraft>(field: K, value: StoryRelationshipDraft[K]) {
+  function updateStoryRelationshipDraft<K extends keyof StoryRelationshipDraft>(
+    field: K,
+    value: StoryRelationshipDraft[K]
+  ) {
     setStoryRelationshipDraft((current) => ({ ...current, [field]: value }));
   }
 
@@ -1008,15 +1248,21 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     if (!storyId) {
       return;
     }
-    const response = await performWrite("narrative:director", `/api/stories/${storyId}/narrative`, {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        ...storyDirectorDraft,
-        tone: storyDirectorDraft.tone.trim() || null,
-        notes: storyDirectorDraft.notes.trim() || null
-      })
-    }, setStoryNarrativeStatus, "Could not update the story plan.");
+    const response = await performWrite(
+      "narrative:director",
+      `/api/stories/${storyId}/narrative`,
+      {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ...storyDirectorDraft,
+          tone: storyDirectorDraft.tone.trim() || null,
+          notes: storyDirectorDraft.notes.trim() || null
+        })
+      },
+      setStoryNarrativeStatus,
+      "Could not update the story plan."
+    );
     await finishNarrativeWrite(response, "Director settings updated.");
   }
 
@@ -1108,15 +1354,25 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     await finishNarrativeWrite(response, "Character initiative scheduled.");
   }
 
-  async function updateStoryNarrativeItem(kind: "arc" | "beat" | "hook" | "relationship" | "event", id: string, input: Record<string, unknown>) {
+  async function updateStoryNarrativeItem(
+    kind: "arc" | "beat" | "hook" | "relationship" | "event",
+    id: string,
+    input: Record<string, unknown>
+  ) {
     if (!storyId) {
       return;
     }
-    const response = await performWrite(`narrative:update:${kind}:${id}`, `/api/stories/${storyId}/narrative`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ kind, id, ...input })
-    }, setStoryNarrativeStatus, "Could not update the story plan.");
+    const response = await performWrite(
+      `narrative:update:${kind}:${id}`,
+      `/api/stories/${storyId}/narrative`,
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ kind, id, ...input })
+      },
+      setStoryNarrativeStatus,
+      "Could not update the story plan."
+    );
     if (response?.ok && kind === "event") {
       window.dispatchEvent(new Event(SCHEDULED_EVENTS_CHANGED_EVENT));
     }
@@ -1127,11 +1383,17 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     if (!storyId) {
       return null;
     }
-    return performWrite(`narrative:${String(input.kind ?? "write")}`, `/api/stories/${storyId}/narrative`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(input)
-    }, setStoryNarrativeStatus, "Could not update the story plan.");
+    return performWrite(
+      `narrative:${String(input.kind ?? "write")}`,
+      `/api/stories/${storyId}/narrative`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input)
+      },
+      setStoryNarrativeStatus,
+      "Could not update the story plan."
+    );
   }
 
   async function finishNarrativeWrite(response: Response | null, successMessage: string) {
@@ -1140,14 +1402,20 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     }
     setStoryNarrativeStatus(successMessage);
     if (storyId) {
-      await loadStoryNarrative(storyId, storyTimelineId).catch((error) => setStoryNarrativeStatus(error instanceof Error ? error.message : "Story plan saved, but the section could not refresh."));
+      await loadStoryNarrative(storyId, storyTimelineId).catch((error) =>
+        setStoryNarrativeStatus(
+          error instanceof Error ? error.message : "Story plan saved, but the section could not refresh."
+        )
+      );
     }
   }
 
   function selectCastParticipant(participantId: string) {
     castParticipantIdRef.current = participantId;
     setCastParticipantId(participantId);
-    setStoryCastStateDraft(stateToCastDraft(storyParticipantStates.find((entry) => entry.participantId === participantId)));
+    setStoryCastStateDraft(
+      stateToCastDraft(storyParticipantStates.find((entry) => entry.participantId === participantId))
+    );
     setStoryVoiceDraft(bindingToVoiceDraft(storyVoiceBindings.find((entry) => entry.participantId === participantId)));
     setStoryVisualDraft((current) => ({ ...current, participantId }));
     setStoryContinuityStatus(null);
@@ -1245,11 +1513,17 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     if (!storyId) {
       return null;
     }
-    return performWrite(`continuity:${String(input.kind ?? "write")}`, `/api/stories/${storyId}/continuity`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(input)
-    }, setStoryContinuityStatus, "Could not update story continuity.");
+    return performWrite(
+      `continuity:${String(input.kind ?? "write")}`,
+      `/api/stories/${storyId}/continuity`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input)
+      },
+      setStoryContinuityStatus,
+      "Could not update story continuity."
+    );
   }
 
   async function finishContinuityWrite(response: Response | null, successMessage: string) {
@@ -1258,12 +1532,16 @@ export function useChatQuickPanel({ chatId, characterId, enabled = true }: UseCh
     }
     setStoryContinuityStatus(successMessage);
     if (storyId) {
-      await loadStoryContinuity(storyId, storyTimelineId).catch((error) => setStoryContinuityStatus(error instanceof Error ? error.message : "Continuity saved, but the section could not refresh."));
+      await loadStoryContinuity(storyId, storyTimelineId).catch((error) =>
+        setStoryContinuityStatus(
+          error instanceof Error ? error.message : "Continuity saved, but the section could not refresh."
+        )
+      );
     }
   }
 
   function startNewPersona() {
-    setDraft({ ...emptyPersonaDraft, label: "New persona" });
+    setDraft({ ...emptyPersonaDraft });
     setActiveProfileId(null);
     setActivePersona(null);
     setPersonaStatus(null);
@@ -1424,29 +1702,23 @@ export function profileFromApi(profile: Record<string, unknown>): PersonaProfile
     surname: String(profile.surname ?? ""),
     avatarUrl: typeof profile.avatarUrl === "string" ? profile.avatarUrl : null,
     summary: String(profile.summary ?? ""),
+    appearance: String(profile.appearance ?? ""),
     background: typeof profile.background === "string" ? profile.background : "",
-    traits: Array.isArray(profile.traits) ? profile.traits.filter((item): item is string => typeof item === "string") : [],
+    traits: Array.isArray(profile.traits)
+      ? profile.traits.filter((item): item is string => typeof item === "string")
+      : [],
     likes: Array.isArray(profile.likes) ? profile.likes.filter((item): item is string => typeof item === "string") : [],
-    dislikes: Array.isArray(profile.dislikes) ? profile.dislikes.filter((item): item is string => typeof item === "string") : [],
-    boundaries: Array.isArray(profile.boundaries) ? profile.boundaries.filter((item): item is string => typeof item === "string") : [],
+    dislikes: Array.isArray(profile.dislikes)
+      ? profile.dislikes.filter((item): item is string => typeof item === "string")
+      : [],
+    boundaries: Array.isArray(profile.boundaries)
+      ? profile.boundaries.filter((item): item is string => typeof item === "string")
+      : [],
     isDefault: profile.isDefault === true,
     visibility: profile.visibility === "PUBLIC" || profile.visibility === "UNLISTED" ? profile.visibility : "PRIVATE"
   };
 }
 
 export function profileToDraft(profile: Record<string, unknown>): PersonaDraft {
-  const parsed = profileFromApi(profile);
-  return {
-    profileId: parsed.id,
-    label: parsed.label,
-    displayName: parsed.displayName,
-    surname: parsed.surname,
-    avatarUrl: parsed.avatarUrl ?? "",
-    summary: parsed.summary,
-    background: parsed.background ?? "",
-    traits: parsed.traits.join("\n"),
-    likes: parsed.likes.join("\n"),
-    dislikes: parsed.dislikes.join("\n"),
-    boundaries: parsed.boundaries.join("\n")
-  };
+  return personaProfileFromApi(profile);
 }

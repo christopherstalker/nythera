@@ -6,6 +6,7 @@ import { userPersonaSchema } from "../src/lib/validation";
 import { normalizePersonaRows } from "../src/lib/user-persona-profiles";
 import vm from "node:vm";
 import ts from "typescript";
+import { profileFromApi, profileToDraft } from "../src/hooks/use-chat-quick-panel";
 
 const legacy = {
   id: "persona-alex",
@@ -22,6 +23,23 @@ const legacy = {
   isDefault: true,
   visibility: "PRIVATE" as const
 };
+
+test("chat persona loading, switching and saving retain the same details as settings", async () => {
+  const saved = { ...legacy, appearance: "Silver curls and grey eyes.", visibility: "UNLISTED" as const };
+  const chatProfile = profileFromApi(saved);
+  const draft = profileToDraft(chatProfile);
+  const payload = personaDraftPayload(draft);
+  assert.equal(payload.appearance, saved.appearance);
+  assert.equal(payload.visibility, "UNLISTED");
+  assert.deepEqual(payload.boundaries, saved.boundaries);
+  assert.deepEqual(payload.traits, saved.traits);
+  assert.equal(payload.summary, saved.summary);
+  const source = await readFile(new URL("../src/hooks/use-chat-quick-panel.ts", import.meta.url), "utf8");
+  const save = source.slice(source.indexOf("async function savePersona"), source.indexOf("async function addMemory"));
+  assert.match(save, /\.\.\.personaDraftPayload\(draft\)/);
+  assert.match(save, /chatId \? \{ chatId \}/);
+  assert.doesNotMatch(save, /parsePersonaLines|visibility: "PRIVATE"/);
+});
 
 test("editing a legacy persona retains its full description and structured details", () => {
   const draft = personaProfileFromApi(legacy);
@@ -64,9 +82,13 @@ test("the editor has one mode and switching profiles keeps already hydrated list
     "utf8"
   );
   assert.doesNotMatch(source, /FormMode|isSimpleMode|Advanced editor|label="Advanced"|setFreeform/);
-  assert.match(source, /id="persona-appearance-title"/);
-  assert.match(source, /id="persona-personality-title"/);
-  assert.match(source, /id="persona-traits-title"/);
+  const fields = await readFile(new URL("../src/components/persona/persona-fields.tsx", import.meta.url), "utf8");
+  const chat = await readFile(new URL("../src/components/chat/chat-panel-tabs.tsx", import.meta.url), "utf8");
+  assert.match(source, /<PersonaFields draft=\{draft\} update=\{update\}/);
+  assert.match(chat, /<PersonaFields draft=\{panel.draft\} update=\{panel.updateDraft\} compact/);
+  assert.match(fields, /persona-appearance-title/);
+  assert.match(fields, /persona-personality-title/);
+  assert.match(fields, /persona-traits-title/);
   const switchProfile = source.slice(
     source.indexOf("function switchProfile"),
     source.indexOf("async function changeDefaultPersona")
