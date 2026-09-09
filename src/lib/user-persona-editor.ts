@@ -33,7 +33,7 @@ export const emptyPersonaDraft: PersonaDraft = {
 
 export function personaEditorLines(value: string) {
   return value
-    .split(/[\n,;]+/)
+    .split(/[\r\n]+/)
     .map((item) => item.trim())
     .filter(Boolean);
 }

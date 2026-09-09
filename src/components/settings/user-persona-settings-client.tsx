@@ -562,7 +562,7 @@ Protective of friends"
               <span>
                 {invalidTraits
                   ? "Use up to 24 traits, each no longer than 160 characters."
-                  : "One trait per line, or separate them with commas."}
+                  : "One trait per line. Short phrases work too."}
               </span>
               <span>{traits.length} / 24</span>
             </div>

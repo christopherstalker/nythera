@@ -18,7 +18,7 @@ const legacy = {
   traits: ["Patient", "Loyal"],
   likes: ["Rain"],
   dislikes: ["Being rushed"],
-  boundaries: ["Use they/them"],
+  boundaries: ["Use they/them, and ask before touching; respect personal space."],
   isDefault: true,
   visibility: "PRIVATE" as const
 };
