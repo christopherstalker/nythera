@@ -1,0 +1,172 @@
+.persona-editor,
+.persona-editor-fields {
+  display: grid;
+  gap: 28px;
+  min-width: 0;
+}
+.persona-editor-fields {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.persona-identity {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.6fr) minmax(0, 1.4fr);
+  align-items: center;
+  gap: 32px;
+  padding-block: 24px;
+  border-block: 1px solid var(--border-default);
+}
+.persona-name-fields,
+.persona-context-fields {
+  display: grid;
+  gap: 16px;
+}
+.persona-name-fields label,
+.persona-context-fields label {
+  display: grid;
+  gap: 8px;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+.persona-blocks {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: 18px;
+}
+.persona-block {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--app-card-radius, 18px);
+  background: color-mix(in srgb, var(--bg-surface) 85%, var(--bg-base));
+}
+.persona-block header {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 102px;
+  align-content: start;
+}
+.persona-block-number {
+  padding-top: 5px;
+  color: var(--brand-primary);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+.persona-block h3 {
+  font-family: "Lora", Georgia, serif;
+  color: var(--text-primary);
+  font-size: 22px;
+  line-height: 1.4;
+}
+.persona-block header p {
+  margin-top: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.persona-optional {
+  grid-column: 2;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+.persona-block > textarea {
+  min-height: 260px;
+  padding: 14px;
+  resize: vertical;
+  font-size: 14px;
+  line-height: 1.8;
+  background: var(--bg-input);
+}
+.persona-field-note {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+.persona-field-note span:last-child {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.persona-block textarea[aria-invalid="true"] {
+  border-color: var(--brand-primary);
+}
+.persona-trait-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+.persona-trait-suggestions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  min-height: 36px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--app-control-radius, 12px);
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  font-size: 11px;
+}
+.persona-trait-suggestions button[aria-pressed="true"] {
+  color: var(--brand-primary);
+  border-color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 12%, var(--bg-surface));
+}
+.persona-context {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.persona-context summary {
+  cursor: pointer;
+  line-height: 1.7;
+}
+.persona-context-fields {
+  margin-top: 18px;
+}
+.persona-context-fields p {
+  line-height: 1.7;
+}
+.persona-editor :is(button, input, textarea, summary):focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 3px;
+}
+@media (max-width: 1100px) {
+  .persona-blocks {
+    grid-template-columns: 1fr;
+  }
+  .persona-block header {
+    min-height: 0;
+    margin-bottom: 20px;
+  }
+  .persona-block > textarea {
+    min-height: 180px;
+  }
+}
+@media (max-width: 640px) {
+  .persona-identity {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .persona-block {
+    padding: 18px;
+  }
+  .persona-block > textarea {
+    font-size: 16px;
+  }
+  .persona-field-note {
+    flex-wrap: wrap;
+  }
+  .persona-trait-suggestions button {
+    min-height: 44px;
+  }
+}

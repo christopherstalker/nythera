@@ -447,6 +447,7 @@ model UserPersona {
   surname     String?
   avatarUrl   String?
   summary     String     @db.Text
+  appearance  String?    @db.Text
   background  String?    @db.Text
   traits      String[]   @default([])
   likes       String[]   @default([])

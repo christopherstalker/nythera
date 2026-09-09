@@ -450,6 +450,7 @@ export const userPersonaSchema = z.object({
   surname: z.string().trim().max(80).optional().or(z.literal("")).nullable(),
   avatarUrl: imageSourceSchema.optional().or(z.literal("")).nullable(),
   summary: z.string().trim().min(10).max(8000),
+  appearance: z.string().trim().max(8000).optional().nullable(),
   background: z.string().trim().max(3000).optional().or(z.literal("")).nullable(),
   traits: listFromTextSchema,
   likes: listFromTextSchema,
