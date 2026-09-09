@@ -61,6 +61,7 @@ let profile = {
   profileSettings: {}
 };
 const appearances = new Map();
+const appAppearances = new Map();
 let maxOutputTokens = null;
 
 createServer(async (request, response) => {
@@ -76,6 +77,16 @@ createServer(async (request, response) => {
     }
     let payload = {};
     switch (url.pathname) {
+      case "/api/settings/theme": {
+        const userId = scenario.userId || "fixture-user";
+        if (request.method === "PATCH") {
+          let body = "";
+          for await (const chunk of request) body += chunk;
+          appAppearances.set(userId, JSON.parse(body).appearance);
+        }
+        payload = { appearance: appAppearances.get(userId) ?? null };
+        break;
+      }
       case "/api/settings/appearance": {
         let scope = url.searchParams.get("chatId") || "defaults";
         if (request.method === "PATCH") {
@@ -97,7 +108,7 @@ createServer(async (request, response) => {
       case "/api/auth/session":
         payload = {
           user: {
-            id: "fixture-user",
+            id: scenario.userId || "fixture-user",
             name: profile.name || profile.username,
             username: profile.username,
             email: "fixture@example.test",

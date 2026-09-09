@@ -7,6 +7,11 @@ import { AppShell } from "@/components/layout/AppShell";
 import { SessionProvider } from "@/components/providers/session-provider";
 import { BRAND_ICON_APPLE, BRAND_ICON_LARGE, BRAND_ICON_SMALL, BRAND_OG_IMAGE, BRAND_THEME_COLOR } from "@/lib/brand";
 import { resolveSiteOrigin } from "@/lib/site-origin";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { appAppearanceStyle, parseAppAppearance } from "@/lib/app-appearance";
+import { logSafeError } from "@/lib/secret-redaction";
+import "@/styles/personal-appearance.css";
 
 const spaceGrotesk = localFont({
   src: "../assets/fonts/SpaceGrotesk-Variable.woff2",
@@ -84,6 +89,16 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const nonce = (await headers()).get("x-nonce") ?? undefined;
+  const session = await auth();
+  const preferences = session?.user?.id
+    ? await prisma.user
+        .findUnique({ where: { id: session.user.id }, select: { appAppearance: true, bannedAt: true } })
+        .catch((error) => {
+          logSafeError("Could not load initial appearance.", error);
+          return null;
+        })
+    : null;
+  const initialAppearance = preferences?.bannedAt ? null : parseAppAppearance(preferences?.appAppearance);
   const organizationJsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
@@ -107,7 +122,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   };
 
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`dark ${spaceGrotesk.variable}`}
+      suppressHydrationWarning
+      style={initialAppearance ? appAppearanceStyle(initialAppearance) : undefined}
+      data-personal-appearance={initialAppearance ? "" : undefined}
+      data-reduce-motion={initialAppearance?.reduceMotion ? "" : undefined}
+    >
       <head>
         <link
           rel="preload"
@@ -117,7 +139,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           crossOrigin="anonymous"
         />
       </head>
-      <body className={`${spaceGrotesk.className} ${spaceGrotesk.variable} min-h-screen overflow-hidden`}>
+      <body className={`${spaceGrotesk.className} min-h-screen overflow-hidden`}>
         <script
           nonce={nonce}
           suppressHydrationWarning
@@ -130,7 +152,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd).replace(/</g, "\\u003c") }}
         />
-        <SessionProvider>
+        <SessionProvider session={session ?? undefined} initialAppearance={initialAppearance}>
           <AppShell>{children}</AppShell>
         </SessionProvider>
         <SpeedInsights />

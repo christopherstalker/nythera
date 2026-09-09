@@ -7,6 +7,7 @@ import { PageHeader, PageShell } from "@/components/ui/page";
 import { SETTINGS_SECTIONS } from "@/components/settings/settings-sections";
 
 const sectionOrder = [
+  "/settings/appearance",
   "/settings/interface",
   "/settings/atmosphere",
   "/settings/personas",
