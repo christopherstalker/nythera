@@ -107,7 +107,7 @@ test("direct gateway and standalone proxy send identical ceilings and supported 
   ] as const;
 
   for (const provider of providers) {
-    for (const maxTokens of [128, 500, 4096]) {
+    for (const maxTokens of [128, 500, 4096, null]) {
       await suite.test(`${provider.provider}/${provider.model}: ${maxTokens} tokens`, async () => {
         const key: ProviderKey = {
           ...provider,
@@ -156,17 +156,21 @@ test("direct gateway and standalone proxy send identical ceilings and supported 
         const proxyRequest = JSON.parse(proxyText).request;
         if (provider.apiFormat === "GEMINI") {
           assert.deepEqual(proxyRequest.generationConfig, gatewayRequest.generationConfig);
-          assert.equal(gatewayRequest.generationConfig.maxOutputTokens, maxTokens);
-          if (provider.model === "gemini-2.5-flash")
+          assert.equal(gatewayRequest.generationConfig.maxOutputTokens, maxTokens ?? undefined);
+          if (maxTokens === null) assert.equal(gatewayRequest.generationConfig.thinkingConfig, undefined);
+          if (maxTokens !== null && provider.model === "gemini-2.5-flash")
             assert.deepEqual(gatewayRequest.generationConfig.thinkingConfig, { thinkingBudget: 0 });
-          if (provider.model === "gemini-2.5-pro")
+          if (maxTokens !== null && provider.model === "gemini-2.5-pro")
             assert.deepEqual(gatewayRequest.generationConfig.thinkingConfig, { thinkingBudget: 128 });
-          if (provider.model === "gemini-3.6-flash")
+          if (maxTokens !== null && provider.model === "gemini-3.6-flash")
             assert.deepEqual(gatewayRequest.generationConfig.thinkingConfig, { thinkingLevel: "low" });
         } else {
           assert.deepEqual(proxyRequest, gatewayRequest);
           const reasoning = provider.provider === "openai" && provider.model !== "gpt-4o-mini";
-          assert.equal(gatewayRequest[reasoning ? "max_completion_tokens" : "max_tokens"], maxTokens);
+          assert.equal(
+            gatewayRequest[reasoning ? "max_completion_tokens" : "max_tokens"],
+            maxTokens ?? (provider.provider === "anthropic" ? 8192 : undefined)
+          );
           if (reasoning) {
             for (const field of ["max_tokens", "temperature", "top_p", "frequency_penalty", "presence_penalty"])
               assert.equal(gatewayRequest[field], undefined);
@@ -176,38 +180,35 @@ test("direct gateway and standalone proxy send identical ceilings and supported 
     }
   }
 
-  await suite.test(
-    "changing the global cap down, up, and back to automatic changes the actual request ceiling",
-    async () => {
-      for (const [savedCap, expected] of [
-        [128, 128],
-        [4096, 240],
-        [null, 240]
-      ] as const) {
-        let reply = "";
-        for await (const chunk of streamGatewayResponse({
-          userId: "token-fixture",
-          chatId: "token-fixture",
-          healthCheck: true,
-          model: "gemini:gemini-2.5-flash",
-          temperature: 0.7,
-          maxTokens: resolveChatOutputTokenLimit("concise", null, savedCap),
-          messages: [{ role: "user", content: "Say hello." }],
-          providerKeys: [
-            {
-              provider: "gemini",
-              displayName: "Token fixture",
-              apiFormat: "GEMINI",
-              apiKey: "fixture-only",
-              defaultModel: "gemini-2.5-flash"
-            }
-          ]
-        })) {
-          assert.notEqual(chunk.type, "error", JSON.stringify(chunk));
-          if (chunk.type === "delta") reply += chunk.text;
-        }
-        assert.equal(JSON.parse(reply).request.generationConfig.maxOutputTokens, expected);
+  await suite.test("changing the global cap down, up, and clearing it changes the actual request ceiling", async () => {
+    for (const [savedCap, expected] of [
+      [128, 128],
+      [4096, 4096],
+      [null, undefined]
+    ] as const) {
+      let reply = "";
+      for await (const chunk of streamGatewayResponse({
+        userId: "token-fixture",
+        chatId: "token-fixture",
+        healthCheck: true,
+        model: "gemini:gemini-2.5-flash",
+        temperature: 0.7,
+        maxTokens: resolveChatOutputTokenLimit(null, savedCap),
+        messages: [{ role: "user", content: "Say hello." }],
+        providerKeys: [
+          {
+            provider: "gemini",
+            displayName: "Token fixture",
+            apiFormat: "GEMINI",
+            apiKey: "fixture-only",
+            defaultModel: "gemini-2.5-flash"
+          }
+        ]
+      })) {
+        assert.notEqual(chunk.type, "error", JSON.stringify(chunk));
+        if (chunk.type === "delta") reply += chunk.text;
       }
+      assert.equal(JSON.parse(reply).request.generationConfig.maxOutputTokens, expected);
     }
-  );
+  });
 });

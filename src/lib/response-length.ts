@@ -4,8 +4,7 @@ export const RESPONSE_LENGTH_OPTIONS = [
     label: "Short",
     description: "1-2 compact paragraphs",
     promptInstruction: "Write 1-2 compact paragraphs and stay within 60-140 words.",
-    verbosityLevel: "concise",
-    maxOutputTokens: 240
+    verbosityLevel: "concise"
   },
   {
     value: "medium",
@@ -13,16 +12,14 @@ export const RESPONSE_LENGTH_OPTIONS = [
     description: "3-4 developed paragraphs",
     promptInstruction:
       "Write 3-4 developed paragraphs and stay within 200-300 words. Four paragraphs is a hard maximum; never add a fifth paragraph.",
-    verbosityLevel: "balanced",
-    maxOutputTokens: 480
+    verbosityLevel: "balanced"
   },
   {
     value: "long",
     label: "Long",
     description: "4-7 immersive paragraphs",
     promptInstruction: "Write 4-7 immersive paragraphs and stay within 320-650 words.",
-    verbosityLevel: "immersive",
-    maxOutputTokens: 1_050
+    verbosityLevel: "immersive"
   }
 ] as const;
 
@@ -55,25 +52,8 @@ export function responseLengthTarget(verbosity: ResponseVerbosity) {
   return RESPONSE_LENGTH_OPTIONS.find((option) => option.verbosityLevel === verbosity)!.promptInstruction;
 }
 
-export function maxOutputTokensForVerbosity(verbosity: ResponseVerbosity, configuredLimit?: number | null) {
-  const lengthLimit =
-    verbosity === "expressive"
-      ? 780
-      : RESPONSE_LENGTH_OPTIONS.find((option) => option.verbosityLevel === verbosity)!.maxOutputTokens;
-
-  return configuredLimit == null ? lengthLimit : Math.min(configuredLimit, lengthLimit);
-}
-
-export function configuredOutputTokenLimit(characterLimit?: number | null, userLimit?: number | null) {
+export function resolveChatOutputTokenLimit(characterLimit?: number | null, userLimit?: number | null) {
   if (characterLimit == null) return userLimit ?? null;
   if (userLimit == null) return characterLimit;
   return Math.min(characterLimit, userLimit);
-}
-
-export function resolveChatOutputTokenLimit(
-  verbosity: ResponseVerbosity,
-  characterLimit?: number | null,
-  userLimit?: number | null
-) {
-  return maxOutputTokensForVerbosity(verbosity, configuredOutputTokenLimit(characterLimit, userLimit));
 }

@@ -9,7 +9,12 @@ import { z } from "zod";
 import { classifyProviderError } from "./provider-errors.js";
 import { ReplayGuard, verifyShieldRequest } from "./request-auth.js";
 import { CircuitStore, circuitIdentity } from "./circuit-store.js";
-import { geminiResponseOptions, openAIResponseOptions, providerOutputTokenBudget } from "./response-tokens.js";
+import {
+  anthropicOutputTokenLimit,
+  geminiResponseOptions,
+  openAIResponseOptions,
+  providerOutputTokenBudget
+} from "./response-tokens.js";
 
 type ChatMessage = {
   role: "system" | "user" | "assistant";
@@ -847,7 +852,7 @@ async function streamAnthropic(input: {
   const stream = input.client.messages.stream(
     {
       model: input.model,
-      max_tokens: input.maxTokens ?? 900,
+      max_tokens: await anthropicOutputTokenLimit(input),
       temperature: input.temperature,
       top_p: input.topP ?? undefined,
       system,

@@ -9,8 +9,6 @@ import {
   formatPlayerPhysicalCanon
 } from "../src/lib/physical-continuity";
 import {
-  configuredOutputTokenLimit,
-  maxOutputTokensForVerbosity,
   providerOutputTokenBudget,
   resolveChatOutputTokenLimit,
   responseLengthTarget
@@ -45,23 +43,17 @@ test("the persisted third regeneration remains selected after four attempts", ()
   );
 });
 
-test("response sizes have hard prompt ranges and matching provider caps", () => {
+test("response sizes guide prose without imposing hidden provider caps", () => {
   assert.match(responseLengthTarget("concise"), /stay within 60-140 words/);
   assert.match(
     responseLengthTarget("balanced"),
     /3-4 developed paragraphs.*200-300 words.*hard maximum.*fifth paragraph/
   );
   assert.match(responseLengthTarget("immersive"), /stay within 320-650 words/);
-  assert.equal(maxOutputTokensForVerbosity("concise"), 240);
-  assert.equal(maxOutputTokensForVerbosity("balanced"), 480);
-  assert.equal(maxOutputTokensForVerbosity("immersive"), 1_050);
-  assert.equal(maxOutputTokensForVerbosity("immersive", 700), 700);
-  assert.equal(configuredOutputTokenLimit(null, null), null);
-  assert.equal(configuredOutputTokenLimit(1_200, 2_048), 1_200);
-  assert.equal(configuredOutputTokenLimit(null, 2_048), 2_048);
-  assert.equal(resolveChatOutputTokenLimit("concise", null, null), 240);
-  assert.equal(resolveChatOutputTokenLimit("concise", null, 2_048), 240);
-  assert.equal(resolveChatOutputTokenLimit("immersive", 700, 2_048), 700);
+  assert.equal(resolveChatOutputTokenLimit(null, null), null);
+  assert.equal(resolveChatOutputTokenLimit(1_200, 2_048), 1_200);
+  assert.equal(resolveChatOutputTokenLimit(null, 2_048), 2_048);
+  assert.equal(resolveChatOutputTokenLimit(700, 2_048), 700);
   assert.equal(providerOutputTokenBudget({ visibleTokenLimit: 520, provider: "openai", model: "gpt-5" }), 520);
   assert.equal(
     providerOutputTokenBudget({ visibleTokenLimit: 520, provider: "gemini", model: "gemini-2.5-flash" }),

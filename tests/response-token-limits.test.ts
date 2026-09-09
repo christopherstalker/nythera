@@ -1,27 +1,23 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type Anthropic from "@anthropic-ai/sdk";
+import { resolveChatOutputTokenLimit, providerOutputTokenBudget } from "../src/lib/response-length";
 import {
-  resolveChatOutputTokenLimit,
-  providerOutputTokenBudget,
-  type ResponseVerbosity
-} from "../src/lib/response-length";
-import { geminiResponseOptions, openAIResponseOptions } from "../proxy-service/src/response-tokens";
+  anthropicOutputTokenLimit,
+  geminiResponseOptions,
+  openAIResponseOptions
+} from "../proxy-service/src/response-tokens";
 import { fitPromptMessagesWithinContext, historyTokenBudget } from "../src/lib/prompt-budget";
 
-test("global and character ceilings cap every preset in both directions, including after clearing the saved cap", () => {
-  for (const [verbosity, automatic] of [
-    ["concise", 240],
-    ["balanced", 480],
-    ["expressive", 780],
-    ["immersive", 1050]
-  ] as const) {
-    for (const characterLimit of [null, 128, 700, 4096]) {
-      for (const userLimit of [null, 128, 512, 2048, 4096]) {
-        assert.equal(
-          resolveChatOutputTokenLimit(verbosity as ResponseVerbosity, characterLimit, userLimit),
-          Math.min(characterLimit ?? Infinity, userLimit ?? Infinity, automatic)
-        );
-      }
+test("only explicit global and character limits cap generation; clearing both removes the cap", () => {
+  for (const characterLimit of [null, 128, 700, 4096]) {
+    for (const userLimit of [null, 128, 512, 2048, 4096]) {
+      assert.equal(
+        resolveChatOutputTokenLimit(characterLimit, userLimit),
+        characterLimit === null && userLimit === null
+          ? null
+          : Math.min(characterLimit ?? Infinity, userLimit ?? Infinity)
+      );
     }
   }
 });
@@ -33,6 +29,29 @@ test("provider reasoning never expands a resolved cap, including at the 4096 bou
     }
     assert.equal(providerOutputTokenBudget({ provider }), undefined);
     assert.equal(providerOutputTokenBudget({ provider, visibleTokenLimit: null }), undefined);
+  }
+});
+
+test("Anthropic uses model capacity only for an unset limit and never guesses a fallback cap", async () => {
+  let lookups = 0;
+  let capacity: unknown = 8192;
+  const signal = new AbortController().signal;
+  const client = {
+    models: {
+      retrieve: async (model: string, options: { signal: AbortSignal }) => {
+        lookups++;
+        assert.equal(model, "claude-fixture");
+        assert.equal(options.signal, signal);
+        return { max_tokens: capacity };
+      }
+    }
+  } as unknown as Anthropic;
+  const input = { client, model: "claude-fixture", signal };
+  assert.equal(await anthropicOutputTokenLimit({ ...input, maxTokens: 500 }), 500);
+  assert.equal(lookups, 0);
+  assert.equal(await anthropicOutputTokenLimit({ ...input, maxTokens: null }), 8192);
+  for (capacity of [null, undefined, "8192", 0, -1, 1.5, Infinity]) {
+    await assert.rejects(anthropicOutputTokenLimit(input), /did not report this model's output capacity/);
   }
 });
 

@@ -24,7 +24,7 @@ test("both gateways map sampler settings to each provider's supported request fi
   for (const source of [builtIn, proxy]) {
     assert.match(source, /top_p:\s*input\.topP/);
     assert.match(source, /openAIResponseOptions\(input\)/);
-    assert.match(source, /max_tokens:\s*input\.maxTokens/);
+    assert.match(source, /max_tokens:\s*await anthropicOutputTokenLimit\(input\)/);
     assert.match(source, /topP:\s*input\.topP/);
     assert.match(source, /geminiResponseOptions\(input\.model, input\.maxTokens\)/);
   }

@@ -539,7 +539,7 @@ export function ChatClient({
       const savedLimit = typeof body?.maxOutputTokens === "number" ? body.maxOutputTokens : null;
       setMaxOutputTokens(savedLimit);
       setApiSaveStatus(
-        savedLimit === null ? "Automatic response limits restored." : `Maximum output saved at ${savedLimit} tokens.`
+        savedLimit === null ? "Global token limit removed." : `Maximum output saved at ${savedLimit} tokens.`
       );
       return true;
     } catch (error) {

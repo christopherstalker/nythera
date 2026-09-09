@@ -9,7 +9,11 @@ import type { PromptMessage, StreamChunk } from "@/types";
 import { eligibleFallbackKeys } from "@/lib/provider-fallback";
 import { logPerformanceMetric } from "@/lib/performance-logger";
 import { providerOutputTokenBudget } from "@/lib/response-length";
-import { geminiResponseOptions, openAIResponseOptions } from "../../proxy-service/src/response-tokens";
+import {
+  anthropicOutputTokenLimit,
+  geminiResponseOptions,
+  openAIResponseOptions
+} from "../../proxy-service/src/response-tokens";
 import { logSafeError } from "@/lib/secret-redaction";
 import {
   abortableAsyncIterable,
@@ -692,7 +696,7 @@ async function* streamAnthropic(input: {
   const stream = input.client.messages.stream(
     {
       model: input.model,
-      max_tokens: input.maxTokens ?? 900,
+      max_tokens: await anthropicOutputTokenLimit(input),
       temperature: input.temperature,
       top_p: input.topP ?? undefined,
       system,

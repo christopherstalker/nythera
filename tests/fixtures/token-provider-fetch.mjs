@@ -7,6 +7,10 @@ globalThis.fetch = async (resource, options) => {
   const url = new URL(typeof resource === "string" ? resource : (resource.url ?? resource.href));
   if (url.hostname === "127.0.0.1") return originalFetch(resource, options);
 
+  if (url.hostname === "api.anthropic.com" && url.pathname.startsWith("/v1/models/")) {
+    return Response.json({ id: "claude-3-5-sonnet-latest", type: "model", max_tokens: 8192 });
+  }
+
   const request = JSON.parse(options.body);
   const text = JSON.stringify({ request, path: url.pathname });
   let events;

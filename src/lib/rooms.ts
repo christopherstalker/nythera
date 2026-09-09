@@ -22,7 +22,6 @@ import { ensureStoryForRoom, getRoomStoryPromptContext, syncRoomTurns } from "@/
 import { markStoryBeatsCompleted, markStoryProactiveEventsFired } from "@/lib/stories/narrative-store";
 import { logSafeError } from "@/lib/secret-redaction";
 import { resolveChatOutputTokenLimit } from "@/lib/response-length";
-import { resolveCharacterPersona } from "@/lib/persona";
 import { renderCharacterGreeting, renderInitialRoomGreeting } from "@/lib/character-prompt-contract";
 import { renderCharacterPrologue } from "@/lib/prologue-pov";
 import { buildPhysicalMemoryContext } from "@/lib/memory/promptBuilder";
@@ -293,11 +292,7 @@ export async function sendRoomMessage(input: {
     globalModel: input.body.model ?? room.model,
     chatTemperature: input.body.temperature ?? room.temperature
   });
-  const maxOutputTokens = resolveChatOutputTokenLimit(
-    resolveCharacterPersona(speaker).verbosityLevel,
-    effectiveSettings.maxTokens,
-    input.user.maxOutputTokens
-  );
+  const maxOutputTokens = resolveChatOutputTokenLimit(effectiveSettings.maxTokens, input.user.maxOutputTokens);
   const history = await loadAdaptiveRoomHistory({
     roomId: room.id,
     model: effectiveSettings.model,

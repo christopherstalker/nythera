@@ -1,3 +1,22 @@
+import type Anthropic from "@anthropic-ai/sdk";
+
+export async function anthropicOutputTokenLimit(input: {
+  client: Anthropic;
+  model: string;
+  maxTokens?: number | null;
+  signal: AbortSignal;
+}) {
+  if (input.maxTokens != null) return input.maxTokens;
+
+  // Anthropic requires max_tokens even when the user has not set a ceiling.
+  const model = await input.client.models.retrieve(input.model, { signal: input.signal });
+  const maximum = "max_tokens" in model ? model.max_tokens : null;
+  if (typeof maximum !== "number" || !Number.isSafeInteger(maximum) || maximum <= 0) {
+    throw new Error("Anthropic did not report this model's output capacity. Set an explicit output token limit.");
+  }
+  return maximum;
+}
+
 export function providerOutputTokenBudget(input: {
   visibleTokenLimit?: number | null;
   provider?: string | null;

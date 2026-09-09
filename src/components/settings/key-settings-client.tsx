@@ -398,8 +398,8 @@ export function KeySettingsClient({
       setMaxOutputTokens(typeof body.maxOutputTokens === "number" ? String(body.maxOutputTokens) : "");
       setStatus(
         body.maxOutputTokens
-          ? `Global ceiling saved: ${body.maxOutputTokens.toLocaleString()} tokens. Lower response-length and character limits still apply.`
-          : "Automatic output limits restored."
+          ? `Global ceiling saved: ${body.maxOutputTokens.toLocaleString()} tokens. A lower character limit still applies.`
+          : "Global token limit removed."
       );
     } catch {
       setStatus("Could not reach the server. Try saving the output limit again.");
@@ -448,10 +448,9 @@ export function KeySettingsClient({
                 Maximum output tokens
               </h3>
               <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
-                Apply a global ceiling to every reply. The lowest limit wins: this setting, the character&apos;s token
-                limit, or the selected response length (Short: 240, Medium: 480, Long: 1,050 tokens). Raising this
-                ceiling does not make a Short reply longer. Leave it empty to use Nythera&apos;s automatic Short,
-                Medium, and Long limits. Reasoning uses part of the budget on thinking models.
+                Leave it empty for no global token limit. Short, Medium, and Long guide the writing style without
+                setting a token cap. An explicit character limit and the provider&apos;s limits still apply. When a
+                limit is set, reasoning uses part of that budget on thinking models.
               </p>
             </div>
             <label className="grid gap-1.5">
@@ -463,7 +462,7 @@ export function KeySettingsClient({
                 step={1}
                 value={maxOutputTokens}
                 onChange={(event) => setMaxOutputTokens(event.target.value)}
-                placeholder="Automatic"
+                placeholder="No limit"
                 inputMode="numeric"
               />
             </label>
