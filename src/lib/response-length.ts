@@ -11,7 +11,8 @@ export const RESPONSE_LENGTH_OPTIONS = [
     value: "medium",
     label: "Medium",
     description: "3-4 developed paragraphs",
-    promptInstruction: "Write 3-4 developed paragraphs and stay within 200-300 words. Four paragraphs is a hard maximum; never add a fifth paragraph.",
+    promptInstruction:
+      "Write 3-4 developed paragraphs and stay within 200-300 words. Four paragraphs is a hard maximum; never add a fifth paragraph.",
     verbosityLevel: "balanced",
     maxOutputTokens: 480
   },
@@ -28,7 +29,7 @@ export const RESPONSE_LENGTH_OPTIONS = [
 export type MessageLength = (typeof RESPONSE_LENGTH_OPTIONS)[number]["value"];
 export type ResponseVerbosity = (typeof RESPONSE_LENGTH_OPTIONS)[number]["verbosityLevel"] | "expressive";
 
-const GEMINI_THINKING_TOKEN_RESERVE = 1_536;
+export { providerOutputTokenBudget } from "../../proxy-service/src/response-tokens";
 
 export function normalizeMessageLength(value: unknown, fallback: MessageLength = "medium"): MessageLength {
   if (typeof value !== "string") {
@@ -55,9 +56,10 @@ export function responseLengthTarget(verbosity: ResponseVerbosity) {
 }
 
 export function maxOutputTokensForVerbosity(verbosity: ResponseVerbosity, configuredLimit?: number | null) {
-  const lengthLimit = verbosity === "expressive"
-    ? 780
-    : RESPONSE_LENGTH_OPTIONS.find((option) => option.verbosityLevel === verbosity)!.maxOutputTokens;
+  const lengthLimit =
+    verbosity === "expressive"
+      ? 780
+      : RESPONSE_LENGTH_OPTIONS.find((option) => option.verbosityLevel === verbosity)!.maxOutputTokens;
 
   return configuredLimit == null ? lengthLimit : Math.min(configuredLimit, lengthLimit);
 }
@@ -73,27 +75,5 @@ export function resolveChatOutputTokenLimit(
   characterLimit?: number | null,
   userLimit?: number | null
 ) {
-  if (userLimit == null) {
-    return maxOutputTokensForVerbosity(verbosity, characterLimit);
-  }
-
-  return configuredOutputTokenLimit(characterLimit, userLimit)!;
-}
-
-export function providerOutputTokenBudget(input: {
-  visibleTokenLimit?: number | null;
-  provider?: string | null;
-  model?: string | null;
-}) {
-  if (input.visibleTokenLimit == null) {
-    return undefined;
-  }
-
-  const provider = input.provider?.trim().toLowerCase() ?? "";
-
-  if (provider !== "gemini") {
-    return input.visibleTokenLimit;
-  }
-
-  return Math.min(4_096, input.visibleTokenLimit + GEMINI_THINKING_TOKEN_RESERVE);
+  return maxOutputTokensForVerbosity(verbosity, configuredOutputTokenLimit(characterLimit, userLimit));
 }

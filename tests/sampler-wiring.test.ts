@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { openAIResponseOptions, geminiResponseOptions } from "../proxy-service/src/response-tokens";
 
 test("desktop and mobile chat routes resolve and forward character sampler settings", async () => {
   for (const path of [
@@ -22,12 +23,30 @@ test("both gateways map sampler settings to each provider's supported request fi
 
   for (const source of [builtIn, proxy]) {
     assert.match(source, /top_p:\s*input\.topP/);
-    assert.match(source, /frequency_penalty:\s*input\.providerName === "deepseek" \? undefined : input\.frequencyPenalty/);
-    assert.match(source, /presence_penalty:\s*input\.providerName === "deepseek" \? undefined : input\.presencePenalty/);
+    assert.match(source, /openAIResponseOptions\(input\)/);
     assert.match(source, /max_tokens:\s*input\.maxTokens/);
     assert.match(source, /topP:\s*input\.topP/);
-    assert.match(source, /maxOutputTokens:\s*input\.maxTokens/);
+    assert.match(source, /geminiResponseOptions\(input\.model, input\.maxTokens\)/);
   }
+  assert.deepEqual(
+    openAIResponseOptions({
+      providerName: "openai",
+      model: "gpt-4o",
+      temperature: 0.8,
+      topP: 0.9,
+      frequencyPenalty: 0.1,
+      presencePenalty: 0.2,
+      maxTokens: 500
+    }),
+    {
+      temperature: 0.8,
+      top_p: 0.9,
+      frequency_penalty: 0.1,
+      presence_penalty: 0.2,
+      max_tokens: 500
+    }
+  );
+  assert.deepEqual(geminiResponseOptions("gemini-2.0-flash", 500), { maxOutputTokens: 500 });
 });
 
 test("the standalone custom-provider path always uses OpenAI-compatible chat completions", async () => {

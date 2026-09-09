@@ -591,7 +591,7 @@ export function ChatInput({
                   inputMode="numeric"
                   min={128}
                   max={4096}
-                  step={64}
+                  step={1}
                   value={maxOutputTokensDraft}
                   onChange={(event) => {
                     setMaxOutputTokensDraft(event.target.value);
@@ -620,7 +620,8 @@ export function ChatInput({
                 id={`max-output-tokens-help-${chatId}`}
                 className={`px-1 text-[11px] ${maxOutputTokensError ? "text-red-300" : "text-[var(--text-muted)]"}`}
               >
-                {maxOutputTokensError ?? "Global response ceiling. Leave empty to use automatic model limits."}
+                {maxOutputTokensError ??
+                  "Global ceiling. Lower response-length and character limits still apply. Thinking uses part of this budget."}
               </span>
             </div>
           ) : null}

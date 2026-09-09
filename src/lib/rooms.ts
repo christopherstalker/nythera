@@ -21,7 +21,8 @@ import { getPromptMemories } from "@/lib/memory-store";
 import { ensureStoryForRoom, getRoomStoryPromptContext, syncRoomTurns } from "@/lib/stories/story-foundation";
 import { markStoryBeatsCompleted, markStoryProactiveEventsFired } from "@/lib/stories/narrative-store";
 import { logSafeError } from "@/lib/secret-redaction";
-import { configuredOutputTokenLimit } from "@/lib/response-length";
+import { resolveChatOutputTokenLimit } from "@/lib/response-length";
+import { resolveCharacterPersona } from "@/lib/persona";
 import { renderCharacterGreeting, renderInitialRoomGreeting } from "@/lib/character-prompt-contract";
 import { renderCharacterPrologue } from "@/lib/prologue-pov";
 import { buildPhysicalMemoryContext } from "@/lib/memory/promptBuilder";
@@ -90,16 +91,17 @@ export async function getRoomForUser(roomId: string, userId: string) {
     throw new HttpError(404, "Room not found.");
   }
 
-  const persona = room.persona ?? await prisma.userPersona.findFirst({
-    where: { userId: room.userId, isDefault: true }
-  });
+  const persona =
+    room.persona ??
+    (await prisma.userPersona.findFirst({
+      where: { userId: room.userId, isDefault: true }
+    }));
   const userPersona = formatUserPersonaForPrompt(persona);
-  const messages = room.messages.reverse().map((message) => renderInitialRoomGreeting(
-    message,
-    message.character?.name ?? "Character",
-    room.characters.length,
-    userPersona
-  ));
+  const messages = room.messages
+    .reverse()
+    .map((message) =>
+      renderInitialRoomGreeting(message, message.character?.name ?? "Character", room.characters.length, userPersona)
+    );
   return { ...room, messages };
 }
 
@@ -115,7 +117,9 @@ export async function createRoomForUser(user: RoomUser, input: RoomInput) {
   const orderedCharacters = uniqueIds
     .map((id) => characters.find((character) => character.id === id))
     .filter((character): character is Character => Boolean(character));
-  const unavailable = orderedCharacters.length !== uniqueIds.length || orderedCharacters.some((character) => !canUseCharacter(character, user));
+  const unavailable =
+    orderedCharacters.length !== uniqueIds.length ||
+    orderedCharacters.some((character) => !canUseCharacter(character, user));
   if (unavailable) {
     throw new HttpError(404, "One or more characters are unavailable.");
   }
@@ -131,7 +135,12 @@ export async function createRoomForUser(user: RoomUser, input: RoomInput) {
     globalModel: input.model ?? userPreferredModelValue(user),
     chatTemperature: input.temperature
   });
-  const title = input.title?.trim() || orderedCharacters.map((character) => character.name).slice(0, 3).join(", ");
+  const title =
+    input.title?.trim() ||
+    orderedCharacters
+      .map((character) => character.name)
+      .slice(0, 3)
+      .join(", ");
   const userPersona = formatUserPersonaForPrompt(defaultPersona);
 
   const created = await prisma.$transaction(async (tx) => {
@@ -182,7 +191,11 @@ export async function createRoomForUser(user: RoomUser, input: RoomInput) {
   return getRoomForUser(created.id, user.id);
 }
 
-export async function patchRoomForUser(roomId: string, userId: string, input: { title?: string; responsePrompt?: string; archived?: boolean }) {
+export async function patchRoomForUser(
+  roomId: string,
+  userId: string,
+  input: { title?: string; responsePrompt?: string; archived?: boolean }
+) {
   const existing = await prisma.room.findFirst({ where: { id: roomId, userId }, select: { id: true } });
   if (!existing) {
     throw new HttpError(404, "Room not found.");
@@ -233,7 +246,11 @@ export async function sendRoomMessage(input: {
   }
 
   const room = await prisma.room.findFirst({
-    where: { id: input.roomId, OR: [{ userId: input.user.id }, { members: { some: { userId: input.user.id, role: "PLAYER" } } }], archivedAt: null },
+    where: {
+      id: input.roomId,
+      OR: [{ userId: input.user.id }, { members: { some: { userId: input.user.id, role: "PLAYER" } } }],
+      archivedAt: null
+    },
     include: {
       persona: true,
       characters: {
@@ -276,7 +293,11 @@ export async function sendRoomMessage(input: {
     globalModel: input.body.model ?? room.model,
     chatTemperature: input.body.temperature ?? room.temperature
   });
-  const maxOutputTokens = configuredOutputTokenLimit(effectiveSettings.maxTokens, input.user.maxOutputTokens);
+  const maxOutputTokens = resolveChatOutputTokenLimit(
+    resolveCharacterPersona(speaker).verbosityLevel,
+    effectiveSettings.maxTokens,
+    input.user.maxOutputTokens
+  );
   const history = await loadAdaptiveRoomHistory({
     roomId: room.id,
     model: effectiveSettings.model,
@@ -305,23 +326,27 @@ export async function sendRoomMessage(input: {
     }),
     getRoomStoryPromptContext({ roomId: room.id, userId: room.userId, actorCharacterId: speaker.id })
   ]);
-  const userPersona = room.userId === input.user.id ? room.persona ?? defaultPersona : defaultPersona;
+  const userPersona = room.userId === input.user.id ? (room.persona ?? defaultPersona) : defaultPersona;
   const formattedUserPersona = formatUserPersonaForPrompt(userPersona as UserPersona | null);
   const userPersonaPrompt = formatUserPersonaForPrompt(userPersona as UserPersona | null);
   const physicalContext = buildPhysicalMemoryContext(room.summary, memories);
-  const recentMessages = history.messages
-    .map((roomMessage) => {
-      const renderedMessage = renderInitialRoomGreeting(
-        roomMessage,
-        roomMessage.character?.name ?? "Character",
-        room.characters.length,
-        formattedUserPersona
-      );
-      return {
-        role: roomMessage.role === RoomMessageRole.CHARACTER ? MessageRole.ASSISTANT : roomMessage.role === RoomMessageRole.SYSTEM ? MessageRole.SYSTEM : MessageRole.USER,
-        content: formatRoomMessageForPrompt(renderedMessage)
-      };
-    });
+  const recentMessages = history.messages.map((roomMessage) => {
+    const renderedMessage = renderInitialRoomGreeting(
+      roomMessage,
+      roomMessage.character?.name ?? "Character",
+      room.characters.length,
+      formattedUserPersona
+    );
+    return {
+      role:
+        roomMessage.role === RoomMessageRole.CHARACTER
+          ? MessageRole.ASSISTANT
+          : roomMessage.role === RoomMessageRole.SYSTEM
+            ? MessageRole.SYSTEM
+            : MessageRole.USER,
+      content: formatRoomMessageForPrompt(renderedMessage)
+    };
+  });
   const assembledPrompt = assembleNytheraPrompt({
     character: speaker,
     memories,
@@ -345,7 +370,10 @@ export async function sendRoomMessage(input: {
     maxOutputTokens
   });
   if (promptFit.fixedPromptTooLarge) {
-    throw new HttpError(400, "System instructions exceed this model's context window. Choose a model with a larger context window or shorten the character system prompt.");
+    throw new HttpError(
+      400,
+      "System instructions exceed this model's context window. Choose a model with a larger context window or shorten the character system prompt."
+    );
   }
   const prompt = promptFit.messages;
   const physicalOutputGuard = createPhysicalContinuityOutputGuard(
@@ -502,7 +530,10 @@ export async function sendRoomMessage(input: {
 
 function roomInclude() {
   return {
-    members: { include: { user: { select: { id: true, name: true, image: true } } }, orderBy: { joinedAt: "asc" as const } },
+    members: {
+      include: { user: { select: { id: true, name: true, image: true } } },
+      orderBy: { joinedAt: "asc" as const }
+    },
     persona: true,
     characters: {
       orderBy: { position: "asc" as const },
@@ -553,7 +584,9 @@ function selectSpeaker<T extends { characterId: string; position: number; charac
     return requested;
   }
 
-  const latestCharacterMessage = messages.find((message) => message.role === RoomMessageRole.CHARACTER && message.characterId);
+  const latestCharacterMessage = messages.find(
+    (message) => message.role === RoomMessageRole.CHARACTER && message.characterId
+  );
   const latestIndex = latestCharacterMessage
     ? links.findIndex((link) => link.characterId === latestCharacterMessage.characterId)
     : -1;
@@ -574,10 +607,7 @@ function formatRoomMessageForPrompt(message: {
   return `User: ${message.content}`;
 }
 
-function buildGroupRoomRules(input: {
-  speaker: Character;
-  characters: Character[];
-}) {
+function buildGroupRoomRules(input: { speaker: Character; characters: Character[] }) {
   const cast = input.characters.map((character) => character.name).join(", ");
   return [
     "GROUP ROOM TURN RULES",
@@ -586,6 +616,5 @@ function buildGroupRoomRules(input: {
     "- Lead the turn with the current speaker while keeping other present NPCs believably active when scene logic calls for it.",
     "- Do not write the user's next message.",
     "- Keep continuity with the other characters' visible turns."
-  ]
-    .join("\n");
+  ].join("\n");
 }

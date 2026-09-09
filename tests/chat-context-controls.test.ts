@@ -47,7 +47,10 @@ test("the persisted third regeneration remains selected after four attempts", ()
 
 test("response sizes have hard prompt ranges and matching provider caps", () => {
   assert.match(responseLengthTarget("concise"), /stay within 60-140 words/);
-  assert.match(responseLengthTarget("balanced"), /3-4 developed paragraphs.*200-300 words.*hard maximum.*fifth paragraph/);
+  assert.match(
+    responseLengthTarget("balanced"),
+    /3-4 developed paragraphs.*200-300 words.*hard maximum.*fifth paragraph/
+  );
   assert.match(responseLengthTarget("immersive"), /stay within 320-650 words/);
   assert.equal(maxOutputTokensForVerbosity("concise"), 240);
   assert.equal(maxOutputTokensForVerbosity("balanced"), 480);
@@ -57,12 +60,21 @@ test("response sizes have hard prompt ranges and matching provider caps", () => 
   assert.equal(configuredOutputTokenLimit(1_200, 2_048), 1_200);
   assert.equal(configuredOutputTokenLimit(null, 2_048), 2_048);
   assert.equal(resolveChatOutputTokenLimit("concise", null, null), 240);
-  assert.equal(resolveChatOutputTokenLimit("concise", null, 2_048), 2_048);
+  assert.equal(resolveChatOutputTokenLimit("concise", null, 2_048), 240);
   assert.equal(resolveChatOutputTokenLimit("immersive", 700, 2_048), 700);
   assert.equal(providerOutputTokenBudget({ visibleTokenLimit: 520, provider: "openai", model: "gpt-5" }), 520);
-  assert.equal(providerOutputTokenBudget({ visibleTokenLimit: 520, provider: "gemini", model: "gemini-2.5-flash" }), 2_056);
-  assert.equal(providerOutputTokenBudget({ visibleTokenLimit: 1_050, provider: "gemini", model: "gemini-3.6-flash" }), 2_586);
-  assert.equal(providerOutputTokenBudget({ visibleTokenLimit: 520, provider: "gemini", model: "failover-proof:failover-model" }), 2_056);
+  assert.equal(
+    providerOutputTokenBudget({ visibleTokenLimit: 520, provider: "gemini", model: "gemini-2.5-flash" }),
+    520
+  );
+  assert.equal(
+    providerOutputTokenBudget({ visibleTokenLimit: 1_050, provider: "gemini", model: "gemini-3.6-flash" }),
+    1_050
+  );
+  assert.equal(
+    providerOutputTokenBudget({ visibleTokenLimit: 520, provider: "gemini", model: "failover-proof:failover-model" }),
+    520
+  );
 });
 
 test("explicit character and player heights become private semantic spatial constraints", () => {
@@ -286,11 +298,10 @@ test("stream guard preserves external-prompt output and explicit lower posture",
     { recentMessages: [], currentMessage: "Continue." },
     { enabled: false }
   );
-  const seated = createPhysicalContinuityOutputGuard(
-    character,
-    "I am 205 cm tall.",
-    { recentMessages: [], currentMessage: "I sit in the chair." }
-  );
+  const seated = createPhysicalContinuityOutputGuard(character, "I am 205 cm tall.", {
+    recentMessages: [],
+    currentMessage: "I sit in the chair."
+  });
 
   assert.equal(external.push("He looks down at you.") + external.flush(), "He looks down at you.");
   assert.equal(seated.push("He looks down at you.") + seated.flush(), "He looks down at you.");
@@ -309,7 +320,10 @@ test("stream guard rejects impossible handling when the player canon forbids lif
 
 test("maximum romance is an actionable direction while zero remains non-romantic", () => {
   assert.match(romanceLevelInstruction(10), /maximum scene-supported romantic and intimate intensity/);
-  assert.match(romanceLevelInstruction(10), /instead of substituting vague tension, generic tenderness, or a fade to black/);
+  assert.match(
+    romanceLevelInstruction(10),
+    /instead of substituting vague tension, generic tenderness, or a fade to black/
+  );
   assert.match(romanceLevelInstruction(0), /Do not initiate or imply romance/);
 });
 

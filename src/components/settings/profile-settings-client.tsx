@@ -7,9 +7,11 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { DISPLAY_NAME_MAX_LENGTH, userDisplayName } from "@/lib/display-name";
 
 type Profile = {
   email: string;
+  name?: string | null;
   username?: string | null;
   avatarUrl?: string | null;
   bio?: string | null;
@@ -20,7 +22,7 @@ type Profile = {
 const MAX_AVATAR_BYTES = 1_500_000;
 
 export function ProfileSettingsClient() {
-  const { status: sessionStatus } = useSession();
+  const { status: sessionStatus, update: updateSession } = useSession();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [avatarValue, setAvatarValue] = useState("");
   const [status, setStatus] = useState<string | null>(null);
@@ -90,6 +92,7 @@ export function ProfileSettingsClient() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         username: data.get("username"),
+        name: data.get("name"),
         avatarUrl: avatarValue,
         bio: data.get("bio"),
         ageVerified: data.get("ageVerified") === "on"
@@ -106,18 +109,34 @@ export function ProfileSettingsClient() {
     setProfile(body.profile);
     window.dispatchEvent(new CustomEvent("nythera:profile-updated", { detail: { profile: body.profile } }));
     setStatus("Profile saved.");
+    await updateSession().catch(() => {
+      setStatus("Profile saved. Reload to refresh your navigation identity.");
+    });
   }
 
   return (
     <form key={profile?.email ?? "loading-profile"} onSubmit={onSubmit} className="grid gap-4 lg:grid-cols-2">
       <Input name="email" value={profile?.email ?? ""} disabled placeholder="Email" />
+      <label className="grid gap-2 text-sm text-[var(--text-secondary)]">
+        Display name
+        <Input
+          name="name"
+          autoComplete="nickname"
+          defaultValue={profile?.name ?? ""}
+          maxLength={DISPLAY_NAME_MAX_LENGTH}
+          placeholder={profile?.username || "Your display name"}
+        />
+        <span className="text-xs">Up to 60 characters. Leave blank to use your username.</span>
+      </label>
       <Input name="username" defaultValue={profile?.username ?? ""} placeholder="Username" />
       <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-input)] p-4 lg:col-span-2">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <Avatar name={profile?.email ?? "N"} src={avatarValue} size="lg" />
+          <Avatar name={userDisplayName(profile ?? {})} src={avatarValue} size="lg" />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-[var(--text-primary)]">Profile avatar</p>
-            <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">PNG, JPG, WebP, GIF, or SVG up to 1.5MB.</p>
+            <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">
+              PNG, JPG, WebP, GIF, or SVG up to 1.5MB.
+            </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <label className="focus-ring inline-flex h-10 cursor-pointer items-center gap-2 rounded-[var(--radius-pill)] border border-[var(--border-default)] bg-[var(--bg-elevated)] px-4 text-sm font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--accent-purple-soft)]">
                 <ImagePlus className="h-4 w-4" />
@@ -135,12 +154,23 @@ export function ProfileSettingsClient() {
         </div>
       </div>
       <label className="flex min-h-12 min-w-0 items-start gap-2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] px-4 py-3 text-sm leading-5 text-[var(--text-secondary)] sm:items-center sm:py-0">
-        <input name="ageVerified" type="checkbox" defaultChecked={profile?.ageVerified ?? false} className="accent-[var(--accent-purple)]" />
+        <input
+          name="ageVerified"
+          type="checkbox"
+          defaultChecked={profile?.ageVerified ?? false}
+          className="accent-[var(--accent-purple)]"
+        />
         <span className="min-w-0">I confirm I can access age-gated content settings</span>
       </label>
       <Textarea name="bio" defaultValue={profile?.bio ?? ""} placeholder="Bio" className="lg:col-span-2" />
-      <Button type="submit" className="w-fit">Save profile</Button>
-      {status ? <p className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 text-sm text-[var(--text-secondary)] shadow-[var(--glass-highlight)] lg:col-span-2">{status}</p> : null}
+      <Button type="submit" className="w-fit">
+        Save profile
+      </Button>
+      {status ? (
+        <p className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 text-sm text-[var(--text-secondary)] shadow-[var(--glass-highlight)] lg:col-span-2">
+          {status}
+        </p>
+      ) : null}
     </form>
   );
 }

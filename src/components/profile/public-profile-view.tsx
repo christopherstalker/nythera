@@ -3,17 +3,7 @@
 import { type CSSProperties, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  ArrowUpRight,
-  BookOpen,
-  Check,
-  Copy,
-  Heart,
-  MessageCircle,
-  Share2,
-  Sparkles,
-  Twitter
-} from "lucide-react";
+import { ArrowUpRight, BookOpen, Check, Copy, Heart, MessageCircle, Share2, Sparkles, Twitter } from "lucide-react";
 import { RichMessageText } from "@/components/chat/rich-message-text";
 import { MusicEmbedPlayer } from "@/components/music/MusicEmbedPlayer";
 import { Avatar } from "@/components/ui/avatar";
@@ -21,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { PROFILE_CUSTOM_FONT_FAMILY, useCustomFontFace } from "@/hooks/use-custom-font";
 import { PROFILE_THEME_PRESETS, type ProfileSettings } from "@/lib/profile-settings";
 import { cn } from "@/lib/utils";
+import { userDisplayName } from "@/lib/display-name";
 
 type PublicCharacter = {
   id: string;
@@ -38,6 +29,7 @@ const SOCIAL_LINKS = {
 
 export function PublicProfileView({
   username,
+  name,
   bio,
   avatarUrl,
   accentColor,
@@ -47,6 +39,7 @@ export function PublicProfileView({
   previewMode = "visitor"
 }: {
   username: string;
+  name?: string | null;
   bio?: string | null;
   avatarUrl?: string | null;
   accentColor?: string | null;
@@ -56,6 +49,7 @@ export function PublicProfileView({
   previewMode?: "visitor" | "owner";
 }) {
   const [copied, setCopied] = useState(false);
+  const displayName = userDisplayName({ name, username });
   const theme = PROFILE_THEME_PRESETS[settings.themePreset ?? "midnight"];
   const showAsVisitor = previewMode === "visitor";
   const featured = characters[0];
@@ -72,12 +66,22 @@ export function PublicProfileView({
     "--profile-accent": accentColor ?? "#8F81F7",
     "--profile-theme": theme.gradient,
     "--profile-glass-tint": theme.glassTint,
-    fontFamily: `'${(settings.fontUrl ? PROFILE_CUSTOM_FONT_FAMILY : settings.fontFamily ?? "Inter").replaceAll("'", "")}', sans-serif`,
+    fontFamily: `'${(settings.fontUrl ? PROFILE_CUSTOM_FONT_FAMILY : (settings.fontFamily ?? "Inter")).replaceAll("'", "")}', sans-serif`,
     fontSize: `${settings.fontScale ?? 1}rem`
   } as CSSProperties;
   const patreonUrl = safeExternalUrl(settings.socialLinks?.patreon);
-  const bannerHeight = settings.bannerHeight === "compact" ? "h-48 sm:h-56" : settings.bannerHeight === "immersive" ? "h-72 sm:h-96" : "h-60 sm:h-72";
-  const avatarShape = settings.avatarShape === "square" ? "rounded-sm" : settings.avatarShape === "soft" ? "rounded-[26px]" : "rounded-full";
+  const bannerHeight =
+    settings.bannerHeight === "compact"
+      ? "h-48 sm:h-56"
+      : settings.bannerHeight === "immersive"
+        ? "h-72 sm:h-96"
+        : "h-60 sm:h-72";
+  const avatarShape =
+    settings.avatarShape === "square"
+      ? "rounded-sm"
+      : settings.avatarShape === "soft"
+        ? "rounded-[26px]"
+        : "rounded-full";
 
   function profileUrl() {
     return `${window.location.origin}/u/${username}`;
@@ -96,7 +100,7 @@ export function PublicProfileView({
     }
 
     try {
-      await navigator.share({ title: `${username} on Nythera`, url: profileUrl() });
+      await navigator.share({ title: `${displayName} on Nythera`, url: profileUrl() });
     } catch (error) {
       if (!(error instanceof DOMException) || error.name !== "AbortError") throw error;
     }
@@ -114,7 +118,7 @@ export function PublicProfileView({
         {!settings.useGradientBanner && settings.bannerUrl ? (
           <Image
             src={settings.bannerUrl}
-            alt={`${username}'s profile cover`}
+            alt={`${displayName}'s profile cover`}
             fill
             className="z-0 object-cover [mask-image:linear-gradient(to_bottom,black_0%,black_68%,transparent_100%)]"
             unoptimized
@@ -147,7 +151,7 @@ export function PublicProfileView({
             style={{ borderColor: "color-mix(in oklch, var(--profile-accent) 78%, white 18%)" }}
           >
             <Avatar
-              name={username}
+              name={displayName}
               src={avatarUrl}
               size="xl"
               className={cn("h-28 w-28 border-0 sm:h-36 sm:w-36", avatarShape)}
@@ -186,9 +190,11 @@ export function PublicProfileView({
               Independent creator
             </p>
             <h1 className="mt-3 break-words font-editorial text-[clamp(2.8rem,8vw,5.5rem)] font-medium leading-[.82] tracking-[-.045em] text-[var(--text-primary)]">
-              {username}
+              {displayName}
             </h1>
-            <p className="mt-4 font-mono text-[10px] uppercase tracking-[.16em] text-[var(--text-muted)]">@{username}</p>
+            <p className="mt-4 font-mono text-[10px] uppercase tracking-[.16em] text-[var(--text-muted)]">
+              @{username}
+            </p>
             {bio ? (
               <RichMessageText
                 text={bio}
@@ -233,7 +239,9 @@ export function PublicProfileView({
               <BookOpen className="h-4 w-4" />
             </span>
             <div>
-              <p className="font-mono text-[9px] font-medium uppercase tracking-[.26em] text-[var(--profile-accent)]">Created worlds</p>
+              <p className="font-mono text-[9px] font-medium uppercase tracking-[.26em] text-[var(--profile-accent)]">
+                Created worlds
+              </p>
               <h2 className="mt-2 font-editorial text-4xl font-medium leading-none tracking-[-.03em] text-[var(--text-primary)] sm:text-5xl">
                 Character archive
               </h2>
@@ -262,12 +270,19 @@ export function PublicProfileView({
           ) : null}
           {!characters.length ? (
             <div className="border border-dashed border-[var(--border-default)] bg-[color-mix(in_oklch,var(--profile-glass-tint)_42%,transparent)] px-5 py-16 text-center sm:py-20">
-              <span className="mx-auto grid h-14 w-14 place-items-center rounded-full border border-[var(--border-default)] text-[var(--profile-accent)]" aria-hidden>
+              <span
+                className="mx-auto grid h-14 w-14 place-items-center rounded-full border border-[var(--border-default)] text-[var(--profile-accent)]"
+                aria-hidden
+              >
                 <Sparkles className="h-5 w-5" />
               </span>
-              <h3 className="mt-5 font-editorial text-2xl font-medium text-[var(--text-primary)]">The archive is still being written</h3>
+              <h3 className="mt-5 font-editorial text-2xl font-medium text-[var(--text-primary)]">
+                The archive is still being written
+              </h3>
               <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[var(--text-muted)]">
-                {isOwner ? "Publish a character to begin building your public collection." : "No public characters have been released yet. Check back for the first chapter."}
+                {isOwner
+                  ? "Publish a character to begin building your public collection."
+                  : "No public characters have been released yet. Check back for the first chapter."}
               </p>
             </div>
           ) : null}
@@ -295,7 +310,9 @@ function FeaturedCharacter({ character }: { character: PublicCharacter }) {
       <CharacterArtwork character={character} className="min-h-64 md:min-h-80" />
       <div className="flex flex-col justify-between p-6 sm:p-8">
         <div>
-          <p className="font-mono text-[9px] font-medium uppercase tracking-[.24em] text-[var(--profile-accent)]">Featured character / 01</p>
+          <p className="font-mono text-[9px] font-medium uppercase tracking-[.24em] text-[var(--profile-accent)]">
+            Featured character / 01
+          </p>
           <h3 className="mt-4 font-editorial text-4xl font-medium leading-none tracking-[-.03em] text-[var(--text-primary)] sm:text-5xl">
             {character.name}
           </h3>
@@ -329,13 +346,20 @@ function CharacterCard({ character, index, minimal }: { character: PublicCharact
   }
 
   return (
-    <Link href={`/character/${character.id}`} className="profile-character-card neo-glass-card group overflow-hidden no-underline">
+    <Link
+      href={`/character/${character.id}`}
+      className="profile-character-card neo-glass-card group overflow-hidden no-underline"
+    >
       <CharacterArtwork character={character} className="aspect-[4/3]" />
       <div className="p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="font-mono text-[8px] uppercase tracking-[.2em] text-[var(--profile-accent)]">Entry {String(index).padStart(2, "0")}</p>
-            <h3 className="mt-2 truncate font-editorial text-3xl font-medium leading-none text-[var(--text-primary)]">{character.name}</h3>
+            <p className="font-mono text-[8px] uppercase tracking-[.2em] text-[var(--profile-accent)]">
+              Entry {String(index).padStart(2, "0")}
+            </p>
+            <h3 className="mt-2 truncate font-editorial text-3xl font-medium leading-none text-[var(--text-primary)]">
+              {character.name}
+            </h3>
           </div>
           <ArrowUpRight className="mt-1 h-4 w-4 shrink-0 text-[var(--text-muted)] transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[var(--profile-accent)]" />
         </div>
@@ -356,7 +380,10 @@ function CharacterArtwork({ character, className }: { character: PublicCharacter
       {character.avatarUrl ? (
         <img src={character.avatarUrl} alt="" className="h-full w-full object-cover" />
       ) : (
-        <span className="m-auto font-editorial text-7xl font-medium text-[color-mix(in_oklch,var(--profile-accent)_55%,transparent)]" aria-hidden>
+        <span
+          className="m-auto font-editorial text-7xl font-medium text-[color-mix(in_oklch,var(--profile-accent)_55%,transparent)]"
+          aria-hidden
+        >
           {character.name.trim().slice(0, 1).toUpperCase()}
         </span>
       )}

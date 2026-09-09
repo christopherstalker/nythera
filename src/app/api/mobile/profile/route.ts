@@ -5,8 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { publicMobileUser, requireMobileUser } from "@/lib/mobile-auth";
 import { imageSourceSchema } from "@/lib/validation";
 import { usernameSchema } from "@/lib/username";
+import { displayNameSchema } from "@/lib/display-name";
+import { revalidateTag } from "next/cache";
 
 const mobileProfileSchema = z.object({
+  name: displayNameSchema.optional(),
   username: usernameSchema.optional().or(z.literal("")).nullable(),
   bio: z.string().max(800).optional().nullable(),
   avatarUrl: imageSourceSchema.optional().or(z.literal("")).nullable(),
@@ -44,6 +47,7 @@ export async function PATCH(request: Request) {
     const profile = await prisma.user.update({
       where: { id: user.id },
       data: {
+        name: input.name,
         username: input.username === "" ? null : input.username,
         bio: input.bio,
         avatarUrl: input.avatarUrl === "" ? null : input.avatarUrl,
@@ -68,6 +72,7 @@ export async function PATCH(request: Request) {
       }
     });
 
+    revalidateTag("public-creator-profile");
     return json({ user: publicMobileUser(profile) });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {

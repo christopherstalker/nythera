@@ -6,6 +6,7 @@ import { PageShell } from "@/components/ui/page";
 import { parseProfileSettings } from "@/lib/profile-settings";
 import { prisma } from "@/lib/prisma";
 import { CANONICAL_SITE_ORIGIN } from "@/lib/site-origin";
+import { userDisplayName } from "@/lib/display-name";
 
 type PublicProfilePageProps = {
   params: Promise<{ username: string }>;
@@ -20,8 +21,10 @@ export async function generateMetadata({ params }: PublicProfilePageProps): Prom
     return { title: "Creator not found", robots: { index: false, follow: false } };
   }
 
-  const title = `${user.username}'s AI roleplay characters`;
-  const description = user.bio?.trim().slice(0, 160) || `Meet public AI roleplay characters created by ${user.username} on Nythera.`;
+  const displayName = userDisplayName(user);
+  const title = `${displayName}'s AI roleplay characters`;
+  const description =
+    user.bio?.trim().slice(0, 160) || `Meet public AI roleplay characters created by ${displayName} on Nythera.`;
   const path = `/u/${encodeURIComponent(user.username)}`;
   const hasSafeCharacter = user.characters.some((character) => !character.isNSFW);
 
@@ -35,7 +38,7 @@ export async function generateMetadata({ params }: PublicProfilePageProps): Prom
       url: path,
       title,
       description,
-      images: user.avatarUrl ? [{ url: user.avatarUrl, alt: `${user.username}'s profile` }] : undefined
+      images: user.avatarUrl ? [{ url: user.avatarUrl, alt: `${displayName}'s profile` }] : undefined
     },
     twitter: {
       card: user.avatarUrl ? "summary_large_image" : "summary",
@@ -61,7 +64,8 @@ export default async function PublicUserProfilePage({ params }: PublicProfilePag
     mainEntity: {
       "@type": "Person",
       "@id": `${profileUrl}#creator`,
-      name: user.username,
+      name: userDisplayName(user),
+      alternateName: `@${user.username}`,
       description: user.bio || undefined,
       image: user.avatarUrl || undefined,
       url: profileUrl
@@ -77,6 +81,7 @@ export default async function PublicUserProfilePage({ params }: PublicProfilePag
       <PageShell className="max-w-6xl">
         <PublicProfileView
           username={user.username}
+          name={user.name}
           bio={user.bio}
           avatarUrl={user.avatarUrl}
           accentColor={user.accentColor}
@@ -89,22 +94,24 @@ export default async function PublicUserProfilePage({ params }: PublicProfilePag
 }
 
 const getPublicProfile = unstable_cache(
-  async (username: string) => prisma.user.findFirst({
-    where: { username, bannedAt: null },
-    select: {
-      username: true,
-      bio: true,
-      avatarUrl: true,
-      accentColor: true,
-      profileSettings: true,
-      characters: {
-        where: { visibility: "PUBLIC", moderationStatus: "APPROVED", blockedAt: null },
-        orderBy: { updatedAt: "desc" },
-        take: 24,
-        select: { id: true, name: true, avatarUrl: true, description: true, isNSFW: true }
+  async (username: string) =>
+    prisma.user.findFirst({
+      where: { username, bannedAt: null },
+      select: {
+        username: true,
+        name: true,
+        bio: true,
+        avatarUrl: true,
+        accentColor: true,
+        profileSettings: true,
+        characters: {
+          where: { visibility: "PUBLIC", moderationStatus: "APPROVED", blockedAt: null },
+          orderBy: { updatedAt: "desc" },
+          take: 24,
+          select: { id: true, name: true, avatarUrl: true, description: true, isNSFW: true }
+        }
       }
-    }
-  }),
-  ["public-creator-profile-v1"],
-  { revalidate, tags: ["public-character-feed"] }
+    }),
+  ["public-creator-profile-v2"],
+  { revalidate, tags: ["public-character-feed", "public-creator-profile"] }
 );

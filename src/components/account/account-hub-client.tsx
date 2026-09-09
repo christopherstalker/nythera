@@ -47,9 +47,11 @@ import { cn } from "@/lib/utils";
 import { PROFILE_CUSTOM_FONT_FAMILY } from "@/hooks/use-custom-font";
 import { SETTINGS_SECTIONS } from "@/components/settings/settings-sections";
 import { AccountPasswordClient } from "@/components/settings/account-password-client";
+import { DISPLAY_NAME_MAX_LENGTH, userDisplayName } from "@/lib/display-name";
 
 type Profile = {
   email: string;
+  name?: string | null;
   username?: string | null;
   avatarUrl?: string | null;
   bio?: string | null;
@@ -83,7 +85,7 @@ const fieldLabelClass = "grid gap-2 text-sm font-medium text-[var(--text-seconda
 type AccountTabId = "profile" | "studio" | "settings";
 
 export function AccountHubClient() {
-  const { status: sessionStatus } = useSession();
+  const { status: sessionStatus, update: updateSession } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const fontInputRef = useRef<HTMLInputElement>(null);
@@ -94,6 +96,7 @@ export function AccountHubClient() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [characters, setCharacters] = useState<StudioCharacter[]>([]);
   const [username, setUsername] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [avatarValue, setAvatarValue] = useState("");
   const [settings, setSettings] = useState<ProfileSettings>(DEFAULT_PROFILE_SETTINGS);
   const [accentColor, setAccentColor] = useState("#8F81F7");
@@ -121,6 +124,7 @@ export function AccountHubClient() {
           setProfile(profileBody.profile);
           setAgeVerified(Boolean(profileBody.profile.ageVerified));
           setUsername(profileBody.profile.username ?? "");
+          setDisplayName(profileBody.profile.name ?? "");
           setAvatarValue(profileBody.profile.avatarUrl ?? "");
           setBio(profileBody.profile.bio ?? "");
           setAccentColor(profileBody.profile.accentColor ?? "#8F81F7");
@@ -139,6 +143,7 @@ export function AccountHubClient() {
   const hasProfileChanges =
     Boolean(profile) &&
     (username !== (profile?.username ?? "") ||
+      displayName !== (profile?.name ?? "") ||
       avatarValue !== (profile?.avatarUrl ?? "") ||
       bio !== (profile?.bio ?? "") ||
       accentColor !== (profile?.accentColor ?? "#8F81F7") ||
@@ -149,6 +154,7 @@ export function AccountHubClient() {
     if (saving || uploadingFont) return false;
     if (hasProfileChanges && !window.confirm("Discard your unsaved profile changes?")) return false;
     setUsername(profile?.username ?? "");
+    setDisplayName(profile?.name ?? "");
     setAvatarValue(profile?.avatarUrl ?? "");
     setBio(profile?.bio ?? "");
     setAccentColor(profile?.accentColor ?? "#8F81F7");
@@ -288,6 +294,7 @@ export function AccountHubClient() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           username,
+          name: displayName,
           avatarUrl: avatarValue,
           bio,
           accentColor,
@@ -302,10 +309,15 @@ export function AccountHubClient() {
       }
       const body = await response.json();
       setProfile(body.profile);
+      setDisplayName(body.profile.name ?? "");
+      setUsername(body.profile.username ?? "");
       setSettings(parseProfileSettings(body.profile.profileSettings));
       setStatus("Profile saved.");
       setProfileEditing(false);
       window.dispatchEvent(new CustomEvent("nythera:profile-updated", { detail: { profile: body.profile } }));
+      await updateSession().catch(() => {
+        setStatus("Profile saved. Reload to refresh your navigation identity.");
+      });
     } catch {
       setStatus("Could not save profile. Your changes are still here; please try again.");
     } finally {
@@ -329,9 +341,9 @@ export function AccountHubClient() {
     <div className="account-workspace min-w-0 max-w-full pb-8" data-editing={profileEditing}>
       <PageHeader compact title="Account" description="Your identity, your characters, your corner of Nythera." />
       <section className="account-identity" aria-label="Your profile">
-        <Avatar name={profile?.username || "N"} src={profile?.avatarUrl} size="xl" className="account-avatar" />
+        <Avatar name={userDisplayName(profile ?? {})} src={profile?.avatarUrl} size="xl" className="account-avatar" />
         <div className="account-identity-copy">
-          <h2>{profile?.username || "Make yourself at home"}</h2>
+          <h2>{userDisplayName(profile ?? {})}</h2>
           <p>{profile?.username ? `@${profile.username}` : "Choose a username to create your public page."}</p>
         </div>
         <dl className="account-stats">
@@ -438,7 +450,7 @@ export function AccountHubClient() {
                           )}
                         >
                           <Avatar
-                            name={username || "N"}
+                            name={userDisplayName({ name: displayName, username })}
                             src={avatarValue}
                             size="lg"
                             className={cn(
@@ -479,6 +491,23 @@ export function AccountHubClient() {
                         ) : null}
                       </div>
                     </div>
+                    <label className={fieldLabelClass}>
+                      Display name
+                      <Input
+                        id="account-display-name"
+                        name="name"
+                        autoComplete="nickname"
+                        value={displayName}
+                        onChange={(event) => setDisplayName(event.target.value)}
+                        maxLength={DISPLAY_NAME_MAX_LENGTH}
+                        placeholder={username || "Your display name"}
+                        aria-describedby="account-display-name-help"
+                      />
+                      <span id="account-display-name-help" className="text-xs font-normal text-[var(--text-muted)]">
+                        Up to 60 characters. Leave blank to use your username. Your @handle and profile link stay the
+                        same.
+                      </span>
+                    </label>
                     <label className={fieldLabelClass}>
                       Username
                       <UsernameField
@@ -915,6 +944,7 @@ export function AccountHubClient() {
             </div>
             <PublicProfileView
               username={username || "username"}
+              name={displayName}
               bio={bio}
               avatarUrl={avatarValue}
               accentColor={accentColor}

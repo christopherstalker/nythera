@@ -68,7 +68,7 @@ test("the saved user limit reaches web, mobile, and room model requests", async 
 
   assert.match(web, /resolveChatOutputTokenLimit\([\s\S]*?user\.maxOutputTokens/);
   assert.match(mobile, /resolveChatOutputTokenLimit\([\s\S]*?user\.maxOutputTokens/);
-  assert.match(rooms, /configuredOutputTokenLimit\(effectiveSettings\.maxTokens, input\.user\.maxOutputTokens\)/);
+  assert.match(rooms, /resolveChatOutputTokenLimit\([\s\S]*?input\.user\.maxOutputTokens/);
   assert.match(api, /maxOutputTokens: true/);
   assert.match(mobileAuth, /maxOutputTokens: true/);
 });
