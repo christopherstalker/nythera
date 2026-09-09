@@ -2,7 +2,8 @@ import type { UserPersona } from "@prisma/client";
 import { personaToProfile } from "@/lib/user-persona-profiles";
 
 const IDENTITY_FIELD = /^(?:gender|pronouns?|species|race|ethnicity|nationality|age|orientation|identity)\s*:/i;
-const MEASUREMENT_PARENTHETICAL = /\s*\([^)]*\b(?:\d+(?:[.,]\d+)?\s*(?:cm|ft|feet|foot|in(?:ches)?|kg|lbs?|pounds?)|\d+\s*[′'])[^)]*\)/gi;
+const MEASUREMENT_PARENTHETICAL =
+  /\s*\([^)]*\b(?:\d+(?:[.,]\d+)?\s*(?:cm|ft|feet|foot|in(?:ches)?|kg|lbs?|pounds?)|\d+\s*[′'])[^)]*\)/gi;
 
 export function formatUserPersonaForPrompt(persona?: UserPersona | null) {
   if (!persona) {
@@ -10,7 +11,9 @@ export function formatUserPersonaForPrompt(persona?: UserPersona | null) {
   }
 
   const activePersona = personaToProfile(persona);
-  const identitySummary = extractIdentitySummary(activePersona.summary);
+  const identitySummary = extractIdentitySummary(
+    [activePersona.summary, activePersona.appearance].filter(Boolean).join("\n")
+  );
   const lines = [
     `Active player persona: ${activePersona.label}`,
     `Canonical player name: ${activePersona.displayName}`,
@@ -30,7 +33,7 @@ export function formatUserPersonaContinuitySource(persona?: UserPersona | null) 
   }
 
   const activePersona = personaToProfile(persona);
-  return [activePersona.summary, activePersona.background, activePersona.traits.join("\n")]
+  return [activePersona.summary, activePersona.appearance, activePersona.background, activePersona.traits.join("\n")]
     .filter((value): value is string => Boolean(value?.trim()))
     .join("\n");
 }

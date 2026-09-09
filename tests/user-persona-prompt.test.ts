@@ -11,6 +11,7 @@ const persona = {
   displayName: "Christopher",
   surname: "Stalker",
   avatarUrl: null,
+  appearance: null,
   summary: [
     "Character Profile: Christopher Stalker",
     "Gender: Male (he/him). Deep, soft bass voice.",
@@ -53,4 +54,15 @@ test("private continuity source retains raw facts without making them model-faci
   assert.match(continuity, /213 cm/);
   assert.match(continuity, /hyper-muscular/);
   assert.match(continuity, /Former athlete/);
+});
+
+test("structured appearance contributes identity and continuity without forcing physical details into every response", () => {
+  const structured = {
+    ...persona,
+    summary: "Calm and thoughtful.",
+    appearance: "Pronouns: he/him.\nHair: Silver.\nHeight: 213 cm."
+  };
+  assert.match(formatUserPersonaForPrompt(structured) ?? "", /Pronouns: he\/him/);
+  assert.doesNotMatch(formatUserPersonaForPrompt(structured) ?? "", /Silver|213/);
+  assert.match(formatUserPersonaContinuitySource(structured) ?? "", /Hair: Silver/);
 });

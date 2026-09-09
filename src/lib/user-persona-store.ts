@@ -12,6 +12,7 @@ type PersonaInput = {
   surname?: string | null;
   avatarUrl?: string | null;
   summary: string;
+  appearance?: string | null;
   background?: string | null;
   traits: string[];
   likes: string[];
@@ -43,7 +44,11 @@ export async function getUserPersonaState(userId: string, chatId?: string | null
   const activePersonaId = chat?.temporaryPersonaId ?? chat?.personaId ?? null;
 
   return {
-    persona: personas.find((persona) => persona.id === activePersonaId) ?? personas.find((persona) => persona.isDefault) ?? personas[0] ?? null,
+    persona:
+      personas.find((persona) => persona.id === activePersonaId) ??
+      personas.find((persona) => persona.isDefault) ??
+      personas[0] ??
+      null,
     temporaryProfileId: chat?.temporaryPersonaId ?? null,
     characterDefaultProfileId: characterPreference?.personaId ?? null,
     ...normalizePersonaRows(personas, activePersonaId)
@@ -85,9 +90,7 @@ export async function saveUserPersona(userId: string, input: PersonaInput, chatI
       where: { userId },
       orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }]
     });
-    const existing = input.profileId
-      ? existingPersonas.find((persona) => persona.id === input.profileId)
-      : null;
+    const existing = input.profileId ? existingPersonas.find((persona) => persona.id === input.profileId) : null;
     const shouldBecomeDefault = existingPersonas.length === 0;
 
     let saved;
@@ -222,6 +225,7 @@ export async function restorePersonaRevision(userId: string, personaId: string, 
         surname: typeof snapshot.surname === "string" ? snapshot.surname : persona.surname,
         avatarUrl: typeof snapshot.avatarUrl === "string" ? snapshot.avatarUrl : null,
         summary: typeof snapshot.summary === "string" ? snapshot.summary : persona.summary,
+        appearance: typeof snapshot.appearance === "string" ? snapshot.appearance : null,
         background: typeof snapshot.background === "string" ? snapshot.background : null,
         traits: stringArray(snapshot.traits),
         likes: stringArray(snapshot.likes),
@@ -327,10 +331,12 @@ async function personaStateInTransaction(
   ]);
   return {
     persona:
-      personas.find((persona) => persona.id === (preferredActivePersonaId ?? chat?.temporaryPersonaId ?? chat?.personaId))
-      ?? personas.find((persona) => persona.isDefault)
-      ?? personas[0]
-      ?? null,
+      personas.find(
+        (persona) => persona.id === (preferredActivePersonaId ?? chat?.temporaryPersonaId ?? chat?.personaId)
+      ) ??
+      personas.find((persona) => persona.isDefault) ??
+      personas[0] ??
+      null,
     temporaryProfileId: chat?.temporaryPersonaId ?? null,
     ...normalizePersonaRows(personas, preferredActivePersonaId ?? chat?.temporaryPersonaId ?? chat?.personaId ?? null)
   };
@@ -354,6 +360,7 @@ function personaInputToData(input: PersonaInput) {
     surname: input.surname?.trim() || null,
     avatarUrl: input.avatarUrl || null,
     summary: input.summary,
+    ...(input.appearance !== undefined ? { appearance: input.appearance?.trim() || null } : {}),
     background: input.background || null,
     traits: input.traits,
     likes: input.likes,
@@ -363,19 +370,23 @@ function personaInputToData(input: PersonaInput) {
   };
 }
 
-async function createPersonaRevision(tx: Prisma.TransactionClient, persona: {
-  id: string;
-  label: string | null;
-  displayName: string;
-  surname: string | null;
-  avatarUrl: string | null;
-  summary: string;
-  background: string | null;
-  traits: string[];
-  likes: string[];
-  dislikes: string[];
-  boundaries: string[];
-}) {
+async function createPersonaRevision(
+  tx: Prisma.TransactionClient,
+  persona: {
+    id: string;
+    label: string | null;
+    displayName: string;
+    surname: string | null;
+    avatarUrl: string | null;
+    summary: string;
+    appearance?: string | null;
+    background: string | null;
+    traits: string[];
+    likes: string[];
+    dislikes: string[];
+    boundaries: string[];
+  }
+) {
   const latest = await tx.userPersonaRevision.findFirst({
     where: { personaId: persona.id },
     orderBy: { version: "desc" },
@@ -391,6 +402,7 @@ async function createPersonaRevision(tx: Prisma.TransactionClient, persona: {
         surname: persona.surname,
         avatarUrl: persona.avatarUrl,
         summary: persona.summary,
+        appearance: persona.appearance ?? null,
         background: persona.background,
         traits: persona.traits,
         likes: persona.likes,

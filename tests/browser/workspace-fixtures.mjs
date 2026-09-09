@@ -62,6 +62,26 @@ let profile = {
 };
 const appearances = new Map();
 const appAppearances = new Map();
+let personaProfiles = [
+  {
+    id: "fixture-persona",
+    label: "The night wanderer",
+    displayName: "Alex",
+    surname: "Vale",
+    avatarUrl: "",
+    appearance:
+      "Dark curls, grey-green eyes and a weathered coat. Ink stains their fingers. Their voice is soft, with a hint of the coast.",
+    summary:
+      "Quiet at first, quick with dry humor once comfortable. They listen closely and rarely make promises they cannot keep.",
+    background: "Grew up beside a lighthouse.",
+    traits: ["Observant", "Slow to trust"],
+    likes: ["Rain"],
+    dislikes: ["Being rushed"],
+    boundaries: ["Use they/them pronouns"],
+    isDefault: true,
+    visibility: "PRIVATE"
+  }
+];
 let maxOutputTokens = null;
 
 createServer(async (request, response) => {
@@ -77,6 +97,31 @@ createServer(async (request, response) => {
     }
     let payload = {};
     switch (url.pathname) {
+      case "/api/user-persona": {
+        let activeProfileId = personaProfiles[0]?.id;
+        if (request.method === "PUT") {
+          let body = "";
+          for await (const chunk of request) body += chunk;
+          const changes = JSON.parse(body);
+          const existing = personaProfiles.find((persona) => persona.id === changes.profileId);
+          const saved = {
+            ...changes,
+            id: existing?.id || `fixture-persona-${personaProfiles.length + 1}`,
+            isDefault: existing?.isDefault ?? false
+          };
+          personaProfiles = existing
+            ? personaProfiles.map((persona) => (persona.id === saved.id ? saved : persona))
+            : [...personaProfiles, saved];
+          activeProfileId = saved.id;
+        }
+        payload = {
+          profiles: personaProfiles,
+          activeProfileId,
+          activeProfile: personaProfiles.find((persona) => persona.id === activeProfileId),
+          defaultProfileId: personaProfiles.find((persona) => persona.isDefault)?.id ?? null
+        };
+        break;
+      }
       case "/api/settings/theme": {
         const userId = scenario.userId || "fixture-user";
         if (request.method === "PATCH") {

@@ -7,6 +7,7 @@ export type UserPersonaProfile = {
   surname?: string | null;
   avatarUrl: string | null;
   summary: string;
+  appearance?: string | null;
   background: string | null;
   traits: string[];
   likes: string[];
@@ -18,8 +19,17 @@ export type UserPersonaProfile = {
 
 type PersonaLike = Pick<
   UserPersona,
-  "displayName" | "avatarUrl" | "summary" | "background" | "traits" | "likes" | "dislikes" | "boundaries" | "visibility" | "metadata"
-> & { surname?: string | null };
+  | "displayName"
+  | "avatarUrl"
+  | "summary"
+  | "background"
+  | "traits"
+  | "likes"
+  | "dislikes"
+  | "boundaries"
+  | "visibility"
+  | "metadata"
+> & { surname?: string | null; appearance?: string | null };
 
 type PersonaRowLike = Omit<PersonaLike, "metadata"> & {
   id: string;
@@ -51,8 +61,8 @@ export function normalizePersonaProfiles(persona?: PersonaLike | null) {
   const metadataProfiles = mergeProfiles(metadata.profiles ?? []);
   const profiles = metadataProfiles.length ? metadataProfiles : [canonical];
   const activeProfileId = profiles.some((profile) => profile.id === metadata.activeProfileId)
-    ? metadata.activeProfileId ?? profiles[0]?.id ?? null
-    : profiles[0]?.id ?? null;
+    ? (metadata.activeProfileId ?? profiles[0]?.id ?? null)
+    : (profiles[0]?.id ?? null);
   const activeProfile = profiles.find((profile) => profile.id === activeProfileId) ?? profiles[0] ?? null;
   const defaultProfile = profiles.find((profile) => profile.isDefault) ?? null;
 
@@ -68,11 +78,15 @@ export function normalizePersonaProfiles(persona?: PersonaLike | null) {
 export function personaToProfile(persona: Omit<PersonaLike, "metadata">): UserPersonaProfile {
   return {
     id: "id" in persona && typeof persona.id === "string" ? persona.id : "default",
-    label: "label" in persona && typeof persona.label === "string" && persona.label.trim() ? persona.label.trim() : persona.displayName || "Default",
+    label:
+      "label" in persona && typeof persona.label === "string" && persona.label.trim()
+        ? persona.label.trim()
+        : persona.displayName || "Default",
     displayName: persona.displayName,
     surname: persona.surname?.trim() || null,
     avatarUrl: persona.avatarUrl ?? null,
     summary: persona.summary,
+    appearance: persona.appearance ?? null,
     background: persona.background ?? null,
     traits: persona.traits ?? [],
     likes: persona.likes ?? [],
@@ -87,7 +101,10 @@ export function normalizePersonaRows(personas: PersonaRowLike[], activePersonaId
   const profiles = personas.map(personaToProfile);
   const defaultProfile = profiles.find((profile) => profile.isDefault) ?? null;
   const activeProfile =
-    (activePersonaId ? profiles.find((profile) => profile.id === activePersonaId) : null) ?? defaultProfile ?? profiles[0] ?? null;
+    (activePersonaId ? profiles.find((profile) => profile.id === activePersonaId) : null) ??
+    defaultProfile ??
+    profiles[0] ??
+    null;
 
   return {
     profiles,
@@ -103,7 +120,7 @@ export function buildPersonaMetadata(profiles: UserPersonaProfile[], activeProfi
     activeProfileId,
     profiles: mergeProfiles(profiles).map((profile) => ({
       ...profile,
-    label: profile.label.trim() || profile.displayName
+      label: profile.label.trim() || profile.displayName
     }))
   };
 }
@@ -133,7 +150,8 @@ function parseProfile(value: unknown): UserPersonaProfile | null {
 
   const record = value as Record<string, unknown>;
   const id = typeof record.id === "string" && record.id.trim() ? record.id.trim() : null;
-  const displayName = typeof record.displayName === "string" && record.displayName.trim() ? record.displayName.trim() : null;
+  const displayName =
+    typeof record.displayName === "string" && record.displayName.trim() ? record.displayName.trim() : null;
   const summary = typeof record.summary === "string" && record.summary.trim() ? record.summary.trim() : null;
 
   if (!id || !displayName || !summary) {
@@ -147,6 +165,7 @@ function parseProfile(value: unknown): UserPersonaProfile | null {
     surname: typeof record.surname === "string" && record.surname.trim() ? record.surname.trim() : null,
     avatarUrl: typeof record.avatarUrl === "string" && record.avatarUrl.trim() ? record.avatarUrl.trim() : null,
     summary,
+    appearance: typeof record.appearance === "string" ? record.appearance : null,
     background: typeof record.background === "string" && record.background.trim() ? record.background.trim() : null,
     traits: parseList(record.traits),
     likes: parseList(record.likes),
@@ -181,7 +200,9 @@ export function parsePersonaLines(value: string) {
 }
 
 function parseList(value: unknown) {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string").slice(0, MAX_PERSONA_LIST_ITEMS) : [];
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string").slice(0, MAX_PERSONA_LIST_ITEMS)
+    : [];
 }
 
 function isVisibility(value: unknown): value is Visibility {
