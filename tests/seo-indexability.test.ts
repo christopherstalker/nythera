@@ -29,7 +29,8 @@ test("public creator profiles publish canonical metadata and ProfilePage schema"
   assert.match(profile, /alternates:\s*\{ canonical: path \}/);
   assert.match(profile, /"@type": "ProfilePage"/);
   assert.match(profile, /"@type": "Person"/);
-  assert.match(profile, /public-creator-profile-v1/);
+  assert.match(profile, /public-creator-profile-v2/);
+  assert.match(profile, /name: userDisplayName\(user\)/);
 });
 
 test("public discovery and character pages send indexable server HTML", async () => {

@@ -438,7 +438,7 @@ export function ChatInput({
     const normalizedDraft = maxOutputTokensDraft.trim();
     const parsedLimit = normalizedDraft === "" ? null : Number(normalizedDraft);
     if (parsedLimit !== null && (!Number.isInteger(parsedLimit) || parsedLimit < 128 || parsedLimit > 4096)) {
-      setMaxOutputTokensError("Enter a whole number from 128 to 4096, or leave empty for automatic limits.");
+      setMaxOutputTokensError("Enter a whole number from 128 to 4096, or leave empty for no global token limit.");
       return;
     }
 
@@ -591,7 +591,7 @@ export function ChatInput({
                   inputMode="numeric"
                   min={128}
                   max={4096}
-                  step={64}
+                  step={1}
                   value={maxOutputTokensDraft}
                   onChange={(event) => {
                     setMaxOutputTokensDraft(event.target.value);
@@ -603,7 +603,7 @@ export function ChatInput({
                       void saveMaxOutputTokens();
                     }
                   }}
-                  placeholder="Automatic"
+                  placeholder="No limit"
                   aria-describedby={`max-output-tokens-help-${chatId}`}
                   className="focus-ring h-10 min-w-0 flex-1 rounded-sm border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent-purple)]"
                 />
@@ -620,7 +620,8 @@ export function ChatInput({
                 id={`max-output-tokens-help-${chatId}`}
                 className={`px-1 text-[11px] ${maxOutputTokensError ? "text-red-300" : "text-[var(--text-muted)]"}`}
               >
-                {maxOutputTokensError ?? "Global response ceiling. Leave empty to use automatic model limits."}
+                {maxOutputTokensError ??
+                  "Leave empty for no global token limit. An explicit character limit and provider limits still apply. Short, Medium, and Long only guide writing style."}
               </span>
             </div>
           ) : null}

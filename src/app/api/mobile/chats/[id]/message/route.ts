@@ -8,7 +8,6 @@ import { moderateText, sanitizeUserText } from "@/lib/safety";
 import { detectPromptInjection } from "@/lib/prompt-security";
 import { mobileStreamMessageSchema } from "@/lib/validation";
 import { assembleNytheraPrompt } from "@/lib/prompt-assembly";
-import { resolveCharacterPersona } from "@/lib/persona";
 import { providerOutputTokenBudget, resolveChatOutputTokenLimit } from "@/lib/response-length";
 import { loadAdaptiveChatHistory } from "@/lib/chat-history";
 import { streamLlmResponse } from "@/lib/proxy";
@@ -27,7 +26,12 @@ import { getStoryPromptContext, syncChatTurns } from "@/lib/stories/story-founda
 import { markStoryBeatsCompleted, markStoryProactiveEventsFired } from "@/lib/stories/narrative-store";
 import { buildPromptAddonLayers } from "@/lib/prompts/buildPrompt";
 import { selectCustomPrompt } from "@/lib/response-prompt";
-import { buildPhysicalMemoryContext, formatTieredMemoryBlocks, getUserMemories, splitMemoriesForPrompt } from "@/lib/memory/promptBuilder";
+import {
+  buildPhysicalMemoryContext,
+  formatTieredMemoryBlocks,
+  getUserMemories,
+  splitMemoriesForPrompt
+} from "@/lib/memory/promptBuilder";
 import { normalizeChatMode } from "@/lib/chat-mode";
 import { requireAdultConsent } from "@/lib/adult-consent";
 import { schedulePostResponseTasks } from "@/lib/post-response";
@@ -64,18 +68,24 @@ export async function POST(request: Request, context: Context) {
       throw new HttpError(400, `Message must be ${inputLimits.message.toLocaleString()} characters or fewer.`);
     }
     if ((input.responsePrompt?.length ?? 0) > inputLimits.responsePrompt) {
-      throw new HttpError(400, `Custom system prompt must be ${inputLimits.responsePrompt.toLocaleString()} characters or fewer.`);
+      throw new HttpError(
+        400,
+        `Custom system prompt must be ${inputLimits.responsePrompt.toLocaleString()} characters or fewer.`
+      );
     }
     const continueChat = input.continueChat === true;
     const skipTime = input.skipTime === true;
-    const skipTimeDuration: SkipTimeDuration | null = input.skipTimeValue && input.skipTimeUnit
-      ? { value: input.skipTimeValue, unit: input.skipTimeUnit }
-      : null;
+    const skipTimeDuration: SkipTimeDuration | null =
+      input.skipTimeValue && input.skipTimeUnit ? { value: input.skipTimeValue, unit: input.skipTimeUnit } : null;
     const assistantOnlyAction = continueChat || skipTime;
     const continuationPrompt =
       "Continue the roleplay naturally from the immediately preceding selected assistant response. Do not speak as the user, do not invent a user reply, and keep the scene moving in the character's voice.";
     const actionMessage = resolveChatActionMessage(
-      skipTime ? buildSkipTimePrompt(skipTimeDuration) : continueChat ? continuationPrompt : sanitizeUserText(input.message, inputLimits.message)
+      skipTime
+        ? buildSkipTimePrompt(skipTimeDuration)
+        : continueChat
+          ? continuationPrompt
+          : sanitizeUserText(input.message, inputLimits.message)
     );
     const message = actionMessage.promptContent;
     if (containsRussianLanguage(message)) {
@@ -128,12 +138,7 @@ export async function POST(request: Request, context: Context) {
       chatTemperature: input.temperature ?? chat.temperature
     });
     const model = effectiveSettings.model;
-    const characterPersona = resolveCharacterPersona(chat.character);
-    const maxOutputTokens = resolveChatOutputTokenLimit(
-      characterPersona.verbosityLevel,
-      effectiveSettings.maxTokens,
-      user.maxOutputTokens
-    );
+    const maxOutputTokens = resolveChatOutputTokenLimit(effectiveSettings.maxTokens, user.maxOutputTokens);
     const providerMaxOutputTokens = providerOutputTokenBudget({
       visibleTokenLimit: maxOutputTokens,
       provider: effectiveSettings.provider,
@@ -145,11 +150,11 @@ export async function POST(request: Request, context: Context) {
         userId: user.id,
         ip: getRequestIp(request),
         route: "chat:token-budget",
-        cost: Math.min(maxOutputTokens, 4096)
+        cost: Math.min(maxOutputTokens ?? 4096, 4096)
       });
     }
     const conversationSummary = conversationSummaryIsStale(chat)
-      ? (await summarizeChat(chat.id))?.summary ?? chat.summary
+      ? ((await summarizeChat(chat.id))?.summary ?? chat.summary)
       : chat.summary;
     const history = await loadAdaptiveChatHistory({
       chatId: chat.id,
@@ -187,7 +192,9 @@ export async function POST(request: Request, context: Context) {
     ]);
     const userPersona = chat.temporaryPersona ?? chat.persona ?? defaultUserPersona;
     const chatMode = normalizeChatMode(chat.chatMode);
-    const { characterMemories, userMemories } = formatTieredMemoryBlocks(splitMemoriesForPrompt(memories, userGlobalMemories));
+    const { characterMemories, userMemories } = formatTieredMemoryBlocks(
+      splitMemoriesForPrompt(memories, userGlobalMemories)
+    );
     const responsePrompt = input.responsePrompt ?? chat.responsePrompt;
     const promptAddon = buildPromptAddonLayers({
       mode: chatMode,
@@ -195,11 +202,9 @@ export async function POST(request: Request, context: Context) {
       userMemories
     });
     const formattedUserPersona = formatUserPersonaForPrompt(userPersona);
-    const recentMessages = history.messages.map((historyMessage) => renderInitialChatGreeting(
-      historyMessage,
-      chat.character.name,
-      formattedUserPersona
-    ));
+    const recentMessages = history.messages.map((historyMessage) =>
+      renderInitialChatGreeting(historyMessage, chat.character.name, formattedUserPersona)
+    );
     const customPromptActive = Boolean(selectCustomPrompt(responsePrompt, effectiveSettings.systemPromptOverride));
     const userPersonaPrompt = formatUserPersonaForPrompt(userPersona);
     const physicalContext = buildPhysicalMemoryContext(chat.summary, [...memories, ...userGlobalMemories]);
@@ -221,9 +226,15 @@ export async function POST(request: Request, context: Context) {
       physicalContext,
       translationLanguage: chat.translationLanguage
     });
-    const promptFit = fitPromptMessagesWithinContext(assembledPrompt, { model, maxOutputTokens: providerMaxOutputTokens });
+    const promptFit = fitPromptMessagesWithinContext(assembledPrompt, {
+      model,
+      maxOutputTokens: providerMaxOutputTokens
+    });
     if (promptFit.fixedPromptTooLarge) {
-      throw new HttpError(400, "System instructions exceed this model's context window. Choose a model with a larger context window or shorten the character system prompt.");
+      throw new HttpError(
+        400,
+        "System instructions exceed this model's context window. Choose a model with a larger context window or shorten the character system prompt."
+      );
     }
     const prompt = promptFit.messages;
     const physicalOutputGuard = createPhysicalContinuityOutputGuard(
@@ -281,7 +292,8 @@ export async function POST(request: Request, context: Context) {
 
           if (!check.allowed) {
             outputBlocked = true;
-            const replacement = check.reason ?? "The response was stopped because it did not pass the platform safety policy.";
+            const replacement =
+              check.reason ?? "The response was stopped because it did not pass the platform safety policy.";
             assistantText = replacement;
             send({ type: "delta", text: replacement });
             return false;
@@ -353,7 +365,11 @@ export async function POST(request: Request, context: Context) {
             flagged: outputBlocked,
             clientRequestId: assistantOnlyAction
               ? skipTime
-                ? skipTimeClientRequestId(input.requestId || crypto.randomUUID(), input.continueMessageId, skipTimeDuration)
+                ? skipTimeClientRequestId(
+                    input.requestId || crypto.randomUUID(),
+                    input.continueMessageId,
+                    skipTimeDuration
+                  )
                 : input.continueMessageId
                   ? continuationClientRequestId(input.requestId || crypto.randomUUID(), input.continueMessageId)
                   : `continue-${input.requestId || crypto.randomUUID()}`
@@ -380,54 +396,62 @@ export async function POST(request: Request, context: Context) {
           schedulePostResponseTasks("Mobile chat post-response", [
             {
               name: "request log",
-              run: () => prisma.llmRequestLog.create({
-                data: {
-                  userId: user.id,
-                  chatId: chat.id,
-                  provider: usage.provider,
-                  model: usage.model,
-                  route: "mobile_chat",
-                  inputTokens: usage.inputTokens,
-                  outputTokens: usage.outputTokens,
-                  estimatedCost,
-                  status: outputBlocked ? "blocked_output" : usage.fallbackTriggered ? "ok_fallback" : "ok",
-                  error: usage.fallbackTriggered ? `fallback attempts: ${(usage.attempts ?? []).join(" -> ")}`.slice(0, 2000) : null,
-                  latencyMs: Date.now() - started
-                }
-              })
+              run: () =>
+                prisma.llmRequestLog.create({
+                  data: {
+                    userId: user.id,
+                    chatId: chat.id,
+                    provider: usage.provider,
+                    model: usage.model,
+                    route: "mobile_chat",
+                    inputTokens: usage.inputTokens,
+                    outputTokens: usage.outputTokens,
+                    estimatedCost,
+                    status: outputBlocked ? "blocked_output" : usage.fallbackTriggered ? "ok_fallback" : "ok",
+                    error: usage.fallbackTriggered
+                      ? `fallback attempts: ${(usage.attempts ?? []).join(" -> ")}`.slice(0, 2000)
+                      : null,
+                    latencyMs: Date.now() - started
+                  }
+                })
             },
             ...(user.memoryEnabled && !assistantOnlyAction
-              ? [{
-                  name: "memory jobs",
-                  run: () => schedulePostMessageJobs({
-                    chatId: chat.id,
-                    userId: user.id,
-                    characterId: chat.characterId,
-                    latestUserMessage: message,
-                    latestUserMessageId: userMessage?.id ?? null,
-                    latestAssistantMessage: assistantMessage.content,
-                    latestAssistantMessageId: assistantMessage.id,
-                    messageCount: updated.messageCount,
-                    providerKeys
-                  })
-                }]
+              ? [
+                  {
+                    name: "memory jobs",
+                    run: () =>
+                      schedulePostMessageJobs({
+                        chatId: chat.id,
+                        userId: user.id,
+                        characterId: chat.characterId,
+                        latestUserMessage: message,
+                        latestUserMessageId: userMessage?.id ?? null,
+                        latestAssistantMessage: assistantMessage.content,
+                        latestAssistantMessageId: assistantMessage.id,
+                        messageCount: updated.messageCount,
+                        providerKeys
+                      })
+                  }
+                ]
               : []),
             { name: "story sync", run: () => syncChatTurns(chat.id, user.id) },
             {
               name: "story event completion",
-              run: () => markStoryProactiveEventsFired({
-                eventIds: storyContext.eventIds,
-                storyId: storyContext.storyId,
-                sourceMessageId: assistantMessage.id
-              })
+              run: () =>
+                markStoryProactiveEventsFired({
+                  eventIds: storyContext.eventIds,
+                  storyId: storyContext.storyId,
+                  sourceMessageId: assistantMessage.id
+                })
             },
             {
               name: "story beat completion",
-              run: () => markStoryBeatsCompleted({
-                beatIds: storyContext.beatIds,
-                storyId: storyContext.storyId,
-                sourceMessageId: assistantMessage.id
-              })
+              run: () =>
+                markStoryBeatsCompleted({
+                  beatIds: storyContext.beatIds,
+                  storyId: storyContext.storyId,
+                  sourceMessageId: assistantMessage.id
+                })
             }
           ]);
 
@@ -459,7 +483,11 @@ export async function POST(request: Request, context: Context) {
               flagged: true,
               clientRequestId: assistantOnlyAction
                 ? skipTime
-                  ? skipTimeClientRequestId(input.requestId || crypto.randomUUID(), input.continueMessageId, skipTimeDuration)
+                  ? skipTimeClientRequestId(
+                      input.requestId || crypto.randomUUID(),
+                      input.continueMessageId,
+                      skipTimeDuration
+                    )
                   : input.continueMessageId
                     ? continuationClientRequestId(input.requestId || crypto.randomUUID(), input.continueMessageId)
                     : `continue-${input.requestId || crypto.randomUUID()}`
@@ -486,21 +514,22 @@ export async function POST(request: Request, context: Context) {
           schedulePostResponseTasks("Mobile chat error post-response", [
             {
               name: "request log",
-              run: () => prisma.llmRequestLog.create({
-                data: {
-                  userId: user.id,
-                  chatId: chat.id,
-                  provider: usage.provider || "unknown",
-                  model: usage.model || model,
-                  route: "mobile_chat",
-                  inputTokens: usage.inputTokens,
-                  outputTokens: usage.outputTokens,
-                  estimatedCost,
-                  status: assistantPersisted ? "partial_error" : "error",
-                  error: errorMessage.slice(0, 2000),
-                  latencyMs: Date.now() - started
-                }
-              })
+              run: () =>
+                prisma.llmRequestLog.create({
+                  data: {
+                    userId: user.id,
+                    chatId: chat.id,
+                    provider: usage.provider || "unknown",
+                    model: usage.model || model,
+                    route: "mobile_chat",
+                    inputTokens: usage.inputTokens,
+                    outputTokens: usage.outputTokens,
+                    estimatedCost,
+                    status: assistantPersisted ? "partial_error" : "error",
+                    error: errorMessage.slice(0, 2000),
+                    latencyMs: Date.now() - started
+                  }
+                })
             }
           ]);
 

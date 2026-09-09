@@ -13,17 +13,12 @@ import { SecureNodemailer } from "@/lib/auth-email-provider";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
 import { assertCanonicalAuthOrigin } from "@/lib/site-origin";
-import {
-  consumePwaAuthTransaction,
-  PwaAuthTransactionError
-} from "@/lib/pwa-auth-transactions";
+import { consumePwaAuthTransaction, PwaAuthTransactionError } from "@/lib/pwa-auth-transactions";
 import { usernameValidationMessage } from "@/lib/username";
 
 const MAX_SESSION_IMAGE_URL_LENGTH = 2048;
 const SESSION_PROFILE_REFRESH_MS = 5 * 60 * 1000;
-const authSecrets = [env.AUTH_SECRET, env.AUTH_SECRET_PREVIOUS].filter(
-  (secret): secret is string => Boolean(secret)
-);
+const authSecrets = [env.AUTH_SECRET, env.AUTH_SECRET_PREVIOUS].filter((secret): secret is string => Boolean(secret));
 
 assertCanonicalAuthOrigin(process.env.VERCEL_ENV, env.AUTH_URL, env.NEXTAUTH_URL);
 
@@ -40,19 +35,23 @@ function safeSessionImageUrl(value: string | null | undefined) {
 }
 
 async function generateUniqueUsername(seed: string) {
-  const cleaned =
-    seed
-      .toLowerCase()
-      .replace(/[^a-z0-9_]/g, "")
-      .replace(/^_+|_+$/g, "")
-      .replace(/_+/g, "_")
-      .slice(0, 18);
+  const cleaned = seed
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "")
+    .replace(/^_+|_+$/g, "")
+    .replace(/_+/g, "_")
+    .slice(0, 18);
   const base = !usernameValidationMessage(cleaned) ? cleaned : "traveler";
 
   let candidate = base;
   let suffix = 0;
 
-  while (await prisma.user.findFirst({ where: { username: { equals: candidate, mode: "insensitive" } }, select: { id: true } })) {
+  while (
+    await prisma.user.findFirst({
+      where: { username: { equals: candidate, mode: "insensitive" } },
+      select: { id: true }
+    })
+  ) {
     suffix += 1;
     candidate = `${base}${suffix}`.slice(0, 20);
   }
@@ -107,10 +106,7 @@ const providers = [
     async authorize(credentials) {
       const transactionId = String(credentials?.transactionId ?? "");
       const nonce = String(credentials?.nonce ?? "");
-      if (
-        !/^[A-Za-z0-9_-]{32}$/.test(transactionId) ||
-        !/^[A-Za-z0-9_-]{43}$/.test(nonce)
-      ) {
+      if (!/^[A-Za-z0-9_-]{32}$/.test(transactionId) || !/^[A-Za-z0-9_-]{43}$/.test(nonce)) {
         return null;
       }
 
@@ -118,10 +114,7 @@ const providers = [
       try {
         userId = await consumePwaAuthTransaction(transactionId, nonce);
       } catch (error) {
-        if (
-          error instanceof PwaAuthTransactionError &&
-          error.code !== "store-unavailable"
-        ) {
+        if (error instanceof PwaAuthTransactionError && error.code !== "store-unavailable") {
           return null;
         }
         throw error;
@@ -149,7 +142,9 @@ const providers = [
       password: { label: "Password", type: "password" }
     },
     async authorize(credentials) {
-      const email = String(credentials?.email ?? "").toLowerCase().trim();
+      const email = String(credentials?.email ?? "")
+        .toLowerCase()
+        .trim();
       const password = String(credentials?.password ?? "");
 
       if (!email || !password) {
@@ -227,6 +222,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user?.id) {
         token.sub = user.id;
         token.email = user.email;
+        token.name = user.name;
         token.picture = safeSessionImageUrl(user.image);
         token.role = user.role;
         token.username = user.username;
@@ -242,6 +238,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               id: true,
               email: true,
               username: true,
+              name: true,
               role: true,
               avatarUrl: true,
               image: true,
@@ -254,10 +251,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             return null;
           }
 
-          if (
-            typeof token.authVersion === "number" &&
-            token.authVersion !== dbUser.authVersion
-          ) {
+          if (typeof token.authVersion === "number" && token.authVersion !== dbUser.authVersion) {
             return null;
           }
 
@@ -265,6 +259,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             token.email = dbUser.email;
             token.role = dbUser.role;
             token.username = dbUser.username;
+            token.name = dbUser.name?.trim() || dbUser.username;
             token.authVersion = dbUser.authVersion;
             const safeImage = safeSessionImageUrl(dbUser.avatarUrl ?? dbUser.image);
             if (safeImage) {
@@ -289,6 +284,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.email = token.email ?? session.user.email;
         session.user.role = token.role as Role | undefined;
         session.user.username = token.username as string | null | undefined;
+        session.user.name = token.name ?? session.user.username ?? null;
         session.user.image = safeSessionImageUrl(token.picture) ?? null;
       }
 

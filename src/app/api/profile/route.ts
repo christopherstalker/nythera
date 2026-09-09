@@ -6,38 +6,65 @@ import { prisma } from "@/lib/prisma";
 import { imageSourceSchema } from "@/lib/validation";
 import { resolveMusicEmbed } from "@/lib/music-embed";
 import { usernameSchema } from "@/lib/username";
+import { displayNameSchema } from "@/lib/display-name";
+import { revalidateTag } from "next/cache";
 
-const socialLinkSchema = z.string().trim().max(300).refine((value) => {
-  if (!value) return true;
-  try {
-    return new URL(value).protocol === "https:";
-  } catch {
-    return false;
-  }
-}, "Social links must use a valid HTTPS URL.");
+const socialLinkSchema = z
+  .string()
+  .trim()
+  .max(300)
+  .refine((value) => {
+    if (!value) return true;
+    try {
+      return new URL(value).protocol === "https:";
+    } catch {
+      return false;
+    }
+  }, "Social links must use a valid HTTPS URL.");
 
-const profileSettingsSchema = z.object({
-  bannerUrl: imageSourceSchema.optional().or(z.literal("")).nullable(),
-  useGradientBanner: z.boolean().optional(),
-  themePreset: z.enum(["midnight", "aurora", "obsidian", "crystal", "ember", "veil"]).optional(),
-  layoutStyle: z.enum(["minimal", "showcase", "grid"]).optional(),
-  surfaceStyle: z.enum(["glass", "luminous", "editorial"]).optional(),
-  avatarShape: z.enum(["circle", "soft", "square"]).optional(),
-  bannerHeight: z.enum(["compact", "cinematic", "immersive"]).optional(),
-  fontFamily: z.string().trim().min(1).max(120).regex(/^[\p{L}\p{N}\s._-]+$/u).optional(),
-  fontUrl: z.string().trim().max(1000).refine((value) => !value || isHttpsUrl(value), "Custom fonts must use HTTPS.").optional(),
-  fontScale: z.coerce.number().min(0.85).max(1.3).optional(),
-  music: z.object({
-    enabled: z.boolean(),
-    url: z.string().trim().max(500).refine((value) => !value || Boolean(resolveMusicEmbed(value)), "Use a supported HTTPS music link."),
-    title: z.string().trim().max(100)
-  }).optional(),
-  socialLinks: z.object({
-    twitter: socialLinkSchema.optional(),
-    patreon: socialLinkSchema.optional(),
-    discord: socialLinkSchema.optional()
-  }).optional()
-}).optional();
+const profileSettingsSchema = z
+  .object({
+    bannerUrl: imageSourceSchema.optional().or(z.literal("")).nullable(),
+    useGradientBanner: z.boolean().optional(),
+    themePreset: z.enum(["midnight", "aurora", "obsidian", "crystal", "ember", "veil"]).optional(),
+    layoutStyle: z.enum(["minimal", "showcase", "grid"]).optional(),
+    surfaceStyle: z.enum(["glass", "luminous", "editorial"]).optional(),
+    avatarShape: z.enum(["circle", "soft", "square"]).optional(),
+    bannerHeight: z.enum(["compact", "cinematic", "immersive"]).optional(),
+    fontFamily: z
+      .string()
+      .trim()
+      .min(1)
+      .max(120)
+      .regex(/^[\p{L}\p{N}\s._-]+$/u)
+      .optional(),
+    fontUrl: z
+      .string()
+      .trim()
+      .max(1000)
+      .refine((value) => !value || isHttpsUrl(value), "Custom fonts must use HTTPS.")
+      .optional(),
+    fontScale: z.coerce.number().min(0.85).max(1.3).optional(),
+    music: z
+      .object({
+        enabled: z.boolean(),
+        url: z
+          .string()
+          .trim()
+          .max(500)
+          .refine((value) => !value || Boolean(resolveMusicEmbed(value)), "Use a supported HTTPS music link."),
+        title: z.string().trim().max(100)
+      })
+      .optional(),
+    socialLinks: z
+      .object({
+        twitter: socialLinkSchema.optional(),
+        patreon: socialLinkSchema.optional(),
+        discord: socialLinkSchema.optional()
+      })
+      .optional()
+  })
+  .optional();
 
 function isHttpsUrl(value: string) {
   try {
@@ -48,10 +75,14 @@ function isHttpsUrl(value: string) {
 }
 
 const profileSchema = z.object({
+  name: displayNameSchema.optional(),
   username: usernameSchema.optional().or(z.literal("")).nullable(),
   bio: z.string().max(800).optional().nullable(),
   avatarUrl: imageSourceSchema.optional().or(z.literal("")).nullable(),
-  accentColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  accentColor: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/)
+    .optional(),
   profileSettings: profileSettingsSchema,
   ageVerified: z.boolean().optional(),
   memoryEnabled: z.boolean().optional(),
@@ -63,6 +94,7 @@ const profileSelect = {
   id: true,
   email: true,
   username: true,
+  name: true,
   avatarUrl: true,
   bio: true,
   accentColor: true,
@@ -79,9 +111,7 @@ export async function GET() {
     const user = await requireUser();
     const profile = await prisma.user.findUnique({ where: { id: user.id }, select: profileSelect });
     return json({
-      profile: profile
-        ? { ...profile, profileSettings: parseProfileSettings(profile.profileSettings) }
-        : profile
+      profile: profile ? { ...profile, profileSettings: parseProfileSettings(profile.profileSettings) } : profile
     });
   } catch (error) {
     return routeError(error);
@@ -105,6 +135,7 @@ export async function PATCH(request: Request) {
     const profile = await prisma.user.update({
       where: { id: user.id },
       data: {
+        name: input.name,
         username: input.username === "" ? null : input.username,
         bio: input.bio,
         avatarUrl: input.avatarUrl === "" ? null : input.avatarUrl,
@@ -118,6 +149,7 @@ export async function PATCH(request: Request) {
       select: profileSelect
     });
 
+    revalidateTag("public-creator-profile");
     return json({
       profile: { ...profile, profileSettings: parseProfileSettings(profile.profileSettings) }
     });

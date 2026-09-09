@@ -9,6 +9,11 @@ import type { PromptMessage, StreamChunk } from "@/types";
 import { eligibleFallbackKeys } from "@/lib/provider-fallback";
 import { logPerformanceMetric } from "@/lib/performance-logger";
 import { providerOutputTokenBudget } from "@/lib/response-length";
+import {
+  anthropicOutputTokenLimit,
+  geminiResponseOptions,
+  openAIResponseOptions
+} from "../../proxy-service/src/response-tokens";
 import { logSafeError } from "@/lib/secret-redaction";
 import {
   abortableAsyncIterable,
@@ -22,11 +27,7 @@ import {
 import { assertSafeOutboundUrl } from "@/lib/safe-outbound-url";
 import { CANONICAL_SITE_ORIGIN } from "@/lib/site-origin";
 import { selectCircuitAttempts, shortenRetryHistory } from "@/lib/provider-recovery";
-import {
-  readProviderCircuitStates,
-  recordProviderFailure,
-  recordProviderSuccess
-} from "@/lib/provider-circuit";
+import { readProviderCircuitStates, recordProviderFailure, recordProviderSuccess } from "@/lib/provider-circuit";
 
 type StreamInput = {
   messages: PromptMessage[];
@@ -59,7 +60,9 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
   const initialRoute = routeModel(input.model, keys);
   const turnNumber = input.messages.filter((message) => message.role === "user").length;
   const observeOnly = input.healthCheck === true;
-  const route = observeOnly ? initialRoute : rotatePrimaryKey(initialRoute, keys, `${input.userId}:${input.chatId}:${turnNumber}`);
+  const route = observeOnly
+    ? initialRoute
+    : rotatePrimaryKey(initialRoute, keys, `${input.userId}:${input.chatId}:${turnNumber}`);
   const candidateAttempts = attemptRoutes(route, keys, observeOnly);
   const circuitStates = observeOnly ? [] : await readProviderCircuitStates(candidateAttempts.map(circuitIdentity));
   const attempts = observeOnly ? [...candidateAttempts] : selectCircuitAttempts(candidateAttempts, circuitStates);
@@ -170,7 +173,8 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
 
         yield {
           type: "usage",
-          inputTokens: providerUsage?.inputTokens ?? estimateTokens(input.messages.map((message) => message.content).join("\n")),
+          inputTokens:
+            providerUsage?.inputTokens ?? estimateTokens(input.messages.map((message) => message.content).join("\n")),
           outputTokens: providerUsage?.outputTokens ?? estimateTokens(outputText),
           provider: attempt.providerName,
           model: attempt.model,
@@ -186,7 +190,8 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
           return;
         }
 
-        lastError = attemptSignal.timedOut() || gatewayDeadline.timedOut() ? new Error("Provider request timed out.") : error;
+        lastError =
+          attemptSignal.timedOut() || gatewayDeadline.timedOut() ? new Error("Provider request timed out.") : error;
         const classified = classifyProviderError(lastError);
         if (!observeOnly) {
           setKeyCooldown(attempt.key, classified.code);
@@ -222,7 +227,9 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
           yield { type: "error", message: "The model stream was interrupted." };
           return;
         }
-        const nextAttempt = attempts.slice(index + 1).find((candidate) => !skippedProviders.has(candidate.providerName));
+        const nextAttempt = attempts
+          .slice(index + 1)
+          .find((candidate) => !skippedProviders.has(candidate.providerName));
         const canTryAnotherRoute = Boolean(nextAttempt) && isKeyScopedFailure(classified.code);
         if (!classified.retryable && !canTryAnotherRoute) {
           yield {
@@ -248,9 +255,7 @@ export async function createGatewayEmbedding(text: string, providerKeys?: Provid
   if (openaiKey) {
     const timeout = createTimeoutSignal(undefined, LLM_EMBEDDING_TIMEOUT_MS, "Embedding provider request timed out.");
     try {
-      const baseURL = openaiKey.baseUrl
-        ? await assertSafeOutboundUrl(openaiKey.baseUrl)
-        : "https://api.openai.com/v1";
+      const baseURL = openaiKey.baseUrl ? await assertSafeOutboundUrl(openaiKey.baseUrl) : "https://api.openai.com/v1";
       const openai = new OpenAI({
         apiKey: openaiKey.apiKey,
         baseURL
@@ -298,24 +303,30 @@ function routeModel(requested: string, keys: ProviderKeys): GatewayRoute {
 
   if (normalized.includes("claude")) {
     const key = keys.find((item) => item.apiFormat === "ANTHROPIC" || item.provider === "anthropic");
-    return key ? routeFromKey(key, raw) : routeFromAvailableKey(keys) ?? { provider: "anthropic", providerName: "anthropic", model: raw };
+    return key
+      ? routeFromKey(key, raw)
+      : (routeFromAvailableKey(keys) ?? { provider: "anthropic", providerName: "anthropic", model: raw });
   }
 
   if (normalized.includes("gemini")) {
     const key = keys.find((item) => item.apiFormat === "GEMINI" || item.provider === "gemini");
-    return key ? routeFromKey(key, raw) : routeFromAvailableKey(keys) ?? { provider: "gemini", providerName: "gemini", model: raw };
+    return key
+      ? routeFromKey(key, raw)
+      : (routeFromAvailableKey(keys) ?? { provider: "gemini", providerName: "gemini", model: raw });
   }
 
   if (normalized.includes("deepseek")) {
     const key = keys.find((item) => item.provider === "deepseek");
     return key
       ? routeFromKey(key, raw)
-      : routeFromAvailableKey(keys) ?? { provider: "openai-compatible", providerName: "deepseek", model: raw };
+      : (routeFromAvailableKey(keys) ?? { provider: "openai-compatible", providerName: "deepseek", model: raw });
   }
 
   if (normalized.includes("4o") || normalized.includes("gpt-4")) {
     const key = keys.find((item) => item.apiFormat === "OPENAI" || item.provider === "openai");
-    return key ? routeFromKey(key, raw) : routeFromAvailableKey(keys) ?? { provider: "openai", providerName: "openai", model: raw };
+    return key
+      ? routeFromKey(key, raw)
+      : (routeFromAvailableKey(keys) ?? { provider: "openai", providerName: "openai", model: raw });
   }
 
   const defaultKey = keys.find((key) => key.defaultModel) ?? keys[0];
@@ -332,15 +343,23 @@ function routeFromAvailableKey(keys: ProviderKeys) {
 }
 
 function fallbackRoutes(primary: GatewayRoute, keys: ProviderKeys) {
-  const routes = eligibleFallbackKeys(primary.providerName, keys).map((key) => routeFromKey(key, key.defaultModel || "gpt-4o-mini"));
+  const routes = eligibleFallbackKeys(primary.providerName, keys).map((key) =>
+    routeFromKey(key, key.defaultModel || "gpt-4o-mini")
+  );
   return routes.filter((route) => route.providerName !== primary.providerName || route.model !== primary.model);
 }
 
 function attemptRoutes(primary: GatewayRoute, keys: ProviderKeys, ignoreCooldown = false) {
   const sameProvider = keys
-    .filter((key) => key.provider === primary.providerName && key.id !== primary.key?.id && (ignoreCooldown || !isKeyCoolingDown(key)))
-    .sort((left, right) =>
-      (left.providerPriority ?? Number.MAX_SAFE_INTEGER) - (right.providerPriority ?? Number.MAX_SAFE_INTEGER)
+    .filter(
+      (key) =>
+        key.provider === primary.providerName &&
+        key.id !== primary.key?.id &&
+        (ignoreCooldown || !isKeyCoolingDown(key))
+    )
+    .sort(
+      (left, right) =>
+        (left.providerPriority ?? Number.MAX_SAFE_INTEGER) - (right.providerPriority ?? Number.MAX_SAFE_INTEGER)
     )
     .slice(0, MAX_SAME_PROVIDER_ATTEMPTS - 1)
     .map((key) => routeFromKey(key, primary.model));
@@ -352,8 +371,9 @@ function rotatePrimaryKey(primary: GatewayRoute, keys: ProviderKeys, seed: strin
 
   const providerKeys = keys
     .filter((key) => key.provider === primary.providerName)
-    .sort((left, right) =>
-      (left.providerPriority ?? Number.MAX_SAFE_INTEGER) - (right.providerPriority ?? Number.MAX_SAFE_INTEGER)
+    .sort(
+      (left, right) =>
+        (left.providerPriority ?? Number.MAX_SAFE_INTEGER) - (right.providerPriority ?? Number.MAX_SAFE_INTEGER)
     );
   const availableKeys = providerKeys.filter((key) => !isKeyCoolingDown(key));
   const candidates = availableKeys.length > 0 ? availableKeys : providerKeys;
@@ -399,13 +419,14 @@ function setKeyCooldown(key: ProviderKey | undefined, code: ReturnType<typeof cl
   const identity = keyIdentity(key);
   if (!identity) return;
 
-  const duration = code === "rate_limit"
-    ? 5 * 60_000
-    : code === "invalid_api_key" || code === "insufficient_balance"
-      ? 15 * 60_000
-      : code === "provider_unavailable" || code === "network_error" || code === "provider_error"
-        ? 30_000
-        : 0;
+  const duration =
+    code === "rate_limit"
+      ? 5 * 60_000
+      : code === "invalid_api_key" || code === "insufficient_balance"
+        ? 15 * 60_000
+        : code === "provider_unavailable" || code === "network_error" || code === "provider_error"
+          ? 30_000
+          : 0;
   if (duration > 0) keyCooldowns.set(identity, Date.now() + duration);
 }
 
@@ -415,20 +436,25 @@ function clearKeyCooldown(key?: ProviderKey) {
 }
 
 function isKeyScopedFailure(code: ReturnType<typeof classifyProviderError>["code"]) {
-  return code === "invalid_api_key" ||
+  return (
+    code === "invalid_api_key" ||
     code === "insufficient_balance" ||
     code === "prompt_too_large" ||
     code === "rate_limit" ||
     code === "model_unavailable" ||
     code === "provider_unavailable" ||
     code === "network_error" ||
-    code === "provider_error";
+    code === "provider_error"
+  );
 }
 
 function shouldSkipRemainingProviderKeys(code: ReturnType<typeof classifyProviderError>["code"]) {
-  return code === "prompt_too_large" || code === "model_unavailable" ||
+  return (
+    code === "prompt_too_large" ||
+    code === "model_unavailable" ||
     code === "provider_unavailable" ||
-    code === "network_error";
+    code === "network_error"
+  );
 }
 
 function exhaustedProviderMessage(route: GatewayRoute, fallbackMessage: string) {
@@ -610,11 +636,7 @@ async function* streamOpenAI(input: {
           ]
         };
       }),
-      temperature: input.temperature,
-      top_p: input.topP ?? undefined,
-      frequency_penalty: input.providerName === "deepseek" ? undefined : input.frequencyPenalty ?? undefined,
-      presence_penalty: input.providerName === "deepseek" ? undefined : input.presencePenalty ?? undefined,
-      max_tokens: input.maxTokens ?? undefined,
+      ...openAIResponseOptions(input),
       stream: true,
       stream_options: { include_usage: true }
     },
@@ -656,21 +678,25 @@ async function* streamAnthropic(input: {
     .filter((message) => message.role !== "system")
     .map<Anthropic.MessageParam>((message) => ({
       role: message.role === "assistant" ? ("assistant" as const) : ("user" as const),
-      content: message.role === "user" && message.images?.length
-        ? [
-            { type: "text" as const, text: message.content || "Describe and use the attached image as scene context." },
-            ...message.images.map((image) => ({
-              type: "image" as const,
-              source: { type: "base64" as const, media_type: image.mediaType, data: image.data }
-            }))
-          ]
-        : message.content
+      content:
+        message.role === "user" && message.images?.length
+          ? [
+              {
+                type: "text" as const,
+                text: message.content || "Describe and use the attached image as scene context."
+              },
+              ...message.images.map((image) => ({
+                type: "image" as const,
+                source: { type: "base64" as const, media_type: image.mediaType, data: image.data }
+              }))
+            ]
+          : message.content
     }));
 
   const stream = input.client.messages.stream(
     {
       model: input.model,
-      max_tokens: input.maxTokens ?? 900,
+      max_tokens: await anthropicOutputTokenLimit(input),
       temperature: input.temperature,
       top_p: input.topP ?? undefined,
       system,
@@ -714,7 +740,7 @@ async function* streamGemini(input: {
     generationConfig: {
       temperature: input.temperature,
       topP: input.topP ?? undefined,
-      maxOutputTokens: input.maxTokens ?? undefined
+      ...geminiResponseOptions(input.model, input.maxTokens)
     }
   });
   const contents = input.messages
@@ -728,10 +754,13 @@ async function* streamGemini(input: {
         }))
       ]
     }));
-  const result = await model.generateContentStream({ contents }, {
-    signal: input.signal,
-    timeout: LLM_PROVIDER_TIMEOUT_MS
-  });
+  const result = await model.generateContentStream(
+    { contents },
+    {
+      signal: input.signal,
+      timeout: LLM_PROVIDER_TIMEOUT_MS
+    }
+  );
 
   for await (const chunk of result.stream) {
     const text = chunk.text();

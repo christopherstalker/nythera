@@ -19,10 +19,7 @@ test("users can save a global maximum output-token limit in provider settings an
   assert.match(route, /maxOutputTokens: z\.number\(\)\.int\(\)\.min\(128\)\.max\(4096\)\.nullable\(\)/);
   assert.match(route, /export async function PATCH/);
   assert.match(settings, /Maximum output tokens/);
-  assert.match(
-    settings.replace(/\s+/g, " "),
-    /Leave it empty to use Nythera&apos;s automatic Short, Medium, and Long limits/
-  );
+  assert.match(settings.replace(/\s+/g, " "), /Leave it empty for no global token limit/);
   assert.match(settings, /method: "PATCH"/);
   assert.match(chatInput, /Maximum output tokens/);
   assert.match(chatInput, /onMaxOutputTokensChange/);
@@ -68,7 +65,7 @@ test("the saved user limit reaches web, mobile, and room model requests", async 
 
   assert.match(web, /resolveChatOutputTokenLimit\([\s\S]*?user\.maxOutputTokens/);
   assert.match(mobile, /resolveChatOutputTokenLimit\([\s\S]*?user\.maxOutputTokens/);
-  assert.match(rooms, /configuredOutputTokenLimit\(effectiveSettings\.maxTokens, input\.user\.maxOutputTokens\)/);
+  assert.match(rooms, /resolveChatOutputTokenLimit\([\s\S]*?input\.user\.maxOutputTokens/);
   assert.match(api, /maxOutputTokens: true/);
   assert.match(mobileAuth, /maxOutputTokens: true/);
 });

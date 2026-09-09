@@ -52,6 +52,7 @@ const rooms = [
 ];
 let profile = {
   username: "storykeeper",
+  name: "Storykeeper",
   email: "fixture@example.test",
   role: "USER",
   ageVerified: true,
@@ -60,6 +61,7 @@ let profile = {
   profileSettings: {}
 };
 const appearances = new Map();
+let maxOutputTokens = null;
 
 createServer(async (request, response) => {
   const url = new URL(request.url, "http://127.0.0.1:3100");
@@ -94,7 +96,13 @@ createServer(async (request, response) => {
       }
       case "/api/auth/session":
         payload = {
-          user: { id: "fixture-user", name: "Storykeeper", email: "fixture@example.test", role: "USER" },
+          user: {
+            id: "fixture-user",
+            name: profile.name || profile.username,
+            username: profile.username,
+            email: "fixture@example.test",
+            role: "USER"
+          },
           expires: "2050-01-01T00:00:00Z"
         };
         break;
@@ -122,7 +130,12 @@ createServer(async (request, response) => {
         payload = { profile };
         break;
       case "/api/keys":
-        payload = { keys: [] };
+        if (request.method === "PATCH") {
+          let body = "";
+          for await (const chunk of request) body += chunk;
+          maxOutputTokens = JSON.parse(body).maxOutputTokens;
+        }
+        payload = { keys: [], maxOutputTokens };
         break;
       case "/api/keys/models":
         payload = { models: {} };

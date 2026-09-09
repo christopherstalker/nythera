@@ -9,6 +9,12 @@ import { z } from "zod";
 import { classifyProviderError } from "./provider-errors.js";
 import { ReplayGuard, verifyShieldRequest } from "./request-auth.js";
 import { CircuitStore, circuitIdentity } from "./circuit-store.js";
+import {
+  anthropicOutputTokenLimit,
+  geminiResponseOptions,
+  openAIResponseOptions,
+  providerOutputTokenBudget
+} from "./response-tokens.js";
 
 type ChatMessage = {
   role: "system" | "user" | "assistant";
@@ -44,19 +50,32 @@ const logger = pino({
 const app = express();
 const rawBodies = new WeakMap<object, string>();
 app.disable("x-powered-by");
-app.use(express.json({ limit: "1mb", verify(request, _response, buffer) { rawBodies.set(request, buffer.toString("utf8")); } }));
+app.use(
+  express.json({
+    limit: "1mb",
+    verify(request, _response, buffer) {
+      rawBodies.set(request, buffer.toString("utf8"));
+    }
+  })
+);
 
 const port = Number(process.env.PORT ?? 4000);
 const internalToken = process.env.INTERNAL_API_TOKEN;
 const signingSecret = process.env.AI_SHIELD_SIGNING_SECRET;
-if (signingSecret && signingSecret.length < 32) throw new Error("AI Shield signing secret must contain at least 32 characters.");
+if (signingSecret && signingSecret.length < 32)
+  throw new Error("AI Shield signing secret must contain at least 32 characters.");
 if (process.env.RENDER && !signingSecret) throw new Error("AI Shield signing is required on Render.");
 const replayGuard = new ReplayGuard();
 const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
 const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
 if (Boolean(redisUrl) !== Boolean(redisToken)) throw new Error("Both Shield Redis settings are required.");
 const circuits = new CircuitStore(redisUrl && redisToken ? { url: redisUrl, token: redisToken } : undefined);
-const bypassUserIds = new Set((process.env.RATE_LIMIT_BYPASS_USER_IDS ?? "").split(",").map((id) => id.trim()).filter(Boolean));
+const bypassUserIds = new Set(
+  (process.env.RATE_LIMIT_BYPASS_USER_IDS ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean)
+);
 const serverOpenAIKey = process.env.OPENAI_API_KEY;
 const serverAnthropicKey = process.env.ANTHROPIC_API_KEY;
 const serverGeminiKey = process.env.GEMINI_API_KEY;
@@ -65,7 +84,6 @@ const LLM_PROVIDER_TIMEOUT_MS = 40_000;
 const LLM_FIRST_TOKEN_TIMEOUT_MS = 12_000;
 const LLM_STREAM_IDLE_TIMEOUT_MS = 20_000;
 const LLM_EMBEDDING_TIMEOUT_MS = 15_000;
-const GEMINI_THINKING_TOKEN_RESERVE = 1_536;
 const providerBaseUrlSchema = z.string().url().max(240).refine(isSafeProviderBaseUrl, {
   message: "Provider URL must use public HTTPS."
 });
@@ -133,15 +151,19 @@ app.get("/health", (_request, response) => {
 app.use(async (request, response, next) => {
   if (signingSecret) {
     const nonce = request.get("x-shield-nonce");
-    const valid = request.method === "POST" && verifyShieldRequest(signingSecret, request.originalUrl, rawBodies.get(request) ?? "", {
-      timestamp: request.get("x-shield-timestamp"), nonce, signature: request.get("x-shield-signature")
-    });
+    const valid =
+      request.method === "POST" &&
+      verifyShieldRequest(signingSecret, request.originalUrl, rawBodies.get(request) ?? "", {
+        timestamp: request.get("x-shield-timestamp"),
+        nonce,
+        signature: request.get("x-shield-signature")
+      });
     if (!valid || !nonce || !replayGuard.consume(nonce)) {
       response.status(401).json({ error: "Valid signed request required." });
       return;
     }
     try {
-      if (!await circuits.consumeNonce(nonce)) {
+      if (!(await circuits.consumeNonce(nonce))) {
         response.status(401).json({ error: "Request already used." });
         return;
       }
@@ -217,7 +239,10 @@ app.post("/v1/chat/stream", async (request, response) => {
 
   const ip = request.ip ?? request.socket.remoteAddress ?? "unknown";
   const userId = parsed.data.userId ?? "anonymous";
-  if (!bypassUserIds.has(userId) && ((!signingSecret && !rateLimit(`ip:${ip}`, 120, 60)) || !rateLimit(`user:${userId}`, 120, 60))) {
+  if (
+    !bypassUserIds.has(userId) &&
+    ((!signingSecret && !rateLimit(`ip:${ip}`, 120, 60)) || !rateLimit(`user:${userId}`, 120, 60))
+  ) {
     response.status(429).json({ error: "Proxy rate limit exceeded." });
     return;
   }
@@ -292,7 +317,11 @@ app.post("/v1/chat/stream", async (request, response) => {
         topP: parsed.data.topP,
         frequencyPenalty: parsed.data.frequencyPenalty,
         presencePenalty: parsed.data.presencePenalty,
-        maxTokens: providerOutputTokenBudget(parsed.data.maxTokens, attempt.provider),
+        maxTokens: providerOutputTokenBudget({
+          visibleTokenLimit: parsed.data.maxTokens,
+          provider: attempt.provider,
+          model: attempt.model
+        }),
         maxRetries: primaryKeyCount > 1 ? 0 : undefined,
         key: attempt.key,
         signal: attemptSignal.signal,
@@ -336,16 +365,16 @@ app.post("/v1/chat/stream", async (request, response) => {
       await circuits.success(identity);
 
       writeEvent({
-          type: "usage",
-          inputTokens: usage.inputTokens,
-          outputTokens: usage.outputTokens || estimateTokens(streamed),
-          provider: attempt.providerName,
-          model: attempt.model,
-          usageEstimated: usage.usageEstimated,
-          latencyMs: Date.now() - started,
-          fallbackTriggered: attemptIndex > 0,
-          attempts: attemptLabels
-        });
+        type: "usage",
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens || estimateTokens(streamed),
+        provider: attempt.providerName,
+        model: attempt.model,
+        usageEstimated: usage.usageEstimated,
+        latencyMs: Date.now() - started,
+        fallbackTriggered: attemptIndex > 0,
+        attempts: attemptLabels
+      });
       writeEvent({ type: "done" });
       if (!clientClosed) {
         response.end();
@@ -393,7 +422,9 @@ app.post("/v1/chat/stream", async (request, response) => {
         return;
       }
       streamed = streamed.slice(0, streamedBeforeAttempt);
-      const nextAttempt = attempts.slice(attemptIndex + 1).find((candidate) => !skippedProviders.has(candidate.providerName));
+      const nextAttempt = attempts
+        .slice(attemptIndex + 1)
+        .find((candidate) => !skippedProviders.has(candidate.providerName));
       const canTryAnotherRoute = Boolean(nextAttempt) && isKeyScopedFailure(classified.code);
       if (!classified.retryable && !canTryAnotherRoute) {
         writeEvent({
@@ -420,7 +451,9 @@ app.post("/v1/chat/stream", async (request, response) => {
 
 app.use((error: unknown, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
   const tooLarge = typeof error === "object" && error !== null && "type" in error && error.type === "entity.too.large";
-  response.status(tooLarge ? 413 : 400).json({ error: tooLarge ? "Request body is too large." : "Invalid request body." });
+  response
+    .status(tooLarge ? 413 : 400)
+    .json({ error: tooLarge ? "Request body is too large." : "Invalid request body." });
 });
 
 app.listen(port, () => {
@@ -450,24 +483,30 @@ function routeModel(requested: string, keys: ProviderKeys): GatewayRoute {
 
   if (normalized.includes("claude")) {
     const key = keys.find((item) => item.apiFormat === "ANTHROPIC" || item.provider === "anthropic");
-    return key ? routeFromKey(key, raw) : routeFromAvailableKey(keys) ?? { provider: "anthropic", providerName: "anthropic", model: raw };
+    return key
+      ? routeFromKey(key, raw)
+      : (routeFromAvailableKey(keys) ?? { provider: "anthropic", providerName: "anthropic", model: raw });
   }
 
   if (normalized.includes("gemini")) {
     const key = keys.find((item) => item.apiFormat === "GEMINI" || item.provider === "gemini");
-    return key ? routeFromKey(key, raw) : routeFromAvailableKey(keys) ?? { provider: "gemini", providerName: "gemini", model: raw };
+    return key
+      ? routeFromKey(key, raw)
+      : (routeFromAvailableKey(keys) ?? { provider: "gemini", providerName: "gemini", model: raw });
   }
 
   if (normalized.includes("deepseek")) {
     const key = keys.find((item) => item.provider === "deepseek");
     return key
       ? routeFromKey(key, raw)
-      : routeFromAvailableKey(keys) ?? { provider: "openai-compatible", providerName: "deepseek", model: raw };
+      : (routeFromAvailableKey(keys) ?? { provider: "openai-compatible", providerName: "deepseek", model: raw });
   }
 
   if (normalized.includes("4o") || normalized.includes("gpt-4")) {
     const key = keys.find((item) => item.apiFormat === "OPENAI" || item.provider === "openai");
-    return key ? routeFromKey(key, raw) : routeFromAvailableKey(keys) ?? { provider: "openai", providerName: "openai", model: raw };
+    return key
+      ? routeFromKey(key, raw)
+      : (routeFromAvailableKey(keys) ?? { provider: "openai", providerName: "openai", model: raw });
   }
 
   const defaultKey = keys.find((key) => key.defaultModel) ?? keys[0];
@@ -485,11 +524,18 @@ function routeFromAvailableKey(keys: ProviderKeys) {
 
 function fallbackRoutes(primary: GatewayRoute, keys: ProviderKeys) {
   const routes = keys
-    .filter((key) => key.provider !== primary.providerName && key.fallbackEnabled === true && key.fallbackPriority !== null && key.fallbackPriority !== undefined)
-    .sort((left, right) =>
-      (left.fallbackPriority ?? Number.MAX_SAFE_INTEGER) - (right.fallbackPriority ?? Number.MAX_SAFE_INTEGER) ||
-      left.provider.localeCompare(right.provider) ||
-      (left.providerPriority ?? Number.MAX_SAFE_INTEGER) - (right.providerPriority ?? Number.MAX_SAFE_INTEGER)
+    .filter(
+      (key) =>
+        key.provider !== primary.providerName &&
+        key.fallbackEnabled === true &&
+        key.fallbackPriority !== null &&
+        key.fallbackPriority !== undefined
+    )
+    .sort(
+      (left, right) =>
+        (left.fallbackPriority ?? Number.MAX_SAFE_INTEGER) - (right.fallbackPriority ?? Number.MAX_SAFE_INTEGER) ||
+        left.provider.localeCompare(right.provider) ||
+        (left.providerPriority ?? Number.MAX_SAFE_INTEGER) - (right.providerPriority ?? Number.MAX_SAFE_INTEGER)
     )
     .map((key) => routeFromKey(key, key.defaultModel || "gpt-4o-mini"));
   return routes.filter((route) => route.providerName !== primary.providerName || route.model !== primary.model);
@@ -498,28 +544,29 @@ function fallbackRoutes(primary: GatewayRoute, keys: ProviderKeys) {
 function attemptRoutes(primary: GatewayRoute, keys: ProviderKeys) {
   const sameProvider = keys
     .filter((key) => key.provider === primary.providerName && key.id !== primary.key?.id)
-    .sort((left, right) =>
-      (left.providerPriority ?? Number.MAX_SAFE_INTEGER) - (right.providerPriority ?? Number.MAX_SAFE_INTEGER)
+    .sort(
+      (left, right) =>
+        (left.providerPriority ?? Number.MAX_SAFE_INTEGER) - (right.providerPriority ?? Number.MAX_SAFE_INTEGER)
     )
     .map((key) => routeFromKey(key, primary.model));
   return [primary, ...sameProvider, ...fallbackRoutes(primary, keys)];
 }
 
 function isKeyScopedFailure(code: string) {
-  return code === "invalid_api_key" ||
+  return (
+    code === "invalid_api_key" ||
     code === "insufficient_balance" ||
     code === "prompt_too_large" ||
     code === "rate_limit" ||
     code === "model_unavailable" ||
     code === "provider_unavailable" ||
     code === "network_error" ||
-    code === "provider_error";
+    code === "provider_error"
+  );
 }
 
 function shouldSkipRemainingProviderKeys(code: string) {
-  return code === "model_unavailable" ||
-    code === "provider_unavailable" ||
-    code === "network_error";
+  return code === "model_unavailable" || code === "provider_unavailable" || code === "network_error";
 }
 
 function exhaustedProviderMessage(route: GatewayRoute, keyCount: number, fallbackMessage: string) {
@@ -583,9 +630,7 @@ async function streamProvider(input: {
           apiKey: input.key.apiKey,
           maxRetries: input.maxRetries,
           baseURL:
-            input.provider === "openai"
-              ? input.key.baseUrl || "https://api.openai.com/v1"
-              : requireBaseUrl(input.key)
+            input.provider === "openai" ? input.key.baseUrl || "https://api.openai.com/v1" : requireBaseUrl(input.key)
         })
       : null;
     if (!client) {
@@ -752,11 +797,7 @@ async function streamOpenAI(input: {
     {
       model: input.model,
       messages: input.messages,
-      temperature: input.temperature,
-      top_p: input.topP ?? undefined,
-      frequency_penalty: input.providerName === "deepseek" ? undefined : input.frequencyPenalty ?? undefined,
-      presence_penalty: input.providerName === "deepseek" ? undefined : input.presencePenalty ?? undefined,
-      max_tokens: input.maxTokens ?? undefined,
+      ...openAIResponseOptions(input),
       stream: true,
       stream_options: { include_usage: true }
     },
@@ -776,7 +817,9 @@ async function streamOpenAI(input: {
   }
 
   return {
-    inputTokens: hasProviderUsage ? inputTokens : estimateTokens(input.messages.map((message) => message.content).join("\n")),
+    inputTokens: hasProviderUsage
+      ? inputTokens
+      : estimateTokens(input.messages.map((message) => message.content).join("\n")),
     outputTokens,
     usageEstimated: !hasProviderUsage
   };
@@ -809,7 +852,7 @@ async function streamAnthropic(input: {
   const stream = input.client.messages.stream(
     {
       model: input.model,
-      max_tokens: input.maxTokens ?? 900,
+      max_tokens: await anthropicOutputTokenLimit(input),
       temperature: input.temperature,
       top_p: input.topP ?? undefined,
       system,
@@ -833,7 +876,9 @@ async function streamAnthropic(input: {
   }
 
   return {
-    inputTokens: hasProviderUsage ? inputTokens : estimateTokens(input.messages.map((message) => message.content).join("\n")),
+    inputTokens: hasProviderUsage
+      ? inputTokens
+      : estimateTokens(input.messages.map((message) => message.content).join("\n")),
     outputTokens,
     usageEstimated: !hasProviderUsage
   };
@@ -858,7 +903,7 @@ async function streamGemini(input: {
     generationConfig: {
       temperature: input.temperature,
       topP: input.topP ?? undefined,
-      maxOutputTokens: input.maxTokens ?? undefined
+      ...geminiResponseOptions(input.model, input.maxTokens)
     }
   });
   const contents = input.messages
@@ -867,10 +912,13 @@ async function streamGemini(input: {
       role: message.role === "assistant" ? "model" : "user",
       parts: [{ text: message.content }]
     }));
-  const result = await model.generateContentStream({ contents }, {
-    signal: input.signal,
-    timeout: LLM_PROVIDER_TIMEOUT_MS
-  });
+  const result = await model.generateContentStream(
+    { contents },
+    {
+      signal: input.signal,
+      timeout: LLM_PROVIDER_TIMEOUT_MS
+    }
+  );
 
   for await (const chunk of abortableAsyncIterable(result.stream, input.signal)) {
     const text = chunk.text();
@@ -883,7 +931,8 @@ async function streamGemini(input: {
   const usageMetadata = response.usageMetadata;
 
   return {
-    inputTokens: usageMetadata?.promptTokenCount ?? estimateTokens(input.messages.map((message) => message.content).join("\n")),
+    inputTokens:
+      usageMetadata?.promptTokenCount ?? estimateTokens(input.messages.map((message) => message.content).join("\n")),
     outputTokens: usageMetadata?.candidatesTokenCount ?? 0,
     usageEstimated: !usageMetadata
   };
@@ -895,7 +944,12 @@ function moderatePrompt(messages: ChatMessage[]) {
     return { allowed: false, reason: "Context window limit exceeded." };
   }
 
-  return moderateText(messages.filter((message) => message.role !== "system").map((message) => message.content).join("\n"));
+  return moderateText(
+    messages
+      .filter((message) => message.role !== "system")
+      .map((message) => message.content)
+      .join("\n")
+  );
 }
 
 function moderateText(text: string) {
@@ -939,16 +993,6 @@ function estimateTokens(text: string) {
   return Math.max(1, Math.ceil(text.length / 4));
 }
 
-function providerOutputTokenBudget(visibleTokenLimit: number | null | undefined, provider: GatewayRoute["provider"]) {
-  if (visibleTokenLimit == null) {
-    return undefined;
-  }
-
-  return provider === "gemini"
-    ? Math.min(4_096, visibleTokenLimit + GEMINI_THINKING_TOKEN_RESERVE)
-    : visibleTokenLimit;
-}
-
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -986,11 +1030,7 @@ function createTimeoutSignal(parentSignal: AbortSignal | undefined, timeoutMs: n
   };
 }
 
-function createActivityTimeoutSignal(
-  parentSignal: AbortSignal | undefined,
-  timeoutMs: number,
-  timeoutMessage: string
-) {
+function createActivityTimeoutSignal(parentSignal: AbortSignal | undefined, timeoutMs: number, timeoutMessage: string) {
   const controller = new AbortController();
   let timedOut = false;
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -1065,9 +1105,12 @@ function nextWithAbort<T>(iterator: AsyncIterator<T>, signal: AbortSignal) {
     };
 
     signal.addEventListener("abort", onAbort, { once: true });
-    iterator.next().then(resolve, reject).finally(() => {
-      signal.removeEventListener("abort", onAbort);
-    });
+    iterator
+      .next()
+      .then(resolve, reject)
+      .finally(() => {
+        signal.removeEventListener("abort", onAbort);
+      });
   });
 }
 

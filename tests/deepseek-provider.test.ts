@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { enforceFirstClassProviderConfig, FIRST_CLASS_PROVIDER_PRESETS } from "../src/lib/provider-presets";
+import { openAIResponseOptions } from "../proxy-service/src/response-tokens";
 
 test("DeepSeek is a dedicated first-class provider with its official direct endpoint", () => {
   const preset = FIRST_CLASS_PROVIDER_PRESETS.find((item) => item.provider === "deepseek");
@@ -41,8 +42,19 @@ test("DeepSeek uses the live V4 catalog and omits deprecated penalty parameters"
   assert.match(options, /deepseek-v4-flash/);
   assert.match(options, /deepseek-v4-pro/);
   for (const source of [gateway, proxy]) {
-    assert.match(source, /providerName === "deepseek" \? undefined/);
+    assert.match(source, /openAIResponseOptions\(input\)/);
   }
+  const parameters = openAIResponseOptions({
+    providerName: "deepseek",
+    model: "deepseek-v4-flash",
+    temperature: 0.7,
+    maxTokens: 500,
+    frequencyPenalty: 0.2,
+    presencePenalty: 0.3
+  });
+  assert.equal(parameters.frequency_penalty, undefined);
+  assert.equal(parameters.presence_penalty, undefined);
+  assert.equal(parameters.max_tokens, 500);
 });
 
 test("both built-in and standalone gateways recognize DeepSeek model names", async () => {
