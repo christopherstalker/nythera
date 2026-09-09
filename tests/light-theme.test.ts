@@ -4,7 +4,7 @@ import test from "node:test";
 
 const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
-test("Living Codex is a single permanent dark theme", async () => {
+test("Living Codex remains the default while account appearance can override it", async () => {
   const [tokens, globals, layout, sessionProvider, navRail, settings] = await Promise.all([
     read("../src/styles/design-tokens.css"),
     read("../src/app/globals.css"),
@@ -16,9 +16,10 @@ test("Living Codex is a single permanent dark theme", async () => {
 
   assert.doesNotMatch(tokens, /\.light\s*\{/);
   assert.doesNotMatch(globals, /html\.light/);
-  assert.match(layout, /<html lang="en" className="dark"/);
+  assert.match(layout, /lang="en"[\s\S]*?className=\{`dark \$\{spaceGrotesk\.variable\}`\}/);
   assert.doesNotMatch(layout, /prefers-color-scheme|#E5DCCB/);
-  assert.doesNotMatch(sessionProvider, /ThemeProvider|next-themes|AppearanceProvider/);
+  assert.match(sessionProvider, /AppAppearanceProvider/);
+  assert.match(layout, /initialAppearance/);
   assert.doesNotMatch(navRail, /ThemeToggle|mobile-theme-toggle|Use light theme/);
   assert.doesNotMatch(settings, /Accent color|Choose accent color|\["dark", "light"\]/);
 
@@ -29,7 +30,7 @@ test("Living Codex is a single permanent dark theme", async () => {
   );
 });
 
-test("profile APIs keep the app theme fixed while allowing a profile-only accent", async () => {
+test("public profile accent remains separate from personal app appearance", async () => {
   const [profile, mobileProfile] = await Promise.all([
     read("../src/app/api/profile/route.ts"),
     read("../src/app/api/mobile/profile/route.ts")

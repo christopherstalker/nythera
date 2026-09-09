@@ -11,6 +11,13 @@ export type SettingsSection = {
 
 export const SETTINGS_SECTIONS: SettingsSection[] = [
   {
+    href: "/settings/appearance",
+    label: "Appearance",
+    description: "Personal themes, colors, interface fonts, and surfaces.",
+    icon: Palette,
+    group: "Your identity"
+  },
+  {
     href: "/account",
     label: "Account",
     description: "Profile, avatar, bio, and age-gated access.",

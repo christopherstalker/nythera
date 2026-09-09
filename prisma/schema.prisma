@@ -36,6 +36,7 @@ model User {
   accentColor           String    @default("#8F81F7")
   profileSettings       Json?
   chatAppearance        Json?
+  appAppearance         Json?
   preferredProvider     String?
   preferredModel        String    @default("gpt-4o-mini")
   defaultTemperature    Float     @default(0.7)

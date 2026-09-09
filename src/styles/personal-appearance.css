@@ -1,0 +1,55 @@
+html[data-personal-appearance] {
+  font-size: var(--app-font-size);
+}
+
+html[data-personal-appearance] body,
+.personal-theme-preview {
+  font-family: var(--app-font-family);
+}
+
+html[data-personal-appearance] .living-codex-shell,
+html[data-personal-appearance] .codex-main {
+  background: var(--bg-base);
+}
+
+html[data-personal-appearance] :is(.codex-rail, .codex-mobile-dock) {
+  background: color-mix(in srgb, var(--bg-surface) var(--glass-surface-standard), var(--bg-base));
+  backdrop-filter: blur(var(--glass-blur-md));
+}
+
+html[data-personal-appearance] :is(.glass-card, .studio-provider-card) {
+  border-radius: var(--app-card-radius);
+  background: color-mix(in srgb, var(--bg-surface) var(--glass-surface-standard), transparent);
+  backdrop-filter: blur(var(--glass-blur-md));
+}
+
+html[data-personal-appearance] :is(.glass-input, .glass-textarea, .studio-secondary, .studio-primary, .button) {
+  border-radius: var(--app-control-radius);
+}
+
+html[data-personal-appearance] :is(.studio-presets, .codex-archive-grid) {
+  gap: var(--app-grid-gap);
+}
+
+html[data-personal-appearance] .studio-navigation a {
+  padding-block: var(--app-control-padding);
+}
+
+html[data-personal-appearance] :is(.codex-nav-label:not(.codex-wordmark), .studio-navigation a) {
+  font-family: var(--app-font-family);
+  font-size: 0.8125rem;
+}
+
+html[data-personal-appearance] .codex-rail-link {
+  border-radius: var(--app-control-radius);
+  padding-block: var(--app-control-padding);
+}
+
+html[data-reduce-motion] *,
+html[data-reduce-motion] *::before,
+html[data-reduce-motion] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}

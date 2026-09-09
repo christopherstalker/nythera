@@ -32,25 +32,39 @@ test("brand paths have one TypeScript source of truth and no dynamic favicon ove
     readFile(new URL("../src/components/providers/session-provider.tsx", import.meta.url), "utf8")
   ]);
 
-  for (const name of ["BRAND_ICON_SMALL", "BRAND_ICON_LARGE", "BRAND_ICON_MASKABLE", "BRAND_ICON_APPLE", "BRAND_OG_IMAGE", "BRAND_THEME_COLOR"]) {
+  for (const name of [
+    "BRAND_ICON_SMALL",
+    "BRAND_ICON_LARGE",
+    "BRAND_ICON_MASKABLE",
+    "BRAND_ICON_APPLE",
+    "BRAND_OG_IMAGE",
+    "BRAND_THEME_COLOR"
+  ]) {
     assert.match(brand, new RegExp(`export const ${name}`));
   }
   assert.match(layout, /BRAND_ICON_SMALL/);
   assert.match(manifest, /BRAND_ICON_MASKABLE/);
   assert.match(rail, /BRAND_ICON_SMALL/);
-  assert.doesNotMatch([layout, manifest, rail, session].join("\n"), /updateDynamicFavicon|AppearanceProvider|\/icon\.svg/);
+  assert.doesNotMatch([layout, manifest, rail, session].join("\n"), /updateDynamicFavicon|\/icon\.svg/);
+  const appearance = await readFile(
+    new URL("../src/components/providers/app-appearance-provider.tsx", import.meta.url),
+    "utf8"
+  );
+  assert.doesNotMatch(appearance, /updateDynamicFavicon|rel=.icon|\/icon\.svg/);
 });
 
 test("install icons use cache-busting Living Codex URLs and a fresh service-worker cache", async () => {
-  const sources = await Promise.all([
-    "../src/lib/brand.ts",
-    "../src/app/manifest.ts",
-    "../src/app/layout.tsx",
-    "../src/app/(main)/download/page.tsx",
-    "../src/components/pwa/mobile-install-prompt.tsx",
-    "../public/offline.html",
-    "../public/sw.js"
-  ].map((path) => readFile(new URL(path, import.meta.url), "utf8")));
+  const sources = await Promise.all(
+    [
+      "../src/lib/brand.ts",
+      "../src/app/manifest.ts",
+      "../src/app/layout.tsx",
+      "../src/app/(main)/download/page.tsx",
+      "../src/components/pwa/mobile-install-prompt.tsx",
+      "../public/offline.html",
+      "../public/sw.js"
+    ].map((path) => readFile(new URL(path, import.meta.url), "utf8"))
+  );
   const combined = sources.join("\n");
 
   assert.match(combined, /nythera-codex-v1-192\.png/);
