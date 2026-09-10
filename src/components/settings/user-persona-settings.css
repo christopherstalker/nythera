@@ -7,7 +7,7 @@
 .persona-panel-fields {
   gap: 12px;
 }
-.persona-blocks-compact {
+.persona-blocks.persona-blocks-compact {
   grid-template-columns: minmax(0, 1fr);
   gap: 14px;
 }
@@ -54,7 +54,7 @@
 }
 .persona-blocks {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   align-items: start;
   gap: 18px;
 }

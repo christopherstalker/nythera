@@ -26,5 +26,6 @@ Check these interactions at desktop and mobile widths:
 - Account: saving is disabled without changes, failed save preserves edits, retry succeeds, cancelling edits requires confirmation.
 - Character editor: mobile section selector scrolls to the chosen section.
 - Chat: compact navigation, menu focus, Escape dismissal and return to chats.
+- Persona sidebar: open the actual Story context panel at 1440px and 1920px viewport widths, then at 390px. Appearance, Personality and Traits must stack vertically inside the 420px sidebar, with no clipped headings or horizontal overflow. A mobile viewport alone does not catch desktop CSS cascade regressions. In Settings, narrow containers must also collapse before fields become narrower than 280px.
 
 Use a signed-in local session to verify Settings search and subsection navigation. Screenshots captured from this server use synthetic content, not production account data.
