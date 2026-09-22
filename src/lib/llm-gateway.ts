@@ -4,6 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
 import { classifyProviderError } from "@/lib/llm-provider-errors";
+import { providerErrorDiagnostic } from "../../proxy-service/src/provider-diagnostics";
 import type { ProviderKey, ProviderKeys } from "@/lib/user-keys";
 import type { PromptMessage, StreamChunk } from "@/types";
 import { eligibleFallbackKeys } from "@/lib/provider-fallback";
@@ -12,7 +13,9 @@ import { providerOutputTokenBudget } from "@/lib/response-length";
 import {
   anthropicOutputTokenLimit,
   geminiResponseOptions,
-  openAIResponseOptions
+  openAIResponseOptions,
+  openRouterRoutingBody,
+  providerSdkMaxRetries
 } from "../../proxy-service/src/response-tokens";
 import { logSafeError } from "@/lib/secret-redaction";
 import {
@@ -85,12 +88,14 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
   let contextRetried = false;
   const started = Date.now();
   const attemptLabels: string[] = [];
+  const failureMessages = new Set<string>();
   const skippedProviders = new Set<string>();
   const gatewayDeadline = createTimeoutSignal(input.signal, LLM_PROVIDER_TIMEOUT_MS, "Provider request timed out.");
 
   try {
     for (const [index, attempt] of attempts.entries()) {
       if (gatewayDeadline.signal.aborted) {
+        lastError = gatewayDeadline.signal.reason;
         break;
       }
       if (skippedProviders.has(attempt.providerName)) {
@@ -123,7 +128,7 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
             provider: attempt.provider,
             model: attempt.model
           }),
-          maxRetries: primaryKeyCount > 1 ? 0 : undefined,
+          maxRetries: providerSdkMaxRetries(attempt.providerName, primaryKeyCount),
           key: attempt.key,
           signal: attemptSignal.signal,
           writeDelta(delta) {
@@ -191,7 +196,9 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
         }
 
         lastError =
-          attemptSignal.timedOut() || gatewayDeadline.timedOut() ? new Error("Provider request timed out.") : error;
+          attemptSignal.timedOut() || gatewayDeadline.timedOut()
+            ? new Error("Provider request timed out.", { cause: error })
+            : error;
         const classified = classifyProviderError(lastError);
         if (!observeOnly) {
           setKeyCooldown(attempt.key, classified.code);
@@ -209,9 +216,16 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
         if (shouldSkipRemainingProviderKeys(classified.code)) {
           skippedProviders.add(attempt.providerName);
         }
+        failureMessages.add(exhaustedProviderMessage(attempt, classified.message));
         logSafeError(
-          `LLM provider attempt failed (${attempt.providerName}:${attempt.model}, key slot ${(attempt.key?.providerPriority ?? 0) + 1}, ${classified.code}).`,
-          lastError
+          "[AI Provider Error]",
+          providerErrorDiagnostic(lastError, classified, {
+            provider: attempt.providerName,
+            model: attempt.model,
+            stage: emittedText ? "stream" : "request",
+            durationMs: Date.now() - attemptStarted,
+            credentialPresent: Boolean(attempt.key?.apiKey)
+          })
         );
         logPerformanceMetric("llm_provider_attempt", {
           route: "chat:gateway",
@@ -224,7 +238,13 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
           latencyMs: Date.now() - attemptStarted
         });
         if (emittedText) {
-          yield { type: "error", message: "The model stream was interrupted." };
+          yield {
+            type: "error",
+            message:
+              classified.code === "content_blocked"
+                ? [...failureMessages].join("\n\n")
+                : "The model stream was interrupted."
+          };
           return;
         }
         const nextAttempt = attempts
@@ -234,7 +254,7 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
         if (!classified.retryable && !canTryAnotherRoute) {
           yield {
             type: "error",
-            message: exhaustedProviderMessage(attempt, classified.message)
+            message: [...failureMessages].join("\n\n")
           };
           return;
         }
@@ -247,7 +267,12 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
   }
 
   const classified = classifyProviderError(lastError);
-  yield { type: "error", message: exhaustedProviderMessage(lastAttempt, classified.message) };
+  yield {
+    type: "error",
+    message: failureMessages.size
+      ? [...failureMessages].join("\n\n")
+      : exhaustedProviderMessage(lastAttempt, classified.message)
+  };
 }
 
 export async function createGatewayEmbedding(text: string, providerKeys?: ProviderKeys) {
@@ -424,7 +449,10 @@ function setKeyCooldown(key: ProviderKey | undefined, code: ReturnType<typeof cl
       ? 5 * 60_000
       : code === "invalid_api_key" || code === "insufficient_balance"
         ? 15 * 60_000
-        : code === "provider_unavailable" || code === "network_error" || code === "provider_error"
+        : code === "provider_unavailable" ||
+            code === "network_error" ||
+            code === "provider_timeout" ||
+            code === "provider_error"
           ? 30_000
           : 0;
   if (duration > 0) keyCooldowns.set(identity, Date.now() + duration);
@@ -444,6 +472,7 @@ function isKeyScopedFailure(code: ReturnType<typeof classifyProviderError>["code
     code === "model_unavailable" ||
     code === "provider_unavailable" ||
     code === "network_error" ||
+    code === "provider_timeout" ||
     code === "provider_error"
   );
 }
@@ -453,7 +482,8 @@ function shouldSkipRemainingProviderKeys(code: ReturnType<typeof classifyProvide
     code === "prompt_too_large" ||
     code === "model_unavailable" ||
     code === "provider_unavailable" ||
-    code === "network_error"
+    code === "network_error" ||
+    code === "provider_timeout"
   );
 }
 
@@ -462,7 +492,7 @@ function exhaustedProviderMessage(route: GatewayRoute, fallbackMessage: string) 
   return `${provider}: ${fallbackMessage}`;
 }
 
-function parseExplicitProviderModel(requested: string, keys: ProviderKeys) {
+function parseExplicitProviderModel(requested: string, keys: ProviderKeys): GatewayRoute | null {
   const separator = requested.indexOf(":");
   if (separator <= 0) {
     return null;
@@ -471,10 +501,12 @@ function parseExplicitProviderModel(requested: string, keys: ProviderKeys) {
   const provider = requested.slice(0, separator).trim().toLowerCase();
   const model = requested.slice(separator + 1).trim();
   const key = keys.find((item) => item.provider === provider);
-  if (!key || !model) {
-    return null;
+  if (!model) return null;
+  if (!key) {
+    const adapter =
+      provider === "gemini" || provider === "anthropic" || provider === "openai" ? provider : "openai-compatible";
+    return { provider: adapter, providerName: provider, model };
   }
-
   return routeFromKey(key, model);
 }
 
@@ -524,11 +556,13 @@ async function streamProvider(input: {
         client: new OpenAI({
           apiKey: input.key.apiKey,
           baseURL,
+          timeout: LLM_PROVIDER_TIMEOUT_MS,
           maxRetries: input.maxRetries,
           defaultHeaders:
             input.key.provider === "openrouter"
               ? {
                   "HTTP-Referer": CANONICAL_SITE_ORIGIN,
+                  "X-Title": "Nythera",
                   "X-OpenRouter-Title": "Nythera"
                 }
               : undefined
@@ -637,6 +671,7 @@ async function* streamOpenAI(input: {
         };
       }),
       ...openAIResponseOptions(input),
+      ...openRouterRoutingBody(input.providerName),
       stream: true,
       stream_options: { include_usage: true }
     },
@@ -761,6 +796,8 @@ async function* streamGemini(input: {
       timeout: LLM_PROVIDER_TIMEOUT_MS
     }
   );
+  // The SDK aggregates a second stream branch even when the consumer aborts or parsing fails.
+  void result.response.catch(() => undefined);
 
   for await (const chunk of result.stream) {
     const text = chunk.text();

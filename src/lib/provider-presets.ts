@@ -9,6 +9,7 @@ export type ProviderPreset = {
   baseUrl: string;
   defaultModel: string;
   placeholder: string;
+  description?: string;
 };
 
 export const FIRST_CLASS_PROVIDER_PRESETS: ProviderPreset[] = [
@@ -45,6 +46,33 @@ export const FIRST_CLASS_PROVIDER_PRESETS: ProviderPreset[] = [
     placeholder: "sk-or-v1-..."
   },
   {
+    provider: "vercel",
+    displayName: "Vercel AI Gateway",
+    apiFormat: "OPENAI_COMPATIBLE",
+    baseUrl: "https://ai-gateway.vercel.sh/v1",
+    defaultModel: defaultModelForProvider("vercel"),
+    placeholder: "AI Gateway API key",
+    description: "Use an AI Gateway API key from Vercel. One key connects models from multiple providers."
+  },
+  {
+    provider: "together",
+    displayName: "Together AI",
+    apiFormat: "OPENAI_COMPATIBLE",
+    baseUrl: "https://api.together.ai/v1",
+    defaultModel: defaultModelForProvider("together"),
+    placeholder: "Together AI API key",
+    description: "Connect hosted open models with your Together AI API key."
+  },
+  {
+    provider: "fireworks",
+    displayName: "Fireworks AI",
+    apiFormat: "OPENAI_COMPATIBLE",
+    baseUrl: "https://api.fireworks.ai/inference/v1",
+    defaultModel: defaultModelForProvider("fireworks"),
+    placeholder: "Fireworks AI API key",
+    description: "Connect hosted open models with your Fireworks AI API key."
+  },
+  {
     provider: "deepseek",
     displayName: "DeepSeek",
     apiFormat: "OPENAI_COMPATIBLE",
@@ -78,7 +106,7 @@ export const FIRST_CLASS_PROVIDER_PRESETS: ProviderPreset[] = [
   }
 ];
 
-type ProviderConfig = Omit<ProviderPreset, "placeholder">;
+type ProviderConfig = Omit<ProviderPreset, "placeholder" | "description">;
 
 export function enforceFirstClassProviderConfig<T extends ProviderConfig>(input: T): T | ProviderConfig {
   const provider = input.provider.trim().toLowerCase();
@@ -88,6 +116,6 @@ export function enforceFirstClassProviderConfig<T extends ProviderConfig>(input:
     return input;
   }
 
-  const { placeholder: _placeholder, ...config } = preset;
+  const { placeholder: _placeholder, description: _description, ...config } = preset;
   return config;
 }

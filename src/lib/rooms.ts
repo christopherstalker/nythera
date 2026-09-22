@@ -22,11 +22,10 @@ import { ensureStoryForRoom, getRoomStoryPromptContext, syncRoomTurns } from "@/
 import { markStoryBeatsCompleted, markStoryProactiveEventsFired } from "@/lib/stories/narrative-store";
 import { logSafeError } from "@/lib/secret-redaction";
 import { resolveChatOutputTokenLimit } from "@/lib/response-length";
-import { renderCharacterGreeting, renderInitialRoomGreeting } from "@/lib/character-prompt-contract";
+import { renderInitialRoomGreeting } from "@/lib/character-prompt-contract";
 import { renderCharacterPrologue } from "@/lib/prologue-pov";
 import { buildPhysicalMemoryContext } from "@/lib/memory/promptBuilder";
 import { createPhysicalContinuityOutputGuard } from "@/lib/physical-continuity";
-import { selectCustomPrompt } from "@/lib/response-prompt";
 
 type RoomUser = {
   id: string;
@@ -140,7 +139,6 @@ export async function createRoomForUser(user: RoomUser, input: RoomInput) {
       .map((character) => character.name)
       .slice(0, 3)
       .join(", ");
-  const userPersona = formatUserPersonaForPrompt(defaultPersona);
 
   const created = await prisma.$transaction(async (tx) => {
     const room = await tx.room.create({
@@ -171,10 +169,11 @@ export async function createRoomForUser(user: RoomUser, input: RoomInput) {
             role: RoomMessageRole.CHARACTER,
             characterId: character.id,
             content: renderCharacterPrologue({
-              greeting: renderCharacterGreeting(character, userPersona),
+              greeting: character.greeting,
               characterName: character.name,
               communicationStyle: character.communicationStyle,
-              userPersonaName: defaultPersona?.displayName
+              userPersonaName: defaultPersona?.displayName,
+              userPersonaSurname: defaultPersona?.surname
             }),
             model: room.model
           }
@@ -374,8 +373,7 @@ export async function sendRoomMessage(input: {
   const physicalOutputGuard = createPhysicalContinuityOutputGuard(
     speaker,
     formatUserPersonaContinuitySource(userPersona as UserPersona | null) ?? userPersonaPrompt,
-    { recentMessages, currentMessage: message, persistentPlayerContext: physicalContext },
-    { enabled: !selectCustomPrompt(room.responsePrompt, speaker.systemPromptOverride) }
+    { recentMessages, currentMessage: message, persistentPlayerContext: physicalContext }
   );
 
   let assistantText = "";

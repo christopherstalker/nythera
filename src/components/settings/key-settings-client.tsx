@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { ArrowDown, ArrowUp, Copy, Eye, EyeOff, ListOrdered, RefreshCw, Save, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { LocalModelPanel } from "@/components/settings/local-model-panel";
 import { defaultModelForProvider, modelSuggestionsForProvider } from "@/lib/provider-model-options";
 import { FIRST_CLASS_PROVIDER_PRESETS, type ProviderApiFormat } from "@/lib/provider-presets";
 
@@ -410,6 +411,7 @@ export function KeySettingsClient({
 
   return (
     <div className="grid gap-4">
+      <LocalModelPanel />
       {onboarding ? (
         <section
           className="glass-card border-[var(--accent-purple)]/40 p-5"
@@ -593,6 +595,9 @@ export function KeySettingsClient({
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h3 className="text-sm font-semibold text-[var(--text-primary)]">{provider.displayName}</h3>
+                  {provider.description ? (
+                    <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{provider.description}</p>
+                  ) : null}
                   <p className="mt-1 text-xs text-[var(--text-muted)]">
                     {savedKeys.length > 0
                       ? `${savedKeys.length} saved ${savedKeys.length === 1 ? "key" : "keys"} · tried in the order shown`
@@ -785,7 +790,9 @@ export function KeySettingsClient({
           <h3 className="text-sm font-semibold text-[var(--text-primary)]">Add custom provider endpoint</h3>
           <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
             Connect a provider hosted at a public HTTPS address. Requests run on Nythera&apos;s servers, so localhost
-            and private network addresses cannot be reached. OpenRouter has a dedicated card above.
+            and private network addresses cannot be reached. OpenRouter, Vercel AI Gateway, Together AI, and Fireworks
+            AI have dedicated cards above. Other OpenAI-compatible gateways, including a hosted LiteLLM proxy, can use
+            this form with their base URL, API key, and model ID.
           </p>
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             <Input

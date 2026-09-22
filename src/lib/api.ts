@@ -39,6 +39,7 @@ export async function requireUser() {
       compactMode: true,
       notificationsEnabled: true,
       unlimitedCharacterFields: true,
+      authVersion: true,
       preferredProvider: true,
       preferredModel: true,
       defaultTemperature: true,
@@ -70,9 +71,7 @@ export function requirePlatformAdmin(user: { email: string }) {
 
 export function getRequestIp(request: Request) {
   return (
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    request.headers.get("x-real-ip") ??
-    "127.0.0.1"
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? request.headers.get("x-real-ip") ?? "127.0.0.1"
   );
 }
 
@@ -83,9 +82,7 @@ export function json(data: unknown, init?: ResponseInit) {
 export function routeError(error: unknown) {
   if (error instanceof RateLimitError) {
     const headers =
-      error.status === 429 && error.retryAfterSeconds
-        ? { "Retry-After": String(error.retryAfterSeconds) }
-        : undefined;
+      error.status === 429 && error.retryAfterSeconds ? { "Retry-After": String(error.retryAfterSeconds) } : undefined;
     return json({ error: error.message }, { status: error.status, headers });
   }
 
@@ -94,7 +91,10 @@ export function routeError(error: unknown) {
   }
 
   if (error instanceof ZodError) {
-    return json({ error: error.issues[0]?.message ?? "Invalid request body.", issues: error.flatten() }, { status: 400 });
+    return json(
+      { error: error.issues[0]?.message ?? "Invalid request body.", issues: error.flatten() },
+      { status: 400 }
+    );
   }
 
   logSafeError("Unexpected route error.", error);

@@ -134,6 +134,12 @@ async function fetchLiveCatalog(key: ProviderKey): Promise<ProviderModelDiscover
     throw new Error("The provider does not expose a model catalog URL.");
   }
   const safeBaseUrl = await assertSafeOutboundUrl(baseUrl);
+  if (new URL(safeBaseUrl).hostname === "ai-gateway.vercel.sh") {
+    // The public model catalog does not authenticate Gateway keys.
+    await fetchProviderJson(`${new URL(safeBaseUrl).origin}/v1/credits`, {
+      authorization: `Bearer ${key.apiKey}`
+    });
+  }
   if (key.provider === "openrouter") {
     await fetchProviderJson(`${safeBaseUrl.replace(/\/+$/, "")}/auth/key`, {
       authorization: `Bearer ${key.apiKey}`

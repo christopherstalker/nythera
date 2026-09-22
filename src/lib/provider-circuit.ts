@@ -86,9 +86,10 @@ export async function recordProviderFailure(identity: CircuitIdentity, code: Pro
 
   const current = memoryCircuits.get(circuitKey);
   const failures = !current || current.failureWindowEndsAt <= now ? 1 : current.failures + 1;
-  const openUntil = policy.openImmediately || failures >= FAILURE_THRESHOLD
-    ? now + policy.cooldownSeconds * 1000
-    : current?.openUntil ?? 0;
+  const openUntil =
+    policy.openImmediately || failures >= FAILURE_THRESHOLD
+      ? now + policy.cooldownSeconds * 1000
+      : (current?.openUntil ?? 0);
   memoryCircuits.set(circuitKey, {
     failures,
     failureWindowEndsAt: now + FAILURE_WINDOW_SECONDS * 1000,
@@ -103,7 +104,12 @@ function failurePolicy(code: ProviderErrorCode) {
   if (code === "rate_limit") {
     return { cooldownSeconds: 5 * 60, openImmediately: false };
   }
-  if (code === "provider_unavailable" || code === "network_error" || code === "provider_error") {
+  if (
+    code === "provider_unavailable" ||
+    code === "network_error" ||
+    code === "provider_timeout" ||
+    code === "provider_error"
+  ) {
     return { cooldownSeconds: 60, openImmediately: false };
   }
   return null;
@@ -128,10 +134,12 @@ function failuresKey(circuitKey: string) {
 }
 
 function logCircuitStoreFailure(operation: string, error: unknown) {
-  console.warn(JSON.stringify({
-    level: "warn",
-    event: "guardian_circuit_store_error",
-    operation,
-    error: error instanceof Error ? error.message : String(error)
-  }));
+  console.warn(
+    JSON.stringify({
+      level: "warn",
+      event: "guardian_circuit_store_error",
+      operation,
+      error: error instanceof Error ? error.message : String(error)
+    })
+  );
 }

@@ -28,14 +28,13 @@ type MeasurementPattern = {
 
 export function createPlayerMeasurementRedactor(userPersona?: string | null) {
   const patterns = collectMeasurementPatterns(userPersona ?? "");
-  const personaNgrams = collectDistinctiveNgrams(userPersona ?? "");
 
   return {
     redactAssistant(value: string) {
-      return removeContaminatedParagraphs(value, patterns, personaNgrams);
+      return removeContaminatedParagraphs(value, patterns);
     },
     redactSummary(value?: string | null) {
-      if (!value || (patterns.length === 0 && personaNgrams.length === 0)) return value;
+      if (!value) return value;
 
       return value
         .split("\n")
@@ -43,7 +42,7 @@ export function createPlayerMeasurementRedactor(userPersona?: string | null) {
           const assistantLine = /^(\s*ASSISTANT:\s*)(.*)$/i.exec(line);
           if (!assistantLine) return line;
 
-          const cleaned = removeContaminatedParagraphs(assistantLine[2], patterns, personaNgrams);
+          const cleaned = removeContaminatedParagraphs(assistantLine[2], patterns);
           return cleaned ? `${assistantLine[1]}${cleaned}` : null;
         })
         .filter((line): line is string => line !== null)
@@ -69,7 +68,8 @@ export function buildNarrationOutputGuardLayer() {
 function collectMeasurementPatterns(value: string): MeasurementPattern[] {
   const patterns: MeasurementPattern[] = [];
   const seen = new Set<string>();
-  const measurementPattern = /~?(\d{1,3}(?:[.,]\d+)?)\s*(cm|centimet(?:er|re)s?|ft|foot|feet|in|inch(?:es)?|kg|kilograms?|lbs?|pounds?)\b/gi;
+  const measurementPattern =
+    /~?(\d{1,3}(?:[.,]\d+)?)\s*(cm|centimet(?:er|re)s?|ft|foot|feet|in|inch(?:es)?|kg|kilograms?|lbs?|pounds?)\b/gi;
 
   for (const match of value.matchAll(measurementPattern)) {
     const rawNumber = match[1];
@@ -83,65 +83,22 @@ function collectMeasurementPatterns(value: string): MeasurementPattern[] {
     const escapedNumber = escapeRegExp(rawNumber).replace("\\,", "[.,]").replace("\\.", "[.,]");
     const integer = Number.isInteger(Number(normalizedNumber)) ? Number(normalizedNumber) : null;
     const writtenNumber = integer === null ? null : numberToEnglishWords(integer);
-    const writtenPattern = writtenNumber
-      ? writtenNumber.split(" ").map(escapeRegExp).join("(?:-|\\s)+")
-      : null;
+    const writtenPattern = writtenNumber ? writtenNumber.split(" ").map(escapeRegExp).join("(?:-|\\s)+") : null;
 
     patterns.push({
       numeric: new RegExp(`\\b~?${escapedNumber}\\s*${unitPattern}\\b`, "gi"),
-      written: writtenPattern
-        ? new RegExp(`\\b${writtenPattern}(?:-|\\s)+${unitPattern}\\b`, "gi")
-        : undefined
+      written: writtenPattern ? new RegExp(`\\b${writtenPattern}(?:-|\\s)+${unitPattern}\\b`, "gi") : undefined
     });
   }
 
   return patterns;
 }
 
-function removeContaminatedParagraphs(value: string, patterns: MeasurementPattern[], personaNgrams: string[]) {
+function removeContaminatedParagraphs(value: string, patterns: MeasurementPattern[]) {
   return value
     .split(/\n{2,}/)
-    .filter((paragraph) => !containsMeasurementEcho(paragraph, patterns) && !containsPersonaRecital(paragraph, personaNgrams))
+    .filter((paragraph) => !containsMeasurementEcho(paragraph, patterns))
     .join("\n\n")
-    .trim();
-}
-
-function collectDistinctiveNgrams(value: string) {
-  const ngrams = new Set<string>();
-
-  for (const line of value.split(/[\r\n]+/)) {
-    const tokens = normalizeForComparison(line).split(" ").filter(Boolean);
-    for (let index = 0; index <= tokens.length - 3; index += 1) {
-      const phrase = tokens.slice(index, index + 3);
-      if (phrase.filter((token) => token.length >= 4).length < 2) continue;
-      if (phrase.some((token) => /^\d+$/.test(token))) continue;
-      ngrams.add(phrase.join(" "));
-      if (ngrams.size >= 256) return [...ngrams];
-    }
-  }
-
-  return [...ngrams];
-}
-
-function containsPersonaRecital(value: string, personaNgrams: string[]) {
-  if (personaNgrams.length === 0) return false;
-
-  const normalized = ` ${normalizeForComparison(value)} `;
-  let matches = 0;
-
-  for (const phrase of personaNgrams) {
-    if (!normalized.includes(` ${phrase} `)) continue;
-    matches += 1;
-    if (matches >= 2) return true;
-  }
-
-  return matches === 1 && /\b(?:awe|fear|intimidat\w*|nervous\w*|shrink\w*|stare\w*|swallow\w*|silent|silence|quiet|breathless\w*)\b/i.test(value);
-}
-
-function normalizeForComparison(value: string) {
-  return value
-    .toLocaleLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim();
 }
 
@@ -161,7 +118,28 @@ function numberToEnglishWords(value: number): string | null {
   if (!Number.isInteger(value) || value < 0 || value > 999) return null;
   if (value === 0) return "zero";
 
-  const ones = ["", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
+  const ones = [
+    "",
+    "one",
+    "two",
+    "three",
+    "four",
+    "five",
+    "six",
+    "seven",
+    "eight",
+    "nine",
+    "ten",
+    "eleven",
+    "twelve",
+    "thirteen",
+    "fourteen",
+    "fifteen",
+    "sixteen",
+    "seventeen",
+    "eighteen",
+    "nineteen"
+  ];
   const tens = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
   const words: string[] = [];
   let remainder = value;

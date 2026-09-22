@@ -1,7 +1,8 @@
-const { app, BrowserWindow, Menu, session, shell } = require("electron");
+const { app, BrowserWindow, Menu, session, shell, ipcMain } = require("electron");
+const { installLocalModelBridge } = require("./local-model.cjs");
 const path = require("path");
 
-const SITE_URL = process.env.NYTHERA_SITE_URL || "https://nythera-ai-character-platform.vercel.app";
+const SITE_URL = process.env.NYTHERA_SITE_URL || "https://www.nythera.art";
 const SITE_ORIGIN = new URL(SITE_URL).origin;
 const isMac = process.platform === "darwin";
 
@@ -33,9 +34,9 @@ function createWindow() {
   });
 
   window.webContents.on("will-navigate", (event, url) => {
-    if (!url.startsWith(SITE_URL)) {
+    if (new URL(url).origin !== SITE_ORIGIN) {
       event.preventDefault();
-      shell.openExternal(url);
+      if (["http:", "https:"].includes(new URL(url).protocol)) shell.openExternal(url);
     }
   });
 
@@ -106,12 +107,12 @@ function configurePermissions() {
       return false;
     }
   };
-  const isAudioRequest = (permission, mediaTypes = []) =>
-    permission === "media" && mediaTypes.includes("audio");
+  const isAudioRequest = (permission, mediaTypes = []) => permission === "media" && mediaTypes.includes("audio");
 
-  session.defaultSession.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) =>
-    isTrustedOrigin(requestingOrigin || webContents?.getURL() || "") &&
-    isAudioRequest(permission, details?.mediaTypes)
+  session.defaultSession.setPermissionCheckHandler(
+    (webContents, permission, requestingOrigin, details) =>
+      isTrustedOrigin(requestingOrigin || webContents?.getURL() || "") &&
+      isAudioRequest(permission, details?.mediaTypes)
   );
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
     callback(isTrustedOrigin(webContents.getURL()) && isAudioRequest(permission, details?.mediaTypes));
@@ -119,6 +120,7 @@ function configurePermissions() {
 }
 
 app.whenReady().then(() => {
+  installLocalModelBridge(ipcMain, SITE_ORIGIN);
   configurePermissions();
   const mainWindow = createWindow();
   buildMenu(mainWindow);

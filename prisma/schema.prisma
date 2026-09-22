@@ -78,6 +78,54 @@ model User {
   roomMemberships     RoomMember[]
   roomMessages        RoomMessage[]
   savedTags           UserTag[]
+  integrationGrants   IntegrationGrant[]
+  integrationCodes    IntegrationCode[]
+}
+
+model IntegrationClient {
+  id           String   @id @default(cuid())
+  name         String
+  redirectUris String[]
+  createdAt    DateTime @default(now())
+  grants       IntegrationGrant[]
+  codes        IntegrationCode[]
+}
+
+model IntegrationGrant {
+  id               String   @id @default(cuid())
+  userId           String
+  clientId         String?
+  name             String
+  scopes           String[]
+  resource         String
+  authVersion      Int
+  tokenHash        String   @unique
+  refreshHash      String?  @unique
+  expiresAt        DateTime
+  refreshExpiresAt DateTime?
+  revokedAt        DateTime?
+  createdAt        DateTime @default(now())
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client           IntegrationClient? @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model IntegrationCode {
+  id            String   @id @default(cuid())
+  codeHash      String   @unique
+  userId        String
+  clientId      String
+  redirectUri   String
+  challenge     String
+  scopes        String[]
+  resource      String
+  authVersion   Int
+  expiresAt     DateTime
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client        IntegrationClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
 }
 
 model Account {
@@ -355,6 +403,7 @@ model Chat {
   memories         Memory[]
   shares           ChatShare[]
   mediaAssets      MediaAsset[]
+  localGenerations LocalGeneration[]
 
   @@index([userId, archivedAt, lastActiveAt(sort: Desc), updatedAt(sort: Desc)], map: "chat_user_archive_activity_idx")
   @@index([characterId])
@@ -497,10 +546,30 @@ model Message {
   storyFacts  StoryFact[]         @relation("StoryFactSourceMessage")
   memories    Memory[]            @relation("MemorySourceMessage")
   attachments MessageAttachment[]
+  contextTrace ChatContextTrace?
 
   @@unique([chatId, sequence])
   @@index([chatId, createdAt, sequence, id], map: "message_chat_created_sequence_id_idx")
   @@index([chatId, branchSourceMessageId])
+}
+
+model ChatContextTrace {
+  messageId String @id
+  snapshot Json
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+}
+
+model LocalGeneration {
+  id String @id @default(cuid())
+  userId String
+  chatId String
+  lastMessageId String
+  payload Json
+  expiresAt DateTime
+  completedMessageId String?
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
 }
 
 model MediaAsset {

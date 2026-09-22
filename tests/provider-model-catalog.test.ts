@@ -54,7 +54,10 @@ test("personal BYOK requests bypass only Nythera's token-cost budget", async () 
   assert.match(keys, /isUserOwnedProvider/);
   assert.match(keys, /credentialStatus: \{ not: "INVALID" \}/);
   for (const source of [web, mobile]) {
-    assert.match(source, /if \(!isUserOwnedProvider\(effectiveSettings\.provider, providerKeys\)\)/);
+    assert.match(
+      source,
+      /if \((?:!input\.localModel && )?!isUserOwnedProvider\(effectiveSettings\.provider, providerKeys\)\)/
+    );
     assert.match(source, /route: "chat:stream"|route: "mobile:chat:message"/);
   }
 });

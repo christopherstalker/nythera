@@ -12,6 +12,8 @@ import {
 } from "react";
 import Image from "next/image";
 import { ChatInput } from "@/components/chat/ChatInput";
+import { ChatSessionTools } from "@/components/chat/chat-session-tools";
+import { saveLocalModel } from "@/lib/local-model";
 import { MusicEmbedPlayer } from "@/components/music/MusicEmbedPlayer";
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { MessageList } from "@/components/chat/MessageList";
@@ -100,6 +102,7 @@ export function ChatClient({
   const [providerModels, setProviderModels] = useState<ProviderModelCatalog>({});
   const [rejectedProviderIds, setRejectedProviderIds] = useState<string[]>([]);
   const [providerKeysLoading, setProviderKeysLoading] = useState(true);
+  const [providerRevision, setProviderRevision] = useState(0);
   const [modelCatalogStatus, setModelCatalogStatus] = useState<string | null>(null);
   const persistedApiRef = useRef({
     model: initialModel || "gpt-4o-mini",
@@ -120,6 +123,7 @@ export function ChatClient({
     pinMessage,
     unpinMessage,
     isStreaming,
+    stopGeneration,
     refreshing,
     loadingEarlier,
     hasEarlierMessages,
@@ -493,7 +497,13 @@ export function ChatClient({
       cancelled = true;
       controller.abort();
     };
-  }, [chatId]);
+  }, [chatId, providerRevision]);
+
+  useEffect(() => {
+    const refresh = () => setProviderRevision((revision) => revision + 1);
+    window.addEventListener("nythera:provider-keys-updated", refresh);
+    return () => window.removeEventListener("nythera:provider-keys-updated", refresh);
+  }, []);
 
   useEffect(() => {
     if (providerKeysLoading) {
@@ -520,6 +530,7 @@ export function ChatClient({
   }, [model, providerKeysLoading, providerModelGroups]);
 
   const handleModelChange = useCallback((value: string) => {
+    saveLocalModel(null);
     setModel(value);
   }, []);
 
@@ -862,6 +873,15 @@ export function ChatClient({
             readingMode={readingMode}
           />
           <div className={readingMode ? "hidden" : "contents"} aria-hidden={readingMode}>
+            <ChatSessionTools
+              chatId={chatId}
+              messageId={activeAssistantMessageId}
+              firstScene={!messages.some((message) => message.role === "USER")}
+              onDraft={setDraft}
+              onModel={handleModelChange}
+              streaming={isStreaming}
+              onStop={stopGeneration}
+            />
             <ChatInput
               chatId={chatId}
               value={draft}

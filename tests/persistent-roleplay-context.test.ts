@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { fitPromptMessagesWithinContext, historyTokenBudget, promptContextWindow, selectNewestHistoryWithinBudget } from "../src/lib/prompt-budget";
+import {
+  fitPromptMessagesWithinContext,
+  historyTokenBudget,
+  promptContextWindow,
+  selectNewestHistoryWithinBudget
+} from "../src/lib/prompt-budget";
 import { modelContextWindow, UNKNOWN_MODEL_CONTEXT_WINDOW } from "../src/lib/provider-model-options";
 import { buildConversationSummary } from "../src/lib/conversation-summary";
 import { buildPhysicalContinuityLayer } from "../src/lib/physical-continuity";
@@ -10,10 +15,19 @@ const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
 test("custom prompt replaces the fixed Roleplay Engine after factual context", async () => {
   const source = await read("../src/lib/prompt-assembly.ts");
-  assert.match(source, /const contextLayers = \[[\s\S]*safetyLayer,[\s\S]*characterContractLayer,[\s\S]*storyContextLayer,[\s\S]*memoryLayer[\s\S]*\];/);
-  assert.match(source, /const behaviorLayers = customPromptLayer[\s\S]*\? \[customPromptLayer\][\s\S]*: \[roleplayEngineLayer, modeLayer\]/);
-  assert.match(source, /const system = \[\.\.\.contextLayers, \.\.\.behaviorLayers, physicalContinuityLayer, translationLayer\]/);
-  assert.match(source, /Address the player only as you/);
+  assert.match(
+    source,
+    /const contextLayers = \[[\s\S]*safetyLayer,[\s\S]*characterContractLayer,[\s\S]*storyContextLayer,[\s\S]*memoryLayer[\s\S]*\];/
+  );
+  assert.match(
+    source,
+    /const behaviorLayers = customPromptLayer[\s\S]*\? \[customPromptLayer\][\s\S]*: \[roleplayEngineLayer, modeLayer\]/
+  );
+  assert.match(
+    source,
+    /const systemLayers = customPromptLayer\s*\? \[\.\.\.contextLayers, userPersonaLayer, physicalContinuityLayer, customPromptLayer\]/
+  );
+  assert.match(source, /In narration, address the player in second person/);
   assert.match(source, /use only the identity and pronouns explicitly authorized by the active player persona/);
   assert.match(source, /Secondary characters stay alive/);
   assert.match(source, /do not wait to be addressed/);
@@ -24,7 +38,10 @@ test("custom prompt replaces the fixed Roleplay Engine after factual context", a
 
 test("applicable pinned memories must visibly constrain the current response", async () => {
   const source = await read("../src/lib/prompt-assembly.ts");
-  assert.match(source, /Every applicable pinned fact must materially constrain at least one choice, reaction, attitude, or concrete detail/);
+  assert.match(
+    source,
+    /Every applicable pinned fact must materially constrain at least one choice, reaction, attitude, or concrete detail/
+  );
   assert.match(source, /include a restrained observable cue when relevant/);
   assert.match(source, /Vary how recurring memories surface/);
   assert.doesNotMatch(source, /Memory may influence relationships and behavior/);
@@ -44,8 +61,14 @@ test("Extended Prompt persists as an account default and new chats inherit it", 
   assert.match(schema, /summaryThroughSequence\s+Int\s+@default\(0\)/);
   assert.match(migration, /DISTINCT ON \("userId"\)/);
   assert.match(migration, /btrim\("responsePrompt"\) <> ''/);
-  assert.match(patchRoute, /defaultResponsePrompt: input\.responsePrompt === undefined \? undefined : input\.responsePrompt \|\| null/);
-  assert.match(mobilePatch, /defaultResponsePrompt: input\.responsePrompt === undefined \? undefined : input\.responsePrompt \|\| null/);
+  assert.match(
+    patchRoute,
+    /defaultResponsePrompt: input\.responsePrompt === undefined \? undefined : input\.responsePrompt \|\| null/
+  );
+  assert.match(
+    mobilePatch,
+    /defaultResponsePrompt: input\.responsePrompt === undefined \? undefined : input\.responsePrompt \|\| null/
+  );
   for (const createRoute of [webCreate, mobileCreate]) {
     assert.match(createRoute, /responsePrompt: user\.defaultResponsePrompt/);
   }
@@ -59,16 +82,27 @@ test("adaptive history uses full fitting transcripts, newest overflow, and an 8K
     { id: "old", content: "o".repeat(400) }
   ];
   const fitting = selectNewestHistoryWithinBudget(messages, 1_000);
-  assert.deepEqual(fitting.selected.map((message) => message.id), ["new", "middle", "old"]);
+  assert.deepEqual(
+    fitting.selected.map((message) => message.id),
+    ["new", "middle", "old"]
+  );
   assert.equal(fitting.overflowed, false);
 
   const overflow = selectNewestHistoryWithinBudget(messages, 150);
-  assert.deepEqual(overflow.selected.map((message) => message.id), ["new"]);
+  assert.deepEqual(
+    overflow.selected.map((message) => message.id),
+    ["new"]
+  );
   assert.equal(overflow.overflowed, true);
   assert.equal(modelContextWindow("custom:unknown-model"), UNKNOWN_MODEL_CONTEXT_WINDOW);
-  assert.ok(historyTokenBudget({ model: "custom:unknown-model", maxOutputTokens: 900, currentMessage: "hello" }) < UNKNOWN_MODEL_CONTEXT_WINDOW);
+  assert.ok(
+    historyTokenBudget({ model: "custom:unknown-model", maxOutputTokens: 900, currentMessage: "hello" }) <
+      UNKNOWN_MODEL_CONTEXT_WINDOW
+  );
   assert.equal(promptContextWindow("openrouter:x-ai/grok-4.3"), 30_000);
-  assert.ok(historyTokenBudget({ model: "openrouter:x-ai/grok-4.3", maxOutputTokens: 1_050, currentMessage: "hello" }) < 30_000);
+  assert.ok(
+    historyTokenBudget({ model: "openrouter:x-ai/grok-4.3", maxOutputTokens: 1_050, currentMessage: "hello" }) < 30_000
+  );
 });
 
 test("the final prompt budget drops oldest history before system instructions", () => {
@@ -91,14 +125,14 @@ test("the final prompt budget drops oldest history before system instructions", 
 test("OpenRouter prompts stay below its unpaid-account context gate", () => {
   const system = { role: "system" as const, content: "s".repeat(24_000) };
   const history = Array.from({ length: 220 }, (_, index) => ({
-    role: index % 2 === 0 ? "user" as const : "assistant" as const,
+    role: index % 2 === 0 ? ("user" as const) : ("assistant" as const),
     content: `${index}: ${"h".repeat(780)}`
   }));
   const currentMessage = { role: "user" as const, content: "continue" };
-  const fitted = fitPromptMessagesWithinContext(
-    [system, ...history, currentMessage],
-    { model: "openrouter:x-ai/grok-4.3", maxOutputTokens: 1_050 }
-  );
+  const fitted = fitPromptMessagesWithinContext([system, ...history, currentMessage], {
+    model: "openrouter:x-ai/grok-4.3",
+    maxOutputTokens: 1_050
+  });
 
   assert.ok(fitted.tokenBudget < 30_000);
   assert.ok(fitted.estimatedTokens <= fitted.tokenBudget);
@@ -173,7 +207,10 @@ test("a tall player persona prevents unspecified-height NPCs from being narrated
 
   assert.match(layer ?? "", /Canonical player height: 213 cm\./);
   assert.match(layer ?? "", /Canonical player weight: 180 kg\./);
-  assert.match(layer ?? "", /every character whose height or explicit height relation to the player is not established/);
+  assert.match(
+    layer ?? "",
+    /every character whose height or explicit height relation to the player is not established/
+  );
   assert.match(layer ?? "", /Forbidden for an unspecified-height character at the same elevation: .*looks down at you/);
 });
 

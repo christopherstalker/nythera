@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  buildNarrationOutputGuardLayer,
-  createPlayerMeasurementRedactor
-} from "../src/lib/narrative-output-guard";
+import { buildNarrationOutputGuardLayer, createPlayerMeasurementRedactor } from "../src/lib/narrative-output-guard";
 
 const persona = [
   "Species: Calico cat hybrid (7 ft / ~213 cm, 400 lbs / ~180 kg).",
@@ -52,21 +49,29 @@ test("legacy redaction markers are removed with their contaminated paragraph", (
   assert.equal(redacted, "The door opens.");
 });
 
-test("assistant history drops persona recitals coupled to exaggerated reactions", () => {
-  const redactor = createPlayerMeasurementRedactor([
-    "Gender: Male (he/him). Deep, soft bass voice.",
-    persona,
-    "Face & Hair: Masculine face, dark purple eyes."
-  ].join("\n"));
-  const redacted = redactor.redactAssistant([
+test("assistant history preserves scene events that reference the player's appearance", () => {
+  const redactor = createPlayerMeasurementRedactor(
+    ["Gender: Male (he/him). Deep, soft bass voice.", persona, "Face & Hair: Masculine face, dark purple eyes."].join(
+      "\n"
+    )
+  );
+  const history = [
     "Hayes slides the folder across the table.",
-    "Your deep, soft bass makes the men shrink back as they stare from your towering, hyper-muscular frame to your dark purple eyes.",
+    "Hayes recognizes your deep, soft bass and dark purple eyes from yesterday's meeting.",
     "The unsigned contract remains between you."
-  ].join("\n\n"));
+  ].join("\n\n");
+  const redacted = redactor.redactAssistant(history);
 
   assert.match(redacted, /Hayes slides the folder/);
   assert.match(redacted, /unsigned contract remains/);
-  assert.doesNotMatch(redacted, /deep, soft bass|hyper-muscular|dark purple eyes/);
+  assert.equal(redacted, history);
+});
+
+test("anatomy references remain in history and summaries across repeated interactions", () => {
+  const redactor = createPlayerMeasurementRedactor("Soft calico fur. Long fluffy tail. Pointed feline ears.");
+  const reply = "She adjusts the hood around your pointed feline ears and leaves room for your long fluffy tail.";
+  assert.equal(redactor.redactAssistant(reply), reply);
+  assert.equal(redactor.redactSummary(`ASSISTANT: ${reply}`), `ASSISTANT: ${reply}`);
 });
 
 test("the final narration guard rejects persona recital and contaminated-history imitation", () => {

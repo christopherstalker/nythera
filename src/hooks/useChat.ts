@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { partitionMessagesForRewind, shouldRegenerateAfterMessageEdit } from "@/lib/message-actions";
 import type { ChatImageAttachment } from "@/lib/chat-attachments";
 import type { SkipTimeDuration } from "@/lib/chat-actions";
+import { generateLocally, readLocalModel, type LocalRequest } from "@/lib/local-model";
 
 export type ChatMessage = {
   id: string;
@@ -202,12 +203,14 @@ export function useChat(
       armStreamTimeout();
 
       try {
+        const localModel = readLocalModel();
         const response = await fetch(`/api/chats/${chatId}/stream`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           signal: abortController.signal,
           body: JSON.stringify({
             message: trimmedContent,
+            localModel: localModel ?? undefined,
             attachmentIds: attachments.map((attachment) => attachment.assetId),
             model: options?.model,
             temperature: options?.temperature,
@@ -233,6 +236,53 @@ export function useChat(
           throw new Error(body?.error ?? "Chat request failed.");
         }
         requestAccepted = true;
+
+        if (localModel && response.headers.get("content-type")?.includes("application/json")) {
+          const prepared = (await response.json()) as {
+            generationId: string;
+            request: LocalRequest;
+            userMessage?: ChatMessage;
+          };
+          if (prepared.userMessage)
+            setMessages((current) =>
+              current.map((message) => (message.id === userMessage.id ? prepared.userMessage! : message))
+            );
+          if (streamTimeoutId) clearTimeout(streamTimeoutId);
+          setProviderNotice(`Generating on this computer · ${localModel.model}`);
+          try {
+            const content = await generateLocally(localModel, prepared.request, abortController.signal, (text) => {
+              assistantContentReceived = true;
+              queueAssistantText(text);
+            });
+            const completion = await fetch(`/api/chats/${chatId}/local`, {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              signal: abortController.signal,
+              body: JSON.stringify({ generationId: prepared.generationId, content })
+            });
+            const saved = await completion.json();
+            if (!completion.ok) throw new Error(saved.error ?? "Could not save the local reply.");
+            pendingAssistantText = "";
+            assistantMessageReceived = true;
+            setMessages((current) =>
+              current.map((message) => (message.id === assistantMessage.id ? saved.message : message))
+            );
+            setProviderNotice("Local reply saved. History is synced with Nythera.");
+            notifyChatContextChanged(chatId);
+          } catch (caught) {
+            flushAssistantText();
+            setError(
+              caught instanceof Error && caught.name !== "AbortError" ? caught.message : "Local generation stopped."
+            );
+            setProviderNotice(
+              "Any partial reply is a draft in this tab. Refresh to check saved history before retrying."
+            );
+            setMessages((current) =>
+              current.filter((message) => message.id !== assistantMessage.id || message.content.length > 0)
+            );
+          }
+          return true;
+        }
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -669,6 +719,7 @@ export function useChat(
     messages,
     summary,
     isStreaming,
+    stopGeneration: () => abortRef.current?.abort(),
     refreshing,
     loadingEarlier,
     hasEarlierMessages,

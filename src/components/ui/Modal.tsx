@@ -1,6 +1,8 @@
 "use client";
 
 import { X } from "lucide-react";
+import { useRef } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
 import { cn } from "@/lib/utils";
 
 type ModalProps = {
@@ -12,25 +14,48 @@ type ModalProps = {
 };
 
 export function Modal({ open, title, children, onClose, className }: ModalProps) {
-  if (!open) return null;
-
+  const triggerRef = useRef<HTMLElement | null>(null);
   return (
-    <div className="modal-backdrop fixed inset-0 z-[80] flex items-end justify-center p-0 sm:items-center sm:p-6">
-      <button type="button" aria-label="Close modal backdrop" className="absolute inset-0" onClick={onClose} />
-      <section
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className={cn("modal-panel relative max-h-[88svh] w-full overflow-hidden rounded-t-[var(--radius-xl)] p-5 sm:w-[min(560px,calc(100vw-48px))] sm:rounded-[var(--radius-lg)] sm:p-6", className)}
-      >
-        <div className="mb-4 flex items-center gap-3">
-          {title ? <h2 className="min-w-0 flex-1 truncate text-lg font-semibold text-[var(--text-primary)]">{title}</h2> : <span className="flex-1" />}
-          <button type="button" aria-label="Close modal" onClick={onClose} className="focus-ring grid h-9 w-9 place-items-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-white/[0.055] hover:text-[var(--text-primary)]">
-            <X className="h-4 w-4" />
-          </button>
+    <Dialog.Root
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+    >
+      <Dialog.Portal>
+        <Dialog.Overlay className="modal-backdrop fixed inset-0 z-[80]" />
+        <div className="pointer-events-none fixed inset-0 z-[81] flex items-end justify-center sm:items-center sm:p-6">
+          <Dialog.Content
+            onOpenAutoFocus={() => {
+              triggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+            }}
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              if (triggerRef.current?.isConnected) triggerRef.current.focus();
+            }}
+            aria-describedby={undefined}
+            className={cn(
+              "modal-panel pointer-events-auto relative max-h-[88svh] w-full overflow-y-auto rounded-t-[var(--radius-xl)] p-5 outline-none sm:w-[min(560px,calc(100vw-48px))] sm:rounded-[var(--radius-lg)] sm:p-6",
+              className
+            )}
+          >
+            <div className="mb-4 flex items-center gap-3">
+              <Dialog.Title
+                className={title ? "min-w-0 flex-1 text-lg font-semibold text-[var(--text-primary)]" : "sr-only"}
+              >
+                {title || "Dialog"}
+              </Dialog.Title>
+              <Dialog.Close
+                aria-label="Close modal"
+                className="focus-ring ml-auto grid h-11 w-11 shrink-0 place-items-center rounded-full text-[var(--text-secondary)] hover:bg-white/[0.055] hover:text-[var(--text-primary)]"
+              >
+                <X className="h-4 w-4" />
+              </Dialog.Close>
+            </div>
+            {children}
+          </Dialog.Content>
         </div>
-        {children}
-      </section>
-    </div>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

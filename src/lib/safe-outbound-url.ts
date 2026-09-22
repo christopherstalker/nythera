@@ -16,7 +16,8 @@ export async function assertSafeOutboundUrl(value: string) {
   }
 
   const hostname = url.hostname.toLowerCase().replace(/\.$/, "");
-  const allowLoopbackTestEndpoint = process.env.NODE_ENV !== "production" &&
+  const allowLoopbackTestEndpoint =
+    process.env.NODE_ENV !== "production" &&
     process.env.BYOK_ALLOW_PRIVATE_TEST_ENDPOINTS === "true" &&
     url.protocol === "http:" &&
     (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1");
@@ -35,8 +36,8 @@ export async function assertSafeOutboundUrl(value: string) {
   if ((resolutionCache.get(hostname) ?? 0) < Date.now()) {
     const addresses = isIP(hostname)
       ? [{ address: hostname }]
-      : await lookup(hostname, { all: true, verbatim: true }).catch(() => {
-          throw new HttpError(400, "Provider host could not be resolved.");
+      : await lookup(hostname, { all: true, verbatim: true }).catch((cause: unknown) => {
+          throw new Error("Provider host could not be resolved.", { cause });
         });
 
     if (!addresses.length || addresses.some(({ address }) => isPrivateAddress(address))) {
@@ -50,7 +51,13 @@ export async function assertSafeOutboundUrl(value: string) {
 
 function isPrivateAddress(address: string) {
   const normalized = address.toLowerCase();
-  if (normalized === "::1" || normalized === "::" || normalized.startsWith("fe80:") || normalized.startsWith("fc") || normalized.startsWith("fd")) {
+  if (
+    normalized === "::1" ||
+    normalized === "::" ||
+    normalized.startsWith("fe80:") ||
+    normalized.startsWith("fc") ||
+    normalized.startsWith("fd")
+  ) {
     return true;
   }
 

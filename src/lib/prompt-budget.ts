@@ -16,9 +16,7 @@ export function promptContextWindow(model?: string | null) {
   const provider = splitProviderModelValue(model)?.provider;
 
   // Accounts without OpenRouter credits are capped at 32K even when a model advertises a larger window.
-  return provider === "openrouter"
-    ? Math.min(advertisedWindow, OPENROUTER_RELIABLE_CONTEXT_WINDOW)
-    : advertisedWindow;
+  return provider === "openrouter" ? Math.min(advertisedWindow, OPENROUTER_RELIABLE_CONTEXT_WINDOW) : advertisedWindow;
 }
 
 export function historyTokenBudget(input: {
@@ -56,15 +54,22 @@ export function selectNewestHistoryWithinBudget<T extends { content: string }>(n
 }
 
 function estimatePromptMessageTokens(message: PromptMessage) {
-  return estimatePromptTokens(message.content) + PROMPT_MESSAGE_OVERHEAD + (message.images?.length ?? 0) * IMAGE_TOKEN_RESERVE;
+  return (
+    estimatePromptTokens(message.content) +
+    PROMPT_MESSAGE_OVERHEAD +
+    (message.images?.length ?? 0) * IMAGE_TOKEN_RESERVE
+  );
 }
 
 export function fitPromptMessagesWithinContext(
   messages: PromptMessage[],
-  input: { model?: string | null; maxOutputTokens?: number | null }
+  input: { model?: string | null; maxOutputTokens?: number | null; contextWindow?: number }
 ) {
   const outputReserve = Math.max(256, input.maxOutputTokens ?? 900);
-  const tokenBudget = Math.max(512, promptContextWindow(input.model) - outputReserve - TOKEN_SAFETY_MARGIN);
+  const tokenBudget = Math.max(
+    512,
+    (input.contextWindow ?? promptContextWindow(input.model)) - outputReserve - TOKEN_SAFETY_MARGIN
+  );
   const fittedMessages = [...messages];
   let estimatedTokens = fittedMessages.reduce((total, message) => total + estimatePromptMessageTokens(message), 0);
   let droppedMessages = 0;

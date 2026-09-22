@@ -53,10 +53,10 @@ test("custom prompts receive facts but no built-in behavioral contracts", async 
     assembly,
     /const behaviorLayers = customPromptLayer\s*\? \[customPromptLayer\]\s*: \[roleplayEngineLayer, modeLayer\]/
   );
-  assert.match(assembly, /if \(factsOnly\) \{\s*return \["PLAYER PERSONA \(FACTUAL CONTEXT\)"/);
+  assert.match(assembly, /factsOnly \? "PLAYER PERSONA \(FACTUAL CONTEXT\)"/);
   assert.match(
     assembly,
-    /return \[\s*"PLAYER PERSONA — AUTHORITATIVE IDENTITY AND BOUNDARIES"[\s\S]*Preserve the profile's facts, never its prose/
+    /PLAYER PERSONA — AUTHORITATIVE IDENTITY AND BOUNDARIES[\s\S]*Preserve the profile's facts, never its prose/
   );
   assert.match(assembly, /if \(factsOnly\) \{\s*return \["STRUCTURED STORY FACTS"/);
   assert.doesNotMatch(memoryPrompt, /ADULT INTIMACY|guide style|preserves continuity/i);

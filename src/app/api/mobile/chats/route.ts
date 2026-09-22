@@ -9,8 +9,7 @@ import { chatCreateSchema } from "@/lib/validation";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { requireAdultConsent } from "@/lib/adult-consent";
 import { getPreferredPersona } from "@/lib/user-persona-store";
-import { formatUserPersonaForPrompt } from "@/lib/user-persona";
-import { renderCharacterGreeting, renderInitialChatGreeting } from "@/lib/character-prompt-contract";
+import { renderInitialChatGreeting } from "@/lib/character-prompt-contract";
 import { renderCharacterPrologue } from "@/lib/prologue-pov";
 import { normalizeChatAppearance } from "@/lib/chat-appearance";
 
@@ -103,10 +102,11 @@ export async function POST(request: Request) {
       prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { chatAppearance: true } })
     ]);
     const greeting = renderCharacterPrologue({
-      greeting: renderCharacterGreeting(character, formatUserPersonaForPrompt(preferredPersona)),
+      greeting: character.greeting,
       characterName: character.name,
       communicationStyle: character.communicationStyle,
-      userPersonaName: preferredPersona?.displayName
+      userPersonaName: preferredPersona?.displayName,
+      userPersonaSurname: preferredPersona?.surname
     });
     const initialTemperature = input.temperature ?? character.temperature ?? user.defaultTemperature;
     const effectiveSettings = resolveCharacterModelSettings({

@@ -10,7 +10,11 @@ test("Shield signatures bind the path, exact payload, timestamp and nonce", () =
   const now = Date.now();
   const body = JSON.stringify({ message: "hello" });
   const signed = signShieldRequest(secret, "/v1/chat/stream", body, now);
-  const headers = { timestamp: signed["x-shield-timestamp"], nonce: signed["x-shield-nonce"], signature: signed["x-shield-signature"] };
+  const headers = {
+    timestamp: signed["x-shield-timestamp"],
+    nonce: signed["x-shield-nonce"],
+    signature: signed["x-shield-signature"]
+  };
   assert.ok(verifyShieldRequest(secret, "/v1/chat/stream", body, headers, now));
   assert.equal(verifyShieldRequest(secret, "/v1/embeddings", body, headers, now), false);
   assert.equal(verifyShieldRequest(secret, "/v1/chat/stream", body + " ", headers, now), false);
@@ -54,6 +58,12 @@ test("bad request parameters do not quarantine a healthy provider", async () => 
   assert.equal(await store.isOpen("one", 5), false);
 });
 
+test("content blocks do not quarantine proxy provider keys", async () => {
+  const store = new CircuitStore();
+  for (let index = 0; index < 4; index++) await store.failure("content-block", "content_blocked", index);
+  assert.equal(await store.isOpen("content-block", 5), false);
+});
+
 test("valid SSE delivers text and explicit completion across split packets", async () => {
   const stream = textStream(['data: {"type":"delta","text":"hel', 'lo"}\r\n\r\ndata: {"type":"done"}\r\n\r\n']);
   const received = [];
@@ -70,14 +80,18 @@ for (const [name, packets] of [
 ] as const) {
   test(`Shield rejects ${name} instead of synthesizing success`, async () => {
     await assert.rejects(async () => {
-      for await (const _event of readProxyStream(textStream([...packets]), () => undefined)) { /* Drain the stream to its terminal state. */ }
+      for await (const _event of readProxyStream(textStream([...packets]), () => undefined)) {
+        /* Drain the stream to its terminal state. */
+      }
     });
   });
 }
 
 function textStream(packets: string[]) {
-  return new ReadableStream<Uint8Array>({ start(controller) {
-    for (const packet of packets) controller.enqueue(new TextEncoder().encode(packet));
-    controller.close();
-  } });
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const packet of packets) controller.enqueue(new TextEncoder().encode(packet));
+      controller.close();
+    }
+  });
 }

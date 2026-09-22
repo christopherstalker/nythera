@@ -364,6 +364,13 @@ export const chatUpdateSchema = z.object({
 
 export const streamMessageSchema = z
   .object({
+    localModel: z
+      .object({
+        engine: z.enum(["ollama", "lmstudio"]),
+        model: z.string().trim().min(1).max(120),
+        contextWindow: z.number().int().min(4096).max(1048576)
+      })
+      .optional(),
     message: z.string().max(ELEVATED_CHAT_MESSAGE_LENGTH).optional().default(""),
     attachmentIds: z.array(z.string().cuid()).max(2).optional().default([]),
     temperature: z.coerce.number().min(0).max(2).optional(),
@@ -400,6 +407,7 @@ export const streamMessageSchema = z
 
 export const mobileStreamMessageSchema = streamMessageSchema.superRefine((input, context) => {
   const unsupported = [
+    input.localModel ? "localModel" : null,
     input.regenerate ? "regenerate" : null,
     input.regenerateMessageId ? "regenerateMessageId" : null,
     input.retryUserMessageId ? "retryUserMessageId" : null,

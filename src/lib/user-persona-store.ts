@@ -119,7 +119,7 @@ export async function saveUserPersona(userId: string, input: PersonaInput, chatI
     if (chatId) {
       const updated = await tx.chat.updateMany({
         where: { id: chatId, userId },
-        data: { personaId: saved.id }
+        data: { personaId: saved.id, temporaryPersonaId: null }
       });
       if (updated.count === 0) {
         throw new HttpError(404, "Chat not found.");

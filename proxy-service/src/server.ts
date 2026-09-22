@@ -7,13 +7,16 @@ import OpenAI from "openai";
 import pino from "pino";
 import { z } from "zod";
 import { classifyProviderError } from "./provider-errors.js";
+import { providerErrorDiagnostic } from "./provider-diagnostics.js";
 import { ReplayGuard, verifyShieldRequest } from "./request-auth.js";
 import { CircuitStore, circuitIdentity } from "./circuit-store.js";
 import {
   anthropicOutputTokenLimit,
   geminiResponseOptions,
   openAIResponseOptions,
-  providerOutputTokenBudget
+  openRouterRoutingBody,
+  providerOutputTokenBudget,
+  providerSdkMaxRetries
 } from "./response-tokens.js";
 
 type ChatMessage = {
@@ -81,7 +84,7 @@ const serverAnthropicKey = process.env.ANTHROPIC_API_KEY;
 const serverGeminiKey = process.env.GEMINI_API_KEY;
 const APP_DEFAULT_MODELS = new Set(["gpt-4o-mini", "gpt-3.5-turbo"]);
 const LLM_PROVIDER_TIMEOUT_MS = 40_000;
-const LLM_FIRST_TOKEN_TIMEOUT_MS = 12_000;
+const LLM_FIRST_TOKEN_TIMEOUT_MS = LLM_PROVIDER_TIMEOUT_MS;
 const LLM_STREAM_IDLE_TIMEOUT_MS = 20_000;
 const LLM_EMBEDDING_TIMEOUT_MS = 15_000;
 const providerBaseUrlSchema = z.string().url().max(240).refine(isSafeProviderBaseUrl, {
@@ -283,169 +286,202 @@ app.post("/v1/chat/stream", async (request, response) => {
   const primaryKeyCount = providerKeys.filter((key) => key.provider === route.providerName).length;
   let streamed = "";
   let lastError: unknown = null;
+  const failureMessages = new Set<string>();
   const skippedProviders = new Set<string>();
+  const requestDeadline = createTimeoutSignal(
+    clientAbort.signal,
+    LLM_PROVIDER_TIMEOUT_MS,
+    "Provider request timed out."
+  );
 
-  for (const [attemptIndex, attempt] of attempts.entries()) {
-    const identity = circuitIdentity(attempt.providerName, attempt.model, attempt.key?.apiKey ?? "server");
-    if (await circuits.isOpen(identity)) {
-      lastError = new Error("Provider temporarily unavailable during cooldown.");
-      continue;
-    }
-    if (skippedProviders.has(attempt.providerName)) {
-      continue;
-    }
-    if (clientClosed) {
-      logger.info({ route: "chat", status: "client_closed" });
-      return;
-    }
-
-    const attemptLabels = attempts.slice(0, attemptIndex + 1).map((item) => `${item.providerName}:${item.model}`);
-    const streamedBeforeAttempt = streamed.length;
-    const attemptStarted = Date.now();
-    let firstTokenLogged = false;
-    const attemptSignal = createActivityTimeoutSignal(
-      clientAbort.signal,
-      LLM_FIRST_TOKEN_TIMEOUT_MS,
-      "Provider did not start responding in time."
-    );
-    try {
-      const usage = await streamProvider({
-        provider: attempt.provider,
-        model: attempt.model,
-        messages: parsed.data.messages,
-        temperature: parsed.data.temperature,
-        topP: parsed.data.topP,
-        frequencyPenalty: parsed.data.frequencyPenalty,
-        presencePenalty: parsed.data.presencePenalty,
-        maxTokens: providerOutputTokenBudget({
-          visibleTokenLimit: parsed.data.maxTokens,
-          provider: attempt.provider,
-          model: attempt.model
-        }),
-        maxRetries: primaryKeyCount > 1 ? 0 : undefined,
-        key: attempt.key,
-        signal: attemptSignal.signal,
-        writeDelta(delta) {
-          attemptSignal.reset(LLM_STREAM_IDLE_TIMEOUT_MS, "Provider stream stalled.");
-          if (clientClosed) {
-            throw new Error("Client disconnected.");
-          }
-
-          const next = streamed + delta;
-          const check = moderateText(next);
-          if (!check.allowed) {
-            throw new Error(check.reason);
-          }
-
-          streamed = next;
-          if (!firstTokenLogged) {
-            firstTokenLogged = true;
-            logger.info({
-              event: "llm_time_to_first_token",
-              route: "proxy:chat",
-              provider: attempt.providerName,
-              model: attempt.model,
-              attempt: attemptIndex + 1,
-              keySlot: (attempt.key?.providerPriority ?? 0) + 1,
-              fallbackTriggered: attemptIndex > 0,
-              durationMs: Date.now() - started,
-              providerLatencyMs: Date.now() - attemptStarted
-            });
-          }
-          if (!writeEvent({ type: "delta", text: delta })) {
-            throw new Error("Client disconnected.");
-          }
-        }
-      });
-
-      if (!streamed.slice(streamedBeforeAttempt).trim()) {
-        throw new Error("Provider returned an empty response.");
+  try {
+    for (const [attemptIndex, attempt] of attempts.entries()) {
+      if (requestDeadline.signal.aborted) {
+        lastError = requestDeadline.signal.reason;
+        break;
       }
-
-      await circuits.success(identity);
-
-      writeEvent({
-        type: "usage",
-        inputTokens: usage.inputTokens,
-        outputTokens: usage.outputTokens || estimateTokens(streamed),
-        provider: attempt.providerName,
-        model: attempt.model,
-        usageEstimated: usage.usageEstimated,
-        latencyMs: Date.now() - started,
-        fallbackTriggered: attemptIndex > 0,
-        attempts: attemptLabels
-      });
-      writeEvent({ type: "done" });
-      if (!clientClosed) {
-        response.end();
+      const identity = circuitIdentity(attempt.providerName, attempt.model, attempt.key?.apiKey ?? "server");
+      if (await circuits.isOpen(identity)) {
+        lastError = new Error("Provider temporarily unavailable during cooldown.");
+        continue;
       }
-      logger.info({
-        event: "llm_provider_attempt",
-        route: "proxy:chat",
-        provider: attempt.providerName,
-        model: attempt.model,
-        keySlot: (attempt.key?.providerPriority ?? 0) + 1,
-        success: true,
-        statusCode: 200,
-        latencyMs: Date.now() - attemptStarted
-      });
-      return;
-    } catch (error) {
+      if (skippedProviders.has(attempt.providerName)) {
+        continue;
+      }
       if (clientClosed) {
         logger.info({ route: "chat", status: "client_closed" });
         return;
       }
 
-      lastError = attemptSignal.timedOut() ? new Error("Provider request timed out.") : error;
-      const classified = classifyProviderError(lastError);
-      await circuits.failure(identity, classified.code);
-      if (shouldSkipRemainingProviderKeys(classified.code)) {
-        skippedProviders.add(attempt.providerName);
-      }
-      logger.warn({
-        event: "llm_provider_attempt",
-        route: "proxy:chat",
-        provider: attempt.providerName,
-        model: attempt.model,
-        keySlot: (attempt.key?.providerPriority ?? 0) + 1,
-        success: false,
-        statusCode: classified.status,
-        errorCode: classified.code,
-        latencyMs: Date.now() - attemptStarted
-      });
-      if (streamed.slice(streamedBeforeAttempt).trim()) {
-        writeEvent({
-          type: "error",
-          message: "The model stream was interrupted."
-        });
-        response.end();
-        return;
-      }
-      streamed = streamed.slice(0, streamedBeforeAttempt);
-      const nextAttempt = attempts
-        .slice(attemptIndex + 1)
-        .find((candidate) => !skippedProviders.has(candidate.providerName));
-      const canTryAnotherRoute = Boolean(nextAttempt) && isKeyScopedFailure(classified.code);
-      if (!classified.retryable && !canTryAnotherRoute) {
-        writeEvent({
-          type: "error",
-          message: exhaustedProviderMessage(route, primaryKeyCount, classified.message)
-        });
-        response.end();
-        return;
-      }
-      await delay(300);
-    } finally {
-      attemptSignal.dispose();
-    }
-  }
+      const attemptLabels = attempts.slice(0, attemptIndex + 1).map((item) => `${item.providerName}:${item.model}`);
+      const streamedBeforeAttempt = streamed.length;
+      const attemptStarted = Date.now();
+      let firstTokenLogged = false;
+      const attemptSignal = createActivityTimeoutSignal(
+        requestDeadline.signal,
+        LLM_FIRST_TOKEN_TIMEOUT_MS,
+        "Provider did not start responding in time."
+      );
+      try {
+        const usage = await streamProvider({
+          provider: attempt.provider,
+          model: attempt.model,
+          messages: parsed.data.messages,
+          temperature: parsed.data.temperature,
+          topP: parsed.data.topP,
+          frequencyPenalty: parsed.data.frequencyPenalty,
+          presencePenalty: parsed.data.presencePenalty,
+          maxTokens: providerOutputTokenBudget({
+            visibleTokenLimit: parsed.data.maxTokens,
+            provider: attempt.provider,
+            model: attempt.model
+          }),
+          maxRetries: providerSdkMaxRetries(attempt.providerName, primaryKeyCount),
+          key: attempt.key,
+          signal: attemptSignal.signal,
+          writeDelta(delta) {
+            attemptSignal.reset(LLM_STREAM_IDLE_TIMEOUT_MS, "Provider stream stalled.");
+            if (clientClosed) {
+              throw new Error("Client disconnected.");
+            }
 
-  writeEvent({
-    type: "error",
-    message: exhaustedProviderMessage(route, primaryKeyCount, classifyProviderError(lastError).message)
-  });
-  if (!clientClosed) {
-    response.end();
+            const next = streamed + delta;
+            const check = moderateText(next);
+            if (!check.allowed) {
+              throw new Error(check.reason);
+            }
+
+            streamed = next;
+            if (!firstTokenLogged) {
+              firstTokenLogged = true;
+              logger.info({
+                event: "llm_time_to_first_token",
+                route: "proxy:chat",
+                provider: attempt.providerName,
+                model: attempt.model,
+                attempt: attemptIndex + 1,
+                keySlot: (attempt.key?.providerPriority ?? 0) + 1,
+                fallbackTriggered: attemptIndex > 0,
+                durationMs: Date.now() - started,
+                providerLatencyMs: Date.now() - attemptStarted
+              });
+            }
+            if (!writeEvent({ type: "delta", text: delta })) {
+              throw new Error("Client disconnected.");
+            }
+          }
+        });
+
+        if (!streamed.slice(streamedBeforeAttempt).trim()) {
+          throw new Error("Provider returned an empty response.");
+        }
+
+        await circuits.success(identity);
+
+        writeEvent({
+          type: "usage",
+          inputTokens: usage.inputTokens,
+          outputTokens: usage.outputTokens || estimateTokens(streamed),
+          provider: attempt.providerName,
+          model: attempt.model,
+          usageEstimated: usage.usageEstimated,
+          latencyMs: Date.now() - started,
+          fallbackTriggered: attemptIndex > 0,
+          attempts: attemptLabels
+        });
+        writeEvent({ type: "done" });
+        if (!clientClosed) {
+          response.end();
+        }
+        logger.info({
+          event: "llm_provider_attempt",
+          route: "proxy:chat",
+          provider: attempt.providerName,
+          model: attempt.model,
+          keySlot: (attempt.key?.providerPriority ?? 0) + 1,
+          success: true,
+          statusCode: 200,
+          latencyMs: Date.now() - attemptStarted
+        });
+        return;
+      } catch (error) {
+        if (clientClosed) {
+          logger.info({ route: "chat", status: "client_closed" });
+          return;
+        }
+
+        lastError =
+          attemptSignal.timedOut() || requestDeadline.timedOut()
+            ? new Error("Provider request timed out.", { cause: error })
+            : error;
+        const classified = classifyProviderError(lastError);
+        logger.warn(
+          providerErrorDiagnostic(lastError, classified, {
+            provider: attempt.providerName,
+            model: attempt.model,
+            stage: streamed.length > streamedBeforeAttempt ? "stream" : "request",
+            durationMs: Date.now() - attemptStarted,
+            credentialPresent: Boolean(attempt.key?.apiKey)
+          }),
+          "[AI Provider Error]"
+        );
+        failureMessages.add(exhaustedProviderMessage(attempt, classified.message));
+        await circuits.failure(identity, classified.code);
+        if (shouldSkipRemainingProviderKeys(classified.code)) {
+          skippedProviders.add(attempt.providerName);
+        }
+        logger.warn({
+          event: "llm_provider_attempt",
+          route: "proxy:chat",
+          provider: attempt.providerName,
+          model: attempt.model,
+          keySlot: (attempt.key?.providerPriority ?? 0) + 1,
+          success: false,
+          statusCode: classified.status,
+          errorCode: classified.code,
+          latencyMs: Date.now() - attemptStarted
+        });
+        if (streamed.slice(streamedBeforeAttempt).trim()) {
+          writeEvent({
+            type: "error",
+            message:
+              classified.code === "content_blocked"
+                ? [...failureMessages].join("\n\n")
+                : "The model stream was interrupted."
+          });
+          response.end();
+          return;
+        }
+        streamed = streamed.slice(0, streamedBeforeAttempt);
+        const nextAttempt = attempts
+          .slice(attemptIndex + 1)
+          .find((candidate) => !skippedProviders.has(candidate.providerName));
+        const canTryAnotherRoute = Boolean(nextAttempt) && isKeyScopedFailure(classified.code);
+        if (!classified.retryable && !canTryAnotherRoute) {
+          writeEvent({
+            type: "error",
+            message: [...failureMessages].join("\n\n")
+          });
+          response.end();
+          return;
+        }
+        await delay(300);
+      } finally {
+        attemptSignal.dispose();
+      }
+    }
+
+    writeEvent({
+      type: "error",
+      message: failureMessages.size
+        ? [...failureMessages].join("\n\n")
+        : exhaustedProviderMessage(route, classifyProviderError(lastError).message)
+    });
+    if (!clientClosed) {
+      response.end();
+    }
+  } finally {
+    requestDeadline.dispose();
   }
 });
 
@@ -561,24 +597,26 @@ function isKeyScopedFailure(code: string) {
     code === "model_unavailable" ||
     code === "provider_unavailable" ||
     code === "network_error" ||
+    code === "provider_timeout" ||
     code === "provider_error"
   );
 }
 
 function shouldSkipRemainingProviderKeys(code: string) {
-  return code === "model_unavailable" || code === "provider_unavailable" || code === "network_error";
+  return (
+    code === "model_unavailable" ||
+    code === "provider_unavailable" ||
+    code === "network_error" ||
+    code === "provider_timeout"
+  );
 }
 
-function exhaustedProviderMessage(route: GatewayRoute, keyCount: number, fallbackMessage: string) {
-  if (keyCount <= 1) {
-    return fallbackMessage;
-  }
-
+function exhaustedProviderMessage(route: GatewayRoute, fallbackMessage: string) {
   const provider = route.key?.displayName || route.providerName;
-  return `All ${keyCount} saved keys for ${provider} failed for this request. Check or replace them in Settings.`;
+  return `${provider}: ${fallbackMessage}`;
 }
 
-function parseExplicitProviderModel(requested: string, keys: ProviderKeys) {
+function parseExplicitProviderModel(requested: string, keys: ProviderKeys): GatewayRoute | null {
   const separator = requested.indexOf(":");
   if (separator <= 0) {
     return null;
@@ -587,10 +625,12 @@ function parseExplicitProviderModel(requested: string, keys: ProviderKeys) {
   const provider = requested.slice(0, separator).trim().toLowerCase();
   const model = requested.slice(separator + 1).trim();
   const key = keys.find((item) => item.provider === provider);
-  if (!key || !model) {
-    return null;
+  if (!model) return null;
+  if (!key) {
+    const adapter =
+      provider === "gemini" || provider === "anthropic" || provider === "openai" ? provider : "openai-compatible";
+    return { provider: adapter, providerName: provider, model };
   }
-
   return routeFromKey(key, model);
 }
 
@@ -628,9 +668,18 @@ async function streamProvider(input: {
     const client = input.key?.apiKey
       ? new OpenAI({
           apiKey: input.key.apiKey,
+          timeout: LLM_PROVIDER_TIMEOUT_MS,
           maxRetries: input.maxRetries,
           baseURL:
-            input.provider === "openai" ? input.key.baseUrl || "https://api.openai.com/v1" : requireBaseUrl(input.key)
+            input.provider === "openai" ? input.key.baseUrl || "https://api.openai.com/v1" : requireBaseUrl(input.key),
+          defaultHeaders:
+            input.key.provider === "openrouter"
+              ? {
+                  "HTTP-Referer": "https://www.nythera.art",
+                  "X-Title": "Nythera",
+                  "X-OpenRouter-Title": "Nythera"
+                }
+              : undefined
         })
       : null;
     if (!client) {
@@ -798,6 +847,7 @@ async function streamOpenAI(input: {
       model: input.model,
       messages: input.messages,
       ...openAIResponseOptions(input),
+      ...openRouterRoutingBody(input.providerName),
       stream: true,
       stream_options: { include_usage: true }
     },
@@ -919,6 +969,8 @@ async function streamGemini(input: {
       timeout: LLM_PROVIDER_TIMEOUT_MS
     }
   );
+  // Observe the SDK's aggregate promise even when iteration exits with an error.
+  void result.response.catch(() => undefined);
 
   for await (const chunk of abortableAsyncIterable(result.stream, input.signal)) {
     const text = chunk.text();
@@ -1090,7 +1142,12 @@ async function* abortableAsyncIterable<T>(source: AsyncIterable<T>, signal: Abor
       yield next.value;
     }
   } finally {
-    await iterator.return?.();
+    const cleanup = iterator.return?.();
+    if (signal.aborted) {
+      void cleanup?.catch(() => undefined);
+    } else {
+      await cleanup;
+    }
   }
 }
 

@@ -25,7 +25,7 @@ test("provider calls use explicit timeout and abort signals", async () => {
   const standaloneProxy = await readFile(new URL("../proxy-service/src/server.ts", import.meta.url), "utf8");
 
   assert.match(timeoutSource, /LLM_PROVIDER_TIMEOUT_MS\s*=\s*40_000/);
-  assert.match(timeoutSource, /LLM_FIRST_TOKEN_TIMEOUT_MS\s*=\s*12_000/);
+  assert.match(timeoutSource, /LLM_FIRST_TOKEN_TIMEOUT_MS\s*=\s*LLM_PROVIDER_TIMEOUT_MS/);
   assert.match(timeoutSource, /LLM_STREAM_IDLE_TIMEOUT_MS\s*=\s*20_000/);
   assert.match(timeoutSource, /LLM_EMBEDDING_TIMEOUT_MS\s*=\s*15_000/);
   assert.match(gateway, /createActivityTimeoutSignal\([\s\S]*LLM_FIRST_TOKEN_TIMEOUT_MS/);
@@ -40,9 +40,12 @@ test("provider calls use explicit timeout and abort signals", async () => {
   assert.match(chatHook, /streamTimedOut\s*=\s*true;[\s\S]*abortController\.abort\(\)/);
   assert.match(proxyRoute, /signal:\s*request\.signal/);
   assert.match(standaloneProxy, /LLM_PROVIDER_TIMEOUT_MS\s*=\s*40_000/);
-  assert.match(standaloneProxy, /LLM_FIRST_TOKEN_TIMEOUT_MS\s*=\s*12_000/);
+  assert.match(standaloneProxy, /LLM_FIRST_TOKEN_TIMEOUT_MS\s*=\s*LLM_PROVIDER_TIMEOUT_MS/);
   assert.match(standaloneProxy, /LLM_STREAM_IDLE_TIMEOUT_MS\s*=\s*20_000/);
   assert.match(standaloneProxy, /LLM_EMBEDDING_TIMEOUT_MS\s*=\s*15_000/);
-  assert.match(standaloneProxy, /createActivityTimeoutSignal\([\s\S]*clientAbort\.signal,[\s\S]*LLM_FIRST_TOKEN_TIMEOUT_MS/);
+  assert.match(
+    standaloneProxy,
+    /createActivityTimeoutSignal\([\s\S]*requestDeadline\.signal,[\s\S]*LLM_FIRST_TOKEN_TIMEOUT_MS/
+  );
   assert.match(standaloneProxy, /attemptSignal\.reset\(LLM_STREAM_IDLE_TIMEOUT_MS/);
 });

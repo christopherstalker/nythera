@@ -49,6 +49,24 @@ export function openAIResponseOptions(input: {
   };
 }
 
+export function openRouterRoutingBody(providerName: string) {
+  if (providerName !== "openrouter") {
+    return {};
+  }
+
+  // OpenRouter otherwise load-balances by price/availability, which often picks a slow backend.
+  return {
+    provider: {
+      sort: "latency" as const,
+      allow_fallbacks: true
+    }
+  };
+}
+
+export function providerSdkMaxRetries(providerName: string, primaryKeyCount: number) {
+  return primaryKeyCount > 1 || providerName === "openrouter" ? 0 : undefined;
+}
+
 export function geminiResponseOptions(model: string, maxTokens?: number | null) {
   const maxOutputTokens = maxTokens ?? undefined;
   if (maxTokens == null) return { maxOutputTokens };

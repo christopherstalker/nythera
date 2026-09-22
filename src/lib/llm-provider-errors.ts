@@ -1,6 +1,7 @@
 export type ProviderErrorCode =
   | "invalid_api_key"
   | "insufficient_balance"
+  | "content_blocked"
   | "prompt_too_large"
   | "invalid_parameters"
   | "rate_limit"
@@ -8,6 +9,8 @@ export type ProviderErrorCode =
   | "provider_unavailable"
   | "provider_not_configured"
   | "network_error"
+  | "provider_timeout"
+  | "invalid_response"
   | "provider_error";
 
 export type ProviderErrorClassification = {
@@ -20,6 +23,19 @@ export type ProviderErrorClassification = {
 export function classifyProviderError(error: unknown): ProviderErrorClassification {
   const status = readStatus(error);
   const rawMessage = readMessage(error).toLowerCase();
+  if (
+    rawMessage.includes("prohibited_content") ||
+    /blocked due to (?:safety|blocklist|recitation|spii)\b/.test(rawMessage) ||
+    rawMessage.includes("content_filter")
+  ) {
+    return {
+      code: "content_blocked",
+      message:
+        "The provider blocked this request or response under its content policy. Review the latest message, chat history, and character instructions. Changing API keys will not resolve this block.",
+      status,
+      retryable: false
+    };
+  }
   const reportsTemporaryOutage =
     rawMessage.includes("temporarily unavailable") ||
     rawMessage.includes("service unavailable") ||
@@ -45,20 +61,23 @@ export function classifyProviderError(error: unknown): ProviderErrorClassificati
   if (reportsPromptLimit) {
     return {
       code: "prompt_too_large",
-      message: "The request exceeds this model's context limit. Choose a model with a larger context window or shorten the instructions.",
+      message:
+        "The request exceeds this model's context limit. Choose a model with a larger context window or shorten the instructions.",
       status,
       retryable: false
     };
   }
 
-  const exhaustedCredit = error !== null && typeof error === "object" && (
-    ("code" in error && error.code === "credit_balance_exhausted") ||
-    ("type" in error && error.type === "insufficient_quota")
-  );
-  if (status === 402 || status === 429 && exhaustedCredit) {
+  const exhaustedCredit =
+    error !== null &&
+    typeof error === "object" &&
+    (("code" in error && error.code === "credit_balance_exhausted") ||
+      ("type" in error && error.type === "insufficient_quota"));
+  if (status === 402 || (status === 429 && exhaustedCredit)) {
     return {
       code: "insufficient_balance",
-      message: "The provider account cannot cover this request. Add credits, reduce the response length, or choose another provider.",
+      message:
+        "The provider account cannot cover this request. Add credits, reduce the response length, or choose another provider.",
       status,
       retryable: false
     };
@@ -82,7 +101,7 @@ export function classifyProviderError(error: unknown): ProviderErrorClassificati
     };
   }
 
-  if (status === 404 || rawMessage.includes("model") && rawMessage.includes("not found")) {
+  if (status === 404 || (rawMessage.includes("model") && rawMessage.includes("not found"))) {
     return {
       code: "model_unavailable",
       message: "The selected model is unavailable. Choose another model in Settings.",
@@ -91,7 +110,7 @@ export function classifyProviderError(error: unknown): ProviderErrorClassificati
     };
   }
 
-  if ((status !== null && status >= 500) || reportsTemporaryOutage) {
+  if (status !== 408 && status !== 504 && ((status !== null && status >= 500) || reportsTemporaryOutage)) {
     return {
       code: "provider_unavailable",
       message: "The selected model provider is temporarily unavailable. Try again shortly.",
@@ -109,12 +128,49 @@ export function classifyProviderError(error: unknown): ProviderErrorClassificati
     };
   }
 
+  const causes = errorChain(error);
   if (
-    rawMessage.includes("fetch failed") ||
-    rawMessage.includes("network") ||
-    rawMessage.includes("timeout") ||
-    rawMessage.includes("timed out") ||
-    rawMessage.includes("econn")
+    status === 408 ||
+    status === 504 ||
+    causes.some(
+      (cause) =>
+        /timeout|timed out|did not start responding in time|stream stalled/i.test(readMessage(cause)) ||
+        (cause instanceof Error && /Timeout/.test(cause.name)) ||
+        /^(?:ETIMEDOUT|UND_ERR_(?:CONNECT|HEADERS|BODY)_TIMEOUT)$/.test(readCode(cause))
+    )
+  ) {
+    return {
+      code: "provider_timeout",
+      message: "The selected provider took too long to respond. Try again shortly.",
+      status,
+      retryable: true
+    };
+  }
+  if (
+    causes.some(
+      (cause) =>
+        cause instanceof SyntaxError ||
+        (cause instanceof Error && cause.name === "ZodError") ||
+        /invalid json|pars(?:e|ing).*(?:json|response|stream)|unexpected (?:token|end)|invalid.*schema|reading ['"](?:choices|content|parts)['"]/i.test(
+          readMessage(cause)
+        )
+    )
+  ) {
+    return {
+      code: "invalid_response",
+      message: "The selected provider returned an invalid response. Try again or check its API format in Settings.",
+      status,
+      retryable: false
+    };
+  }
+  if (
+    causes.some(
+      (cause) =>
+        /fetch failed|network|connection error|econn|could not be resolved/i.test(readMessage(cause)) ||
+        /^(?:E(?:CONNRESET|CONNREFUSED|NOTFOUND|AI_AGAIN|HOSTUNREACH|NETUNREACH)|ERR_TLS_.*|CERT_.*|DEPTH_ZERO_SELF_SIGNED_CERT|UNABLE_TO_VERIFY_LEAF_SIGNATURE)$/.test(
+          readCode(cause)
+        )
+    )
   ) {
     return {
       code: "network_error",
@@ -151,4 +207,17 @@ function readMessage(error: unknown) {
   }
 
   return "";
+}
+
+function errorChain(error: unknown): unknown[] {
+  const causes: unknown[] = [];
+  while (error && typeof error === "object" && !causes.includes(error) && causes.length < 5) {
+    causes.push(error);
+    error = "cause" in error ? error.cause : undefined;
+  }
+  return causes;
+}
+
+function readCode(error: unknown) {
+  return error && typeof error === "object" && "code" in error && typeof error.code === "string" ? error.code : "";
 }
