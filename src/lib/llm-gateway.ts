@@ -12,7 +12,9 @@ import { providerOutputTokenBudget } from "@/lib/response-length";
 import {
   anthropicOutputTokenLimit,
   geminiResponseOptions,
-  openAIResponseOptions
+  openAIResponseOptions,
+  openRouterRoutingBody,
+  providerSdkMaxRetries
 } from "../../proxy-service/src/response-tokens";
 import { logSafeError } from "@/lib/secret-redaction";
 import {
@@ -123,7 +125,7 @@ export async function* streamGatewayResponse(input: StreamInput): AsyncGenerator
             provider: attempt.provider,
             model: attempt.model
           }),
-          maxRetries: primaryKeyCount > 1 ? 0 : undefined,
+          maxRetries: providerSdkMaxRetries(attempt.providerName, primaryKeyCount),
           key: attempt.key,
           signal: attemptSignal.signal,
           writeDelta(delta) {
@@ -524,11 +526,13 @@ async function streamProvider(input: {
         client: new OpenAI({
           apiKey: input.key.apiKey,
           baseURL,
+          timeout: LLM_PROVIDER_TIMEOUT_MS,
           maxRetries: input.maxRetries,
           defaultHeaders:
             input.key.provider === "openrouter"
               ? {
                   "HTTP-Referer": CANONICAL_SITE_ORIGIN,
+                  "X-Title": "Nythera",
                   "X-OpenRouter-Title": "Nythera"
                 }
               : undefined
@@ -637,6 +641,7 @@ async function* streamOpenAI(input: {
         };
       }),
       ...openAIResponseOptions(input),
+      ...openRouterRoutingBody(input.providerName),
       stream: true,
       stream_options: { include_usage: true }
     },

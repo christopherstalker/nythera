@@ -13,7 +13,9 @@ import {
   anthropicOutputTokenLimit,
   geminiResponseOptions,
   openAIResponseOptions,
-  providerOutputTokenBudget
+  openRouterRoutingBody,
+  providerOutputTokenBudget,
+  providerSdkMaxRetries
 } from "./response-tokens.js";
 
 type ChatMessage = {
@@ -322,7 +324,7 @@ app.post("/v1/chat/stream", async (request, response) => {
           provider: attempt.provider,
           model: attempt.model
         }),
-        maxRetries: primaryKeyCount > 1 ? 0 : undefined,
+        maxRetries: providerSdkMaxRetries(attempt.providerName, primaryKeyCount),
         key: attempt.key,
         signal: attemptSignal.signal,
         writeDelta(delta) {
@@ -628,9 +630,18 @@ async function streamProvider(input: {
     const client = input.key?.apiKey
       ? new OpenAI({
           apiKey: input.key.apiKey,
+          timeout: LLM_PROVIDER_TIMEOUT_MS,
           maxRetries: input.maxRetries,
           baseURL:
-            input.provider === "openai" ? input.key.baseUrl || "https://api.openai.com/v1" : requireBaseUrl(input.key)
+            input.provider === "openai" ? input.key.baseUrl || "https://api.openai.com/v1" : requireBaseUrl(input.key),
+          defaultHeaders:
+            input.key.provider === "openrouter"
+              ? {
+                  "HTTP-Referer": "https://www.nythera.art",
+                  "X-Title": "Nythera",
+                  "X-OpenRouter-Title": "Nythera"
+                }
+              : undefined
         })
       : null;
     if (!client) {
@@ -798,6 +809,7 @@ async function streamOpenAI(input: {
       model: input.model,
       messages: input.messages,
       ...openAIResponseOptions(input),
+      ...openRouterRoutingBody(input.providerName),
       stream: true,
       stream_options: { include_usage: true }
     },
