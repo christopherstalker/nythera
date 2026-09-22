@@ -148,7 +148,7 @@ integrationTest("exhausting every key for a provider returns a specific error", 
   ]);
 
   assert.equal(attempts, 2);
-  assert.match(body, /All 2 saved keys for same-provider failed for this request/);
+  assert.match(body, /same-provider:.*rate limit/);
 });
 
 integrationTest("proxy readiness allows a slow cold start", async (context) => {
@@ -184,7 +184,10 @@ integrationTest("signed Shield rejects tampering and replay while preserving lon
   const secret = randomBytes(32).toString("hex");
   const proxy = await startProxyWithCleanup(context, [upstream], { env: { AI_SHIELD_SIGNING_SECRET: secret } });
   const body = JSON.stringify({
-    messages: [{ role: "system", content: "Scene instructions. ".repeat(3_500) }, { role: "user", content: "Say hello." }],
+    messages: [
+      { role: "system", content: "Scene instructions. ".repeat(3_500) },
+      { role: "user", content: "Say hello." }
+    ],
     model: "local-shield:local-model",
     providerKeys: [providerKey("local-shield", upstreamUrl, 0)]
   });
@@ -201,7 +204,11 @@ integrationTest("signed Shield rejects tampering and replay while preserving lon
   const replay = await fetch(url, { method: "POST", headers: signed, body });
   assert.equal(replay.status, 401);
   await replay.text();
-  const unsigned = await fetch(url, { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer integration-token" }, body });
+  const unsigned = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: "Bearer integration-token" },
+    body
+  });
   assert.equal(unsigned.status, 401);
   await unsigned.text();
 });
@@ -416,21 +423,25 @@ async function closeServer(server: Server) {
 
 function writeSuccessfulOpenAIStream(response: import("node:http").ServerResponse, text: string) {
   response.writeHead(200, { "content-type": "text/event-stream" });
-  response.write(`data: ${JSON.stringify({
-    id: "chatcmpl-local",
-    object: "chat.completion.chunk",
-    created: 1,
-    model: "local-model",
-    choices: [{ index: 0, delta: { content: text }, finish_reason: null }]
-  })}\n\n`);
-  response.write(`data: ${JSON.stringify({
-    id: "chatcmpl-local",
-    object: "chat.completion.chunk",
-    created: 1,
-    model: "local-model",
-    choices: [],
-    usage: { prompt_tokens: 3, completion_tokens: 2, total_tokens: 5 }
-  })}\n\n`);
+  response.write(
+    `data: ${JSON.stringify({
+      id: "chatcmpl-local",
+      object: "chat.completion.chunk",
+      created: 1,
+      model: "local-model",
+      choices: [{ index: 0, delta: { content: text }, finish_reason: null }]
+    })}\n\n`
+  );
+  response.write(
+    `data: ${JSON.stringify({
+      id: "chatcmpl-local",
+      object: "chat.completion.chunk",
+      created: 1,
+      model: "local-model",
+      choices: [],
+      usage: { prompt_tokens: 3, completion_tokens: 2, total_tokens: 5 }
+    })}\n\n`
+  );
   response.end("data: [DONE]\n\n");
 }
 

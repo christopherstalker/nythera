@@ -282,7 +282,7 @@ test("stream guard rewrites provider violations before they reach the client or 
   assert.doesNotMatch(output, /looks down at you/i);
 });
 
-test("stream guard preserves external-prompt output and explicit lower posture", () => {
+test("stream guard supports explicit disabling and preserves lower posture", () => {
   const character = { name: "Marek", description: "Marek walks nearby.", personality: "Direct.", scenario: null };
   const external = createPhysicalContinuityOutputGuard(
     character,
@@ -297,6 +297,55 @@ test("stream guard preserves external-prompt output and explicit lower posture",
 
   assert.equal(external.push("He looks down at you.") + external.flush(), "He looks down at you.");
   assert.equal(seated.push("He looks down at you.") + seated.flush(), "He looks down at you.");
+});
+
+test("Russian eye-line corrections survive every streaming split", () => {
+  const character = { name: "Марк", description: "Рост: 178 см.", personality: "Спокойный.", scenario: null };
+  for (const [reply, corrected] of [
+    ["Он смотрит на тебя сверху вниз.", "Он смотрит на тебя."],
+    ["Она посмотрела сверху вниз на тебя.", "Она посмотрела на тебя."],
+    ["Марк взглянул вниз на вас.", "Марк взглянул на вас."]
+  ]) {
+    for (let split = 0; split <= reply.length; split += 1) {
+      const guard = createPhysicalContinuityOutputGuard(character, "Мой рост: 205 см.", {
+        recentMessages: [],
+        currentMessage: "Я стою рядом."
+      });
+      const prefix = "Марк держит дверь открытой. ".repeat(10);
+      assert.equal(
+        guard.push(prefix + reply.slice(0, split)) + guard.push(reply.slice(split)) + guard.flush(),
+        prefix + corrected
+      );
+    }
+  }
+});
+
+test("Russian eye-line guard preserves justified geometry and unrelated observations", () => {
+  for (const [height, currentMessage, reply] of [
+    [220, "Я стою рядом.", "Он смотрит на тебя сверху вниз."],
+    [178, "Я сижу в кресле.", "Он смотрит на тебя сверху вниз."],
+    [178, "Я стою рядом.", "Он смотрит вниз на твой хвост."],
+    [178, "Я стою рядом.", "Он смотрит на лестницу сверху вниз."]
+  ] as const) {
+    const guard = createPhysicalContinuityOutputGuard(
+      { name: "Марк", description: `Рост: ${height} см.`, personality: "Спокойный.", scenario: null },
+      "Мой рост: 205 см.",
+      { recentMessages: [], currentMessage }
+    );
+    assert.equal(guard.push(reply) + guard.flush(), reply);
+  }
+});
+
+test("web, mobile and room responses enforce physical canon with custom prompts", async () => {
+  for (const route of [
+    "../src/app/api/chats/[id]/stream/route.ts",
+    "../src/app/api/mobile/chats/[id]/message/route.ts",
+    "../src/lib/rooms.ts"
+  ]) {
+    const source = await read(route);
+    assert.match(source, /createPhysicalContinuityOutputGuard\(/);
+    assert.doesNotMatch(source, /enabled: !customPromptActive|enabled: !selectCustomPrompt/);
+  }
 });
 
 test("stream guard rejects impossible handling when the player canon forbids lifting", () => {

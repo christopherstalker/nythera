@@ -1,4 +1,15 @@
-import { BookOpen, Brain, Eye, KeyRound, Mic2, Palette, UserCog, UserRound, type LucideIcon } from "lucide-react";
+import {
+  BookOpen,
+  Brain,
+  Eye,
+  KeyRound,
+  Link2,
+  Mic2,
+  Palette,
+  UserCog,
+  UserRound,
+  type LucideIcon
+} from "lucide-react";
 
 export type SettingsSection = {
   href: string;
@@ -10,6 +21,13 @@ export type SettingsSection = {
 };
 
 export const SETTINGS_SECTIONS: SettingsSection[] = [
+  {
+    href: "/settings/connections",
+    label: "AI connections",
+    description: "Connect AI applications to create and edit your characters.",
+    icon: Link2,
+    group: "Conversations"
+  },
   {
     href: "/settings/appearance",
     label: "Appearance",

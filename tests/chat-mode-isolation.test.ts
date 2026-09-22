@@ -42,7 +42,10 @@ test("external prompts exclude every built-in behavior layer while retaining fac
   const assembly = await read("../src/lib/prompt-assembly.ts");
 
   assert.match(assembly, /sessionMemoryLayer,[\s\S]*memoryLayer/);
-  assert.match(assembly, /const behaviorLayers = customPromptLayer[\s\S]*\? \[customPromptLayer\][\s\S]*: \[roleplayEngineLayer, modeLayer\]/);
+  assert.match(
+    assembly,
+    /const behaviorLayers = customPromptLayer[\s\S]*\? \[customPromptLayer\][\s\S]*: \[roleplayEngineLayer, modeLayer\]/
+  );
   assert.doesNotMatch(assembly, /\? \[modeLayer, customPromptLayer\]/);
 });
 
@@ -81,10 +84,11 @@ test("persona authorship and post-response work are protected at the prompt and 
   ]);
 
   assert.match(assembly, /PLAYER PERSONA — AUTHORITATIVE IDENTITY AND BOUNDARIES/);
-  assert.match(assembly, /Do not repeatedly notice, inventory, praise, fetishize/);
+  assert.match(assembly, /Avoid repeatedly inventorying, praising, or fetishizing/);
   assert.match(assembly, /Preserve the profile's facts, never its prose/);
-  assert.match(assembly, /Do not quote, closely paraphrase, echo, enumerate/);
-  assert.match(assembly, /immediate scene-specific consequence in fresh language/);
+  assert.match(assembly, /Use ordinary anatomical terms when needed without reciting the description/);
+  assert.match(assembly, /A natural observation or recurring practical consequence is allowed/);
+  assert.match(assembly, /Never write or infer the player's dialogue, actions, thoughts/);
   assert.match(assembly, /Build reactions from the character's immediate objective/);
   assert.match(assembly, /replace every generic gesture, metaphor, and dramatic transition/);
   for (const route of [webRoute, mobileRoute]) {

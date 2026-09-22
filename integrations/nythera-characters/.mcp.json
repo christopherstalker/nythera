@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "nythera": {
+      "type": "http",
+      "url": "https://www.nythera.art/api/mcp"
+    }
+  }
+}

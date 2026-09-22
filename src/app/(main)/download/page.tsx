@@ -10,7 +10,6 @@ import {
   RefreshCw,
   Share,
   Smartphone,
-  SquarePlus,
   WifiOff,
   type LucideIcon
 } from "lucide-react";
@@ -53,7 +52,7 @@ export default function DownloadPage() {
         <PageHeader
           icon={MonitorSmartphone}
           title="Install Nythera"
-          description="Nythera is delivered as a PWA: one installable app for desktop, phones, and tablets without Windows .exe warnings."
+          description="Install the web app on your devices, or get Desktop for local models on Windows."
           actions={
             hasNativeInstallPrompt && canInstall ? (
               <Button type="button" size="lg" onClick={() => void installApp()}>
@@ -83,9 +82,12 @@ export default function DownloadPage() {
             </div>
             <div className="min-w-0 flex-1">
               <p className="codex-kicker">Preferred edition</p>
-              <h2 className="font-editorial mt-2 text-3xl font-medium text-[var(--text-primary)]">Recommended install</h2>
+              <h2 className="font-editorial mt-2 text-3xl font-medium text-[var(--text-primary)]">
+                Recommended install
+              </h2>
               <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-                Open Nythera in Chrome or Edge and press the install button. It launches like a desktop app, keeps the mobile layout responsive, and avoids unsigned installer warnings.
+                Open Nythera in Chrome or Edge and press the install button. It launches like a desktop app, keeps the
+                mobile layout responsive, and avoids unsigned installer warnings.
               </p>
 
               <ResponsiveActions className="mt-4">
@@ -118,7 +120,8 @@ export default function DownloadPage() {
           <h2 className="font-editorial mt-2 text-3xl font-medium text-[var(--text-primary)]">Manual install</h2>
           <div className="mt-4 grid gap-3 text-sm leading-6 text-[var(--text-secondary)]">
             <InstallRow icon={MonitorSmartphone} title="Windows / desktop">
-              Use Chrome or Edge, open the browser menu, then choose <strong>Install Nythera</strong> or <strong>Apps / Install this site as an app</strong>.
+              Use Chrome or Edge, open the browser menu, then choose <strong>Install Nythera</strong> or{" "}
+              <strong>Apps / Install this site as an app</strong>.
             </InstallRow>
             <InstallRow icon={Smartphone} title="Android">
               Open in Chrome and tap <strong>Install app</strong> or <strong>Add to Home screen</strong>.
@@ -146,26 +149,41 @@ export default function DownloadPage() {
       </div>
 
       <Surface className="p-5 sm:p-6">
-        <div className="flex items-start gap-3">
-          <SquarePlus className="mt-0.5 h-5 w-5 shrink-0 text-[var(--accent-purple)]" />
-          <p className="text-sm leading-6 text-[var(--text-secondary)]">
-            The Windows .exe build is no longer the primary release path. PWA install is the default because it avoids code-signing warnings and keeps every device on the same live app.
-          </p>
+        <div id="desktop" className="flex scroll-mt-6 items-start gap-3">
+          <MonitorSmartphone className="mt-1 h-5 w-5 shrink-0 text-[var(--accent-purple)]" />
+          <div className="min-w-0 flex-1">
+            <p className="codex-kicker">Windows 64-bit · Version 1.1.0</p>
+            <h2 className="font-editorial mt-2 text-2xl font-medium text-[var(--text-primary)]">
+              Desktop for local models
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
+              Connect Ollama or LM Studio running on your computer. Desktop streams replies from your local model while
+              Nythera syncs your chats. An internet connection is still required.
+            </p>
+            <ResponsiveActions className="mt-4">
+              <Button asChild>
+                <a href="/downloads/Nythera-Setup.exe" download>
+                  <Download className="h-4 w-4" />
+                  Download Desktop
+                </a>
+              </Button>
+              <Button asChild variant="secondary">
+                <a href="/downloads/Nythera-Portable.exe" download>
+                  Portable version
+                </a>
+              </Button>
+            </ResponsiveActions>
+            <p className="mt-3 text-xs leading-5 text-[var(--text-muted)]">
+              Open Settings → Model providers in Desktop to select your local server and model.
+            </p>
+          </div>
         </div>
       </Surface>
     </PageShell>
   );
 }
 
-function InstallRow({
-  icon: Icon,
-  title,
-  children
-}: {
-  icon: LucideIcon;
-  title: string;
-  children: React.ReactNode;
-}) {
+function InstallRow({ icon: Icon, title, children }: { icon: LucideIcon; title: string; children: React.ReactNode }) {
   return (
     <div className="border-t border-[var(--border-default)] py-3">
       <div className="mb-1 flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">

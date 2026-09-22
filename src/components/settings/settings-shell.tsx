@@ -13,6 +13,7 @@ const sectionOrder = [
   "/settings/personas",
   "/settings/memory",
   "/settings/providers",
+  "/settings/connections",
   "/settings/voice",
   "/account",
   "/settings/help"

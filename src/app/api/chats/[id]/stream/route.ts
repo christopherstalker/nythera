@@ -6,9 +6,10 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 import { moderateText, sanitizeUserText } from "@/lib/safety";
 import { detectPromptInjection, sanitizePromptContext } from "@/lib/prompt-security";
 import { streamMessageSchema } from "@/lib/validation";
-import { assembleNytheraPrompt } from "@/lib/prompt-assembly";
+import { assembleNytheraPrompt, preparePromptCharacter } from "@/lib/prompt-assembly";
+import { buildContextTrace } from "@/lib/context-trace";
+import { prepareLocalGeneration } from "@/lib/local-generation-store";
 import { buildPromptAddonLayers } from "@/lib/prompts/buildPrompt";
-import { selectCustomPrompt } from "@/lib/response-prompt";
 import {
   buildPhysicalMemoryContext,
   formatTieredMemoryBlocks,
@@ -73,6 +74,12 @@ export async function POST(request: Request, context: Context) {
 
     const inputLimits = getChatInputLimits(user.id);
     const input = await parseJson(request, streamMessageSchema);
+    if (input.localModel && input.attachmentIds.length) {
+      throw new HttpError(
+        400,
+        "Local chat currently supports text. Remove image attachments or switch to a cloud model."
+      );
+    }
     if (input.message.length > inputLimits.message) {
       throw new HttpError(400, `Message must be ${inputLimits.message.toLocaleString()} characters or fewer.`);
     }
@@ -144,14 +151,14 @@ export async function POST(request: Request, context: Context) {
       }
     }
 
-    const providerKeys = await getEffectiveProviderKeys(user.id);
+    const providerKeys = input.localModel ? [] : await getEffectiveProviderKeys(user.id);
     const effectiveSettings = resolveCharacterModelSettings({
       character: chat.character,
       providerKeys,
       globalModel: input.model ?? chat.model,
       chatTemperature: input.temperature ?? chat.temperature
     });
-    const model = effectiveSettings.model;
+    const model = input.localModel ? `${input.localModel.engine}:${input.localModel.model}` : effectiveSettings.model;
     const maxOutputTokens = resolveChatOutputTokenLimit(effectiveSettings.maxTokens, user.maxOutputTokens);
     const providerMaxOutputTokens = providerOutputTokenBudget({
       visibleTokenLimit: maxOutputTokens,
@@ -159,7 +166,7 @@ export async function POST(request: Request, context: Context) {
       model
     });
     const temperature = effectiveSettings.temperature;
-    if (!isUserOwnedProvider(effectiveSettings.provider, providerKeys)) {
+    if (!input.localModel && !isUserOwnedProvider(effectiveSettings.provider, providerKeys)) {
       await enforceRateLimit({
         userId: user.id,
         ip: getRequestIp(request),
@@ -167,9 +174,10 @@ export async function POST(request: Request, context: Context) {
         cost: Math.min(maxOutputTokens ?? 4096, 4096)
       });
     }
-    const conversationSummary = conversationSummaryIsStale(chat)
-      ? ((await summarizeChat(chat.id))?.summary ?? chat.summary)
-      : chat.summary;
+    const conversationSummary =
+      !input.localModel && conversationSummaryIsStale(chat)
+        ? ((await summarizeChat(chat.id))?.summary ?? chat.summary)
+        : chat.summary;
     const history = await loadAdaptiveChatHistory({
       chatId: chat.id,
       model,
@@ -281,7 +289,7 @@ export async function POST(request: Request, context: Context) {
         totalLimit: 10,
         includeGlobal: false,
         providerKeys,
-        semanticEnabled: user.memoryEnabled
+        semanticEnabled: user.memoryEnabled && !input.localModel
       }),
       user.memoryEnabled ? getUserMemories(user.id, 8) : Promise.resolve([]),
       prisma.userPersona.findFirst({
@@ -299,7 +307,6 @@ export async function POST(request: Request, context: Context) {
     const tieredMemories = splitMemoriesForPrompt(memories, userGlobalMemories);
     const { characterMemories, userMemories } = formatTieredMemoryBlocks(tieredMemories);
     const responsePrompt = input.responsePrompt ?? chat.responsePrompt;
-    const customPromptActive = Boolean(selectCustomPrompt(responsePrompt, effectiveSettings.systemPromptOverride));
     const userPersonaPrompt = formatUserPersonaForPrompt(userPersona);
     const physicalContext = buildPhysicalMemoryContext(chat.summary, [...memories, ...userGlobalMemories]);
     const promptAddon = buildPromptAddonLayers({
@@ -335,7 +342,8 @@ export async function POST(request: Request, context: Context) {
     });
     const promptFit = fitPromptMessagesWithinContext(assembledPrompt, {
       model,
-      maxOutputTokens: providerMaxOutputTokens
+      maxOutputTokens: providerMaxOutputTokens,
+      contextWindow: input.localModel?.contextWindow
     });
     if (promptFit.fixedPromptTooLarge) {
       throw new HttpError(
@@ -344,6 +352,58 @@ export async function POST(request: Request, context: Context) {
       );
     }
     const prompt = promptFit.messages;
+    const contextTrace = buildContextTrace({
+      prompt,
+      memories,
+      globalMemories: userGlobalMemories,
+      lorebook: preparePromptCharacter(chat.character, formattedUserPersona).lorebook,
+      summary: conversationSummary,
+      estimatedTokens: promptFit.estimatedTokens,
+      tokenBudget: promptFit.tokenBudget,
+      droppedMessages: promptFit.droppedMessages,
+      semanticEnabled: user.memoryEnabled && !input.localModel
+    });
+    if (input.localModel) {
+      const localRequest = {
+        model: input.localModel.model,
+        messages: prompt.map(({ role, content }) => ({ role, content })),
+        temperature,
+        maxTokens: maxOutputTokens
+      };
+      const generation = await prepareLocalGeneration(
+        user.id,
+        chat.id,
+        userMessage?.id ?? history.messages.at(-1)?.id,
+        {
+          selection: input.localModel,
+          request: localRequest,
+          trace: contextTrace,
+          persona: userPersonaContinuity ?? userPersonaPrompt,
+          physicalContext,
+          currentMessage: message,
+          recentMessages: recentMessages.map(({ role, content }) => ({ role, content })),
+          responsePrompt: input.responsePrompt,
+          assistantAction: effectiveAssistantAction,
+          branchSourceMessageId: assistantOnlyAction ? input.continueMessageId : undefined,
+          actionRequestId: assistantOnlyAction
+            ? skipTime
+              ? skipTimeClientRequestId(
+                  input.requestId || crypto.randomUUID(),
+                  input.continueMessageId,
+                  skipTimeDuration
+                )
+              : input.continueMessageId
+                ? continuationClientRequestId(input.requestId || crypto.randomUUID(), input.continueMessageId)
+                : `continue-${input.requestId || crypto.randomUUID()}`
+            : undefined,
+          temporaryPersonaId: chat.temporaryPersonaId
+        }
+      );
+      return Response.json(
+        { local: true, generationId: generation.id, request: localRequest, userMessage, trace: contextTrace },
+        { headers: { "cache-control": "private, no-store" } }
+      );
+    }
     logPerformanceMetric("chat_prompt_context", {
       route: "chat:stream",
       model,
@@ -356,8 +416,7 @@ export async function POST(request: Request, context: Context) {
     const physicalOutputGuard = createPhysicalContinuityOutputGuard(
       chat.character,
       userPersonaContinuity ?? userPersonaPrompt,
-      { recentMessages, currentMessage: message, persistentPlayerContext: physicalContext },
-      { enabled: !customPromptActive }
+      { recentMessages, currentMessage: message, persistentPlayerContext: physicalContext }
     );
 
     const encoder = new TextEncoder();
@@ -440,6 +499,7 @@ export async function POST(request: Request, context: Context) {
             });
           }
 
+          send({ type: "context_trace", trace: contextTrace });
           for await (const chunk of streamLlmResponse({
             messages: prompt,
             model,
@@ -486,6 +546,7 @@ export async function POST(request: Request, context: Context) {
             chatId: chat.id,
             role: MessageRole.ASSISTANT,
             content: assistantText,
+            contextTrace: { create: { snapshot: JSON.parse(JSON.stringify(contextTrace)) } },
             model: usage.model,
             tokens: usage.outputTokens,
             provider: usage.provider,

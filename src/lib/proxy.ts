@@ -5,11 +5,15 @@ import { createGatewayEmbedding, streamGatewayResponse } from "@/lib/llm-gateway
 import type { ProviderKeys } from "@/lib/user-keys";
 import type { PromptMessage, StreamChunk } from "@/types";
 import { logSafeError } from "@/lib/secret-redaction";
-import { readProxyStream } from "@/lib/proxy-stream";
+import { readProxyStream, ShieldProviderError } from "@/lib/proxy-stream";
 import { signShieldRequest } from "../../proxy-service/src/request-auth";
 import {
-  createActivityTimeoutSignal, createTimeoutSignal, LLM_EMBEDDING_TIMEOUT_MS,
-  LLM_FIRST_TOKEN_TIMEOUT_MS, LLM_PROVIDER_TIMEOUT_MS, LLM_STREAM_IDLE_TIMEOUT_MS
+  createActivityTimeoutSignal,
+  createTimeoutSignal,
+  LLM_EMBEDDING_TIMEOUT_MS,
+  LLM_FIRST_TOKEN_TIMEOUT_MS,
+  LLM_PROVIDER_TIMEOUT_MS,
+  LLM_STREAM_IDLE_TIMEOUT_MS
 } from "@/lib/llm-timeouts";
 
 type StreamInput = {
@@ -28,44 +32,72 @@ type StreamInput = {
 
 export async function* streamLlmResponse(input: StreamInput): AsyncGenerator<StreamChunk> {
   const usesPersonalKeys = input.providerKeys?.some((key) => key.source === "user") ?? false;
-  if (!env.LLM_PROXY_URL || !(env.AI_SHIELD_SIGNING_SECRET || env.INTERNAL_API_TOKEN) || usesPersonalKeys || input.messages.some((message) => message.images?.length)) {
+  if (
+    !env.LLM_PROXY_URL ||
+    !(env.AI_SHIELD_SIGNING_SECRET || env.INTERNAL_API_TOKEN) ||
+    usesPersonalKeys ||
+    input.messages.some((message) => message.images?.length)
+  ) {
     yield* streamGatewayResponse(input);
     return;
   }
 
   let receivedDelta = false;
   const proxyDeadline = createTimeoutSignal(input.signal, LLM_PROVIDER_TIMEOUT_MS, "LLM proxy request timed out.");
-  const proxySignal = createActivityTimeoutSignal(proxyDeadline.signal, LLM_FIRST_TOKEN_TIMEOUT_MS, "LLM proxy did not start responding in time.");
+  const proxySignal = createActivityTimeoutSignal(
+    proxyDeadline.signal,
+    LLM_FIRST_TOKEN_TIMEOUT_MS,
+    "LLM proxy did not start responding in time."
+  );
   try {
-    const { signal: _signal, ...payload } = input;
-    const body = JSON.stringify(payload);
-    const path = "/v1/chat/stream";
-    const response = await fetch(`${env.LLM_PROXY_URL}${path}`, {
-      method: "POST", headers: proxyHeaders(path, body), body, signal: proxySignal.signal
-    });
-    if (!response.ok || !response.body || !response.headers.get("content-type")?.includes("text/event-stream")) {
-      await response.body?.cancel();
-      throw new Error("AI Shield is unavailable.");
+    try {
+      const { signal: _signal, ...payload } = input;
+      const body = JSON.stringify(payload);
+      const path = "/v1/chat/stream";
+      const response = await fetch(`${env.LLM_PROXY_URL}${path}`, {
+        method: "POST",
+        headers: proxyHeaders(path, body),
+        body,
+        signal: proxySignal.signal
+      });
+      if (!response.ok || !response.body || !response.headers.get("content-type")?.includes("text/event-stream")) {
+        await response.body?.cancel();
+        throw new Error("AI Shield is unavailable.");
+      }
+      for await (const chunk of readProxyStream(response.body, () =>
+        proxySignal.reset(LLM_STREAM_IDLE_TIMEOUT_MS, "LLM proxy stream stalled.")
+      )) {
+        if (chunk.type === "delta") receivedDelta = true;
+        yield chunk;
+      }
+      return;
+    } catch (error) {
+      if (input.signal?.aborted) return;
+      if (error instanceof ShieldProviderError) {
+        yield { type: "error", message: error.message };
+        return;
+      }
+      if (receivedDelta) {
+        yield { type: "error", message: "The model stream was interrupted." };
+        return;
+      }
+      logSafeError("External LLM proxy failed before streaming, using Vercel gateway.", error);
+    } finally {
+      proxySignal.dispose();
     }
-    for await (const chunk of readProxyStream(response.body, () => proxySignal.reset(LLM_STREAM_IDLE_TIMEOUT_MS, "LLM proxy stream stalled."))) {
-      if (chunk.type === "delta") receivedDelta = true;
-      yield chunk;
-    }
-    return;
-  } catch (error) {
-    if (input.signal?.aborted) return;
-    if (receivedDelta) {
-      yield { type: "error", message: "The model stream was interrupted." };
+
+    // Never restart a provider after any response text has reached the client.
+    if (proxyDeadline.timedOut()) {
+      yield { type: "error", message: "The model request took too long to respond. Try again shortly." };
       return;
     }
-    logSafeError("External LLM proxy failed before streaming, using Vercel gateway.", error);
+    yield* streamGatewayResponse({ ...input, signal: proxyDeadline.signal });
+    if (proxyDeadline.timedOut() && !input.signal?.aborted) {
+      yield { type: "error", message: "The model request took too long to respond. Try again shortly." };
+    }
   } finally {
-    proxySignal.dispose();
     proxyDeadline.dispose();
   }
-
-  // Never restart a provider after any response text has reached the client.
-  yield* streamGatewayResponse(input);
 }
 
 export async function createEmbedding(text: string, providerKeys?: ProviderKeys) {
@@ -76,11 +108,18 @@ export async function createEmbedding(text: string, providerKeys?: ProviderKeys)
       const path = "/v1/embeddings";
       const body = JSON.stringify({ text, providerKeys });
       const response = await fetch(`${env.LLM_PROXY_URL}${path}`, {
-        method: "POST", headers: proxyHeaders(path, body), body, signal: proxySignal.signal
+        method: "POST",
+        headers: proxyHeaders(path, body),
+        body,
+        signal: proxySignal.signal
       });
       if (response.ok) {
-        const payload = await response.json() as { embedding?: unknown };
-        if (Array.isArray(payload.embedding) && payload.embedding.length === 1536 && payload.embedding.every((value) => typeof value === "number" && Number.isFinite(value))) {
+        const payload = (await response.json()) as { embedding?: unknown };
+        if (
+          Array.isArray(payload.embedding) &&
+          payload.embedding.length === 1536 &&
+          payload.embedding.every((value) => typeof value === "number" && Number.isFinite(value))
+        ) {
           return payload.embedding as number[];
         }
       }
@@ -108,10 +147,13 @@ export async function checkShieldTransport(): Promise<"disabled" | "healthy" | "
   const body = "{}";
   try {
     const response = await fetch(`${env.LLM_PROXY_URL}${path}`, {
-      method: "POST", headers: proxyHeaders(path, body), body, signal: AbortSignal.timeout(5000)
+      method: "POST",
+      headers: proxyHeaders(path, body),
+      body,
+      signal: AbortSignal.timeout(5000)
     });
     if (!response.ok) return "unavailable";
-    const health = await response.json() as { ok?: boolean; service?: string };
+    const health = (await response.json()) as { ok?: boolean; service?: string };
     return health.ok === true && health.service === "nythera-ai-shield" ? "healthy" : "unavailable";
   } catch {
     return "unavailable";

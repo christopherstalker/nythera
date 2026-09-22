@@ -36,6 +36,7 @@ Unlike platforms that bind every conversation to a single hosted model, Nythera 
 - Character persona, scenario, greeting, lorebook, visual identity, safety, and sampling settings.
 - Public, unlisted, and private visibility with moderation checks before public discovery.
 - Character ratings, likes, reports, remixes, and library views.
+- Create and edit characters from compatible AI apps through OAuth or scoped MCP keys. See [AI connections](./docs/ai-connections.md).
 
 ### Conversation and memory
 
@@ -53,15 +54,15 @@ Unlike platforms that bind every conversation to a single hosted model, Nythera 
 
 ## Tech stack
 
-| Layer | Tools |
-| --- | --- |
-| App | Next.js 14 App Router, React 18, TypeScript |
-| Styling | Tailwind CSS, custom design tokens, lucide-react |
-| Auth | Auth.js / NextAuth v5, Prisma adapter |
-| Data | PostgreSQL, Prisma, pgvector |
-| AI | OpenAI, Anthropic, Gemini, OpenAI-compatible provider gateway |
-| Jobs and cache | BullMQ, Redis, Upstash Redis |
-| Deployment | Vercel, optional Express proxy service |
+| Layer          | Tools                                                         |
+| -------------- | ------------------------------------------------------------- |
+| App            | Next.js 14 App Router, React 18, TypeScript                   |
+| Styling        | Tailwind CSS, custom design tokens, lucide-react              |
+| Auth           | Auth.js / NextAuth v5, Prisma adapter                         |
+| Data           | PostgreSQL, Prisma, pgvector                                  |
+| AI             | OpenAI, Anthropic, Gemini, OpenAI-compatible provider gateway |
+| Jobs and cache | BullMQ, Redis, Upstash Redis                                  |
+| Deployment     | Vercel, optional Express proxy service                        |
 
 ## Getting started
 
@@ -78,8 +79,8 @@ Unlike platforms that bind every conversation to a single hosted model, Nythera 
 ```bash
 git clone https://github.com/christopherstalker/nythera.git
 cd nythera
-npm install
 pre-commit install
+npm install
 cp .env.example .env
 npm run prisma:generate
 npm run prisma:migrate
@@ -90,39 +91,43 @@ Open `http://localhost:3000`, create an account, then add a provider key in Sett
 
 ### Environment variables
 
-| Variable | Description | Example/default | Required |
-| --- | --- | --- | --- |
-| `DATABASE_URL` | Prisma PostgreSQL connection string. | `postgresql://postgres:postgres@localhost:55433/roleplay?schema=public` | Yes |
-| `DIRECT_URL` | Direct database connection for migrations. | Same as `DATABASE_URL` locally | Yes |
-| `AUTH_SECRET` / `NEXTAUTH_SECRET` | Auth.js session secret. | `change-me` | Yes |
-| `AUTH_URL` / `NEXTAUTH_URL` | App URL for auth callbacks. | `http://localhost:3000` | Yes |
-| `MOBILE_AUTH_SECRET` | Secret for mobile API token signing. | `change-me-mobile-token-secret` | Mobile API |
-| `INTERNAL_API_TOKEN` | Internal service boundary token for proxy calls. | `change-me-internal-token` | Production |
-| `LLM_PROXY_URL` | Optional external LLM proxy endpoint. | Empty on Vercel | No |
-| `GEMINI_API_KEY` | Optional server-side Gemini fallback key. | Empty | No |
-| `REDIS_URL` | Redis URL for BullMQ jobs. | `redis://localhost:6380` | Jobs |
-| `RATE_LIMIT_REQUIRE_DISTRIBUTED` | Require Redis/Upstash rate limiting. Hosted production environments default to `true`; local `next start` defaults to memory limits. | `true` / `false` | Hosted production |
-| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Upstash rate-limit backend. | Empty | Production recommended |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth credentials. | Empty | OAuth only |
-| `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` | Discord OAuth credentials. | Empty | OAuth only |
-| `TWITTER_CLIENT_ID` / `TWITTER_CLIENT_SECRET` | X OAuth credentials. | Empty | OAuth only |
-| `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` | Microsoft OAuth credentials. | Empty | OAuth only |
-| `EMAIL_SERVER` / `EMAIL_FROM` | Email sign-in transport and sender. | Empty / `noreply@example.com` | Email auth |
-| `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_ENDPOINT` | Optional object storage settings. | Empty | No |
-| `SENTRY_DSN` | Optional Sentry project DSN. | Empty | No |
+| Variable                                                                    | Description                                                                                                                          | Example/default                                                         | Required               |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------- | ---------------------- |
+| `DATABASE_URL`                                                              | Prisma PostgreSQL connection string.                                                                                                 | `postgresql://postgres:postgres@localhost:55433/roleplay?schema=public` | Yes                    |
+| `DIRECT_URL`                                                                | Direct database connection for migrations.                                                                                           | Same as `DATABASE_URL` locally                                          | Yes                    |
+| `AUTH_SECRET` / `NEXTAUTH_SECRET`                                           | Auth.js session secret.                                                                                                              | `change-me`                                                             | Yes                    |
+| `AUTH_URL` / `NEXTAUTH_URL`                                                 | App URL for auth callbacks.                                                                                                          | `http://localhost:3000`                                                 | Yes                    |
+| `MOBILE_AUTH_SECRET`                                                        | Secret for mobile API token signing.                                                                                                 | `change-me-mobile-token-secret`                                         | Mobile API             |
+| `INTERNAL_API_TOKEN`                                                        | Internal service boundary token for proxy calls.                                                                                     | `change-me-internal-token`                                              | Production             |
+| `LLM_PROXY_URL`                                                             | Optional external LLM proxy endpoint.                                                                                                | Empty on Vercel                                                         | No                     |
+| `GEMINI_API_KEY`                                                            | Optional server-side Gemini fallback key.                                                                                            | Empty                                                                   | No                     |
+| `REDIS_URL`                                                                 | Redis URL for BullMQ jobs.                                                                                                           | `redis://localhost:6380`                                                | Jobs                   |
+| `RATE_LIMIT_REQUIRE_DISTRIBUTED`                                            | Require Redis/Upstash rate limiting. Hosted production environments default to `true`; local `next start` defaults to memory limits. | `true` / `false`                                                        | Hosted production      |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`                       | Upstash rate-limit backend.                                                                                                          | Empty                                                                   | Production recommended |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`                                 | Google OAuth credentials.                                                                                                            | Empty                                                                   | OAuth only             |
+| `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET`                               | Discord OAuth credentials.                                                                                                           | Empty                                                                   | OAuth only             |
+| `TWITTER_CLIENT_ID` / `TWITTER_CLIENT_SECRET`                               | X OAuth credentials.                                                                                                                 | Empty                                                                   | OAuth only             |
+| `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET`                           | Microsoft OAuth credentials.                                                                                                         | Empty                                                                   | OAuth only             |
+| `EMAIL_SERVER` / `EMAIL_FROM`                                               | Email sign-in transport and sender.                                                                                                  | Empty / `noreply@example.com`                                           | Email auth             |
+| `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_ENDPOINT` | Optional object storage settings.                                                                                                    | Empty                                                                   | No                     |
+| `SENTRY_DSN`                                                                | Optional Sentry project DSN.                                                                                                         | Empty                                                                   | No                     |
 
 ## Provider support
 
-| Provider | API format | Setup status |
-| --- | --- | --- |
-| OpenAI | Native OpenAI | First-class preset |
-| Anthropic | Native Anthropic | First-class preset |
-| Gemini | Native Gemini | First-class preset and optional server fallback |
-| DeepSeek | OpenAI-compatible | First-class preset |
-| Mistral | OpenAI-compatible | First-class preset |
-| Groq | OpenAI-compatible | First-class preset |
-| xAI | OpenAI-compatible | First-class preset |
-| OpenRouter, LM Studio, Ollama-compatible gateways, vLLM, and similar endpoints | OpenAI-compatible | Custom provider entry |
+| Provider                                                                       | API format        | Setup status                                    |
+| ------------------------------------------------------------------------------ | ----------------- | ----------------------------------------------- |
+| OpenAI                                                                         | Native OpenAI     | First-class preset                              |
+| Anthropic                                                                      | Native Anthropic  | First-class preset                              |
+| Gemini                                                                         | Native Gemini     | First-class preset and optional server fallback |
+| DeepSeek                                                                       | OpenAI-compatible | First-class preset                              |
+| Mistral                                                                        | OpenAI-compatible | First-class preset                              |
+| Groq                                                                           | OpenAI-compatible | First-class preset                              |
+| xAI                                                                            | OpenAI-compatible | First-class preset                              |
+| OpenRouter, LM Studio, Ollama-compatible gateways, vLLM, and similar endpoints | OpenAI-compatible | Custom provider entry                           |
+
+## Production releases
+
+See [the release checklist](docs/production-releases.md) for publishing a complete, committed version and verifying MCP after deployment.
 
 ## Contributing
 

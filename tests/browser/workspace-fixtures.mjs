@@ -11,6 +11,10 @@ const characters = names.map((name, index) => ({
     "A quiet astronomer listening for signals beyond the horizon."
   ][index % 3],
   visibility: index % 2 ? "PRIVATE" : "PUBLIC",
+  moderationStatus: "APPROVED",
+  likes: index * 3,
+  ratingAverage: 4.5,
+  updatedAt: "2026-09-11T12:00:00Z",
   tags: ["adventure"],
   ratingAvg: 0,
   ratingCount: 0,
@@ -61,6 +65,8 @@ let profile = {
   profileSettings: {}
 };
 const appearances = new Map();
+let connected = false;
+let replyNumber = 0;
 const appAppearances = new Map();
 let personaProfiles = [
   {
@@ -96,7 +102,97 @@ createServer(async (request, response) => {
       return;
     }
     let payload = {};
+    if (/^\/api\/characters\/fixture-character-\d+\/test-scene$/.test(url.pathname)) {
+      replyNumber++;
+      response.end(
+        JSON.stringify({
+          content:
+            replyNumber % 2
+              ? "Elena turns the brass compass over in her hand. “There’s a bridge upstream. We can take our time.” She leaves the choice with you, studying the path that follows the bank."
+              : "“The water can wait.” Elena closes her fingers around the compass you gave her. “I know a crossing where we won’t have to leave dry ground.” She gestures toward the lanterns upstream and waits.",
+          model: "Connected model",
+          characterUpdatedAt: "2026-09-11T12:00:00Z",
+          generatedAt: new Date().toISOString()
+        })
+      );
+      return;
+    }
     switch (url.pathname) {
+      case "/api/chats/fixture-chat-0/context":
+        payload = {
+          messageId: "fixture-message-0",
+          trace: {
+            version: 1,
+            createdAt: "2026-09-11T12:30:00Z",
+            estimatedTokens: 6840,
+            tokenBudget: 14360,
+            droppedMessages: 2,
+            semanticEnabled: true,
+            entries: [
+              {
+                kind: "memory",
+                text: "Elena is carrying the brass compass you gave her.",
+                included: true,
+                reason: "Pinned fact included in this request"
+              },
+              {
+                kind: "memory",
+                text: "You prefer a quiet route away from deep water.",
+                included: true,
+                reason: "Retrieved and included in this request"
+              },
+              {
+                kind: "lore",
+                text: "The archive closes at midnight. Its north entrance stays unlocked for the night keeper.",
+                included: true,
+                reason: "Activated lore · archive, midnight"
+              },
+              {
+                kind: "lore",
+                text: "The forest observatory is a day’s walk from the city.",
+                included: false,
+                reason: "No keyword match, selection limit, or text transformed during assembly"
+              }
+            ]
+          }
+        };
+        break;
+      case "/api/keys":
+        if (request.method === "PATCH") {
+          let body = "";
+          for await (const chunk of request) body += chunk;
+          maxOutputTokens = JSON.parse(body).maxOutputTokens;
+        }
+        if (request.method === "POST") connected = true;
+        payload =
+          request.method === "POST"
+            ? {
+                key: {
+                  id: "fixture-key",
+                  provider: "openai",
+                  displayName: "OpenAI",
+                  defaultModel: "gpt-4o-mini",
+                  credentialStatus: "VALID"
+                }
+              }
+            : {
+                keys: connected
+                  ? [
+                      {
+                        id: "fixture-key",
+                        provider: "openai",
+                        displayName: "OpenAI",
+                        defaultModel: "gpt-4o-mini",
+                        credentialStatus: "VALID"
+                      }
+                    ]
+                  : [],
+                maxOutputTokens: null
+              };
+        break;
+      case "/api/keys/models":
+        payload = { providers: connected ? [{ provider: "openai", models: ["gpt-4o-mini"], source: "live" }] : [] };
+        break;
       case "/api/user-persona": {
         let activeProfileId = personaProfiles[0]?.id;
         if (request.method === "PUT") {
@@ -184,17 +280,6 @@ createServer(async (request, response) => {
           profile = { ...profile, ...JSON.parse(body) };
         }
         payload = { profile };
-        break;
-      case "/api/keys":
-        if (request.method === "PATCH") {
-          let body = "";
-          for await (const chunk of request) body += chunk;
-          maxOutputTokens = JSON.parse(body).maxOutputTokens;
-        }
-        payload = { keys: [], maxOutputTokens };
-        break;
-      case "/api/keys/models":
-        payload = { models: {} };
         break;
       case "/api/chats/fixture-chat-0":
         payload = { chat: chats[0] };

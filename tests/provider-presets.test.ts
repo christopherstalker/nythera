@@ -1,12 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  FIRST_CLASS_PROVIDER_PRESETS,
-  enforceFirstClassProviderConfig
-} from "../src/lib/provider-presets";
+import { FIRST_CLASS_PROVIDER_PRESETS, enforceFirstClassProviderConfig } from "../src/lib/provider-presets";
 
-const expectedProviders = ["openai", "anthropic", "gemini", "openrouter", "deepseek", "mistral", "groq", "xai"];
+const expectedProviders = [
+  "openai",
+  "anthropic",
+  "gemini",
+  "openrouter",
+  "vercel",
+  "together",
+  "fireworks",
+  "deepseek",
+  "mistral",
+  "groq",
+  "xai"
+];
 
 test("exposes every supported first-class provider exactly once", () => {
   assert.deepEqual(
@@ -16,9 +25,7 @@ test("exposes every supported first-class provider exactly once", () => {
 });
 
 test("configures new providers as direct official OpenAI-compatible APIs", () => {
-  const byProvider = Object.fromEntries(
-    FIRST_CLASS_PROVIDER_PRESETS.map((preset) => [preset.provider, preset])
-  );
+  const byProvider = Object.fromEntries(FIRST_CLASS_PROVIDER_PRESETS.map((preset) => [preset.provider, preset]));
 
   assert.deepEqual(
     {

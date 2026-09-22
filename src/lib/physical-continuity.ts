@@ -71,52 +71,58 @@ export function buildPhysicalContinuityLayer(
     return null;
   }
 
-  const heightFact = characterHeight && playerCanon.heightCentimeters
-    ? buildStandingHeightFact(character.name, characterHeight.centimeters, playerCanon.heightCentimeters)
-    : playerCanon.taller
-      ? `Standing height relation: the player is taller than ${characterName}.`
-      : null;
-  const weightFact = characterWeight && playerCanon.weightKilograms
-    ? buildWeightFact(character.name, characterWeight.kilograms, playerCanon.weightKilograms)
-    : playerCanon.heavier
-      ? `Body-mass relation: the player is heavier than ${characterName}.`
-      : null;
+  const heightFact =
+    characterHeight && playerCanon.heightCentimeters
+      ? buildStandingHeightFact(character.name, characterHeight.centimeters, playerCanon.heightCentimeters)
+      : playerCanon.taller
+        ? `Standing height relation: the player is taller than ${characterName}.`
+        : null;
+  const weightFact =
+    characterWeight && playerCanon.weightKilograms
+      ? buildWeightFact(character.name, characterWeight.kilograms, playerCanon.weightKilograms)
+      : playerCanon.heavier
+        ? `Body-mass relation: the player is heavier than ${characterName}.`
+        : null;
 
   if (sceneContext?.factsOnly) {
     return [
       "PHYSICAL CONTINUITY (FACTUAL CONTEXT)",
-      characterHeight ? `Canonical character height (${characterName}): ${formatHeight(characterHeight.centimeters)}.` : null,
+      characterHeight
+        ? `Canonical character height (${characterName}): ${formatHeight(characterHeight.centimeters)}.`
+        : null,
       playerCanon.heightCentimeters ? `Canonical player height: ${formatHeight(playerCanon.heightCentimeters)}.` : null,
-      characterWeight ? `Canonical character weight (${characterName}): ${formatWeight(characterWeight.kilograms)}.` : null,
+      characterWeight
+        ? `Canonical character weight (${characterName}): ${formatWeight(characterWeight.kilograms)}.`
+        : null,
       playerCanon.weightKilograms ? `Canonical player weight: ${formatWeight(playerCanon.weightKilograms)}.` : null,
       heightFact,
       weightFact,
-      playerCanon.cannotBeLifted ? "Canonical handling constraint: the player cannot be lifted or carried by another character." : null,
+      playerCanon.cannotBeLifted
+        ? "Canonical handling constraint: the player cannot be lifted or carried by another character."
+        : null,
       playerPosture ? `Latest player-authored posture: ${playerPosture}.` : null
     ]
       .filter((line): line is string => Boolean(line))
       .join("\n");
   }
 
-  const heightRule = characterHeight && playerCanon.heightCentimeters
-    ? buildStandingHeightRule(character.name, characterHeight.centimeters, playerCanon.heightCentimeters)
-    : playerCanon.taller
-      ? buildQualitativeHeightRule(character.name)
-      : null;
+  const heightRule =
+    characterHeight && playerCanon.heightCentimeters
+      ? buildStandingHeightRule(character.name, characterHeight.centimeters, playerCanon.heightCentimeters)
+      : playerCanon.taller
+        ? buildQualitativeHeightRule(character.name)
+        : null;
   const unknownHeightRule = playerCanon.heightCentimeters
     ? buildUnknownCounterpartHeightRule(playerCanon.heightCentimeters)
     : null;
-  const weightRule = characterWeight && playerCanon.weightKilograms
-    ? buildWeightRule(character.name, characterWeight.kilograms, playerCanon.weightKilograms)
-    : playerCanon.heavier
-      ? buildQualitativeWeightRule(character.name)
-      : null;
-  const hasHeightRelation = Boolean(
-    (characterHeight && playerCanon.heightCentimeters) || playerCanon.taller
-  );
-  const needsHandlingRule = Boolean(
-    playerCanon.weightKilograms || playerCanon.heavier || playerCanon.cannotBeLifted
-  );
+  const weightRule =
+    characterWeight && playerCanon.weightKilograms
+      ? buildWeightRule(character.name, characterWeight.kilograms, playerCanon.weightKilograms)
+      : playerCanon.heavier
+        ? buildQualitativeWeightRule(character.name)
+        : null;
+  const hasHeightRelation = Boolean((characterHeight && playerCanon.heightCentimeters) || playerCanon.taller);
+  const needsHandlingRule = Boolean(playerCanon.weightKilograms || playerCanon.heavier || playerCanon.cannotBeLifted);
 
   return [
     "PHYSICAL CONTINUITY — HIGHEST NARRATIVE PRIORITY",
@@ -125,9 +131,13 @@ export function buildPhysicalContinuityLayer(
     "- Posture, terrain, footwear, seating, or elevation may change an eye line only when that change is explicitly established in the current scene. Never invent a chair, seated pose, crouch, or height advantage to reverse the measured relation.",
     "- Only player-authored actions establish the player's posture or voluntary movement. Assistant narration cannot seat, lower, reposition, lift, carry, drag, or restrain the player by assumption.",
     "- Apply these constraints silently. Do not repeatedly announce, praise, fetishize, or build metaphors around a measurement.",
-    characterHeight ? `Canonical character height (${characterName}): ${formatHeight(characterHeight.centimeters)}.` : null,
+    characterHeight
+      ? `Canonical character height (${characterName}): ${formatHeight(characterHeight.centimeters)}.`
+      : null,
     playerCanon.heightCentimeters ? `Canonical player height: ${formatHeight(playerCanon.heightCentimeters)}.` : null,
-    characterWeight ? `Canonical character weight (${characterName}): ${formatWeight(characterWeight.kilograms)}.` : null,
+    characterWeight
+      ? `Canonical character weight (${characterName}): ${formatWeight(characterWeight.kilograms)}.`
+      : null,
     playerCanon.weightKilograms ? `Canonical player weight: ${formatWeight(playerCanon.weightKilograms)}.` : null,
     heightRule,
     unknownHeightRule,
@@ -192,18 +202,22 @@ export function createPhysicalContinuityOutputGuard(
     persistentContext: persistentPlayerFacts(sceneContext.persistentPlayerContext ?? "")
   });
   const posture = resolvePlayerPosture(sceneContext);
-  const playerIsLowered = posture === "seated" || posture === "lowered" || posture === "lying"
-    || hasPlayerAuthoredElevationOffset(sceneContext);
+  const playerIsLowered =
+    posture === "seated" ||
+    posture === "lowered" ||
+    posture === "lying" ||
+    hasPlayerAuthoredElevationOffset(sceneContext);
   const characterIsTaller = Boolean(
-    characterHeight
-      && playerCanon.heightCentimeters
-      && characterHeight - playerCanon.heightCentimeters > SAME_HEIGHT_TOLERANCE_CM
-      && !playerCanon.taller
+    characterHeight &&
+    playerCanon.heightCentimeters &&
+    characterHeight - playerCanon.heightCentimeters > SAME_HEIGHT_TOLERANCE_CM &&
+    !playerCanon.taller
   );
-  const rewriteEyeLine = options.enabled !== false
-    && !playerIsLowered
-    && !characterIsTaller
-    && Boolean(playerCanon.heightCentimeters || playerCanon.taller);
+  const rewriteEyeLine =
+    options.enabled !== false &&
+    !playerIsLowered &&
+    !characterIsTaller &&
+    Boolean(playerCanon.heightCentimeters || playerCanon.taller);
   const rewriteHandling = options.enabled !== false && playerCanon.cannotBeLifted === true;
   if (!rewriteEyeLine && !rewriteHandling) {
     return { push: (text) => text, flush: () => "" };
@@ -248,23 +262,43 @@ function rewritePhysicalContinuityViolations(
         (_match, owner: string) => `${owner} gaze settles on you`
       )
       .replace(/\b(towering|looming)\s+over\s+you\b/gi, "standing beside you")
-      .replace(/\b(he|she)\s+(?:towers|looms)\s+over\s+you\b/gi, (_match, subject: string) => `${subject} stands beside you`)
-      .replace(/\bthey\s+(?:tower|loom)\s+over\s+you\b/gi, (_match, subject: string) => `${subject} stand beside you`);
+      .replace(
+        /\b(he|she)\s+(?:towers|looms)\s+over\s+you\b/gi,
+        (_match, subject: string) => `${subject} stands beside you`
+      )
+      .replace(/\bthey\s+(?:tower|loom)\s+over\s+you\b/gi, (_match, subject: string) => `${subject} stand beside you`)
+      .replace(
+        /(?<![\p{L}])((?:по)?смотр(?:ит|ят|ел[аи]?|ели)|гляд(?:ит|ят|ел[аи]?|ели)|взглянул[аи]?)\s+(?:сверху\s+вниз|вниз)\s+на\s+(тебя|вас)(?![\p{L}])/giu,
+        (_match, verb: string, target: string) => `${verb} на ${target}`
+      )
+      .replace(
+        /(?<![\p{L}])((?:по)?смотр(?:ит|ят|ел[аи]?|ели)|гляд(?:ит|ят|ел[аи]?|ели)|взглянул[аи]?)\s+на\s+(тебя|вас)\s+сверху\s+вниз(?![\p{L}])/giu,
+        (_match, verb: string, target: string) => `${verb} на ${target}`
+      );
   }
 
   if (policy.rewriteHandling) {
     const subject = "([A-Z][A-Za-z'’-]{1,48}|[Hh]e|[Ss]he|[Tt]hey)";
     rewritten = rewritten
       .replace(
-        new RegExp(`\\b${subject}\\s+(?:effortlessly\\s+|easily\\s+|simply\\s+)?(lifted|hoisted|carried|dragged)\\s+you\\b`, "g"),
+        new RegExp(
+          `\\b${subject}\\s+(?:effortlessly\\s+|easily\\s+|simply\\s+)?(lifted|hoisted|carried|dragged)\\s+you\\b`,
+          "g"
+        ),
         (_match, actor: string) => `${actor} tried to move you, but could not shift your full weight`
       )
       .replace(
-        new RegExp(`\\b${subject}\\s+(?:effortlessly\\s+|easily\\s+|simply\\s+)?(lifts|hoists|carries|drags)\\s+you\\b`, "g"),
+        new RegExp(
+          `\\b${subject}\\s+(?:effortlessly\\s+|easily\\s+|simply\\s+)?(lifts|hoists|carries|drags)\\s+you\\b`,
+          "g"
+        ),
         (_match, actor: string) => `${actor} tries to move you, but cannot shift your full weight`
       )
       .replace(
-        new RegExp(`\\b${subject}\\s+(?:effortlessly\\s+|easily\\s+|simply\\s+)?(?:picked|scooped)\\s+you\\s+up\\b`, "g"),
+        new RegExp(
+          `\\b${subject}\\s+(?:effortlessly\\s+|easily\\s+|simply\\s+)?(?:picked|scooped)\\s+you\\s+up\\b`,
+          "g"
+        ),
         (_match, actor: string) => `${actor} tried to lift you, but could not shift your full weight`
       )
       .replace(
@@ -275,11 +309,7 @@ function rewritePhysicalContinuityViolations(
   return rewritten;
 }
 
-function resolvePlayerPhysicalCanon(input: {
-  persona: string;
-  playerMessages: string[];
-  persistentContext: string;
-}) {
+function resolvePlayerPhysicalCanon(input: { persona: string; playerMessages: string[]; persistentContext: string }) {
   const persistent = extractPlayerPhysicalCanon([input.persistentContext]);
   const recent = extractPlayerPhysicalCanon(input.playerMessages);
   const persona = extractPlayerPhysicalCanon([input.persona]);
@@ -331,16 +361,20 @@ function persistentPlayerFacts(value: string) {
 function buildStandingHeightFact(characterName: string, characterHeight: number, playerHeight: number) {
   const difference = Math.round(playerHeight - characterHeight);
   const character = sanitizePromptContext(characterName, 80);
-  if (difference > SAME_HEIGHT_TOLERANCE_CM) return `Standing height relation: the player is ${difference} cm taller than ${character}.`;
-  if (difference < -SAME_HEIGHT_TOLERANCE_CM) return `Standing height relation: ${character} is ${Math.abs(difference)} cm taller than the player.`;
+  if (difference > SAME_HEIGHT_TOLERANCE_CM)
+    return `Standing height relation: the player is ${difference} cm taller than ${character}.`;
+  if (difference < -SAME_HEIGHT_TOLERANCE_CM)
+    return `Standing height relation: ${character} is ${Math.abs(difference)} cm taller than the player.`;
   return `Standing height relation: ${character} and the player are approximately the same height.`;
 }
 
 function buildWeightFact(characterName: string, characterWeight: number, playerWeight: number) {
   const difference = Math.round(playerWeight - characterWeight);
   const character = sanitizePromptContext(characterName, 80);
-  if (difference > SAME_WEIGHT_TOLERANCE_KG) return `Body-mass relation: the player is ${difference} kg heavier than ${character}.`;
-  if (difference < -SAME_WEIGHT_TOLERANCE_KG) return `Body-mass relation: ${character} is ${Math.abs(difference)} kg heavier than the player.`;
+  if (difference > SAME_WEIGHT_TOLERANCE_KG)
+    return `Body-mass relation: the player is ${difference} kg heavier than ${character}.`;
+  if (difference < -SAME_WEIGHT_TOLERANCE_KG)
+    return `Body-mass relation: ${character} is ${Math.abs(difference)} kg heavier than the player.`;
   return `Body-mass relation: ${character} and the player have approximately the same weight.`;
 }
 
@@ -350,7 +384,8 @@ function findCanonicalHeight(value: string, subjectName?: string) {
     parseHeightFacts(excerpt).map((fact) => ({
       ...fact,
       order,
-      confidence: fact.confidence + (normalizedSubject && fact.excerpt.toLocaleLowerCase().includes(normalizedSubject) ? 2 : 0)
+      confidence:
+        fact.confidence + (normalizedSubject && fact.excerpt.toLocaleLowerCase().includes(normalizedSubject) ? 2 : 0)
     }))
   );
   return facts.sort((left, right) => right.confidence - left.confidence || right.order - left.order)[0] ?? null;
@@ -361,14 +396,20 @@ function parseHeightFacts(excerpt: string): Omit<HeightFact, "order">[] {
   const heightLanguage = /\b(?:height|tall|standing|stature)\b|(?:рост|ростом|высок(?:ий|ая|ое|ого|а)?)/i.test(excerpt);
   const facts: Omit<HeightFact, "order">[] = [];
 
-  for (const match of excerpt.matchAll(/\b(\d{2,3}(?:[.,]\d+)?)\s*(?:cm|centimet(?:er|re)s?|см|сантиметр(?:а|ов|ы)?)(?=$|[\s.,;:!?()])/gi)) {
+  for (const match of excerpt.matchAll(
+    /\b(\d{2,3}(?:[.,]\d+)?)\s*(?:cm|centimet(?:er|re)s?|см|сантиметр(?:а|ов|ы)?)(?=$|[\s.,;:!?()])/gi
+  )) {
     const centimeters = Number(match[1].replace(",", "."));
-    if (isPlausibleHeight(centimeters)) facts.push({ centimeters, excerpt: sanitizedExcerpt, confidence: heightLanguage ? 4 : 1 });
+    if (isPlausibleHeight(centimeters))
+      facts.push({ centimeters, excerpt: sanitizedExcerpt, confidence: heightLanguage ? 4 : 1 });
   }
 
-  for (const match of excerpt.matchAll(/\b(\d(?:[.,]\d{1,2})?)\s*(?:m|met(?:er|re)s?|м|метр(?:а|ов|ы)?)(?=$|[\s.,;:!?()])/gi)) {
+  for (const match of excerpt.matchAll(
+    /\b(\d(?:[.,]\d{1,2})?)\s*(?:m|met(?:er|re)s?|м|метр(?:а|ов|ы)?)(?=$|[\s.,;:!?()])/gi
+  )) {
     const centimeters = Number(match[1].replace(",", ".")) * 100;
-    if (heightLanguage && isPlausibleHeight(centimeters)) facts.push({ centimeters, excerpt: sanitizedExcerpt, confidence: 4 });
+    if (heightLanguage && isPlausibleHeight(centimeters))
+      facts.push({ centimeters, excerpt: sanitizedExcerpt, confidence: 4 });
   }
 
   for (const match of excerpt.matchAll(/\b([3-8])\s*(?:ft|feet|')\s*(\d{1,2})?\s*(?:in(?:ches?)?|\")?/gi)) {
@@ -376,7 +417,8 @@ function parseHeightFacts(excerpt: string): Omit<HeightFact, "order">[] {
     const inches = Number(match[2] ?? 0);
     if (inches > 11) continue;
     const centimeters = (feet * 12 + inches) * 2.54;
-    if (isPlausibleHeight(centimeters)) facts.push({ centimeters, excerpt: sanitizedExcerpt, confidence: heightLanguage ? 4 : 2 });
+    if (isPlausibleHeight(centimeters))
+      facts.push({ centimeters, excerpt: sanitizedExcerpt, confidence: heightLanguage ? 4 : 2 });
   }
   return facts;
 }
@@ -387,7 +429,8 @@ function findCanonicalWeight(value: string, subjectName?: string, assumePlayer =
     parseWeightFacts(excerpt, assumePlayer).map((fact) => ({
       ...fact,
       order,
-      confidence: fact.confidence + (normalizedSubject && fact.excerpt.toLocaleLowerCase().includes(normalizedSubject) ? 2 : 0)
+      confidence:
+        fact.confidence + (normalizedSubject && fact.excerpt.toLocaleLowerCase().includes(normalizedSubject) ? 2 : 0)
     }))
   );
   return facts.sort((left, right) => right.confidence - left.confidence || right.order - left.order)[0] ?? null;
@@ -397,16 +440,21 @@ function parseWeightFacts(excerpt: string, assumePlayer: boolean): Omit<WeightFa
   const sanitizedExcerpt = sanitizePromptContext(excerpt, 280);
   const weightLanguage = /\b(?:weight|weighs?|body mass)\b|(?:вес|весом|вешу|весит|масса)/i.test(excerpt);
   const playerLanguage = /\b(?:user persona|player|i(?:'m| am)?|my)\b|(?:персона|игрок|я|мой|моя|меня)/i.test(excerpt);
-  const physicalProfileLanguage = /\b(?:height|tall|standing|stature|build|physique)\b|(?:рост|ростом|высок|телослож)/i.test(excerpt);
+  const physicalProfileLanguage =
+    /\b(?:height|tall|standing|stature|build|physique)\b|(?:рост|ростом|высок|телослож)/i.test(excerpt);
   if (!weightLanguage && !assumePlayer) return [];
   const confidence = weightLanguage ? 4 : playerLanguage || physicalProfileLanguage ? 3 : 1;
 
   const facts: Omit<WeightFact, "order">[] = [];
-  for (const match of excerpt.matchAll(/\b(\d{2,3}(?:[.,]\d+)?)\s*(?:kg|kilograms?|килограмм(?:а|ов|ы)?|кг)(?=$|[\s.,;:!?()])/gi)) {
+  for (const match of excerpt.matchAll(
+    /\b(\d{2,3}(?:[.,]\d+)?)\s*(?:kg|kilograms?|килограмм(?:а|ов|ы)?|кг)(?=$|[\s.,;:!?()])/gi
+  )) {
     const kilograms = Number(match[1].replace(",", "."));
     if (isPlausibleWeight(kilograms)) facts.push({ kilograms, excerpt: sanitizedExcerpt, confidence });
   }
-  for (const match of excerpt.matchAll(/\b(\d{2,3}(?:[.,]\d+)?)\s*(?:lb|lbs|pounds?|фунт(?:а|ов|ы)?)(?=$|[\s.,;:!?()])/gi)) {
+  for (const match of excerpt.matchAll(
+    /\b(\d{2,3}(?:[.,]\d+)?)\s*(?:lb|lbs|pounds?|фунт(?:а|ов|ы)?)(?=$|[\s.,;:!?()])/gi
+  )) {
     const kilograms = Number(match[1].replace(",", ".")) * 0.45359237;
     if (isPlausibleWeight(kilograms)) facts.push({ kilograms, excerpt: sanitizedExcerpt, confidence });
   }
@@ -415,17 +463,28 @@ function parseWeightFacts(excerpt: string, assumePlayer: boolean): Omit<WeightFa
 
 function findRelativePhysicalFacts(value: string) {
   return {
-    taller: /\b(?:i am|i'm|player is)\s+(?:much\s+)?taller\b|\bmy height is (?:greater|higher|more)\b|(?:я\s+(?:намного\s+)?выше|мой рост (?:больше|выше))/i.test(value),
-    heavier: /\b(?:i am|i'm|player is)\s+(?:much\s+)?heavier\b|\bmy weight is (?:greater|higher|more)\b|(?:я\s+(?:намного\s+)?тяжелее|мой вес (?:больше|выше))/i.test(value)
+    taller:
+      /\b(?:i am|i'm|player is)\s+(?:much\s+)?taller\b|\bmy height is (?:greater|higher|more)\b|(?:я\s+(?:намного\s+)?выше|мой рост (?:больше|выше))/i.test(
+        value
+      ),
+    heavier:
+      /\b(?:i am|i'm|player is)\s+(?:much\s+)?heavier\b|\bmy weight is (?:greater|higher|more)\b|(?:я\s+(?:намного\s+)?тяжелее|мой вес (?:больше|выше))/i.test(
+        value
+      )
   };
 }
 
 function hasCannotBeLiftedConstraint(value: string) {
-  return /\b(?:cannot|can't|can not|must not|should not|never)\s+(?:be\s+)?(?:lifted|picked up|carried|hoisted|dragged|moved)\b|\b(?:do not|don't)\s+(?:lift|pick me up|carry|drag|move)\b|(?:меня\s+)?(?:нельзя|невозможно|не\s+можно|не\s+(?:может|могут|сможет|смогут))\s+(?:меня\s+)?(?:поднять|поднимать|приподнять|нести|переносить|утащить|сдвинуть)/i.test(value);
+  return /\b(?:cannot|can't|can not|must not|should not|never)\s+(?:be\s+)?(?:lifted|picked up|carried|hoisted|dragged|moved)\b|\b(?:do not|don't)\s+(?:lift|pick me up|carry|drag|move)\b|(?:меня\s+)?(?:нельзя|невозможно|не\s+можно|не\s+(?:может|могут|сможет|смогут))\s+(?:меня\s+)?(?:поднять|поднимать|приподнять|нести|переносить|утащить|сдвинуть)/i.test(
+    value
+  );
 }
 
 function splitExcerpts(value: string) {
-  return value.split(/[\r\n]+|(?<=[.!?])\s+/).map((excerpt) => excerpt.trim()).filter(Boolean);
+  return value
+    .split(/[\r\n]+|(?<=[.!?])\s+/)
+    .map((excerpt) => excerpt.trim())
+    .filter(Boolean);
 }
 
 function isPlausibleHeight(centimeters: number) {
@@ -550,10 +609,7 @@ function detectLatestPosture(value: string): PlayerPosture | null {
     },
     {
       posture: "seated",
-      expressions: [
-        /\b(?:sit|sits|sitting|sat|seated)\b/gi,
-        /(?:сел[аи]?|сажусь|сижу|сидит|сидел[аи]?)/gi
-      ]
+      expressions: [/\b(?:sit|sits|sitting|sat|seated)\b/gi, /(?:сел[аи]?|сажусь|сижу|сидит|сидел[аи]?)/gi]
     },
     {
       posture: "lowered",
@@ -564,10 +620,7 @@ function detectLatestPosture(value: string): PlayerPosture | null {
     },
     {
       posture: "lying",
-      expressions: [
-        /\b(?:lie|lies|lying|lay down|laid down)\b/gi,
-        /(?:легл[аи]?|ложусь|лежу|лежит)/gi
-      ]
+      expressions: [/\b(?:lie|lies|lying|lay down|laid down)\b/gi, /(?:легл[аи]?|ложусь|лежу|лежит)/gi]
     }
   ];
 
@@ -584,5 +637,9 @@ function detectLatestPosture(value: string): PlayerPosture | null {
 function hasPlayerAuthoredElevationOffset(sceneContext: SceneContext) {
   return playerAuthoredMessages(sceneContext)
     .slice(-4)
-    .some((message) => /\b(?:i(?:'m| am| stand| wait| remain)?\s+(?:below|beneath|downhill from)|at the (?:bottom|foot) of|above me|overhead)\b|(?:я\s+(?:стою\s+)?ниже|надо мной|у подножия|внизу)/i.test(message));
+    .some((message) =>
+      /\b(?:i(?:'m| am| stand| wait| remain)?\s+(?:below|beneath|downhill from)|at the (?:bottom|foot) of|above me|overhead)\b|(?:я\s+(?:стою\s+)?ниже|надо мной|у подножия|внизу)/i.test(
+        message
+      )
+    );
 }

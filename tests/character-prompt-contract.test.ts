@@ -56,29 +56,40 @@ test("character templates resolve actor, player name, and optional surname comma
 });
 
 test("character templates resolve commands recursively inside additional personalities and lorebook entries", () => {
-  const context = characterTemplateContext("Ari | Archive", [
-    "Active player persona: Investigator",
-    "Canonical player name: Alex",
-    "Canonical player surname: Morgan"
-  ].join("\n"));
+  const context = characterTemplateContext(
+    "Ari | Archive",
+    ["Active player persona: Investigator", "Canonical player name: Alex", "Canonical player surname: Morgan"].join(
+      "\n"
+    )
+  );
 
-  assert.deepEqual(renderCharacterTemplateValue({
-    additionalCharacters: [{
-      name: "Mira",
-      personality: "Mira trusts {{user}} {{user_surname}} but challenges {{char}}."
-    }],
-    lorebook: {
-      entries: [{ keywords: ["{{user_surname}} archive"], text: "{{user}} found the sealed record." }]
+  assert.deepEqual(
+    renderCharacterTemplateValue(
+      {
+        additionalCharacters: [
+          {
+            name: "Mira",
+            personality: "Mira trusts {{user}} {{user_surname}} but challenges {{char}}."
+          }
+        ],
+        lorebook: {
+          entries: [{ keywords: ["{{user_surname}} archive"], text: "{{user}} found the sealed record." }]
+        }
+      },
+      context
+    ),
+    {
+      additionalCharacters: [
+        {
+          name: "Mira",
+          personality: "Mira trusts Alex Morgan but challenges Ari."
+        }
+      ],
+      lorebook: {
+        entries: [{ keywords: ["Morgan archive"], text: "Alex found the sealed record." }]
+      }
     }
-  }, context), {
-    additionalCharacters: [{
-      name: "Mira",
-      personality: "Mira trusts Alex Morgan but challenges Ari."
-    }],
-    lorebook: {
-      entries: [{ keywords: ["Morgan archive"], text: "Alex found the sealed record." }]
-    }
-  });
+  );
 });
 
 test("new and legacy opening messages use the selected player persona", () => {
@@ -88,16 +99,31 @@ test("new and legacy opening messages use the selected player persona", () => {
     renderCharacterGreeting({ name: "Ari", greeting: "Welcome, {{user}} {{user_surname}}." }, userPersona),
     "Welcome, Alex Morgan."
   );
-  assert.equal(renderInitialChatGreeting({
-    role: "ASSISTANT",
-    sequence: 1,
-    content: "Welcome, {{user}} {{user_surname}}."
-  }, "Ari", userPersona).content, "Welcome, Alex Morgan.");
-  assert.equal(renderInitialRoomGreeting({
-    role: "CHARACTER",
-    sequence: 2,
-    content: "Mira recognizes {{user_surname}}."
-  }, "Mira", 2, userPersona).content, "Mira recognizes Morgan.");
+  assert.equal(
+    renderInitialChatGreeting(
+      {
+        role: "ASSISTANT",
+        sequence: 1,
+        content: "Welcome, {{user}} {{user_surname}}."
+      },
+      "Ari",
+      userPersona
+    ).content,
+    "Welcome, Alex Morgan."
+  );
+  assert.equal(
+    renderInitialRoomGreeting(
+      {
+        role: "CHARACTER",
+        sequence: 2,
+        content: "Mira recognizes {{user_surname}}."
+      },
+      "Mira",
+      2,
+      userPersona
+    ).content,
+    "Mira recognizes Morgan."
+  );
 });
 
 test("template repair never rewrites ordinary conversation messages", () => {
@@ -115,7 +141,7 @@ test("prompt assembly sends one ordered system contract without duplicating the 
   assert.match(source, /DATA CONSISTENCY GUARD/);
   assert.match(source, /The greeting already exists as the first assistant message/);
   assert.doesNotMatch(source, /Canonical greeting:/);
-  assert.match(source, /const system = \[/);
+  assert.match(source, /const system = systemLayers\.filter/);
   assert.match(source, /\{ role: "system", content: system \}/);
   assert.match(source, /renderCharacterTemplateValue\(persona, context\)/);
   assert.match(source, /renderCharacterTemplateValue\(character\.lorebook/);
@@ -130,7 +156,11 @@ test("all chat creation paths render the opening message before persistence", as
 
   assert.match(web, /content: greeting/);
   assert.match(mobile, /content: greeting/);
-  assert.match(rooms, /content: renderCharacterPrologue\(\{\s*greeting: renderCharacterGreeting\(character, userPersona\)/);
+  assert.match(rooms, /content: renderCharacterPrologue\(\{\s*greeting: character\.greeting/);
+  for (const source of [web, mobile, rooms]) {
+    assert.doesNotMatch(source, /greeting: renderCharacterGreeting\(/);
+    assert.match(source, /userPersonaSurname:/);
+  }
   assert.doesNotMatch(web, /content: character\.greeting/);
   assert.doesNotMatch(mobile, /content: character\.greeting/);
   assert.doesNotMatch(rooms, /content: character\.greeting/);

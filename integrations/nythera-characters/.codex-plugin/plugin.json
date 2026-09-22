@@ -1,0 +1,18 @@
+{
+  "name": "nythera-characters",
+  "version": "0.1.0",
+  "description": "Create and edit roleplay characters in your Nythera account.",
+  "author": {
+    "name": "Nythera"
+  },
+  "interface": {
+    "displayName": "Nythera Characters",
+    "shortDescription": "Create characters from your AI conversations.",
+    "longDescription": "Connect your Nythera account to create private characters, refine their personality and lore, and manage visibility with separate permissions.",
+    "developerName": "Nythera",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "defaultPrompt": "Create a private roleplay character in my Nythera account."
+  },
+  "mcpServers": "./.mcp.json"
+}

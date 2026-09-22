@@ -65,10 +65,7 @@ export async function saveUserApiKey(input: {
     const firstProviderKey = providerKeys[0];
     const isFirstKey = !existingKey;
 
-    const providerPriority = providerKeys.reduce(
-      (highest, key) => Math.max(highest, key.providerPriority),
-      -1
-    ) + 1;
+    const providerPriority = providerKeys.reduce((highest, key) => Math.max(highest, key.providerPriority), -1) + 1;
 
     const key = await tx.userApiKey.create({
       data: {
@@ -107,7 +104,13 @@ export async function saveUserApiKey(input: {
 export async function listUserApiKeys(userId: string) {
   return prisma.userApiKey.findMany({
     where: { userId },
-    orderBy: [{ isDefault: "desc" }, { fallbackPriority: "asc" }, { provider: "asc" }, { providerPriority: "asc" }, { createdAt: "asc" }],
+    orderBy: [
+      { isDefault: "desc" },
+      { fallbackPriority: "asc" },
+      { provider: "asc" },
+      { providerPriority: "asc" },
+      { createdAt: "asc" }
+    ],
     select: {
       id: true,
       provider: true,
@@ -129,13 +132,22 @@ export async function listUserApiKeys(userId: string) {
   });
 }
 
-export async function getDecryptedProviderKeys(userId: string, options: { includeInvalid?: boolean } = {}): Promise<ProviderKeys> {
+export async function getDecryptedProviderKeys(
+  userId: string,
+  options: { includeInvalid?: boolean } = {}
+): Promise<ProviderKeys> {
   const rows = await prisma.userApiKey.findMany({
     where: {
       userId,
       ...(options.includeInvalid ? {} : { credentialStatus: { not: "INVALID" } })
     },
-    orderBy: [{ isDefault: "desc" }, { fallbackPriority: "asc" }, { provider: "asc" }, { providerPriority: "asc" }, { createdAt: "asc" }],
+    orderBy: [
+      { isDefault: "desc" },
+      { fallbackPriority: "asc" },
+      { provider: "asc" },
+      { providerPriority: "asc" },
+      { createdAt: "asc" }
+    ],
     select: {
       id: true,
       provider: true,
@@ -321,9 +333,7 @@ export async function deleteUserApiKey(input: { userId: string; keyId?: string |
 
   await prisma.$transaction(async (tx) => {
     const targets = await tx.userApiKey.findMany({
-      where: input.keyId
-        ? { id: input.keyId, userId: input.userId }
-        : { userId: input.userId, provider },
+      where: input.keyId ? { id: input.keyId, userId: input.userId } : { userId: input.userId, provider },
       select: { id: true, provider: true, isDefault: true }
     });
     if (targets.length === 0) {
@@ -399,6 +409,8 @@ function providerToDisplayName(provider: string) {
     deepseek: "DeepSeek",
     groq: "Groq",
     together: "Together AI",
+    vercel: "Vercel AI Gateway",
+    fireworks: "Fireworks AI",
     mistral: "Mistral",
     xai: "xAI (Grok)"
   };

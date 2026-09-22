@@ -25,7 +25,6 @@ import { logSafeError } from "@/lib/secret-redaction";
 import { getStoryPromptContext, syncChatTurns } from "@/lib/stories/story-foundation";
 import { markStoryBeatsCompleted, markStoryProactiveEventsFired } from "@/lib/stories/narrative-store";
 import { buildPromptAddonLayers } from "@/lib/prompts/buildPrompt";
-import { selectCustomPrompt } from "@/lib/response-prompt";
 import {
   buildPhysicalMemoryContext,
   formatTieredMemoryBlocks,
@@ -205,7 +204,6 @@ export async function POST(request: Request, context: Context) {
     const recentMessages = history.messages.map((historyMessage) =>
       renderInitialChatGreeting(historyMessage, chat.character.name, formattedUserPersona)
     );
-    const customPromptActive = Boolean(selectCustomPrompt(responsePrompt, effectiveSettings.systemPromptOverride));
     const userPersonaPrompt = formatUserPersonaForPrompt(userPersona);
     const physicalContext = buildPhysicalMemoryContext(chat.summary, [...memories, ...userGlobalMemories]);
 
@@ -240,8 +238,7 @@ export async function POST(request: Request, context: Context) {
     const physicalOutputGuard = createPhysicalContinuityOutputGuard(
       chat.character,
       formatUserPersonaContinuitySource(userPersona) ?? userPersonaPrompt,
-      { recentMessages, currentMessage: message, persistentPlayerContext: physicalContext },
-      { enabled: !customPromptActive }
+      { recentMessages, currentMessage: message, persistentPlayerContext: physicalContext }
     );
 
     const encoder = new TextEncoder();

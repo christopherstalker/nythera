@@ -84,6 +84,10 @@ const AUTH_HANDOFF_STATUS_LIMIT: RateLimitRule = {
 };
 
 const ROUTE_LIMITS: Record<string, RateLimitRule> = {
+  "integrations:register": AUTH_LIMIT,
+  "integrations:token": AUTH_LIMIT,
+  "integrations:keys": AUTH_LIMIT,
+  "integrations:mcp": DEFAULT_LIMIT,
   "keys:validate": AI_CREATION_LIMIT,
   "auth:nextauth": AUTH_LIMIT,
   "auth:register": AUTH_LIMIT,

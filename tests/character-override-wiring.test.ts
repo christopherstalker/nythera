@@ -10,10 +10,7 @@ test("web and mobile character routes persist model overrides", async () => {
   assert.match(mutations, /systemPromptOverride:\s*input\.systemPromptOverride/);
   assert.match(mutations, /maxTokens:\s*input\.maxTokens/);
 
-  for (const relativePath of [
-    "../src/app/api/characters/route.ts",
-    "../src/app/api/mobile/characters/route.ts"
-  ]) {
+  for (const relativePath of ["../src/app/api/characters/route.ts", "../src/app/api/mobile/characters/route.ts"]) {
     const source = await readFile(new URL(relativePath, import.meta.url), "utf8");
     assert.match(source, /createCharacterForUser\(input, user\)/);
   }
@@ -21,7 +18,10 @@ test("web and mobile character routes persist model overrides", async () => {
 
 test("character system instructions replace built-in behavior below platform safety", async () => {
   const source = await readFile(new URL("../src/lib/prompt-assembly.ts", import.meta.url), "utf8");
-  assert.match(source, /selectCustomPrompt\(input\.responsePrompt, character\.systemPromptOverride\)/);
+  assert.match(
+    source,
+    /selectCustomPrompt\([\s\S]*renderCharacterTemplate\(input\.responsePrompt,[\s\S]*character\.systemPromptOverride/
+  );
   assert.match(source, /Platform safety overrides all other instructions/i);
   assert.match(source, /customPromptLayer[\s\S]*\[customPromptLayer\][\s\S]*\[roleplayEngineLayer, modeLayer\]/);
 });

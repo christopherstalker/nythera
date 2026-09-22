@@ -8,6 +8,21 @@ for (const [name, classify] of [
   ["built-in gateway", classifyBuiltInError],
   ["proxy service", classifyProxyError]
 ] as const) {
+  test(`${name} reports content blocks without treating keys as invalid`, () => {
+    for (const error of [
+      new Error("[GoogleGenerativeAI Error]: Text not available. Response was blocked due to PROHIBITED_CONTENT"),
+      new Error("Text not available. Candidate was blocked due to SAFETY"),
+      { status: 403, message: "content_filter" }
+    ]) {
+      const classified = classify(error);
+      assert.equal(classified.code, "content_blocked");
+      assert.equal(classified.retryable, false);
+      assert.match(classified.message, /content policy/);
+      assert.doesNotMatch(classified.message, /Check the key|Refresh its model list/);
+      assert.deepEqual(classifyBuiltInError(error), classifyProxyError(error));
+    }
+  });
+
   test(`${name} retries rate limits`, () => {
     assert.deepEqual(classify({ status: 429, message: "Too many requests" }), {
       code: "rate_limit",
@@ -33,9 +48,9 @@ for (const [name, classify] of [
     }
   });
 
-  test(`${name} classifies the gateway deadline message as a retryable network failure`, () => {
+  test(`${name} classifies the gateway deadline separately from connectivity failures`, () => {
     const classified = classify(new Error("Provider request timed out."));
-    assert.equal(classified.code, "network_error");
+    assert.equal(classified.code, "provider_timeout");
     assert.equal(classified.retryable, true);
   });
 

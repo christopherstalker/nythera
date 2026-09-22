@@ -7,6 +7,8 @@ import { normalizePersonaRows } from "../src/lib/user-persona-profiles";
 import vm from "node:vm";
 import ts from "typescript";
 import { profileFromApi, profileToDraft } from "../src/hooks/use-chat-quick-panel";
+import { formatUserPersonaForPrompt } from "../src/lib/user-persona-prompt";
+import type { UserPersona } from "@prisma/client";
 
 const legacy = {
   id: "persona-alex",
@@ -154,4 +156,94 @@ test("saving and restoring versions preserves appearance and older clients canno
   await store.restorePersonaRevision("owner", legacy.id, revisions[0].id);
   assert.equal(saved.appearance, "Silver hair.");
   assert.deepEqual(saved.boundaries, legacy.boundaries);
+});
+
+test("saving a chat persona replaces a queued persona in both the returned state and the next prompt", async () => {
+  const profiles = [
+    {
+      ...legacy,
+      userId: "owner",
+      summary: "Я женщина. Местоимения: она/её.",
+      boundaries: ["Обращайся в женском роде."]
+    },
+    { ...legacy, id: "persona-other", userId: "owner", summary: "Я мужчина. Местоимения: он/его.", isDefault: false }
+  ];
+  let chat = {
+    id: "chat",
+    userId: "owner",
+    characterId: "character",
+    personaId: legacy.id,
+    temporaryPersonaId: "persona-other" as string | null
+  };
+  const database = {
+    userPersona: {
+      findMany: async () => profiles,
+      update: async ({ where, data: changes }: { where: { id: string }; data: Partial<(typeof profiles)[number]> }) => {
+        const index = profiles.findIndex((profile) => profile.id === where.id);
+        profiles[index] = { ...profiles[index], ...changes };
+        return profiles[index];
+      }
+    },
+    userPersonaRevision: {
+      findFirst: async () => null,
+      create: async () => ({})
+    },
+    chat: {
+      findFirst: async ({ where }: { where: { id: string; userId: string } }) =>
+        where.id === chat.id && where.userId === chat.userId ? chat : null,
+      updateMany: async ({
+        where,
+        data: changes
+      }: {
+        where: { id: string; userId: string };
+        data: Partial<typeof chat>;
+      }) => {
+        if (where.id !== chat.id || where.userId !== chat.userId) return { count: 0 };
+        chat = { ...chat, ...changes };
+        return { count: 1 };
+      }
+    },
+    user: { update: async () => ({}) },
+    characterPersonaPreference: { findUnique: async () => null }
+  };
+  const modules: Record<string, unknown> = {
+    "server-only": {},
+    "@prisma/client": {},
+    "@/lib/prisma": {
+      prisma: { ...database, $transaction: (action: (transaction: typeof database) => unknown) => action(database) }
+    },
+    "@/lib/user-persona-profiles": { normalizePersonaRows },
+    "@/lib/api": { HttpError: class extends Error {} }
+  };
+  const exports = {};
+  const source = await readFile(new URL("../src/lib/user-persona-store.ts", import.meta.url), "utf8");
+  vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, {
+    exports,
+    require: (name: string) => {
+      assert.ok(name in modules, name);
+      return modules[name];
+    }
+  });
+  type PersonaState = { activeProfileId: string; temporaryProfileId: string | null };
+  const store = exports as {
+    saveUserPersona(userId: string, input: object, chatId?: string): Promise<PersonaState>;
+    getUserPersonaState(userId: string, chatId: string): Promise<PersonaState>;
+  };
+  const input = { ...profiles[0], profileId: legacy.id };
+  await store.saveUserPersona("owner", input);
+  assert.equal(chat.temporaryPersonaId, "persona-other", "Saving in settings must preserve the chat's queued persona");
+  const saved = await store.saveUserPersona("owner", input, chat.id);
+  assert.equal(saved.activeProfileId, legacy.id);
+  const reloaded = await store.getUserPersonaState("owner", chat.id);
+  assert.equal(
+    reloaded.activeProfileId,
+    saved.activeProfileId,
+    "Reload and generation must use the persona confirmed by Save"
+  );
+  assert.equal(reloaded.temporaryProfileId, null);
+  const selected = profiles.find((profile) => profile.id === (chat.temporaryPersonaId ?? chat.personaId));
+  const prompt = formatUserPersonaForPrompt(selected as unknown as UserPersona) ?? "";
+  assert.match(prompt, /Я женщина/);
+  assert.match(prompt, /Обращайся в женском роде/);
+  assert.doesNotMatch(prompt, /Я мужчина/);
 });

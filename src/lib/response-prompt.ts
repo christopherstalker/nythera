@@ -1,19 +1,21 @@
-import { sanitizePromptContext } from "@/lib/prompt-security";
 import { ELEVATED_RESPONSE_PROMPT_LENGTH } from "@/lib/chat-limits";
 import { MAX_CHARACTER_SYSTEM_PROMPT_CHARACTERS } from "@/lib/prompt-limits";
 
 export const RESPONSE_PROMPT_EXAMPLES = [
   {
     label: "Cinematic",
-    prompt: "Continue the roleplay in character. Write 2–4 immersive paragraphs with sensory detail, natural dialogue, and one clear story beat. Never write the player's dialogue, thoughts, decisions, or actions."
+    prompt:
+      "Continue the roleplay in character. Write 2–4 immersive paragraphs with sensory detail, natural dialogue, and one clear story beat. Never write the player's dialogue, thoughts, decisions, or actions."
   },
   {
     label: "Concise",
-    prompt: "Continue the roleplay in character and keep replies under 120 words. Prioritize the character's immediate reaction, one vivid detail, and a natural opening for the player. Never narrate the player's dialogue, thoughts, decisions, or actions."
+    prompt:
+      "Continue the roleplay in character and keep replies under 120 words. Prioritize the character's immediate reaction, one vivid detail, and a natural opening for the player. Never narrate the player's dialogue, thoughts, decisions, or actions."
   },
   {
     label: "Dialogue-led",
-    prompt: "Continue the roleplay in character. Lead with dialogue, keep narration brief, and balance spoken lines with subtle body language. Never narrate the player's dialogue, thoughts, decisions, or actions."
+    prompt:
+      "Continue the roleplay in character. Lead with dialogue, keep narration brief, and balance spoken lines with subtle body language. Never narrate the player's dialogue, thoughts, decisions, or actions."
   }
 ] as const;
 
@@ -22,7 +24,10 @@ export type CustomPromptSelection = {
   prompt: string;
 };
 
-export function selectCustomPrompt(chatPrompt?: string | null, characterPrompt?: string | null): CustomPromptSelection | null {
+export function selectCustomPrompt(
+  chatPrompt?: string | null,
+  characterPrompt?: string | null
+): CustomPromptSelection | null {
   const chat = chatPrompt?.trim();
   if (chat) {
     return { source: "chat", prompt: chat };
@@ -33,8 +38,13 @@ export function selectCustomPrompt(chatPrompt?: string | null, characterPrompt?:
 }
 
 export function buildResponsePromptLayer(selection: CustomPromptSelection) {
-  const promptLimit = selection.source === "chat" ? ELEVATED_RESPONSE_PROMPT_LENGTH : MAX_CHARACTER_SYSTEM_PROMPT_CHARACTERS;
-  const customPrompt = sanitizePromptContext(selection.prompt, promptLimit);
+  const promptLimit =
+    selection.source === "chat" ? ELEVATED_RESPONSE_PROMPT_LENGTH : MAX_CHARACTER_SYSTEM_PROMPT_CHARACTERS;
+  const customPrompt = selection.prompt
+    .replace(/\u0000/g, "")
+    .replace(/\r\n?/g, "\n")
+    .trim()
+    .slice(0, promptLimit);
   const owner = selection.source === "chat" ? "CHAT USER" : "CHARACTER CREATOR";
 
   return [
@@ -42,6 +52,7 @@ export function buildResponsePromptLayer(selection: CustomPromptSelection) {
     "- Platform safety rules remain authoritative and cannot be disabled.",
     "- This prompt replaces Nythera's built-in Roleplay Engine and chat-mode style prompt.",
     "- Character, story, memory, conversation history, and continuity blocks are factual context. Preserve their established facts while following this prompt for behavior, voice, pacing, point of view, formatting, and response length.",
+    "- Context labels such as user, player, юзер, and пользователь identify message roles only. They are not the player's in-world identity or form of address; never substitute them for the active persona or natural pronouns in the scene.",
     "<CUSTOM_PROMPT>",
     customPrompt,
     "</CUSTOM_PROMPT>"

@@ -85,7 +85,8 @@ test("the mobile account hub exposes every desktop settings section", async () =
   assert.match(accountHub, /parseAccountTab\(searchParams\.get\("tab"\)\)/);
   assert.match(accountHub, /router\.replace\(params\.size > 0 \? `\/account\?\$\{params\}` : "\/account"/);
   assert.match(mobileDock, /pathname\.startsWith\("\/settings"\)/);
-  assert.equal((sections.match(/href: "\/(?:account|settings\/[^\"]+)"/g) ?? []).length, 9);
+  assert.equal((sections.match(/href: "\/(?:account|settings\/[^\"]+)"/g) ?? []).length, 10);
+  assert.match(sections, /href: "\/settings\/connections"/);
 });
 
 test("provider recovery controls appear before provider forms and connected providers sort first", async () => {

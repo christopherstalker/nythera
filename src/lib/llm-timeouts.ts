@@ -1,5 +1,6 @@
 export const LLM_PROVIDER_TIMEOUT_MS = 40_000;
-export const LLM_FIRST_TOKEN_TIMEOUT_MS = 12_000;
+// Reasoning and prompt processing can consume most of the request budget before text arrives.
+export const LLM_FIRST_TOKEN_TIMEOUT_MS = LLM_PROVIDER_TIMEOUT_MS;
 export const LLM_STREAM_IDLE_TIMEOUT_MS = 20_000;
 export const LLM_EMBEDDING_TIMEOUT_MS = 15_000;
 
@@ -100,7 +101,12 @@ export async function* abortableAsyncIterable<T>(source: AsyncIterable<T>, signa
       yield next.value;
     }
   } finally {
-    await iterator.return?.();
+    const cleanup = iterator.return?.();
+    if (signal.aborted) {
+      void cleanup?.catch(() => undefined);
+    } else {
+      await cleanup;
+    }
   }
 }
 
@@ -115,9 +121,12 @@ function nextWithAbort<T>(iterator: AsyncIterator<T>, signal: AbortSignal) {
     };
 
     signal.addEventListener("abort", onAbort, { once: true });
-    iterator.next().then(resolve, reject).finally(() => {
-      signal.removeEventListener("abort", onAbort);
-    });
+    iterator
+      .next()
+      .then(resolve, reject)
+      .finally(() => {
+        signal.removeEventListener("abort", onAbort);
+      });
   });
 }
 

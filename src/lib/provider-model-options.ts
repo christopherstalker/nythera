@@ -42,6 +42,8 @@ export const MODEL_SUGGESTIONS: Record<string, string[]> = {
   openrouter: ["openrouter/auto", "~openai/gpt-latest", "~anthropic/claude-sonnet-latest", "~google/gemini-pro-latest"],
   groq: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"],
   together: ["meta-llama/Llama-3.3-70B-Instruct-Turbo"],
+  vercel: ["openai/gpt-5.4", "anthropic/claude-sonnet-4.6", "google/gemini-3-flash"],
+  fireworks: ["accounts/fireworks/models/deepseek-v3p1"],
   mistral: ["mistral-large-latest", "mistral-small-latest"],
   xai: ["grok-4.3-latest"]
 };
@@ -54,6 +56,8 @@ const PROVIDER_CONTEXT_WINDOWS: Record<string, number> = {
   openrouter: 128_000,
   groq: 32_768,
   together: 32_768,
+  vercel: 8_192,
+  fireworks: 8_192,
   mistral: 32_768,
   xai: 128_000
 };

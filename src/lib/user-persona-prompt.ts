@@ -1,27 +1,25 @@
 import type { UserPersona } from "@prisma/client";
 import { personaToProfile } from "@/lib/user-persona-profiles";
 
-const IDENTITY_FIELD = /^(?:gender|pronouns?|species|race|ethnicity|nationality|age|orientation|identity)\s*:/i;
-const MEASUREMENT_PARENTHETICAL =
-  /\s*\([^)]*\b(?:\d+(?:[.,]\d+)?\s*(?:cm|ft|feet|foot|in(?:ches)?|kg|lbs?|pounds?)|\d+\s*[′'])[^)]*\)/gi;
-
 export function formatUserPersonaForPrompt(persona?: UserPersona | null) {
   if (!persona) {
     return null;
   }
 
   const activePersona = personaToProfile(persona);
-  const identitySummary = extractIdentitySummary(
-    [activePersona.summary, activePersona.appearance].filter(Boolean).join("\n")
-  );
   const lines = [
     `Active player persona: ${activePersona.label}`,
     `Canonical player name: ${activePersona.displayName}`,
     activePersona.surname ? `Canonical player surname: ${activePersona.surname}` : null,
-    identitySummary ? `Canonical player identity: ${identitySummary}` : null,
     activePersona.boundaries.length
       ? `Authoritative identity, address, and interaction boundaries: ${activePersona.boundaries.join("; ")}`
-      : null
+      : null,
+    activePersona.summary ? `Player description and personality:\n${activePersona.summary}` : null,
+    activePersona.appearance ? `Player appearance and anatomy:\n${activePersona.appearance}` : null,
+    activePersona.background ? `Player background:\n${activePersona.background}` : null,
+    activePersona.traits.length ? `Player traits: ${activePersona.traits.join("; ")}` : null,
+    activePersona.likes.length ? `Player likes: ${activePersona.likes.join("; ")}` : null,
+    activePersona.dislikes.length ? `Player dislikes: ${activePersona.dislikes.join("; ")}` : null
   ].filter(Boolean);
 
   return lines.join("\n");
@@ -33,21 +31,13 @@ export function formatUserPersonaContinuitySource(persona?: UserPersona | null) 
   }
 
   const activePersona = personaToProfile(persona);
-  return [activePersona.summary, activePersona.appearance, activePersona.background, activePersona.traits.join("\n")]
+  return [
+    activePersona.summary,
+    activePersona.appearance,
+    activePersona.background,
+    activePersona.traits.join("\n"),
+    activePersona.boundaries.join("\n")
+  ]
     .filter((value): value is string => Boolean(value?.trim()))
     .join("\n");
-}
-
-function extractIdentitySummary(summary: string) {
-  return summary
-    .split(/[\r\n]+/)
-    .map((line) => line.trim())
-    .filter((line) => IDENTITY_FIELD.test(line))
-    .map((line) => {
-      const withoutMeasurements = line.replace(MEASUREMENT_PARENTHETICAL, "").trim();
-      const firstSentence = withoutMeasurements.match(/^.*?[.!?](?:\s|$)/)?.[0]?.trim();
-      return firstSentence || withoutMeasurements;
-    })
-    .filter(Boolean)
-    .join(" ");
 }

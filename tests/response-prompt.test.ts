@@ -2,6 +2,39 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+for (const source of ["chat", "character"] as const) {
+  test(`${source} custom instructions preserve sections, lists, and examples before provider handoff`, async () => {
+    const { buildResponsePromptLayer } = await import("../src/lib/response-prompt");
+    const prompt = [
+      "NARRATIVE PERSPECTIVE",
+      'Address the USER as "you."',
+      "",
+      "IDENTITY",
+      "- Persona pronouns apply when a character talks about the player.",
+      "- They do not select the narrator's perspective.",
+      "",
+      "EXAMPLE",
+      'Narration: At your greeting, Jane smiles. Dialogue: "She called earlier," Lisbon says.'
+    ].join("\n");
+    const layer = buildResponsePromptLayer({ source, prompt: prompt.replace(/\n/g, "\r\n") });
+    assert.ok(layer.includes(prompt), "Custom prompt structure and wording must survive assembly");
+    assert.ok(layer.indexOf("Platform safety rules remain authoritative") < layer.indexOf("<CUSTOM_PROMPT>"));
+    assert.doesNotMatch(layer, /conversation history.*does not select.*point of view/i);
+  });
+}
+
+test("custom prompt formatting normalizes line endings and null bytes without rewriting instruction words", async () => {
+  const { buildResponsePromptLayer } = await import("../src/lib/response-prompt");
+  const layer = buildResponsePromptLayer({
+    source: "chat",
+    prompt: "  SYSTEM INSTRUCTIONS\r\n\r\n  - Preserve persona identity.\u0000\r  - Follow the selected perspective.  "
+  });
+  assert.ok(
+    layer.includes("SYSTEM INSTRUCTIONS\n\n  - Preserve persona identity.\n  - Follow the selected perspective.")
+  );
+  assert.doesNotMatch(layer, /\u0000|\r|\[system\]|\[persona\]/);
+});
+
 test("custom prompt replaces built-in behavior while platform safety remains authoritative", async () => {
   const responsePrompt = await import("../src/lib/response-prompt").catch(() => null);
   assert.ok(responsePrompt, "response prompt support is missing");
@@ -37,7 +70,10 @@ test("chat prompt wins over character prompt and blank values fall back cleanly"
 test("custom prompt is the final behavioral layer after factual context", async () => {
   const assembly = await readFile(new URL("../src/lib/prompt-assembly.ts", import.meta.url), "utf8");
 
-  assert.match(assembly, /selectCustomPrompt\(input\.responsePrompt, character\.systemPromptOverride\)/);
+  assert.match(
+    assembly,
+    /selectCustomPrompt\([\s\S]*renderCharacterTemplate\(input\.responsePrompt,[\s\S]*character\.systemPromptOverride/
+  );
   assert.match(assembly, /customPromptLayer\s*\? \[customPromptLayer\]\s*:\s*\[roleplayEngineLayer, modeLayer\]/);
 });
 
@@ -51,7 +87,10 @@ test("realism mode preserves the selected response size", async () => {
 test("response instruction examples give users concise starting points", async () => {
   const responsePrompt = await import("../src/lib/response-prompt").catch(() => null);
   assert.ok(responsePrompt, "response prompt support is missing");
-  assert.deepEqual(responsePrompt.RESPONSE_PROMPT_EXAMPLES.map((example) => example.label), ["Cinematic", "Concise", "Dialogue-led"]);
+  assert.deepEqual(
+    responsePrompt.RESPONSE_PROMPT_EXAMPLES.map((example) => example.label),
+    ["Cinematic", "Concise", "Dialogue-led"]
+  );
   assert.ok(responsePrompt.RESPONSE_PROMPT_EXAMPLES.every((example) => example.prompt.length >= 40));
 });
 
@@ -61,7 +100,11 @@ test("response instructions are stored and assembled without an arbitrary charac
   const longInstruction = `Keep the scene moving. ${"Use concrete sensory detail. ".repeat(120)}`;
 
   assert.ok(longInstruction.length > 2000);
-  assert.ok(responsePrompt.buildResponsePromptLayer({ source: "chat", prompt: longInstruction }).includes(longInstruction.trim()));
+  assert.ok(
+    responsePrompt
+      .buildResponsePromptLayer({ source: "chat", prompt: longInstruction })
+      .includes(longInstruction.trim())
+  );
 });
 
 test("chat persistence and prompt assembly send response instructions through the proxy message payload", async () => {
